@@ -3,12 +3,15 @@ import { Link, useAppPathname, useAppSearch } from "../../../routing/navigation"
 import type { ItemActionsResponse, ItemContextOptionResponse, ItemLocationResponse } from "../../../api/itemActions";
 import { authPath } from "../../../auth/authPaths";
 import { Avatar } from "../../../components/shared/Avatar";
+import { PlaceMapEmbed } from "../../../components/shared/PlaceMapEmbed";
 import { ToastPill } from "../../../components/shared/ToastPill";
 import { BTN_GHOST, BTN_LG, BTN_PRIMARY, CARD } from "../../../components/shared/uiStyles";
 import { useToast } from "../../../components/shared/useToast";
 import { useOpenAndNavigate } from "../../../hooks/useOpenAndNavigate";
+import { buildMapsUrl } from "../../../lib/googleMaps";
 import { ownerPagePath, viewPath } from "../../../routing/paths";
 import dayjs from "../../../utils/dayjs";
+import { localityDetail, localityMapsQuery } from "../../../utils/locationLabel";
 import { useAccountGate } from "../../terms/hooks/useAccountGate";
 import { AuthGateSheet } from "../../terms/modals/AuthGateSheet";
 import { ChooseContextSheet, ContextPlaceLine } from "./ChooseContextSheet";
@@ -17,6 +20,7 @@ import { PartyReservationActions } from "./PartyReservationActions";
 import { PersonalPickupSheet } from "./PersonalPickupSheet";
 import { SwapProposeDialog } from "./SwapProposeDialog";
 import { TakeSuccessSheet } from "./TakeSuccessSheet";
+import { itemEditPath } from "./useItemRoutes";
 import { useItemTake } from "./useItemTake";
 
 type Owner = ItemActionsResponse["owner"];
@@ -49,7 +53,14 @@ interface ItemContextActionsProps {
  * sheets of the two reserve paths. A personal reservation opens the ITEM
  * chat; when that fails the reservation still shows and the chat error
  * appears under the chat button. */
-export function ItemContextActions({ view, itemId, itemName, isLoggedIn, counterpartyName, refetch }: ItemContextActionsProps) {
+export function ItemContextActions({
+  view,
+  itemId,
+  itemName,
+  isLoggedIn,
+  counterpartyName,
+  refetch,
+}: ItemContextActionsProps) {
   const { toast, showToast } = useToast();
   const chat = useOpenAndNavigate();
   const take = useItemTake({
@@ -110,7 +121,7 @@ export function ItemContextActions({ view, itemId, itemName, isLoggedIn, counter
     case "own":
       body = (
         <>
-          <OwnLocationCard location={view.location} />
+          <OwnLocationCard location={view.location} itemId={itemId} />
           <ContextList contexts={view.contexts} subtitle="Terminy i wydarzenia, na których bywasz" />
           {view.mode === null ? (
             <p className="mt-3 rounded-2xl bg-accent-soft p-3 text-[13px] text-ink">
@@ -145,7 +156,11 @@ export function ItemContextActions({ view, itemId, itemName, isLoggedIn, counter
     case "anonymous":
       body = (
         <>
-          <ContextList contexts={view.contexts} subtitle={`Terminy i wydarzenia, na których bywa ${view.owner.display_name}`} />
+          {view.location && <LocationCard location={view.location} />}
+          <ContextList
+            contexts={view.contexts}
+            subtitle={`Terminy i wydarzenia, na których bywa ${view.owner.display_name}`}
+          />
           <AnonymousGate />
           <OwnerRow owner={view.owner} />
         </>
@@ -172,13 +187,26 @@ export function ItemContextActions({ view, itemId, itemName, isLoggedIn, counter
       );
       break;
     case "unavailable":
-      body = <ActionCard owner={view.owner}>{chatButton}</ActionCard>;
+      body = (
+        <>
+          {view.location && <LocationCard location={view.location} />}
+          <ActionCard owner={view.owner}>{chatButton}</ActionCard>
+        </>
+      );
       break;
     case "choose":
       body = (
         <>
-          {view.location && <LocationCard location={view.location} note="Dokładny adres ustalicie na czacie." />}
-          <ContextList contexts={view.contexts} subtitle={`Terminy i wydarzenia, na których bywa ${view.owner.display_name}`} />
+          {view.location && (
+            <LocationCard
+              location={view.location}
+              note={view.personalPickup ? "Odbiór osobisty dostępny." : undefined}
+            />
+          )}
+          <ContextList
+            contexts={view.contexts}
+            subtitle={`Terminy i wydarzenia, na których bywa ${view.owner.display_name}`}
+          />
           <ActionCard owner={view.owner} title="Jak chcesz odebrać?">
             <ChooseActions
               view={view}
@@ -201,7 +229,7 @@ export function ItemContextActions({ view, itemId, itemName, isLoggedIn, counter
         <PersonalPickupSheet
           ownerName={choose.owner.display_name}
           itemName={itemName}
-          locationName={choose.location.name}
+          locationName={choose.location.locality.name}
           mode={choose.mode}
           onClose={() => setSheet(null)}
           onConfirm={() => {
@@ -339,52 +367,103 @@ function TakenActions() {
   );
 }
 
-/** A labelled card with the pin: "Lokalizacja przedmiotu" and its body. */
-function PinCard({ label, children }: { label: string; children: ReactNode }) {
+const LOCATION_LINK = "text-[13px] font-bold text-primary-fg underline underline-offset-2";
+
+/** "Lokalizacja przedmiotu": the card every viewer sees above the actions. */
+function LocationSection({ children }: { children: ReactNode }) {
   const headingId = useId();
   return (
-    <section className={`mt-3 flex items-start gap-2.5 ${CARD}`} aria-labelledby={headingId}>
-      <span aria-hidden="true">📍</span>
-      <div className="min-w-0">
-        <h3 id={headingId} className="text-xs font-bold text-ink-soft">
-          {label}
-        </h3>
-        {children}
-      </div>
+    <section className={`mt-3 ${CARD}`} aria-labelledby={headingId}>
+      <h3 id={headingId} className="text-xs font-bold text-ink-soft">
+        Lokalizacja przedmiotu
+      </h3>
+      {children}
     </section>
   );
 }
 
-/** The owner's place as another logged-in viewer sees it: the name only. */
-function LocationCard({ location, note }: { location: ItemLocationResponse; note?: string }) {
+const LOCALITY_MAP_ZOOM = 12;
+const ADDRESS_MAP_ZOOM = 16;
+
+/** 📍 + the bold locality, its gmina/powiat/voivodeship line and, unless
+ * the place is gone, a Maps search on the locality (never the address) and
+ * a map pinning it. `address` (the owner's own view only) pins the address. */
+function LocalityLine({
+  location,
+  deleted,
+  address = null,
+}: {
+  location: ItemLocationResponse;
+  deleted: boolean;
+  address?: string | null;
+}) {
+  const { locality } = location;
   return (
-    <PinCard label="Lokalizacja przedmiotu">
-      <p className="text-sm font-extrabold wrap-break-word text-ink">{location.name}</p>
-      {note && <p className="text-[13px] text-ink-soft">{note}</p>}
-    </PinCard>
+    <>
+      <div className="mt-1.5 flex items-start gap-2.5">
+        <span aria-hidden="true">📍</span>
+        <div className="min-w-0">
+          <p className="text-sm font-extrabold wrap-break-word text-ink">
+            {deleted ? `${locality.name} (usunięte)` : locality.name}
+          </p>
+          <p className="text-[13px] wrap-break-word text-ink-soft">{localityDetail(locality)}</p>
+          {!deleted && (
+            <a
+              href={buildMapsUrl({ query: localityMapsQuery(locality) })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={LOCATION_LINK}
+            >
+              Otwórz w Mapach <span className="sr-only">(nowa karta)</span>
+            </a>
+          )}
+        </div>
+      </div>
+      {!deleted && (
+        <PlaceMapEmbed
+          query={address ? `${address}, ${localityMapsQuery(locality)}` : localityMapsQuery(locality)}
+          zoom={address ? ADDRESS_MAP_ZOOM : LOCALITY_MAP_ZOOM}
+          title={`Mapa: ${locality.name}`}
+        />
+      )}
+    </>
   );
 }
 
-/** The owner's own place, with the address and a way to change it. */
-function OwnLocationCard({ location }: { location: ItemLocationResponse | null }) {
+/** The item's place as anyone but the owner sees it: the locality only. */
+function LocationCard({ location, note }: { location: ItemLocationResponse; note?: string }) {
   return (
-    <PinCard label="Lokalizacja przedmiotu (widzisz tylko Ty)">
-      {location ? (
-        <>
-          <p className="text-sm font-extrabold wrap-break-word text-ink">
-            {location.deleted_at ? `${location.name} (usunięte)` : location.name}
-          </p>
-          {location.formatted_address && (
-            <p className="text-[13px] wrap-break-word text-ink-soft">{location.formatted_address}</p>
-          )}
-        </>
-      ) : (
-        <p className="text-[13px] text-ink-soft">Nie ustawiono jeszcze miejsca odbioru.</p>
+    <LocationSection>
+      <LocalityLine location={location} deleted={false} />
+      {note && <p className={HINT}>{note}</p>}
+    </LocationSection>
+  );
+}
+
+/** The owner's view: the address only they see and a way to change the
+ * place; without a live place, personal pickup is off until they set one. */
+function OwnLocationCard({ location, itemId }: { location: ItemLocationResponse | null; itemId: string }) {
+  const editLink = (label: string) => (
+    <Link to={itemEditPath(itemId)} className={LOCATION_LINK}>
+      {label}
+    </Link>
+  );
+  const usable = location !== null && location.deleted_at === null;
+  return (
+    <LocationSection>
+      {location && (
+        <LocalityLine location={location} deleted={!usable} address={usable ? location.formatted_address : null} />
       )}
-      <Link to={viewPath("items")} className="text-xs font-bold text-primary-fg">
-        Zmień w „Moje rzeczy”
-      </Link>
-    </PinCard>
+      {usable && location.formatted_address && (
+        <p className="mt-2.5 rounded-xl bg-cream px-3 py-2 text-[13px] wrap-break-word text-ink">
+          <em className="block text-[11px] font-bold text-ink-soft not-italic">Widoczne tylko dla Ciebie</em>
+          {location.formatted_address}
+        </p>
+      )}
+      <p className={HINT}>
+        {usable ? editLink("Zmień lokalizację") : <>Odbiór osobisty niedostępny — {editLink("ustaw lokalizację")}.</>}
+      </p>
+    </LocationSection>
   );
 }
 
@@ -401,7 +480,10 @@ function ContextList({ contexts, subtitle }: { contexts: ItemContextOptionRespon
       <p className="mt-1 text-[13px] text-ink-soft">{subtitle}</p>
       <ul className="mt-1.5">
         {contexts.map((context) => (
-          <li key={`${context.kind}-${context.id}`} className="flex items-start gap-3 border-t border-line py-2.5 first:border-t-0">
+          <li
+            key={`${context.kind}-${context.id}`}
+            className="flex items-start gap-3 border-t border-line py-2.5 first:border-t-0"
+          >
             <span className="w-11 flex-none rounded-xl bg-cream py-1 text-center text-[11px] leading-tight font-extrabold text-ink uppercase">
               {dayjs(context.starts_at).format("ddd")}
               <br />
@@ -412,7 +494,9 @@ function ContextList({ contexts, subtitle }: { contexts: ItemContextOptionRespon
               {context.kind === "EVENT" && (
                 <>
                   {" "}
-                  <span className="rounded-full bg-teal-soft px-2 py-0.5 text-[11px] font-bold text-ink">wydarzenie</span>
+                  <span className="rounded-full bg-teal-soft px-2 py-0.5 text-[11px] font-bold text-ink">
+                    wydarzenie
+                  </span>
                 </>
               )}
               <ContextPlaceLine context={context} className="block text-xs text-ink-soft" />

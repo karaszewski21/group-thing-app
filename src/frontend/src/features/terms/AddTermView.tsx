@@ -95,8 +95,8 @@ export function AddTermView() {
                 value={termLocationId}
                 onChange={setTermLocationId}
                 label="Miejsce"
-                noneLabel="Brak miejsca"
                 idPrefix="add-term-place"
+                required
                 fallbackLocation={termGroup?.default_location ?? null}
               />
             </Field>
@@ -151,7 +151,7 @@ export function AddTermView() {
           <button
             type="button"
             onClick={() => void handleAddTerm()}
-            disabled={busy || !termDate || !termGroupId || parseCapacity(termCapacity) === undefined}
+            disabled={busy || !termDate || !termGroupId || !termLocationId || parseCapacity(termCapacity) === undefined}
             className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
           >
             Dodaj termin

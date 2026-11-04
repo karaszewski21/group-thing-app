@@ -29,6 +29,7 @@ from app.moderation import text_guard
 from app.moderation.rules import CONTACT_INFO_MESSAGE
 from app.outbox.models import OutboxEntry
 from app.party.models import Party, PartyType
+from tests.conftest import create_location
 
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
@@ -65,6 +66,7 @@ async def _create_circle_with_term(
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth_headers(token)),
             "circle_group_id": circle_id,
             "occurs_on": date.today().isoformat(),
             "description": description,
@@ -467,6 +469,7 @@ async def test_createTerm_happyPath_returns201WithTermFields(
     response = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth_headers(token)),
             "circle_group_id": circle_group_id,
             "occurs_on": date.today().isoformat(),
             "description": "Pierwsze spotkanie",
@@ -490,7 +493,11 @@ async def test_createNeededItem_happyPath_returns201WithName(
     circle_group_id = circle.json()["id"]
     term = await client.post(
         "/api/terms",
-        json={"circle_group_id": circle_group_id, "occurs_on": date.today().isoformat()},
+        json={
+            "location_id": await create_location(client, _auth_headers(token)),
+            "circle_group_id": circle_group_id,
+            "occurs_on": date.today().isoformat(),
+        },
         headers=_auth_headers(token),
     )
     term_id = term.json()["id"]
@@ -520,7 +527,11 @@ async def test_getNeededItem_softDeleted_returns404(
     circle_group_id = circle.json()["id"]
     term = await client.post(
         "/api/terms",
-        json={"circle_group_id": circle_group_id, "occurs_on": date.today().isoformat()},
+        json={
+            "location_id": await create_location(client, _auth_headers(token)),
+            "circle_group_id": circle_group_id,
+            "occurs_on": date.today().isoformat(),
+        },
         headers=_auth_headers(token),
     )
     term_id = term.json()["id"]
@@ -622,6 +633,7 @@ async def test_getPublicCircle_noAuthHeader_returnsExpectedShape(
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth_headers(token)),
             "circle_group_id": circle_group_id,
             "occurs_on": date.today().isoformat(),
             "description": "Termin publiczny",

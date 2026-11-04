@@ -29,6 +29,7 @@ from app.groups.models import (
 )
 from app.moderation.status import ModerationStatus
 from app.organizations.models import Organization, OrganizationMembership
+from tests.conftest import create_location
 from tests.test_organizer_bridges import (
     _item,
     _photo,
@@ -80,6 +81,7 @@ async def _term(
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(token)),
             "circle_group_id": str(group_id),
             "occurs_on": occurs_on.isoformat(),
             "description": description,
@@ -222,9 +224,7 @@ async def test_getOrganizerPage_privateOrRevokedCircles_excludedFromEveryField(
     assert body["needed_items"] == []
     assert body["stats"]["circle_count"] == 1 and body["stats"]["upcoming_term_count"] == 1
 
-    other_token, other_party_id = await _register(
-        client, "ORGANIZER", "op.priv.other@example.com"
-    )
+    other_token, other_party_id = await _register(client, "ORGANIZER", "op.priv.other@example.com")
     other_slug = await _organization_slug(client, other_token, "Odwołana Rola")
     other_group = await _circle(client, other_token, "Krąg z odwołaną rolą")
     await _term(client, other_token, other_group, _in_days(1))
@@ -268,9 +268,7 @@ async def test_getOrganizerPage_unknownPseudoOwnerlessOrEmpty_returns404OrEmpty(
     ).scalar_one()
     membership.valid_to = clock.local_now().date()
     await db_session.flush()
-    assert (
-        await client.get(f"/api/groups/public/organizers/{ownerless_slug}")
-    ).status_code == 404
+    assert (await client.get(f"/api/groups/public/organizers/{ownerless_slug}")).status_code == 404
 
     empty_token, _ = await _register(client, "ORGANIZER", "op.404.empty@example.com")
     empty_slug = await _organization_slug(client, empty_token, "Pusta Strona")
@@ -589,7 +587,11 @@ async def test_getOrganizerPage_noCircles_recentItemsFourNewestAndOwnerNearestEv
     starts_at = _in_days(4).replace(second=0)
     event = await client.post(
         "/api/events",
-        json={"name": "Op recent piknik", "starts_at": starts_at.isoformat()},
+        json={
+            "location_id": await create_location(client, _auth(owner_token)),
+            "name": "Op recent piknik",
+            "starts_at": starts_at.isoformat(),
+        },
         headers=_auth(owner_token),
     )
     assert event.status_code == 201, event.text

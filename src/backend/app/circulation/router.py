@@ -45,13 +45,11 @@ from .schemas import (
     CreateInventoryRequest,
     InventoryBalanceResponse,
     InventoryItemResponse,
-    InventoryLocationResponse,
     InventoryResponse,
     ItemDetailsResponse,
     ItemHistoryEntryResponse,
     ReservationDetailResponse,
     ReservationResponse,
-    SetInventoryLocationRequest,
     UpdateInventoryItemRequest,
 )
 
@@ -126,21 +124,6 @@ async def list_inventories(
     return [InventoryResponse.model_validate(inventory) for inventory in inventories]
 
 
-# Declared before `/api/inventories/{inventory_id}` so "mine" is not parsed as an id.
-@router.get("/api/inventories/mine/location", response_model=InventoryLocationResponse)
-async def get_my_inventory_location(
-    db: DbSession, principal: ReadPrincipal
-) -> InventoryLocationResponse:
-    return await service.get_my_inventory_location(db, principal)
-
-
-@router.put("/api/inventories/mine/location", response_model=InventoryLocationResponse)
-async def set_my_inventory_location(
-    body: SetInventoryLocationRequest, db: DbSession, principal: EditPrincipal
-) -> InventoryLocationResponse:
-    return await service.set_my_inventory_location(db, principal, body)
-
-
 @router.get("/api/inventories/{inventory_id}", response_model=InventoryResponse)
 async def get_inventory(
     inventory_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
@@ -164,6 +147,7 @@ async def register_item(
         body.product_id,
         body.condition.value,
         owner_user_id=owner_user_id,
+        location_id=body.location_id,
         listing_mode=body.listing_mode,
         on_registered=term_item_listings.list_registered_item,
     )

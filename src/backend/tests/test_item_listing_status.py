@@ -18,6 +18,7 @@ from app.circulation.models import InventoryItem
 from app.core import clock
 from app.groups import service
 from app.groups.models import ItemListingPreference, Term
+from tests.conftest import create_location
 from tests.test_term_item_listings import (
     _auth,
     _create_circle_and_term,
@@ -57,6 +58,7 @@ async def _post_item(
             "product_id": product_id,
             "condition": "GOOD",
             "listing_mode": mode,
+            "location_id": await create_location(client, _auth(token)),
         },
         headers=_auth(token),
     )

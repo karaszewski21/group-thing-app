@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import clock
 from app.groups import service as groups_service
 from app.groups.models import Group, GroupVisibility, Term
+from tests.conftest import create_location
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -43,7 +44,11 @@ async def _create_term(
 ) -> uuid.UUID:
     response = await client.post(
         "/api/terms",
-        json={"circle_group_id": str(group_id), "occurs_on": occurs_on.isoformat()},
+        json={
+            "location_id": await create_location(client, _auth(token)),
+            "circle_group_id": str(group_id),
+            "occurs_on": occurs_on.isoformat(),
+        },
         headers=_auth(token),
     )
     assert response.status_code == 201, response.text

@@ -160,6 +160,32 @@ async def leaf_category_ids(client: AsyncClient, headers: dict[str, str], n: int
     return leaves[:n]
 
 
+async def locality_ids(client: AsyncClient, headers: dict[str, str], n: int = 1) -> list[str]:
+    """The ids of the first `n` (at most 20) localities `GET /api/localities`
+    returns for "nowa". Asks the API on every call, as `leaf_category_ids`:
+    never cache the ids at module or session scope."""
+    response = await client.get(
+        "/api/localities", params={"q": "nowa", "limit": 20}, headers=headers
+    )
+    assert response.status_code == 200, response.text
+    ids = [str(row["id"]) for row in response.json()["results"]]
+    assert len(ids) >= n, f"need {n} localities, found {len(ids)}"
+    return ids[:n]
+
+
+async def create_location(
+    client: AsyncClient, headers: dict[str, str], *, address: str | None = None
+) -> str:
+    """A new saved place of the caller: a locality from `locality_ids`, plus
+    a MANUAL address when `address` is given. Returns the place id."""
+    body: dict[str, Any] = {"locality_id": (await locality_ids(client, headers))[0]}
+    if address is not None:
+        body |= {"formatted_address": address, "source": "MANUAL"}
+    response = await client.post("/api/locations", json=body, headers=headers)
+    assert response.status_code == 201, response.text
+    return str(response.json()["id"])
+
+
 @pytest.fixture
 def fake_storage() -> FakeStorage:
     return FakeStorage()

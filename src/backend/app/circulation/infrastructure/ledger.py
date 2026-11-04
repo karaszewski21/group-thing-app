@@ -192,6 +192,8 @@ def _apply_projection(movement_type: MovementType, leg: MovementLeg, occurred_at
         item.inventory_id = leg.to_inventory_id
     else:
         item.deleted_at = occurred_at
+    if movement_type in (MovementType.GIFT, MovementType.SWAP):
+        item.location_id = None
     if movement_type == MovementType.LEND:
         item.home_inventory_id = leg.from_inventory_id
     elif movement_type == MovementType.RETURN:

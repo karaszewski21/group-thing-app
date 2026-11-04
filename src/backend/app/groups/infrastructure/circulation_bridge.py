@@ -55,7 +55,7 @@ __all__ = [
     "get_item",
     "get_item_balance",
     "get_item_for_update",
-    "get_personal_inventory_live_location_id",
+    "get_item_live_location_id",
     "get_reservation",
     "list_active_hand_over_reservations_for_events",
     "list_active_hand_over_reservations_for_terms",
@@ -237,11 +237,10 @@ async def find_personal_inventory(db: AsyncSession, owner_user_id: uuid.UUID) ->
     )
 
 
-async def get_personal_inventory_live_location_id(
-    db: AsyncSession, owner_party_id: uuid.UUID
-) -> uuid.UUID | None:
-    """The owner's live pickup place, required for a personal take."""
-    return await circulation_service.find_personal_inventory_live_location_id(db, owner_party_id)
+async def get_item_live_location_id(db: AsyncSession, item_id: uuid.UUID) -> uuid.UUID | None:
+    """The item's place unless missing or soft-deleted: required for a
+    personal take and for a first listing."""
+    return await circulation_service.find_item_live_location_id(db, item_id)
 
 
 async def list_items_with_product_name(

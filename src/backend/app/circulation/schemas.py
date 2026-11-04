@@ -10,12 +10,18 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from app.product.schemas import ProductPhotoResponse
 
 from .domain.item_privacy import ItemStatusCode
-from .infrastructure.locations_acl import LocationRefResponse
 from .models import (
     AccountType,
     BalanceStatus,
@@ -46,18 +52,6 @@ class InventoryResponse(BaseModel):
 class CreateInventoryRequest(BaseModel):
     inventory_type: InventoryType
     location: str | None = Field(default=None, max_length=500)
-
-
-class InventoryLocationResponse(BaseModel):
-    """The owner's pickup place on their PERSONAL inventory, `None` when unset."""
-
-    location: LocationRefResponse | None
-
-
-class SetInventoryLocationRequest(BaseModel):
-    """`None` clears the place."""
-
-    location_id: uuid.UUID | None
 
 
 class InventoryBalanceResponse(BaseModel):
@@ -96,11 +90,13 @@ class InventoryItemResponse(BaseModel):
 
 class CreateInventoryItemRequest(BaseModel):
     """`listing_mode` `None` registers a draft; GIFT/SWAP offers the item
-    right away (PERSONAL inventory only, in the same commit)."""
+    right away (PERSONAL inventory only, in the same commit). `location_id`
+    is one of the caller's own live saved places."""
 
     inventory_id: uuid.UUID
     product_id: uuid.UUID
     condition: ItemCondition
+    location_id: uuid.UUID
     listing_mode: ReservationType | None = None
 
     @field_validator("listing_mode")
@@ -112,13 +108,22 @@ class CreateInventoryItemRequest(BaseModel):
 
 
 class UpdateInventoryItemRequest(BaseModel):
-    """PATCH `/api/inventory-items/{id}` body. Both fields optional and
+    """PATCH `/api/inventory-items/{id}` body. All fields optional and
     partial-apply. `product_id` re-points the item at a different entry in
     the shared `Product` catalog — the frontend resolves a Product by
-    name+category first, then sends its id here to rename/re-categorise."""
+    name+category first, then sends its id here to rename/re-categorise.
+    `location_id` moves the item to another own live place; an item can
+    never lose its place by PATCH, so an explicit `null` is rejected."""
 
     condition: ItemCondition | None = None
     product_id: uuid.UUID | None = None
+    location_id: uuid.UUID | None = None
+
+    @model_validator(mode="after")
+    def _reject_null_location(self) -> UpdateInventoryItemRequest:
+        if "location_id" in self.model_fields_set and self.location_id is None:
+            raise ValueError("location_id may not be null")
+        return self
 
 
 class ReservationResponse(BaseModel):
@@ -215,6 +220,9 @@ class ItemDetailsResponse(BaseModel):
     deleted_at: datetime | None
     status: ItemStatusResponse
     listing_status: ItemListingStatus
+    # The owner's live pickup place; `None` for anyone else or once the
+    # place is soft-deleted.
+    location_id: uuid.UUID | None
 
 
 class ItemHistoryEntryResponse(BaseModel):

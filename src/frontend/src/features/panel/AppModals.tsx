@@ -8,7 +8,10 @@ export function AppModals() {
   const {
     modal,
     myGroups,
-    setModal,
+    firstTermDraft,
+    setFirstTermDraft,
+    closeStepper,
+    closeStepperForPlace,
     showToast,
     load,
   } = useAppData();
@@ -22,9 +25,12 @@ export function AppModals() {
           organizerSlug={myGroups[0].organizer_slug ?? null}
           defaultLocation={myGroups[0].default_location ?? null}
           defaultCapacity={myGroups[0].default_capacity ?? null}
-          onClose={() => setModal(null)}
+          draft={firstTermDraft}
+          onDraftChange={setFirstTermDraft}
+          onClose={closeStepper}
+          onAddPlace={closeStepperForPlace}
           onDone={() => {
-            setModal(null);
+            closeStepper();
             showToast("Dodano pierwszy termin");
             void load();
           }}

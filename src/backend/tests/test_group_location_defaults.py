@@ -10,7 +10,7 @@ from typing import Any
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from tests.conftest import count_queries
+from tests.conftest import count_queries, locality_ids
 
 
 async def _register(client: AsyncClient, email: str) -> str:
@@ -30,7 +30,7 @@ async def _create_location(client: AsyncClient, token: str, place_id: str) -> di
     response = await client.post(
         "/api/locations",
         json={
-            "name": f"Miejsce {place_id}",
+            "locality_id": (await locality_ids(client, _auth(token)))[0],
             "formatted_address": "al. Zieleniecka, 03-901 Warszawa",
             "source": "GOOGLE",
             "google_place_id": place_id,
@@ -68,13 +68,21 @@ async def test_createAdditionalCircle_withDefaults_returnsNestedDefaultLocationA
     assert group["default_location"]["id"] == location["id"]
     assert set(group["default_location"]) == {
         "id",
-        "name",
+        "locality",
+        "label",
         "formatted_address",
         "google_place_id",
-        "notes",
         "deleted_at",
     }
-    assert group["default_location"]["name"] == location["name"]
+    assert set(group["default_location"]["locality"]) == {
+        "id",
+        "name",
+        "kind",
+        "gmina",
+        "powiat",
+        "voivodeship",
+    }
+    assert group["default_location"]["label"] == location["label"]
     assert group["default_location"]["google_place_id"] == "ChIJ-defaults-create"
 
     fetched = await client.get(f"/api/groups/{group['id']}", headers=_auth(token))

@@ -20,6 +20,7 @@ from app.core.auth_deps import Principal
 from app.core.security import decode_token
 from app.groups import service
 from app.users.service import get_profile_by_principal
+from tests.conftest import create_location
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -132,6 +133,7 @@ async def test_getGroupAccess_loggedInAttendeeOfShownTerm_reportsAttending(
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": group_id,
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
@@ -193,6 +195,7 @@ async def _create_term(client: AsyncClient, org_token: str, group_id: int) -> in
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": group_id,
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },

@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.core import clock
 from app.groups import service as groups_service
-from tests.conftest import count_queries, leaf_category_ids
+from tests.conftest import count_queries, create_location, leaf_category_ids
 
 INBOX_ROW_KEYS = {
     "id",
@@ -68,6 +68,7 @@ async def _create_item(
             "inventory_id": str(inventory_id),
             "product_id": product.json()["id"],
             "condition": "GOOD",
+            "location_id": await create_location(client, _auth(token)),
         },
         headers=_auth(token),
     )
@@ -87,7 +88,11 @@ async def _create_term(client: AsyncClient, token: str, group_id: uuid.UUID) -> 
     occurs_on = (clock.local_now() + timedelta(days=3)).replace(microsecond=0)
     response = await client.post(
         "/api/terms",
-        json={"circle_group_id": str(group_id), "occurs_on": occurs_on.isoformat()},
+        json={
+            "location_id": await create_location(client, _auth(token)),
+            "circle_group_id": str(group_id),
+            "occurs_on": occurs_on.isoformat(),
+        },
         headers=_auth(token),
     )
     assert response.status_code == 201, response.text

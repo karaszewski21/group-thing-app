@@ -12,6 +12,7 @@ export const EVENT_MESSAGES = {
   startTooFar: "Początek może być najwyżej 2 lata od dziś.",
   endNotAfter: "Koniec musi być później niż początek.",
   descriptionLength: "Opis może mieć najwyżej 2000 znaków.",
+  locationMissing: "Wybierz miejsce wydarzenia.",
   bannerInvalid: "Nieobsługiwany plik — dodaj zdjęcie JPG, PNG lub WebP",
   bannerTooLarge: "Baner jest za duży (maks. 5 MB)",
 } as const;
@@ -42,7 +43,7 @@ export const EMPTY_EVENT_DRAFT: EventDraft = {
   locationId: null,
 };
 
-export type EventDraftErrors = Partial<Record<"name" | "start" | "end" | "description", string>>;
+export type EventDraftErrors = Partial<Record<"name" | "start" | "end" | "description" | "location", string>>;
 
 /** Length in code points, as the backend's Python `len()` counts. */
 export function charCount(value: string): number {
@@ -96,6 +97,8 @@ export function validateEventDraft(draft: EventDraft, now: Dayjs, savedStart?: s
   }
 
   if (charCount(draft.description.trim()) > EVENT_DESCRIPTION_MAX) errors.description = EVENT_MESSAGES.descriptionLength;
+
+  if (draft.locationId === null) errors.location = EVENT_MESSAGES.locationMissing;
 
   return errors;
 }

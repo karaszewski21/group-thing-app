@@ -25,10 +25,8 @@ from app.circulation.application.identity import (
 from app.circulation.application.inventory import (
     create_inventory,
     get_inventory,
-    get_my_inventory_location,
     get_or_create_personal_inventory,
     list_inventories,
-    set_my_inventory_location,
 )
 from app.circulation.application.inventory_items import (
     find_item_including_deleted,
@@ -68,7 +66,7 @@ from app.circulation.application.reservations import (
 )
 from app.circulation.infrastructure.repository import (
     AvailableItemView,
-    find_personal_inventory_live_location_id,
+    find_item_live_location_id,
     list_item_refs,
     listed_items_with_product_select,
     reservation_ids_for_event_select,
@@ -88,12 +86,11 @@ __all__ = [
     "create_reservation",
     "fulfill_exchange",
     "find_item_including_deleted",
-    "find_personal_inventory_live_location_id",
+    "find_item_live_location_id",
     "find_reservation_context_occurs_on",
     "find_user_id_by_principal",
     "get_active_reservation_id_for_item",
     "get_inventory",
-    "get_my_inventory_location",
     "get_item",
     "get_item_balance",
     "get_item_details",
@@ -124,7 +121,6 @@ __all__ = [
     "reservation_ids_for_term_select",
     "resolve_owning_inventory",
     "set_item_listing_status",
-    "set_my_inventory_location",
     "soft_delete_item",
     "update_item",
 ]

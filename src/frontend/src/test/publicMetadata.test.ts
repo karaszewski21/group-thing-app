@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EventDetailResponse } from "../api/events";
 import type { PublicCircleResponse, PublicTermResponse } from "../api/groups";
-import type { LocationRefResponse } from "../api/locations";
 import type { PublicOrganizationResponse } from "../api/organizations";
 import {
   eventMetadata,
@@ -9,6 +8,7 @@ import {
   organizationMetadata,
   termMetadata,
 } from "../lib/publicMetadata";
+import { makeLocality, makeLocationRef } from "./fixtures/locations";
 
 function organization(overrides: Partial<PublicOrganizationResponse> = {}): PublicOrganizationResponse {
   return {
@@ -23,17 +23,6 @@ function organization(overrides: Partial<PublicOrganizationResponse> = {}): Publ
     cover: null,
     gallery: [],
     ...overrides,
-  };
-}
-
-function location(name: string): LocationRefResponse {
-  return {
-    id: "loc-1",
-    name,
-    formatted_address: "Warszawa",
-    google_place_id: null,
-    notes: null,
-    deleted_at: null,
   };
 }
 
@@ -122,17 +111,21 @@ describe("publicMetadata", () => {
     expect(organizationMetadata(dto)).toEqual(expected);
   });
 
-  it("event with location and description", () => {
+  it("event with location and description: the place's full label", () => {
     const dto = event({
       description: "Przynieś rzeczy do wymiany.",
-      location: location("Park Skaryszewski"),
+      location: makeLocationRef({
+        locality: makeLocality({ name: "Warszawa", gmina: "Warszawa", powiat: "Warszawa", voivodeship: "mazowieckie" }),
+        label: "Warszawa — Park Skaryszewski, al. Zieleniecka",
+        formatted_address: "Park Skaryszewski, al. Zieleniecka",
+      }),
       banner_url: "https://cdn.example/banner.webp",
     });
 
     expect(eventMetadata(dto)).toEqual(
       preview(
         "Piknik wymiany",
-        "sob 07.11 o 14:00 · Park Skaryszewski Przynieś rzeczy do wymiany.",
+        "sob 07.11 o 14:00 · Warszawa — Park Skaryszewski, al. Zieleniecka Przynieś rzeczy do wymiany.",
         "https://cdn.example/banner.webp",
       ),
     );

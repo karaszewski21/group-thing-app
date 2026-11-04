@@ -16,7 +16,7 @@ from app.config import settings
 from app.core import clock
 from app.events import service as event_service
 from app.moderation import text_guard
-from tests.conftest import count_queries
+from tests.conftest import count_queries, create_location
 
 ATTENDANCE_KEYS = {"id", "event_id", "user_profile_id", "attached_to_account"}
 NOW = datetime(2026, 11, 2, 10, 30)
@@ -57,7 +57,11 @@ async def _register(client: AsyncClient, email: str) -> str:
 async def _create_event(client: AsyncClient, token: str, starts_at: datetime) -> str:
     response = await client.post(
         "/api/events",
-        json={"name": "Wymiana ubranek", "starts_at": starts_at.isoformat()},
+        json={
+            "location_id": await create_location(client, _auth(token)),
+            "name": "Wymiana ubranek",
+            "starts_at": starts_at.isoformat(),
+        },
         headers=_auth(token),
     )
     assert response.status_code == 201, response.text

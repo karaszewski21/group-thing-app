@@ -18,6 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authorization_matrix import resolve_requirement
+from tests.conftest import create_location
 
 ADMIN = ("ADMIN",)
 
@@ -64,9 +65,7 @@ async def test_listGroupsForModeration_nonAdminPrincipal_returns403(client: Asyn
 async def test_listGroupsForModeration_adminPrincipal_returnsOrganizerAndCounts(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    org_headers = await _authed_headers(
-        client, "modorganizer1@example.com", role="ORGANIZER"
-    )
+    org_headers = await _authed_headers(client, "modorganizer1@example.com", role="ORGANIZER")
     circle = await client.post(
         "/api/groups/mine", json={"name": "Krąg Moderowany"}, headers=org_headers
     )
@@ -74,7 +73,11 @@ async def test_listGroupsForModeration_adminPrincipal_returnsOrganizerAndCounts(
     circle_id = circle.json()["id"]
     term = await client.post(
         "/api/terms",
-        json={"circle_group_id": circle_id, "occurs_on": date.today().isoformat()},
+        json={
+            "location_id": await create_location(client, org_headers),
+            "circle_group_id": circle_id,
+            "occurs_on": date.today().isoformat(),
+        },
         headers=org_headers,
     )
     assert term.status_code == 201
@@ -119,12 +122,17 @@ async def test_listTermsForModeration_adminPrincipal_returnsGroupNameAndSignupCo
     circle_id = circle.json()["id"]
     earlier = await client.post(
         "/api/terms",
-        json={"circle_group_id": circle_id, "occurs_on": "2026-11-02T10:00:00"},
+        json={
+            "location_id": await create_location(client, org_headers),
+            "circle_group_id": circle_id,
+            "occurs_on": "2026-11-02T10:00:00",
+        },
         headers=org_headers,
     )
     later = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, org_headers),
             "circle_group_id": circle_id,
             "occurs_on": "2026-11-09T10:00:00",
             "description": "Drugie spotkanie",

@@ -19,7 +19,7 @@ from app.circulation.models import BalanceStatus
 from app.groups.models import ItemListingPreference
 from app.moderation.status import ModerationStatus
 from app.organizations.models import Organization
-from tests.conftest import count_queries
+from tests.conftest import count_queries, create_location
 from tests.test_organizer_bridges import _item, _photo, _set_balance, _uploader_id
 from tests.test_organizer_page import _circle, _in_days, _listed_items, _organization_slug, _term
 from tests.test_term_item_listings import _auth, _register, _rsvp
@@ -67,7 +67,11 @@ async def _set_added_at(db_session: AsyncSession, added_at: dict[uuid.UUID, date
 async def _create_event(client: AsyncClient, token: str, name: str, starts_at: datetime) -> str:
     response = await client.post(
         "/api/events",
-        json={"name": name, "starts_at": starts_at.isoformat()},
+        json={
+            "location_id": await create_location(client, _auth(token)),
+            "name": name,
+            "starts_at": starts_at.isoformat(),
+        },
         headers=_auth(token),
     )
     assert response.status_code == 201, response.text

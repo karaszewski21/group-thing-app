@@ -16,7 +16,7 @@ from datetime import date, timedelta
 from httpx import AsyncClient, Response
 
 from app.core import clock
-from tests.conftest import leaf_category_ids
+from tests.conftest import create_location, leaf_category_ids
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -31,9 +31,7 @@ async def _take(client: AsyncClient, token: str, item_id: int, term_id: int) -> 
     )
 
 
-async def _taken_reservation_id(
-    client: AsyncClient, token: str, item_id: int, term_id: int
-) -> int:
+async def _taken_reservation_id(client: AsyncClient, token: str, item_id: int, term_id: int) -> int:
     """The taker's reservation of `item_id`, read from the term's
     `mine-as-taker` listing view."""
     rows = (
@@ -75,6 +73,7 @@ async def _create_circle_and_term(
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": circle.json()["id"],
             "occurs_on": (occurs_on or (clock.local_now().date() + timedelta(days=7))).isoformat(),
         },
@@ -119,10 +118,15 @@ async def _register_personal_item(client: AsyncClient, token: str, product_name:
     assert inv.status_code == 201
     item = await client.post(
         "/api/inventory-items",
-        json={"inventory_id": inv.json()["id"], "product_id": product_id, "condition": "GOOD"},
+        json={
+            "inventory_id": inv.json()["id"],
+            "product_id": product_id,
+            "condition": "GOOD",
+            "location_id": await create_location(client, _auth(token)),
+        },
         headers=_auth(token),
     )
-    assert item.status_code == 201
+    assert item.status_code == 201, item.text
     return item.json()["id"]
 
 
@@ -227,6 +231,7 @@ async def test_listMyInventoryItems_returnsOnlyCallersOwnWithModeAndReflectsClea
             "inventory_id": inventory_id,
             "product_id": await _resolve_product(client, owner_token, "Kredki"),
             "condition": "GOOD",
+            "location_id": await create_location(client, _auth(owner_token)),
         },
         headers=_auth(owner_token),
     )
@@ -254,9 +259,10 @@ async def test_listMyInventoryItems_returnsOnlyCallersOwnWithModeAndReflectsClea
     modes = {row["id"]: row["listing_mode"] for row in mine.json()}
     assert modes == {item_id: "GIFT", untagged_item_id: None}
     assert {row["product_name"] for row in mine.json()} == {"Bilard", "Kredki"}
-    assert {
-        row["id"]: row["listing_status"] for row in mine.json()
-    } == {item_id: "ACTIVE", untagged_item_id: "DRAFT"}
+    assert {row["id"]: row["listing_status"] for row in mine.json()} == {
+        item_id: "ACTIVE",
+        untagged_item_id: "DRAFT",
+    }
     assert {frozenset(row) for row in mine.json()} == {
         frozenset(
             {
@@ -272,6 +278,7 @@ async def test_listMyInventoryItems_returnsOnlyCallersOwnWithModeAndReflectsClea
                 "listing_mode",
                 "listing_visibility",
                 "listing_status",
+                "location_id",
                 "photos_moderation_pending",
                 "thumb_url",
             }
@@ -727,6 +734,7 @@ async def test_cancelTransaction_reservationTermUpcoming_returns409(client: Asyn
     other_term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": group_id,
             "occurs_on": (clock.local_now().date() + timedelta(days=3)).isoformat(),
         },
@@ -759,6 +767,7 @@ async def test_listMyInventoryItems_softDeletedItem_isExcluded(client: AsyncClie
             "inventory_id": inventory_id,
             "product_id": await _resolve_product(client, owner_token, "Usunięta 18"),
             "condition": "GOOD",
+            "location_id": await create_location(client, _auth(owner_token)),
         },
         headers=_auth(owner_token),
     )
@@ -822,6 +831,7 @@ async def test_listMineAsTaker_takeOfLaterTerm_showsOnlyOwnTakesOfThatTerm(
     later_term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": group_id,
             "occurs_on": (clock.local_now().date() + timedelta(days=14)).isoformat(),
         },

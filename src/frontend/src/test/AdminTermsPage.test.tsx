@@ -5,6 +5,7 @@ import type { ModerationTermResponse } from "../api/terms";
 import * as termsApi from "../api/terms";
 import { AdminTermsPage } from "../features/admin/AdminTermsPage";
 import { system } from "../theme/system";
+import { makeLocality, makePublicLocation } from "./fixtures/locations";
 import { pageOf } from "./page";
 import { createQueryWrapper } from "./queryClient";
 
@@ -21,14 +22,11 @@ const TERM: ModerationTermResponse = {
   created_at: "2026-10-01T08:00:00",
   attendee_count: 3,
   child_count: 5,
-  location: {
-    name: "Świetlica na Polnej",
+  location: makePublicLocation({
+    locality: makeLocality({ name: "Poznań", gmina: "Poznań", powiat: "Poznań", voivodeship: "wielkopolskie" }),
+    label: "Poznań — ul. Polna 12, Poznań",
     formatted_address: "ul. Polna 12, Poznań",
-    google_place_id: null,
-    lat: null,
-    lng: null,
-    notes: null,
-  },
+  }),
   capacity: 10,
 };
 
@@ -60,8 +58,7 @@ describe("AdminTermsPage", () => {
     expect(screen.getByText("No description")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
-    expect(screen.getByText("Świetlica na Polnej")).toBeInTheDocument();
-    expect(screen.getByText("ul. Polna 12, Poznań")).toBeInTheDocument();
+    expect(screen.getByText("Poznań — ul. Polna 12, Poznań")).toBeInTheDocument();
     expect(screen.getByText("3 / 10")).toBeInTheDocument();
     expect(screen.getAllByText("—")).toHaveLength(2);
     expect(screen.getByRole("columnheader", { name: "Miejsce" })).toBeInTheDocument();

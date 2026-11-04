@@ -7,8 +7,6 @@ import type { AppDataContextValue } from "../features/panel/AppDataContext";
 import * as authContext from "../auth/AuthContext";
 import * as inventoriesApi from "../api/inventories";
 import type { MyInventoryItemResponse } from "../api/inventories";
-import * as locationsApi from "../api/locations";
-import type { LocationRefResponse, LocationResponse } from "../api/locations";
 import * as reservationsApi from "../api/reservations";
 import type { ReservationDetailResponse, ReservationType } from "../api/reservations";
 import * as termItemListingsApi from "../api/termItemListings";
@@ -32,14 +30,7 @@ vi.mock("../api/inventories", async (importOriginal) => {
   return {
     ...actual,
     getInventoryItemBalances: vi.fn(),
-    getMyInventoryLocation: vi.fn(),
-    setMyInventoryLocation: vi.fn(),
   };
-});
-
-vi.mock("../api/locations", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../api/locations")>();
-  return { ...actual, getMyLocations: vi.fn() };
 });
 
 vi.mock("../api/reservations", async (importOriginal) => {
@@ -51,9 +42,6 @@ vi.mock("../api/termItemListings", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/termItemListings")>();
   return { ...actual, getSwapProposalsForItem: vi.fn(), acceptSwapProposal: vi.fn() };
 });
-
-const HINT =
-  "Inni zalogowani zobaczą tylko nazwę miejsca (np. „Dom – Mokotów”), nigdy adres. Bez lokalizacji nie da się zarezerwować „osobiście”.";
 
 const item: MyInventoryItemResponse = {
   id: "item-1",
@@ -69,37 +57,8 @@ const item: MyInventoryItemResponse = {
   listing_visibility: null,
   listing_status: "ACTIVE",
   photos_moderation_pending: false,
+  location_id: "loc-1",
 };
-
-function savedLocation(over: Partial<LocationResponse> = {}): LocationResponse {
-  return {
-    id: "loc-1",
-    owner_party_id: "party-1",
-    name: "Dom – Mokotów",
-    formatted_address: "ul. Puławska 1, Warszawa",
-    google_place_id: null,
-    lat: null,
-    lng: null,
-    notes: null,
-    source: "MANUAL",
-    created_at: "2026-01-01T00:00:00Z",
-    updated_at: "2026-01-01T00:00:00Z",
-    deleted_at: null,
-    ...over,
-  };
-}
-
-function locationRef(over: Partial<LocationRefResponse> = {}): LocationRefResponse {
-  return {
-    id: "loc-1",
-    name: "Dom – Mokotów",
-    formatted_address: "ul. Puławska 1, Warszawa",
-    google_place_id: null,
-    notes: null,
-    deleted_at: null,
-    ...over,
-  };
-}
 
 /** A future-dated term reservation would hide the buttons; `personal_pickup`
  * alone must make them show. */
@@ -129,12 +88,10 @@ function setup({
   itemModes = {},
   items = [item],
   reservation = null,
-  inventoryLocation = null,
 }: {
   itemModes?: AppDataContextValue["itemModes"];
   items?: MyInventoryItemResponse[];
   reservation?: ReservationDetailResponse | null;
-  inventoryLocation?: LocationRefResponse | null;
 } = {}) {
   vi.mocked(authContext.useAuth).mockReturnValue({
     token: "test-token",
@@ -155,9 +112,6 @@ function setup({
       : { status: "AVAILABLE", reservationId: null },
   });
   if (reservation) vi.mocked(reservationsApi.getReservation).mockResolvedValue(reservation);
-  vi.mocked(inventoriesApi.getMyInventoryLocation).mockResolvedValue({ location: inventoryLocation });
-  vi.mocked(inventoriesApi.setMyInventoryLocation).mockResolvedValue({ location: null });
-  vi.mocked(locationsApi.getMyLocations).mockResolvedValue([savedLocation()]);
   vi.mocked(termItemListingsApi.getSwapProposalsForItem).mockResolvedValue([]);
 }
 
@@ -165,41 +119,18 @@ function renderWithProviders() {
   return renderWithRoute(<MyItemsView />, { url: "/", wrapper: createQueryWrapper() });
 }
 
-describe("MyItemsView — inventory location card", () => {
+describe("MyItemsView — no inventory location card", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("renders the card label and the privacy hint", async () => {
+  it("lists the items without the removed pickup-place card", async () => {
     setup();
     renderWithProviders();
 
-    expect(screen.getByText("Gdzie są moje rzeczy?")).toBeInTheDocument();
-    expect(screen.getByText(HINT)).toBeInTheDocument();
-    expect(await screen.findByRole("combobox", { name: "Gdzie są moje rzeczy?" })).toBeInTheDocument();
-  });
-
-  it("picking a place saves it and clearing sends null", async () => {
-    setup();
-    renderWithProviders();
-
-    const select = await screen.findByRole("combobox", { name: "Gdzie są moje rzeczy?" });
-    fireEvent.change(select, { target: { value: "loc-1" } });
-    await waitFor(() =>
-      expect(inventoriesApi.setMyInventoryLocation).toHaveBeenCalledWith({ location_id: "loc-1" }),
-    );
-
-    fireEvent.change(select, { target: { value: "" } });
-    await waitFor(() =>
-      expect(inventoriesApi.setMyInventoryLocation).toHaveBeenLastCalledWith({ location_id: null }),
-    );
-  });
-
-  it("shows a soft-deleted current place with '(usunięte)'", async () => {
-    setup({ inventoryLocation: locationRef({ id: "loc-old", name: "Działka", deleted_at: "2026-10-01T00:00:00" }) });
-    renderWithProviders();
-
-    expect(await screen.findByRole("option", { name: "Działka (usunięte)" })).toBeInTheDocument();
+    expect(await screen.findByText(item.product_name)).toBeInTheDocument();
+    expect(screen.queryByText("Gdzie są moje rzeczy?")).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 });
 

@@ -8,6 +8,7 @@ import * as familiesApi from "../api/families";
 import * as pledgesApi from "../api/pledges";
 import { ApiError } from "../api/client";
 import type { GroupAccessResponse, PublicCircleResponse, PublicItemListingResponse } from "../api/groups";
+import { makeLocality, makePublicLocation } from "./fixtures/locations";
 import { createQueryWrapper } from "./queryClient";
 import { renderWithRoute } from "./renderWithRoute";
 
@@ -52,14 +53,14 @@ const circle: PublicCircleResponse = {
     id: "101",
     occurs_on: "2026-10-01T17:00:00",
     description: "Zajęcia w parku",
-    location: {
-      name: "Świetlica na Polnej",
+    location: makePublicLocation({
+      locality: makeLocality({ name: "Poznań", gmina: "Poznań", powiat: "Poznań", voivodeship: "wielkopolskie" }),
+      label: "Poznań — ul. Polna 12, 60-595 Poznań",
       formatted_address: "ul. Polna 12, 60-595 Poznań",
       google_place_id: "ChIJ-polna",
       lat: 52.4,
       lng: 16.9,
-      notes: "wejście od podwórza",
-    },
+    }),
     capacity: 12,
     attendee_count: 3,
     needed_items: [
@@ -289,14 +290,12 @@ describe("TermPage — header and content", () => {
 });
 
 describe("TermPage — place and capacity", () => {
-  it("shows the place with notes and a Google Maps link in the term card", async () => {
+  it("shows the place label and a Google Maps link in the term card", async () => {
     renderPage();
 
     const card = await screen.findByRole("region", { name: "Termin zajęć" });
     expect(within(card).getByText("Miejsce")).toBeInTheDocument();
-    expect(within(card).getByText("Świetlica na Polnej")).toBeInTheDocument();
-    expect(within(card).getByText("ul. Polna 12, 60-595 Poznań")).toBeInTheDocument();
-    expect(within(card).getByText("wejście od podwórza")).toBeInTheDocument();
+    expect(within(card).getByText("Poznań — ul. Polna 12, 60-595 Poznań")).toBeInTheDocument();
     const link = within(card).getByRole("link", { name: "Otwórz w Google Maps (nowa karta)" });
     expect(link).toHaveAttribute("href", expect.stringContaining("query_place_id=ChIJ-polna"));
     expect(link).toHaveAttribute("target", "_blank");

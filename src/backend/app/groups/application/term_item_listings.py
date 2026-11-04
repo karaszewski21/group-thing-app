@@ -179,8 +179,10 @@ async def set_item_listing_preference(
     one, and a new row starts PUBLIC. Ownership-only check (no availability
     requirement) — unlike taking a listing, expressing intent to gift/swap
     an item shouldn't be blocked by its current balance. Setting GIFT is
-    refused at `MAX_GIFT_ITEMS`. The item row is read under FOR UPDATE, so
-    concurrent status writes serialize against this one."""
+    refused at `MAX_GIFT_ITEMS`. A first listing (DRAFT to ACTIVE) needs the
+    item's live location; changing an existing listing never does, so a
+    deleted place leaves listings as they are. The item row is read under
+    FOR UPDATE, so concurrent status writes serialize against this one."""
     profile = await get_profile_by_principal(db, principal)
     item = await circulation_bridge.get_item_for_update(db, item_id)
     inventory = await circulation_bridge.resolve_owning_inventory(db, item)
@@ -199,6 +201,8 @@ async def set_item_listing_preference(
             )
             await db.commit()
         return None
+    if existing is None and await circulation_bridge.get_item_live_location_id(db, item_id) is None:
+        raise BusinessConflictException("Ustaw lokalizację przedmiotu, aby go wystawić")
 
     if mode == circulation_bridge.ReservationType.GIFT:
         await _require_gift_capacity(db, profile.party_id, item_id, GIFT_LIMIT_ON_SET_MESSAGE)
@@ -269,6 +273,7 @@ async def list_my_inventory_items(
             listing_mode=preference.mode if preference else None,
             listing_visibility=preference.visibility if preference else None,
             listing_status=item.listing_status,
+            location_id=item.location_id,
             photos_moderation_pending=item.product_id in pending,
             thumb_url=(
                 storage.public_url(photos[item.product_id].thumb_key)

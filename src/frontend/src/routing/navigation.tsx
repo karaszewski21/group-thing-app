@@ -198,8 +198,10 @@ export function useAppSearchParams(): [URLSearchParams, SetSearchParams] {
 }
 
 /** The state the previous page handed over with this navigation, read once:
- * a later visit, a reload or a remount gets `null`. */
-export function useNavigationState<T>(): T | null {
+ * a later visit, a reload or a remount gets `null`. A reader above the pages
+ * (the panel) passes `isAddressed`: it then sees and consumes only the state
+ * meant for it, leaving any other for a page reader that mounts later. */
+export function useNavigationState<T>(isAddressed?: (state: T) => boolean): T | null {
   const url = useAppPathname() + useAppSearch();
   const [entry, setEntry] = useState(() => ({ url, state: peekNavigationState(url) }));
   let current = entry;
@@ -207,10 +209,11 @@ export function useNavigationState<T>(): T | null {
     current = { url, state: peekNavigationState(url) };
     setEntry(current);
   }
+  const addressed = current.state !== null && (isAddressed?.(current.state as T) ?? true);
   useEffect(() => {
-    clearNavigationState(current.url);
-  }, [current.url]);
-  return current.state as T | null;
+    if (addressed) clearNavigationState(current.url);
+  }, [addressed, current.url]);
+  return addressed ? (current.state as T) : null;
 }
 
 /** Re-renders server-provided data (server components, metadata). */

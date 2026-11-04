@@ -275,14 +275,14 @@ async def lock_event_context(db: AsyncSession, event_id: uuid.UUID) -> EventCont
 
 
 async def load_personal_context(db: AsyncSession, item_id: uuid.UUID) -> PersonalContext:
-    """404 when the item is not listed; 409 while its owner has no live
-    pickup place on their PERSONAL inventory."""
+    """404 when the item is not listed; 409 while the item has no live
+    location."""
     preference = await repository.get_item_listing_preference(db, item_id)
     if preference is None:
         raise EntityNotFoundException("ItemListingPreference", item_id)
     owner_party_id = preference.owner_party_id
-    if await circulation_bridge.get_personal_inventory_live_location_id(db, owner_party_id) is None:
-        raise BusinessConflictException("Właściciel nie ustawił miejsca odbioru")
+    if await circulation_bridge.get_item_live_location_id(db, item_id) is None:
+        raise BusinessConflictException("Właściciel nie ustawił lokalizacji przedmiotu")
     owner = await get_profile_by_party(db, owner_party_id)
     return PersonalContext(
         owner_party_id=owner_party_id,

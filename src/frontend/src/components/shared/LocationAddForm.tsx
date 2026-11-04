@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import type { CreateLocationRequest, LocationResponse } from "../../api/locations";
+import type { Locality, LocationRequest, LocationResponse } from "../../api/locations";
 import {
   isGoogleMapsConfigured,
   loadPlaces,
@@ -12,11 +12,14 @@ import {
   type Suggestion,
 } from "../../lib/googleMaps";
 import { INPUT_CLASS } from "./appComponents";
+import { LocalityCombobox } from "./LocalityCombobox";
+import { MapPinIcon } from "./MapPinIcon";
+import { PlaceMapPicker } from "./PlaceMapPicker";
 
 /* ------------------------------------------------------------------ */
-/*  Form adding one saved place: Google search (mockup 2c) or manual   */
-/*  entry (2d). Shared by the forms' LocationPicker and the            */
-/*  /places/new page.                                                  */
+/*  The place form of /places/new and /places/:id/edit: a required     */
+/*  TERYT locality plus an optional address (Google search biased to   */
+/*  that locality or pinned on its map, or typed by hand).             */
 /* ------------------------------------------------------------------ */
 
 export const LOCATION_INPUT_CLASS = `${INPUT_CLASS} w-full`;
@@ -31,28 +34,50 @@ export const LOCATION_ERROR_CLASS = "text-[12.5px] font-semibold text-danger";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_UNAVAILABLE = "Wyszukiwarka niedostępna — wpisz adres ręcznie";
+const ADDRESS_HINT = "Potrzebny głównie dla terminów i wydarzeń. Przy przedmiotach widzisz go tylko Ty.";
 
-/** `create` is the host's `useMyLocations().create` (a second subscription
- * here would refetch the list on every open); `onSaved` receives the created
- * place, or the already saved one with the same Google place id. */
+type AddressMode = "google" | "manual";
+
+function initialPicked(initial: LocationResponse | undefined): ResolvedPlace | null {
+  if (!initial || initial.source !== "GOOGLE" || !initial.formatted_address) return null;
+  if (initial.google_place_id === null || initial.lat === null || initial.lng === null) return null;
+  return {
+    placeId: initial.google_place_id,
+    name: initial.formatted_address,
+    formattedAddress: initial.formatted_address,
+    lat: initial.lat,
+    lng: initial.lng,
+  };
+}
+
+/** `submit` is the host's `useMyLocations().create`, or its `update` bound to
+ * the edited id (a second subscription here would refetch the list on every
+ * open); `initial` prefills the edited place. `onSaved` receives the saved place. */
 export function LocationAddForm({
   idPrefix,
-  create,
+  initial,
+  submit,
   onSaved,
   onCancel,
 }: {
   idPrefix: string;
-  create: (request: CreateLocationRequest) => Promise<LocationResponse>;
+  initial?: LocationResponse;
+  submit: (request: LocationRequest) => Promise<LocationResponse>;
   onSaved: (location: LocationResponse) => void;
   onCancel: () => void;
 }) {
   const googleConfigured = isGoogleMapsConfigured();
-  const [mode, setMode] = useState<"google" | "manual">(googleConfigured ? "google" : "manual");
+  const [locality, setLocality] = useState<Locality | null>(initial?.locality ?? null);
+  const [localityInvalid, setLocalityInvalid] = useState(false);
+  const [picked, setPicked] = useState<ResolvedPlace | null>(() => initialPicked(initial));
+  // A saved Google address shows as picked even when search is not configured.
+  const [mode, setMode] = useState<AddressMode>(() =>
+    picked || (googleConfigured && initial?.source !== "MANUAL") ? "google" : "manual",
+  );
   const [unavailable, setUnavailable] = useState(false);
-  const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
-  const [notes, setNotes] = useState("");
-  const [picked, setPicked] = useState<ResolvedPlace | null>(null);
+  const [mapRequested, setMapRequested] = useState(false);
+  const [mapUnavailable, setMapUnavailable] = useState(false);
+  const [address, setAddress] = useState(initial?.source === "MANUAL" ? (initial.formatted_address ?? "") : "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -69,6 +94,9 @@ export function LocationAddForm({
   const mounted = useRef(true);
   const listboxId = `${idPrefix}-place-listbox`;
   const optionId = (index: number) => `${idPrefix}-place-opt-${index}`;
+  const addressId = `${idPrefix}-address`;
+  const addressHintId = `${idPrefix}-address-hint`;
+  const addressBlocked = locality === null;
 
   useEffect(() => {
     mounted.current = true;
@@ -83,13 +111,14 @@ export function LocationAddForm({
     searchRef.current?.focus();
   }, [picked, mode]);
 
-  // Debounced autocomplete; no request before the first keystroke.
+  // Debounced autocomplete biased to the chosen locality; no request before
+  // the first keystroke.
   useEffect(() => {
     const token = tokenRef.current;
-    if (!api || !token || picked || mode !== "google" || !query.trim()) return;
+    if (!api || !token || !locality || picked || mode !== "google" || !query.trim()) return;
     let cancelled = false;
     const timer = setTimeout(() => {
-      suggest(api, query, token)
+      suggest(api, `${query}, ${locality.name}, ${locality.voivodeship}`, token)
         .then((result) => {
           if (cancelled) return;
           setSuggestions(result);
@@ -110,7 +139,7 @@ export function LocationAddForm({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [api, query, picked, mode]);
+  }, [api, query, picked, mode, locality]);
 
   async function ensurePlaces() {
     if (loadStarted.current) return;
@@ -126,6 +155,22 @@ export function LocationAddForm({
     }
     tokenRef.current = newSessionToken(loaded);
     setApi(loaded);
+  }
+
+  function clearAddress() {
+    setPicked(null);
+    setQuery("");
+    setAddress("");
+    setSuggestions([]);
+    setOpen(false);
+    setActive(-1);
+  }
+
+  function changeLocality(next: Locality | null) {
+    if (next?.id !== locality?.id) clearAddress();
+    setLocality(next);
+    setLocalityInvalid(false);
+    setError(null);
   }
 
   function changeQuery(next: string) {
@@ -145,7 +190,6 @@ export function LocationAddForm({
       const place = await resolve(suggestion);
       if (!mounted.current) return;
       setPicked(place);
-      setName(place.name);
       setError(null);
     } catch (err) {
       console.warn("Google Places details unavailable", err);
@@ -175,195 +219,218 @@ export function LocationAddForm({
       setActive((index) => (index < 0 ? (step > 0 ? 0 : count - 1) : (index + step + count) % count));
       return;
     }
-    if (event.key === "Enter" && open && active >= 0) {
+    if (event.key === "Enter") {
       event.preventDefault();
-      void pick(suggestions[active]);
+      if (open && active >= 0) void pick(suggestions[active]);
     }
   }
 
-  function switchMode(next: "google" | "manual") {
+  function switchMode(next: AddressMode) {
     focusSearch.current = next === "google";
+    clearAddress();
     setUnavailable(false);
     setError(null);
     setMode(next);
   }
 
+  function addressRequest(): Omit<LocationRequest, "locality_id"> | null | undefined {
+    if (mode === "google") {
+      if (picked) {
+        return {
+          formatted_address: picked.formattedAddress,
+          source: "GOOGLE",
+          google_place_id: picked.placeId,
+          lat: picked.lat,
+          lng: picked.lng,
+        };
+      }
+      return query.trim() ? undefined : null;
+    }
+    const typed = address.trim();
+    return typed ? { formatted_address: typed, source: "MANUAL" } : null;
+  }
+
   async function save() {
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      setError("Podaj nazwę miejsca");
+    if (!locality) {
+      setLocalityInvalid(true);
       return;
     }
-    let request: CreateLocationRequest;
-    if (mode === "google") {
-      if (!picked) {
-        setError("Wybierz adres z listy");
-        return;
-      }
-      request = {
-        source: "GOOGLE",
-        name: trimmedName,
-        formatted_address: picked.formattedAddress,
-        google_place_id: picked.placeId,
-        lat: picked.lat,
-        lng: picked.lng,
-        notes: notes.trim() || null,
-      };
-    } else {
-      if (!address.trim()) {
-        setError("Podaj adres");
-        return;
-      }
-      request = { source: "MANUAL", name: trimmedName, formatted_address: address.trim(), notes: notes.trim() || null };
+    const addressPart = addressRequest();
+    if (addressPart === undefined) {
+      setError("Wybierz adres z listy");
+      return;
     }
     setError(null);
     setBusy(true);
     try {
-      onSaved(await create(request));
+      onSaved(await submit({ locality_id: locality.id, ...addressPart }));
     } catch (err) {
+      if (!mounted.current) return;
       setError(err instanceof Error && err.message ? err.message : "Nie udało się zapisać miejsca.");
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
 
   const searching = mode === "google" && !picked;
+  // The map opens on request or once a place is picked, so a form left
+  // unused costs no map load.
+  const mapAllowed = googleConfigured && mode === "google" && !mapUnavailable && locality !== null;
+  const showMap = mapAllowed && (mapRequested || picked !== null);
 
   return (
-    <div className="flex flex-col gap-2">
-      {unavailable && mode === "manual" && (
-        <p role="alert" className={LOCATION_ERROR_CLASS}>
-          {SEARCH_UNAVAILABLE}
-        </p>
-      )}
+    <div className="flex flex-col gap-3">
+      <LocalityCombobox idPrefix={idPrefix} value={locality} onChange={changeLocality} invalid={localityInvalid} />
 
-      {searching && (
-        <>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={addressId} className={LOCATION_LABEL_CLASS}>
+          Adres (opcjonalnie)
+        </label>
+        {unavailable && mode === "manual" && (
+          <p role="alert" className={LOCATION_ERROR_CLASS}>
+            {SEARCH_UNAVAILABLE}
+          </p>
+        )}
+        {addressBlocked ? (
           <input
-            ref={searchRef}
-            role="combobox"
-            aria-label="Szukaj adresu lub nazwy miejsca"
-            aria-autocomplete="list"
-            aria-expanded={open}
-            aria-controls={open ? listboxId : undefined}
-            aria-activedescendant={open && active >= 0 ? optionId(active) : undefined}
-            aria-busy={loadingApi || undefined}
-            placeholder={loadingApi ? "Ładowanie wyszukiwarki…" : "Szukaj adresu lub nazwy miejsca…"}
-            value={query}
-            onFocus={() => void ensurePlaces()}
-            onChange={(e) => {
-              void ensurePlaces();
-              changeQuery(e.target.value);
-            }}
-            onKeyDown={handleSearchKeyDown}
+            id={addressId}
+            aria-disabled="true"
+            aria-describedby={addressHintId}
+            readOnly
+            value=""
+            placeholder="Najpierw wybierz miejscowość"
+            className={`${LOCATION_INPUT_CLASS} cursor-not-allowed opacity-60`}
+          />
+        ) : picked && mode === "google" ? (
+          <div className="flex items-center gap-2 text-[13px] text-ink">
+            <span id={addressId} className="min-w-0 flex-1">
+              {picked.formattedAddress}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                focusSearch.current = googleConfigured;
+                clearAddress();
+                if (!googleConfigured) setMode("manual");
+              }}
+              className={LOCATION_CANCEL_BTN_CLASS}
+            >
+              zmień
+            </button>
+          </div>
+        ) : searching ? (
+          <>
+            <input
+              ref={searchRef}
+              id={addressId}
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={open}
+              aria-controls={open ? listboxId : undefined}
+              aria-activedescendant={open && active >= 0 ? optionId(active) : undefined}
+              aria-describedby={addressHintId}
+              aria-busy={loadingApi || undefined}
+              autoComplete="off"
+              placeholder={loadingApi ? "Ładowanie wyszukiwarki…" : "Ulica i numer"}
+              value={query}
+              onFocus={() => void ensurePlaces()}
+              onChange={(e) => {
+                void ensurePlaces();
+                changeQuery(e.target.value);
+              }}
+              onKeyDown={handleSearchKeyDown}
+              className={LOCATION_INPUT_CLASS}
+            />
+            {open && (
+              <ul
+                id={listboxId}
+                role="listbox"
+                aria-label="Podpowiedzi adresów"
+                className="flex flex-col overflow-hidden rounded-xl border-[1.5px] border-line-strong bg-paper"
+              >
+                {suggestions.map((s, index) => (
+                  <li
+                    key={`${s.placeId}-${index}`}
+                    id={optionId(index)}
+                    role="option"
+                    aria-selected={index === active}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => void pick(s)}
+                    className={`cursor-pointer border-b border-line px-3 py-2 text-[13.5px] last:border-b-0 ${
+                      index === active ? "bg-mint-soft" : ""
+                    }`}
+                  >
+                    <span className="block font-extrabold text-ink">{s.mainText}</span>
+                    {s.secondaryText && <span className="block text-[12px] text-ink-soft">{s.secondaryText}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : (
+          <input
+            id={addressId}
+            aria-describedby={addressHintId}
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="np. ul. Szkolna 5"
             className={LOCATION_INPUT_CLASS}
           />
-          {open && (
-            <ul
-              id={listboxId}
-              role="listbox"
-              aria-label="Podpowiedzi adresów"
-              className="flex flex-col overflow-hidden rounded-xl border-[1.5px] border-line bg-paper"
-            >
-              {suggestions.map((s, index) => (
-                <li
-                  key={`${s.placeId}-${index}`}
-                  id={optionId(index)}
-                  role="option"
-                  aria-selected={index === active}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => void pick(s)}
-                  className={`cursor-pointer px-3.5 py-2 text-[13px] ${index === active ? "bg-cream" : ""}`}
-                >
-                  <span className="font-bold text-ink">{s.mainText}</span>
-                  {s.secondaryText && <span className="text-ink-soft">, {s.secondaryText}</span>}
-                </li>
-              ))}
-            </ul>
-          )}
-          {error && (
-            <p role="alert" className={LOCATION_ERROR_CLASS}>
-              {error}
-            </p>
-          )}
+        )}
+        <p id={addressHintId} className="text-[12.5px] text-ink-soft">
+          {ADDRESS_HINT}
+        </p>
+        {mapAllowed && !showMap && (
+          <button
+            type="button"
+            onClick={() => setMapRequested(true)}
+            className={`${LOCATION_TEXT_BTN_CLASS} inline-flex items-center gap-1`}
+          >
+            <MapPinIcon />
+            wskaż na mapie
+          </button>
+        )}
+        {showMap && locality && (
+          <PlaceMapPicker
+            idPrefix={idPrefix}
+            locality={locality}
+            pin={picked}
+            onPick={(place) => {
+              setPicked(place);
+              setQuery("");
+              setSuggestions([]);
+              setOpen(false);
+              setActive(-1);
+              setError(null);
+            }}
+            onUnavailable={() => setMapUnavailable(true)}
+          />
+        )}
+        {!addressBlocked && searching && (
           <button type="button" onClick={() => switchMode("manual")} className={LOCATION_TEXT_BTN_CLASS}>
             wpisz ręcznie
           </button>
-        </>
-      )}
+        )}
+        {!addressBlocked && mode === "manual" && googleConfigured && (
+          <button type="button" onClick={() => switchMode("google")} className={LOCATION_TEXT_BTN_CLASS}>
+            szukaj w Google
+          </button>
+        )}
+      </div>
 
-      {!searching && (
-        <>
-          {picked && mode === "google" && (
-            <div className="flex items-center gap-2 text-[13px] text-ink">
-              <span className="min-w-0 flex-1">{picked.formattedAddress}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  focusSearch.current = true;
-                  setPicked(null);
-                  setQuery("");
-                }}
-                className={LOCATION_CANCEL_BTN_CLASS}
-              >
-                zmień
-              </button>
-            </div>
-          )}
-          <span className={LOCATION_LABEL_CLASS}>Nazwa miejsca</span>
-          <input
-            aria-label="Nazwa miejsca"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="np. Sala nr 2"
-            className={LOCATION_INPUT_CLASS}
-          />
-          {mode === "manual" && (
-            <>
-              <span className={LOCATION_LABEL_CLASS}>Adres</span>
-              <input
-                aria-label="Adres"
-                required
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="np. ul. Szkolna 5, 60-001 Poznań"
-                className={LOCATION_INPUT_CLASS}
-              />
-            </>
-          )}
-          <span className={LOCATION_LABEL_CLASS}>Notatka</span>
-          <input
-            aria-label="Notatka"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="np. I piętro, drzwi po lewej"
-            className={LOCATION_INPUT_CLASS}
-          />
-          {error && (
-            <p role="alert" className={LOCATION_ERROR_CLASS}>
-              {error}
-            </p>
-          )}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button type="button" onClick={() => void save()} disabled={busy} className={LOCATION_SAVE_BTN_CLASS}>
-              Zapisz miejsce
-            </button>
-            <button type="button" onClick={onCancel} className={LOCATION_CANCEL_BTN_CLASS}>
-              Anuluj
-            </button>
-            {mode === "manual" && googleConfigured && (
-              <button
-                type="button"
-                onClick={() => switchMode("google")}
-                className={`${LOCATION_TEXT_BTN_CLASS} ml-auto`}
-              >
-                szukaj w Google
-              </button>
-            )}
-          </div>
-        </>
+      {error && (
+        <p role="alert" className={LOCATION_ERROR_CLASS}>
+          {error}
+        </p>
       )}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button type="button" onClick={() => void save()} disabled={busy} className={LOCATION_SAVE_BTN_CLASS}>
+          Zapisz
+        </button>
+        <button type="button" onClick={onCancel} className={LOCATION_CANCEL_BTN_CLASS}>
+          Anuluj
+        </button>
+      </div>
     </div>
   );
 }

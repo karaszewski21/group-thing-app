@@ -24,6 +24,7 @@ from app.core.security import decode_token, encode_login_token
 from app.groups import service
 from app.groups.models import TermAttendance
 from app.users.service import get_profile_by_principal
+from tests.conftest import create_location
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -48,6 +49,7 @@ async def _create_circle_and_term(
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": circle.json()["id"],
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
@@ -226,6 +228,7 @@ async def test_listTerms_organizer_returnsAttendeeAndChildCounts(
     empty_term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": group_id,
             "occurs_on": (date.today() + timedelta(days=14)).isoformat(),
         },

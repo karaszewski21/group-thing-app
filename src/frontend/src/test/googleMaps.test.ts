@@ -206,4 +206,37 @@ describe("googleMaps places wrapper", () => {
     expect(next).toBeInstanceOf(fakePlaces.AutocompleteSessionToken);
     expect(next).not.toBe(token);
   });
+
+  it("reverse-geocodes a map point, keeping the point, and builds the embed URL only with a key", async () => {
+    const maps = await loadModule();
+    const geocoder = {
+      geocode: vi.fn(async () => ({
+        results: [{ place_id: "ChIJ-point", formatted_address: "Szkolna 5, 32-650 Kęty" }],
+      })),
+    };
+    const api = { geocoder } as unknown as import("../lib/googleMaps").MapsApi;
+
+    await expect(maps.reverseGeocode(api, { lat: 49.88, lng: 19.22 })).resolves.toEqual({
+      placeId: "ChIJ-point",
+      name: "Szkolna 5, 32-650 Kęty",
+      formattedAddress: "Szkolna 5, 32-650 Kęty",
+      lat: 49.88,
+      lng: 19.22,
+    });
+    geocoder.geocode.mockResolvedValueOnce({ results: [] });
+    await expect(maps.reverseGeocode(api, { lat: 0, lng: 0 })).rejects.toThrow();
+
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "");
+    expect(maps.buildMapsEmbedUrl("Kęty", 12)).toBeNull();
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "test-key");
+    const url = new URL(maps.buildMapsEmbedUrl("Kęty, Polska", 12)!);
+    expect(url.origin + url.pathname).toBe("https://www.google.com/maps/embed/v1/place");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      key: "test-key",
+      q: "Kęty, Polska",
+      zoom: "12",
+      language: "pl",
+      region: "PL",
+    });
+  });
 });

@@ -7,6 +7,7 @@ import { ApiError } from "../api/client";
 import type { GroupMemberResponse, GroupResponse } from "../api/groups";
 import type { TermResponse } from "../api/terms";
 import { termPublicPath } from "../utils/appHelpers";
+import { makeLocality, makeLocationRef } from "./fixtures/locations";
 import { createQueryWrapper } from "./queryClient";
 import { renderWithRoute } from "./renderWithRoute";
 
@@ -36,14 +37,11 @@ const group: GroupResponse = {
   visibility: "PRIVATE",
   created_at: "2026-09-01T10:00:00",
   updated_at: "2026-09-01T10:00:00",
-  default_location: {
-    id: "loc-1",
-    name: "Dom kultury",
+  default_location: makeLocationRef({
+    locality: makeLocality({ name: "Warszawa", gmina: "Warszawa", powiat: "Warszawa", voivodeship: "mazowieckie" }),
+    label: "Warszawa — ul. Długa 1, Warszawa",
     formatted_address: "ul. Długa 1, Warszawa",
-    google_place_id: null,
-    notes: null,
-    deleted_at: null,
-  },
+  }),
   default_capacity: 12,
 };
 
@@ -89,7 +87,7 @@ describe("GroupDetailsPage", () => {
     expect(await screen.findByText("2 uczestników")).toBeInTheDocument();
     expect(screen.getByText("Prywatna (dostęp z kodem)")).toBeInTheDocument();
     expect(screen.getByText("Boisko")).toBeInTheDocument();
-    expect(screen.getByText("Dom kultury · ul. Długa 1, Warszawa")).toBeInTheDocument();
+    expect(screen.getByText("Warszawa — ul. Długa 1, Warszawa")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("1 września 2026")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Zobacz stronę organizatora/ })).toHaveAttribute(

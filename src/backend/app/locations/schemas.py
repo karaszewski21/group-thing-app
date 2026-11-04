@@ -1,13 +1,42 @@
-"""Pydantic request/response models for `/api/locations`."""
+"""Pydantic request/response models for `/api/locations` and `/api/localities`.
+Every place response carries its `locality` and the computed `label`
+(`Location.label`), so the row must come from `service.load_location`/
+`load_locations_by_ids`."""
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .models import LocationSource
+from .models import LocalityKind, LocationSource
+
+
+class LocalityResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    kind: LocalityKind
+    gmina: str
+    powiat: str
+    voivodeship: str
+
+
+class LocalitySearchResult(LocalityResponse):
+    """`postal_code` is the smallest matching code in a postal-code search,
+    null in a name search."""
+
+    postal_code: str | None
+
+
+class LocalitySearchResponse(BaseModel):
+    """`total` counts every match, not only the returned `results`."""
+
+    results: list[LocalitySearchResult]
+    total: int
 
 
 class LocationResponse(BaseModel):
@@ -18,29 +47,29 @@ class LocationResponse(BaseModel):
 
     id: uuid.UUID
     owner_party_id: uuid.UUID
-    name: str
-    formatted_address: str
+    locality: LocalityResponse
+    label: str
+    formatted_address: str | None
     google_place_id: str | None
     lat: float | None
     lng: float | None
-    notes: str | None
-    source: LocationSource
+    source: LocationSource | None
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None
 
 
 class LocationRefResponse(BaseModel):
-    """A place as attached to a Circle or Term on READ-level endpoints any
-    logged-in user may call: no owner party id, no coordinates."""
+    """A place as attached to a Circle, Term or Event on READ-level endpoints
+    any logged-in user may call: no owner party id, no coordinates."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    name: str
-    formatted_address: str
+    locality: LocalityResponse
+    label: str
+    formatted_address: str | None
     google_place_id: str | None
-    notes: str | None
     deleted_at: datetime | None
 
 
@@ -49,65 +78,45 @@ class PublicLocationResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    name: str
-    formatted_address: str
+    locality: LocalityResponse
+    label: str
+    formatted_address: str | None
     google_place_id: str | None
     lat: float | None
     lng: float | None
-    notes: str | None
 
 
-class CreateLocationRequest(BaseModel):
-    """GOOGLE requires `google_place_id`, `lat` and `lng`; MANUAL forbids
-    all three. A blank `notes` is stored as null."""
+class LocationRequest(BaseModel):
+    """`POST` and `PUT` (full replacement) body. A blank address is stored
+    as null. `source` is required with an address and forbidden without
+    one; GOOGLE requires `google_place_id`, `lat` and `lng`, MANUAL forbids
+    them. The owner is always the caller, never a body field."""
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    name: str = Field(min_length=1, max_length=255)
-    formatted_address: str = Field(min_length=1, max_length=500)
-    source: LocationSource
+    locality_id: str = Field(pattern=r"^\d{7}$")
+    formatted_address: str | None = Field(default=None, max_length=500)
+    source: LocationSource | None = None
     google_place_id: str | None = Field(default=None, min_length=1, max_length=255)
     lat: float | None = Field(default=None, ge=-90, le=90)
     lng: float | None = Field(default=None, ge=-180, le=180)
-    notes: str | None = Field(default=None, max_length=500)
 
-    @field_validator("notes")
+    @field_validator("formatted_address", mode="before")
     @classmethod
-    def _blank_notes_clear(cls, value: str | None) -> str | None:
-        return value or None
+    def _blank_address_clears(cls, value: Any) -> Any:
+        return None if isinstance(value, str) and not value.strip() else value
 
     @model_validator(mode="after")
-    def _source_fields(self) -> CreateLocationRequest:
+    def _address_fields(self) -> LocationRequest:
         google_fields = (self.google_place_id, self.lat, self.lng)
+        if self.formatted_address is None:
+            if self.source is not None or any(v is not None for v in google_fields):
+                raise ValueError("source, google_place_id, lat and lng require an address")
+            return self
+        if self.source is None:
+            raise ValueError("an address requires a source")
         if self.source == LocationSource.GOOGLE and any(v is None for v in google_fields):
             raise ValueError("GOOGLE locations require google_place_id, lat and lng")
         if self.source == LocationSource.MANUAL and any(v is not None for v in google_fields):
             raise ValueError("MANUAL locations must not carry google_place_id, lat or lng")
         return self
-
-
-class UpdateLocationRequest(BaseModel):
-    """A `PATCH`: an omitted field stays unchanged; an explicit `null` or a
-    blank value clears `notes`. `name` and `formatted_address` cannot be
-    cleared, and `formatted_address` is editable only on MANUAL rows (the
-    service answers 409 for GOOGLE). Unknown keys — including
-    `google_place_id`, `source`, `lat`, `lng` — are rejected. The service
-    applies exactly the fields present in `model_fields_set`."""
-
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
-    name: str | None = Field(default=None, min_length=1, max_length=255)
-    formatted_address: str | None = Field(default=None, min_length=1, max_length=500)
-    notes: str | None = Field(default=None, max_length=500)
-
-    @field_validator("name", "formatted_address")
-    @classmethod
-    def _not_null(cls, value: str | None) -> str | None:
-        if value is None:
-            raise ValueError("must not be null")
-        return value
-
-    @field_validator("notes")
-    @classmethod
-    def _blank_notes_clear(cls, value: str | None) -> str | None:
-        return value or None

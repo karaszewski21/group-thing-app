@@ -20,7 +20,7 @@ from app.messaging.application.send_limiter import limiter
 from app.messaging.infrastructure import repository
 from app.messaging.models import Conversation
 from app.users.models import UserProfile
-from tests.conftest import leaf_category_ids
+from tests.conftest import create_location, leaf_category_ids
 
 CONVERSATION_KEYS = {
     "id",
@@ -73,6 +73,7 @@ async def _create_item(
             "inventory_id": str(inventory_id),
             "product_id": product.json()["id"],
             "condition": "GOOD",
+            "location_id": await create_location(client, _auth(token)),
         },
         headers=_auth(token),
     )

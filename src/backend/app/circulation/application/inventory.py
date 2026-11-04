@@ -7,18 +7,9 @@ import uuid
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.application.identity import (
-    find_user_id_by_principal,
-    get_user_id_by_principal,
-)
-from app.circulation.infrastructure import locations_acl, repository
+from app.circulation.infrastructure import repository
 from app.circulation.models import Account, AccountType, Inventory, InventoryType
-from app.circulation.schemas import (
-    CreateInventoryRequest,
-    InventoryLocationResponse,
-    SetInventoryLocationRequest,
-)
-from app.core.auth_deps import Principal
+from app.circulation.schemas import CreateInventoryRequest
 from app.core.errors import EntityNotFoundException
 
 
@@ -77,31 +68,3 @@ async def get_or_create_personal_inventory(db: AsyncSession, owner_user_id: uuid
             raise
     return inventory
 
-
-async def get_my_inventory_location(
-    db: AsyncSession, principal: Principal
-) -> InventoryLocationResponse:
-    """The caller's pickup place on their PERSONAL inventory; `None` without
-    one. A place soft-deleted later still renders, with `deleted_at` set."""
-    user_id = await find_user_id_by_principal(db, principal)
-    inventory = None if user_id is None else await repository.find_personal_inventory(db, user_id)
-    location_id = None if inventory is None else inventory.location_id
-    return InventoryLocationResponse(location=await locations_acl.get_location_ref(db, location_id))
-
-
-async def set_my_inventory_location(
-    db: AsyncSession, principal: Principal, data: SetInventoryLocationRequest
-) -> InventoryLocationResponse:
-    """Sets (or with `None` clears) the caller's pickup place, validated
-    against their own saved places: 404 unknown/soft-deleted, 403 foreign."""
-    user_id = await get_user_id_by_principal(db, principal)
-    location = None
-    if data.location_id is not None:
-        party_id = await repository.find_party_id_by_user_id(db, user_id)
-        if party_id is None:
-            raise EntityNotFoundException("UserProfile", principal.username)
-        location = await locations_acl.get_owned_location(db, data.location_id, party_id)
-    inventory = await get_or_create_personal_inventory(db, user_id)
-    inventory.location_id = data.location_id
-    await db.commit()
-    return InventoryLocationResponse(location=location)

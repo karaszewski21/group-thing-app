@@ -4,8 +4,10 @@ import type { LocationRefResponse } from "../../api/locations";
 import { createTerm, type CreateTermRequest } from "../../api/terms";
 import { serverMessageOr } from "../../api/problem";
 import { CapacityField, Field, INPUT_CLASS, ModalSheet } from "../../components/shared/appComponents";
-import { capacityText, parseCapacity } from "../../utils/appHelpers";
+import { parseCapacity } from "../../utils/appHelpers";
 import { LocationPicker } from "../../components/shared/LocationPicker";
+import { FIRST_TERM_PICKER } from "./hooks/useFirstTermStepper";
+import type { TermDraft } from "./termDraft";
 
 /* ------------------------------------------------------------------ */
 /*  ORGANIZER "first term" stepper — 1 step (term only), for an          */
@@ -18,37 +20,45 @@ import { LocationPicker } from "../../components/shared/LocationPicker";
 /* ------------------------------------------------------------------ */
 
 interface FirstTermStepperOrganizerProps {
+  /** The form values, kept by the host (`firstTermDraft`) so a trip to
+   * /places/new keeps them. */
+  draft: TermDraft;
+  onDraftChange: (draft: TermDraft) => void;
+  /** ✕/Esc/backdrop — drops the draft. */
   onClose: () => void;
+  /** The place picker's "+": closes the stepper for /places/new, keeping the draft. */
+  onAddPlace: () => void;
   circleGroupId: string | null;
   /** The organizer's own Organization slug, or null when they have no
    * Organization yet — drives the done-screen CTA. */
   organizerSlug?: string | null;
   onDone: () => void;
-  /** The group's default place and capacity, prefilled into the form. */
+  /** The group's default place and capacity, which the host's draft starts from. */
   defaultLocation?: LocationRefResponse | null;
   defaultCapacity?: number | null;
 }
 
 export function FirstTermStepperOrganizer({
+  draft,
+  onDraftChange,
   onClose,
+  onAddPlace,
   circleGroupId,
   organizerSlug,
   onDone,
   defaultLocation = null,
   defaultCapacity = null,
 }: FirstTermStepperOrganizerProps) {
-  const [occursOn, setOccursOn] = useState("");
-  const [description, setDescription] = useState("");
-  const [locationId, setLocationId] = useState<string | null>(defaultLocation?.id ?? null);
-  const [capacityInput, setCapacityInput] = useState(capacityText(defaultCapacity));
-  const capacity = parseCapacity(capacityInput);
+  const { occursOn, description, locationId } = draft;
+  const capacity = parseCapacity(draft.capacity);
+  const set = (patch: Partial<TermDraft>) => onDraftChange({ ...draft, ...patch });
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [createdTermId, setCreatedTermId] = useState<string | null>(null);
 
   async function handleSubmit() {
-    if (!occursOn || !circleGroupId || capacity === undefined) return;
+    if (!occursOn || !circleGroupId || !locationId || capacity === undefined) return;
     setBusy(true);
     setFormError(null);
     try {
@@ -56,9 +66,9 @@ export function FirstTermStepperOrganizer({
         circle_group_id: circleGroupId,
         occurs_on: occursOn,
         description: description || undefined,
+        location_id: locationId,
       };
-      // An omitted field inherits the group default; a cleared prefill must be an explicit null.
-      if (locationId !== null || defaultLocation !== null) request.location_id = locationId;
+      // An omitted capacity inherits the group default; a cleared prefill must be an explicit null.
       if (capacity !== null || defaultCapacity !== null) request.capacity = capacity;
       const created = await createTerm(request);
       setCreatedTermId(created.id);
@@ -102,7 +112,7 @@ export function FirstTermStepperOrganizer({
             type="datetime-local"
             aria-label="Data i godzina"
             value={occursOn}
-            onChange={(e) => setOccursOn(e.target.value)}
+            onChange={(e) => set({ occursOn: e.target.value })}
             className={INPUT_CLASS}
           />
         </Field>
@@ -110,24 +120,24 @@ export function FirstTermStepperOrganizer({
           <input
             aria-label="Opis (opcjonalnie)"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => set({ description: e.target.value })}
             placeholder="17:00 · Park Sołacki · wstęp wolny"
             className={INPUT_CLASS}
           />
         </Field>
         <Field label="Miejsce">
           <LocationPicker
-            addMode="inline"
             value={locationId}
-            onChange={setLocationId}
+            onChange={(id) => set({ locationId: id })}
             label="Miejsce"
-            noneLabel="Brak miejsca"
-            idPrefix="first-term-place"
+            idPrefix={FIRST_TERM_PICKER}
+            required
+            onAddClick={onAddPlace}
             fallbackLocation={defaultLocation}
             helperText={defaultLocation ? "Domyślne miejsce grupy — możesz zmienić" : undefined}
           />
         </Field>
-        <CapacityField label="Ile miejsc" value={capacityInput} onChange={setCapacityInput} />
+        <CapacityField label="Ile miejsc" value={draft.capacity} onChange={(text) => set({ capacity: text })} />
       </div>
       {formError && (
         <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">
@@ -136,7 +146,7 @@ export function FirstTermStepperOrganizer({
       )}
       <button
         onClick={() => void handleSubmit()}
-        disabled={busy || !occursOn || !circleGroupId || capacity === undefined}
+        disabled={busy || !occursOn || !circleGroupId || !locationId || capacity === undefined}
         className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
       >
         Dodaj termin

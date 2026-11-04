@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.moderation.status import ModerationStatus
 from app.product.models import ProductPhoto
+from tests.conftest import create_location
 from tests.test_moderation import _png
 from tests.test_term_item_listings import (
     _auth,
@@ -64,6 +65,7 @@ async def _add_item(
             "inventory_id": inventory_id,
             "product_id": await _resolve_product(client, token, product_name),
             "condition": "GOOD",
+            "location_id": await create_location(client, _auth(token)),
         },
         headers=_auth(token),
     )

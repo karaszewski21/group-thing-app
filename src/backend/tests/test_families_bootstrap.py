@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.families.bootstrap import create_solo_family_for_party
 from app.families.repository import list_families_for_guardian_party
+from tests.conftest import create_location
 
 
 async def _register_guest(client: AsyncClient, email: str) -> tuple[str, int]:
@@ -53,6 +54,7 @@ async def _create_term(client: AsyncClient, token: str, group_id: int) -> int:
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth_headers(token)),
             "circle_group_id": group_id,
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
             "description": "Zajęcia",

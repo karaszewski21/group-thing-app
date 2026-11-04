@@ -57,7 +57,7 @@ from app.groups.schemas import (
     ItemTakeRequest,
     ReservationContextRef,
 )
-from tests.conftest import leaf_category_ids
+from tests.conftest import create_location, leaf_category_ids
 from tests.ledger_assertions import assert_ledger_matches_projection, movements_for_item
 
 
@@ -134,6 +134,7 @@ async def _create_circle_and_term(
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": circle.json()["id"],
             "occurs_on": (clock.local_now().date() + timedelta(days=7)).isoformat(),
         },
@@ -147,6 +148,7 @@ async def _add_term(client: AsyncClient, org_token: str, group_id: uuid.UUID) ->
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": str(group_id),
             "occurs_on": (clock.local_now().date() + timedelta(days=7)).isoformat(),
         },
@@ -193,11 +195,27 @@ async def _register_personal_item(client: AsyncClient, token: str, product_name:
     assert inv.status_code == 201
     item = await client.post(
         "/api/inventory-items",
-        json={"inventory_id": inv.json()["id"], "product_id": product_id, "condition": "GOOD"},
+        json={
+            "inventory_id": inv.json()["id"],
+            "product_id": product_id,
+            "condition": "GOOD",
+            "location_id": await create_location(client, _auth(token)),
+        },
         headers=_auth(token),
     )
-    assert item.status_code == 201
+    assert item.status_code == 201, item.text
     return uuid.UUID(item.json()["id"])
+
+
+async def _relocate(client: AsyncClient, token: str, item_id: uuid.UUID) -> None:
+    """Gives a received item (its location cleared by the transfer) a
+    place of its new holder, so it can be listed again."""
+    response = await client.patch(
+        f"/api/inventory-items/{item_id}",
+        json={"location_id": await create_location(client, _auth(token))},
+        headers=_auth(token),
+    )
+    assert response.status_code == 200, response.text
 
 
 async def test_setPreference_activeAttendee_thenVisibleInMyListings(
@@ -988,7 +1006,12 @@ async def test_setPreference_afterGiftFulfillment_reassignsOwnerToNewHolder(
 
     # The item now physically belongs to the taker — the lister's GIFT
     # preference was cleared at fulfillment, so listing it creates a fresh
-    # `ItemListingPreference` row owned by the taker.
+    # `ItemListingPreference` row owned by the taker, once it has a place.
+    with pytest.raises(BusinessConflictException):
+        await service.set_item_listing_preference(
+            db_session, _principal(taker_token), item_id, ReservationType.GIFT
+        )
+    await _relocate(client, taker_token, item_id)
     relisted = await service.set_item_listing_preference(
         db_session, _principal(taker_token), item_id, ReservationType.GIFT
     )
@@ -1049,6 +1072,7 @@ async def test_setPreference_afterSwapFulfillment_reassignsOwnerForReceivedItem(
 
     # The proposer now physically holds the originally-listed item — they
     # re-list it under their own preference.
+    await _relocate(client, proposer_token, listed_item_id)
     relisted = await service.set_item_listing_preference(
         db_session, _principal(proposer_token), listed_item_id, ReservationType.GIFT
     )
@@ -1771,9 +1795,7 @@ async def test_confirmTransaction_swap_postsSingleSwapTransactionWithFourEntries
         assert reservation.status == ReservationStatus.FULFILLED
     assert await repository.get_item_listing_preference(db_session, swap.listed_item_id) is None
     assert await repository.get_item_listing_preference(db_session, swap.offered_item_id) is None
-    await assert_ledger_matches_projection(
-        db_session, [swap.listed_item_id, swap.offered_item_id]
-    )
+    await assert_ledger_matches_projection(db_session, [swap.listed_item_id, swap.offered_item_id])
 
 
 async def test_confirmTransaction_swapFailureInSecondLeg_leavesNoChanges(
@@ -2280,9 +2302,14 @@ async def test_proposeSwap_competingProposal_raisesConflict_preDeployRivalAutoRe
 ) -> None:
     """A pending proposal blocks a second one; a rival left over from before
     that guard is still auto-rejected when the owner accepts."""
-    lister_token, taker_token, group_id, term_id, listed_item_id, offered_item_id = (
-        await _swap_listing(client, db_session, "tillink3")
-    )
+    (
+        lister_token,
+        taker_token,
+        group_id,
+        term_id,
+        listed_item_id,
+        offered_item_id,
+    ) = await _swap_listing(client, db_session, "tillink3")
     rival_token, _ = await _register(client, "GUEST", "tillink3.rival@example.com")
     await _rsvp(client, rival_token, group_id, term_id)
     rival_item_id = await _register_personal_item(client, rival_token, "Rywal tillink3")
@@ -2371,9 +2398,14 @@ async def test_resolveTransactionReservations_alreadyResolved_notificationLinksT
 async def test_browseListing_pendingProposal_hiddenAndOwnViewExposesNoProposer(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    lister_token, taker_token, group_id, term_id, listed_item_id, offered_item_id = (
-        await _swap_listing(client, db_session, "tilprop1")
-    )
+    (
+        lister_token,
+        taker_token,
+        group_id,
+        term_id,
+        listed_item_id,
+        offered_item_id,
+    ) = await _swap_listing(client, db_session, "tilprop1")
     viewer_token, viewer_party_id = await _register(client, "GUEST", "tilprop1.viewer@example.com")
     await _rsvp(client, viewer_token, group_id, term_id)
     lister_party_id = (await client.get("/api/people/me", headers=_auth(lister_token))).json()[
@@ -2385,9 +2417,7 @@ async def test_browseListing_pendingProposal_hiddenAndOwnViewExposesNoProposer(
     )
 
     browse = await service.list_browsable_term_item_listings(db_session, term_id, viewer_party_id)
-    mine = await service.list_my_term_item_listings(
-        db_session, term_id, uuid.UUID(lister_party_id)
-    )
+    mine = await service.list_my_term_item_listings(db_session, term_id, uuid.UUID(lister_party_id))
 
     assert listed_item_id not in {view.item_id for view in browse}
     [own] = [view for view in mine if view.item_id == listed_item_id]

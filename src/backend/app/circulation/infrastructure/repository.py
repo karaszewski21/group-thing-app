@@ -145,21 +145,13 @@ async def find_party_id_by_user_id(db: AsyncSession, user_id: uuid.UUID) -> uuid
     return result.scalar_one_or_none()
 
 
-async def find_personal_inventory_live_location_id(
-    db: AsyncSession, owner_party_id: uuid.UUID
-) -> uuid.UUID | None:
-    """The pickup place of the party's PERSONAL inventory in one statement;
-    `None` without an inventory, a place, or when the place is soft-deleted."""
+async def find_item_live_location_id(db: AsyncSession, item_id: uuid.UUID) -> uuid.UUID | None:
+    """The item's pickup place in one statement; `None` without a place or
+    when the place is soft-deleted."""
     result = await db.execute(
-        select(Inventory.location_id)
-        .join(_user_profiles, _user_profiles.c.account_user_id == Inventory.owner_user_id)
-        .join(_locations, _locations.c.id == Inventory.location_id)
-        .where(
-            _user_profiles.c.party_id == owner_party_id,
-            Inventory.inventory_type == InventoryType.PERSONAL,
-            _locations.c.deleted_at.is_(None),
-        )
-        .limit(1)
+        select(InventoryItem.location_id)
+        .join(_locations, _locations.c.id == InventoryItem.location_id)
+        .where(InventoryItem.id == item_id, _locations.c.deleted_at.is_(None))
     )
     return result.scalar_one_or_none()
 

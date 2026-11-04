@@ -19,6 +19,7 @@ from app.groups.models import Group, Term
 from app.moderation import text_guard
 from app.organizations.models import Organization
 from app.party.models import Party
+from tests.conftest import create_location
 
 OFFENSIVE = "ZAKAZANE"
 ORG_MESSAGE = "Nazwa organizacji narusza zasady społeczności. Zmień ją i spróbuj ponownie."
@@ -199,6 +200,7 @@ async def test_createTerm_offendingDescription_returns400_groupNameNotScored(
     response = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, headers),
             "circle_group_id": circle_id,
             "occurs_on": date.today().isoformat(),
             "description": f"Spotkanie {OFFENSIVE}",
@@ -221,6 +223,7 @@ async def test_updateTerm_offendingDescription_returns400(
     created = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, headers),
             "circle_group_id": circle_id,
             "occurs_on": date.today().isoformat(),
             "description": "Spotkanie w parku",

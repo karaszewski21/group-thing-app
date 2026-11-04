@@ -20,6 +20,7 @@ from app.events.service import EVENT_BANNER_MAX_BYTES
 from app.outbox.models import OutboxEntry
 from app.storage.images import INVALID_IMAGE_MESSAGE
 from app.storage.outbox_listener import OBJECTS_DELETE
+from tests.conftest import create_location
 from tests.fake_storage import FakeStorage
 
 NOW = datetime(2026, 11, 2, 10, 30)
@@ -46,7 +47,11 @@ async def _register(client: AsyncClient, email: str) -> str:
 async def _create_event(client: AsyncClient, token: str) -> str:
     response = await client.post(
         "/api/events",
-        json={"name": "Piknik w parku", "starts_at": "2026-11-15T14:00:00"},
+        json={
+            "location_id": await create_location(client, _auth(token)),
+            "name": "Piknik w parku",
+            "starts_at": "2026-11-15T14:00:00",
+        },
         headers=_auth(token),
     )
     assert response.status_code == 201, response.text

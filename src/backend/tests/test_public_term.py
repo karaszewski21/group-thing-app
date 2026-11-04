@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import clock
 from app.groups.models import ItemListingPreference, Leadership, NeededItem, Term
 from app.organizations.models import Organization
-from tests.conftest import leaf_category_ids
+from tests.conftest import create_location, leaf_category_ids
 
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
@@ -67,6 +67,7 @@ async def _create_term(
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth_headers(token)),
             "circle_group_id": group_id,
             "occurs_on": occurs_on.isoformat(),
             "description": description,
@@ -528,6 +529,7 @@ async def _register_personal_item(client: AsyncClient, token: str, product_name:
             "inventory_id": inv.json()["id"],
             "product_id": resolved.json()["id"],
             "condition": "GOOD",
+            "location_id": await create_location(client, _auth_headers(token)),
         },
         headers=_auth_headers(token),
     )

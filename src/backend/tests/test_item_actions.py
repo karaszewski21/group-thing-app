@@ -1,8 +1,9 @@
 """`GET /api/items/{item_id}/actions` v2: the item page's action read model.
 Covers the response shape and viewer classification, the owner's upcoming
 contexts (owner-eligible, viewer-filtered in SQL before the limit, ordered,
-term wins a tie, at most 5), the viewer-shaped owner location, the personal
-pickup rule and a statement count independent of the number of contexts."""
+term wins a tie, at most 5), the viewer-shaped item location (the address
+for the owner only), the personal pickup rule and a statement count
+independent of the number of contexts."""
 
 from __future__ import annotations
 
@@ -12,12 +13,14 @@ from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
+from app.circulation.models import InventoryItem
 from app.core import clock
-from tests.conftest import count_queries
+from tests.conftest import count_queries, create_location, locality_ids
 from tests.test_event_item_reservations import _listed_items, _sign_up
-from tests.test_personal_pickup import _set_location
+from tests.test_personal_pickup import _remove_location, _set_location
 from tests.test_term_item_listings import _auth, _register, _rsvp
 
 ACTIONS_KEYS = {
@@ -43,7 +46,9 @@ CONTEXT_KEYS = {
     "location_name",
     "eligible",
 }
-LOCATION_KEYS = {"name", "formatted_address", "deleted_at"}
+LOCATION_KEYS = {"locality", "formatted_address", "deleted_at"}
+LOCALITY_KEYS = {"id", "name", "kind", "gmina", "powiat", "voivodeship"}
+SECRET_ADDRESS = "ul. Sekretna 17, 00-950 Warszawa"
 
 
 async def _actions(
@@ -59,6 +64,7 @@ async def _actions(
     assert all(set(context) == CONTEXT_KEYS for context in body["contexts"])
     if body["location"] is not None:
         assert set(body["location"]) == LOCATION_KEYS
+        assert set(body["location"]["locality"]) == LOCALITY_KEYS
     return body
 
 
@@ -72,12 +78,19 @@ async def _circle(client: AsyncClient, token: str, name: str) -> uuid.UUID:
     return uuid.UUID(response.json()["id"])
 
 
-async def _term(client: AsyncClient, token: str, group_id: uuid.UUID, on: date) -> uuid.UUID:
-    response = await client.post(
-        "/api/terms",
-        json={"circle_group_id": str(group_id), "occurs_on": on.isoformat()},
-        headers=_auth(token),
-    )
+async def _term(
+    client: AsyncClient,
+    token: str,
+    group_id: uuid.UUID,
+    on: date,
+    location_id: str | None = None,
+) -> uuid.UUID:
+    body = {
+        "circle_group_id": str(group_id),
+        "occurs_on": on.isoformat(),
+        "location_id": location_id or await create_location(client, _auth(token)),
+    }
+    response = await client.post("/api/terms", json=body, headers=_auth(token))
     assert response.status_code == 201, response.text
     return uuid.UUID(response.json()["id"])
 
@@ -85,11 +98,23 @@ async def _term(client: AsyncClient, token: str, group_id: uuid.UUID, on: date) 
 async def _event(client: AsyncClient, token: str, name: str, starts_at: datetime) -> uuid.UUID:
     response = await client.post(
         "/api/events",
-        json={"name": name, "starts_at": starts_at.isoformat()},
+        json={
+            "name": name,
+            "starts_at": starts_at.isoformat(),
+            "location_id": await create_location(client, _auth(token)),
+        },
         headers=_auth(token),
     )
     assert response.status_code == 201, response.text
     return uuid.UUID(response.json()["id"])
+
+
+async def _clear_location(db: AsyncSession, item_id: uuid.UUID) -> None:
+    """An item without any location, as left by a GIFT/SWAP transfer."""
+    await db.execute(
+        update(InventoryItem).where(InventoryItem.id == item_id).values(location_id=None)
+    )
+    await db.commit()
 
 
 async def _make_private(client: AsyncClient, token: str, group_id: uuid.UUID, name: str) -> None:
@@ -133,7 +158,7 @@ async def test_getItemActions_exactKeySet(client: AsyncClient) -> None:
     assert context["kind"] == "EVENT" and context["id"] == str(event_id)
     assert context["name"] == "Wymiana ia1" and context["has_started"] is False
     assert context["path"].endswith(f"/event/{event_id}")
-    assert context["location_name"] is None
+    assert context["location_name"]
     assert context["eligible"] is True
     assert anonymous["contexts"][0]["eligible"] is False
     assert own["contexts"][0]["eligible"] is False
@@ -206,50 +231,105 @@ async def test_getItemActions_contexts_viewerFilterBeforeLimit(client: AsyncClie
     assert [c["id"] for c in own["contexts"]] == [str(term) for term in terms]
 
 
-async def test_getItemActions_location_shapedPerViewer(client: AsyncClient) -> None:
+async def test_getItemActions_location_ownerGetsAddressOthersOnlyTheLocality(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
     owner, _ = await _register(client, "GUEST", "ia4.owner@example.com")
     viewer, _ = await _register(client, "GUEST", "ia4.viewer@example.com")
-    unset_owner, _ = await _register(client, "GUEST", "ia4.unset@example.com")
-    (item_id,) = await _listed_items(client, owner, ("Puzzle ia4", "GIFT"))
-    (unset_item,) = await _listed_items(client, unset_owner, ("Klocki ia4", "GIFT"))
-    location_id = await _set_location(client, owner, "ChIJ-ia4")
+    item_id, unset_item = await _listed_items(
+        client, owner, ("Puzzle ia4", "GIFT"), ("Klocki ia4", "GIFT")
+    )
+    location_id = await _set_location(client, owner, item_id, address=SECRET_ADDRESS)
+    await _clear_location(db_session, unset_item)
 
     own = await _actions(client, item_id, owner)
     other = await _actions(client, item_id, viewer)
     anonymous = await _actions(client, item_id)
     unset = await _actions(client, unset_item, viewer)
 
+    locality = own["location"]["locality"]
     assert own["location"] == {
-        "name": "Dom ChIJ-ia4",
-        "formatted_address": "ul. Puławska 1, 02-515 Warszawa",
+        "locality": locality,
+        "formatted_address": SECRET_ADDRESS,
         "deleted_at": None,
     }
-    assert other["location"] == {
-        "name": "Dom ChIJ-ia4",
-        "formatted_address": None,
-        "deleted_at": None,
-    }
-    assert anonymous["location"] is None
+    locality_only = {"locality": locality, "formatted_address": None, "deleted_at": None}
+    assert other["location"] == anonymous["location"] == locality_only
     assert unset["location"] is None
+    item_pages = ("/api/items/{}/actions", "/api/inventory-items/{}/details")
+    for headers, paths in (
+        (_auth(viewer), (*item_pages, "/api/inventory-items/{}")),
+        ({}, item_pages),
+    ):
+        for path in paths:
+            response = await client.get(path.format(item_id), headers=headers)
+            assert response.status_code == 200, (path, response.text)
+            assert "Sekretna" not in response.text and "00-950" not in response.text, path
+            assert location_id not in response.text, path
+            if path in item_pages:
+                assert response.headers["cache-control"] == (
+                    "private, no-store" if headers else "public, max-age=0, s-maxage=60"
+                )
 
-    deleted = await client.delete(f"/api/locations/{location_id}", headers=_auth(owner))
-    assert deleted.status_code == 204, deleted.text
+    await _remove_location(client, owner, item_id)
     own_after = await _actions(client, item_id, owner)
     other_after = await _actions(client, item_id, viewer)
+    anonymous_after = await _actions(client, item_id)
 
-    assert own_after["location"]["name"] == "Dom ChIJ-ia4"
+    assert own_after["location"]["locality"] == locality
     assert own_after["location"]["deleted_at"] is not None
-    assert other_after["location"] is None
+    assert other_after["location"] == anonymous_after["location"] == locality_only
 
 
-async def test_getItemActions_personalPickupAvailable_rules(client: AsyncClient) -> None:
+async def test_getItemActions_itemPlaceReusedByTerm_contextKeepsFullLabel(
+    client: AsyncClient,
+) -> None:
+    owner, _ = await _register(client, "ORGANIZER", "ia7.owner@example.com")
+    viewer, _ = await _register(client, "GUEST", "ia7.viewer@example.com")
+    place = await client.post(
+        "/api/locations",
+        json={
+            "locality_id": (await locality_ids(client, _auth(owner)))[0],
+            "formatted_address": SECRET_ADDRESS,
+            "source": "MANUAL",
+        },
+        headers=_auth(owner),
+    )
+    assert place.status_code == 201, place.text
+    circle = await _circle(client, owner, "Krąg ia7")
+    await _term(client, owner, circle, _day(3).date(), place.json()["id"])
+    (item_id,) = await _listed_items(client, owner, ("Gitara ia7", "GIFT"))
+    moved = await client.patch(
+        f"/api/inventory-items/{item_id}",
+        json={"location_id": place.json()["id"]},
+        headers=_auth(owner),
+    )
+    assert moved.status_code == 200, moved.text
+
+    body = await _actions(client, item_id, viewer)
+
+    (context,) = body["contexts"]
+    assert context["location_name"] == place.json()["label"]
+    assert SECRET_ADDRESS in context["location_name"]
+    assert body["location"]["formatted_address"] is None
+
+
+async def test_getItemActions_personalPickupAvailable_rules(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
     owner, _ = await _register(client, "GUEST", "ia5.owner@example.com")
     viewer, _ = await _register(client, "GUEST", "ia5.viewer@example.com")
     taker, _ = await _register(client, "GUEST", "ia5.taker@example.com")
-    unset_owner, _ = await _register(client, "GUEST", "ia5.unset@example.com")
-    free, taken = await _listed_items(client, owner, ("Gra ia5", "GIFT"), ("Lego ia5", "GIFT"))
-    (unset_item,) = await _listed_items(client, unset_owner, ("Kredki ia5", "GIFT"))
-    await _set_location(client, owner, "ChIJ-ia5")
+    free, taken, deleted, unset = await _listed_items(
+        client,
+        owner,
+        ("Gra ia5", "GIFT"),
+        ("Lego ia5", "GIFT"),
+        ("Kredki ia5", "GIFT"),
+        ("Farby ia5", "GIFT"),
+    )
+    await _remove_location(client, owner, deleted)
+    await _clear_location(db_session, unset)
     reserved = await client.post(
         f"/api/items/{taken}/take",
         json={"context": {"kind": "PERSONAL"}, "reservation_type": "GIFT"},
@@ -260,7 +340,8 @@ async def test_getItemActions_personalPickupAvailable_rules(client: AsyncClient)
     assert (await _actions(client, free, viewer))["personal_pickup_available"] is True
     assert (await _actions(client, free))["personal_pickup_available"] is False
     assert (await _actions(client, free, owner))["personal_pickup_available"] is False
-    assert (await _actions(client, unset_item, viewer))["personal_pickup_available"] is False
+    assert (await _actions(client, deleted, viewer))["personal_pickup_available"] is False
+    assert (await _actions(client, unset, viewer))["personal_pickup_available"] is False
     taken_body = await _actions(client, taken, viewer)
     assert taken_body["available"] is False
     assert taken_body["personal_pickup_available"] is False
@@ -281,8 +362,6 @@ async def test_getItemActions_statementCount_oneVsFiveContextsEqual(
             await _event(client, guest, f"Wymiana {prefix} {day}", _day(day, time(12, 0)))
         (term_item,) = await _listed_items(client, organizer, (f"Rower {prefix}", "GIFT"))
         (event_item,) = await _listed_items(client, guest, (f"Hulajnoga {prefix}", "GIFT"))
-        await _set_location(client, organizer, f"ChIJ-{prefix}-o")
-        await _set_location(client, guest, f"ChIJ-{prefix}-g")
         return term_item, event_item
 
     one_term, one_event = await owner_with("ia6a", 1)

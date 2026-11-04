@@ -56,6 +56,7 @@ const mySwapItem: MyInventoryItemResponse = {
   updated_at: "2026-10-01T10:00:00",
   listing_mode: "SWAP",
   listing_visibility: "PUBLIC",
+  location_id: null,
   photos_moderation_pending: false,
 };
 

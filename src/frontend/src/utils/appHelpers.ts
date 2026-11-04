@@ -1,5 +1,6 @@
 import type { GroupResponse, GroupVisibility } from "../api/groups";
 import type { ListingMode } from "../api/itemListingPreferences";
+import type { PublicLocationResponse } from "../api/locations";
 import type { ReservationType } from "../api/reservations";
 import type { NeededItemResponse, TermResponse } from "../api/terms";
 import { viewPath, type View } from "../routing/paths";
@@ -19,9 +20,10 @@ export function placeCreatePath(returnTo: string, picker: string): string {
   return `${viewPath("places/new")}?${new URLSearchParams({ returnTo, picker })}`;
 }
 
-/** Navigation state `/places/new` returns with to the picker's page. */
+/** Navigation state `/places/new` returns with to the picker's page;
+ * `locationId` is `null` when the user cancelled instead of saving. */
 export interface PickedLocationState {
-  pickedLocation: { picker: string; locationId: string };
+  pickedLocation: { picker: string; locationId: string | null };
 }
 
 /** A new group starts PRIVATE until its founder has an Organization page to
@@ -64,12 +66,7 @@ export interface GuestTermCard {
   neededItems: NeededItemResponse[];
 }
 
-export interface TermPlaceLocation {
-  name: string;
-  formatted_address: string;
-  google_place_id: string | null;
-  notes: string | null;
-}
+export type TermPlaceLocation = Pick<PublicLocationResponse, "locality" | "label" | "formatted_address" | "google_place_id">;
 
 export const ITEM_MODES: ItemMode[] = ["oddam", "zamienię"];
 

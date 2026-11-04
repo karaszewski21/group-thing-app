@@ -19,7 +19,7 @@ from app.config import settings
 from app.core.auth_deps import Principal
 from app.core.security import decode_token
 from app.groups import service
-from tests.conftest import leaf_category_ids
+from tests.conftest import create_location, leaf_category_ids
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -49,6 +49,7 @@ async def _create_circle_and_term(
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": circle.json()["id"],
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
@@ -93,7 +94,12 @@ async def _register_personal_item(client: AsyncClient, token: str, product_name:
     assert inv.status_code == 201
     item = await client.post(
         "/api/inventory-items",
-        json={"inventory_id": inv.json()["id"], "product_id": product_id, "condition": "GOOD"},
+        json={
+            "inventory_id": inv.json()["id"],
+            "product_id": product_id,
+            "condition": "GOOD",
+            "location_id": await create_location(client, _auth(token)),
+        },
         headers=_auth(token),
     )
     assert item.status_code == 201

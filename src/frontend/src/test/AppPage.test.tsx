@@ -20,11 +20,13 @@ import * as categoriesApi from "../api/categories";
 import * as reservationsApi from "../api/reservations";
 import * as itemListingPreferencesApi from "../api/itemListingPreferences";
 import * as termItemListingsApi from "../api/termItemListings";
+import * as localitiesApi from "../api/localities";
 import * as locationsApi from "../api/locations";
 import * as eventsApi from "../api/events";
 import { AppPage } from "../features/panel/AppPage";
 import { emitPendingActionResolved } from "../components/layout/pending/pendingActionResolved";
 import { ApiError } from "../api/client";
+import { makeLocality, makeLocalitySearchResult, makeLocationRef, makeLocationResponse, makePublicLocation } from "./fixtures/locations";
 import { createQueryWrapper } from "./queryClient";
 import { BottomNav } from "../components/layout/BottomNav";
 import { approxAge, formatApproxAge } from "../utils/age";
@@ -90,10 +92,6 @@ vi.mock("../api/inventories", () => ({
   // factory below replaces the whole module, so the constant must be
   // re-exported here too, not just the mocked functions.
   ACTIVE_LOCK_BALANCE_STATUSES: ["RESERVED", "IN_TRANSIT"],
-  // MyItemsView's pickup-place card (InventoryLocationCard) reads it on mount;
-  // its value is re-set in mockGuestDefaults/mockOrganizerDefaults.
-  getMyInventoryLocation: vi.fn(),
-  setMyInventoryLocation: vi.fn(),
 }));
 
 vi.mock("../api/itemListingPreferences", () => ({
@@ -118,6 +116,7 @@ vi.mock("../api/terms", () => ({
 }));
 
 // Every group/term form mounts a LocationPicker (`useMyLocations`).
+vi.mock("../api/localities", () => ({ searchLocalities: vi.fn() }));
 vi.mock("../api/locations", () => ({
   getMyLocations: vi.fn(),
   createLocation: vi.fn(),
@@ -193,6 +192,12 @@ const mockOrganizerProfile: peopleApi.UserProfileResponse = {
   is_organizer: true,
 };
 
+const POZNAN = makeLocality({ id: "0969400", name: "Poznań", gmina: "Poznań", powiat: "Poznań", voivodeship: "wielkopolskie" });
+
+/** The caller's saved place, required on every term and event. */
+const PLACE = makeLocationResponse({ owner_party_id: "1" });
+const PLACE_REF = makeLocationRef({ id: PLACE.id });
+
 const mockInventory: inventoriesApi.InventoryResponse = {
   id: "1",
   owner_user_id: "1",
@@ -233,6 +238,9 @@ const mockGroup: groupsApi.GroupResponse = {
   default_location: null,
   default_capacity: null,
 };
+
+// The same group with a default place, which prefills the required term place.
+const mockGroupWithPlace: groupsApi.GroupResponse = { ...mockGroup, default_location: PLACE_REF };
 
 // Organizer/circle whose organizer owns no Organization — the backend still
 // returns a stable `k-<hash>` pseudo-slug so per-term links always work.
@@ -415,7 +423,6 @@ function mockGuestDefaults() {
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
   vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
-  vi.mocked(inventoriesApi.getMyInventoryLocation).mockResolvedValue({ location: null });
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
   vi.mocked(familiesApi.getMembershipsForFamily).mockResolvedValue([]);
   vi.mocked(familiesApi.getGuardians).mockResolvedValue([]);
@@ -437,7 +444,6 @@ function mockOrganizerDefaults() {
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
   vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
-  vi.mocked(inventoriesApi.getMyInventoryLocation).mockResolvedValue({ location: null });
   vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
   vi.mocked(termsApi.getTerms).mockResolvedValue([]);
   vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
@@ -654,6 +660,7 @@ describe("AppPage — dismissible home hints", () => {
 
   it("the first-term hint auto-hides after a term is added via the real 1-step stepper (not just terms mocked directly)", async () => {
     mockOrganizerDefaults();
+    vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroupWithPlace);
     vi.mocked(termsApi.createTerm).mockResolvedValue(TERM_FIXTURE);
     renderPanel();
 
@@ -884,6 +891,7 @@ describe("AppPage — term edit page", () => {
     updated_at: "",
     attendee_count: null,
     child_count: null,
+    location: PLACE_REF,
   };
 
   async function openEditDialog() {
@@ -1045,32 +1053,23 @@ describe("AppPage — edit group page (name/layout/visibility/default place and 
   });
 
   it("pre-fills the default place and capacity and sends null for both once cleared", async () => {
-    const place: locationsApi.LocationResponse = {
-      id: "loc-1",
+    const place = makeLocationResponse({
       owner_party_id: "1",
-      name: "Świetlica na Polnej",
+      locality: POZNAN,
+      label: "Poznań — ul. Polna 12, Poznań",
       formatted_address: "ul. Polna 12, Poznań",
-      google_place_id: null,
-      lat: null,
-      lng: null,
-      notes: null,
       source: "MANUAL",
-      created_at: "",
-      updated_at: "",
-      deleted_at: null,
-    };
+    });
     mockOrganizerDefaults();
     vi.mocked(locationsApi.getMyLocations).mockResolvedValue([place]);
     vi.mocked(groupsApi.getGroup).mockResolvedValue({
       ...mockGroup,
-      default_location: {
+      default_location: makeLocationRef({
         id: place.id,
-        name: place.name,
+        locality: place.locality,
+        label: place.label,
         formatted_address: place.formatted_address,
-        google_place_id: null,
-        notes: null,
-        deleted_at: null,
-      },
+      }),
       default_capacity: 12,
     });
     vi.mocked(groupsApi.updateGroup).mockResolvedValue(mockGroup);
@@ -1079,7 +1078,7 @@ describe("AppPage — edit group page (name/layout/visibility/default place and 
 
     const dialog = screen.getByRole("region", { name: "Edytuj grupę" });
     const placeSelect = await within(dialog).findByRole("combobox", { name: "Stałe miejsce spotkań (opcjonalnie)" });
-    expect(placeSelect).toHaveDisplayValue("Świetlica na Polnej");
+    expect(placeSelect).toHaveDisplayValue("Poznań — ul. Polna 12, Poznań");
     expect(within(dialog).getByLabelText("Ile miejsc (opcjonalnie)")).toHaveValue("12");
 
     fireEvent.change(placeSelect, { target: { value: "" } });
@@ -1272,14 +1271,14 @@ describe("AppPage — Spotkania list links to the public circle page", () => {
     vi.mocked(groupsApi.getMyAttendances).mockResolvedValue([
       {
         ...mockAttendances[0],
-        location: {
-          name: "Dom Kultury",
+        location: makePublicLocation({
+          locality: POZNAN,
+          label: "Poznań — ul. Długa 3, Poznań",
           formatted_address: "ul. Długa 3, Poznań",
           google_place_id: "place-1",
           lat: 52.4,
           lng: 16.9,
-          notes: null,
-        },
+        }),
         capacity: 10,
         attendee_count: 8,
       },
@@ -1288,7 +1287,7 @@ describe("AppPage — Spotkania list links to the public circle page", () => {
     fireEvent.click(await screen.findByRole("tab", { name: "Biorę udział" }));
 
     const card = await screen.findByRole("link", { name: /Nutki dla starszaków/ });
-    expect(within(card).getByText("Dom Kultury")).toBeInTheDocument();
+    expect(within(card).getByText("Poznań")).toBeInTheDocument();
     expect(within(card).getByText("ul. Długa 3, Poznań")).toBeInTheDocument();
     expect(within(card).getByText("8/10 miejsc")).toBeInTheDocument();
     expect(card.querySelector("a")).toBeNull();
@@ -1535,6 +1534,7 @@ describe("AppPage — per-term public links & copy-link button", () => {
 
   it("organizer first-term stepper done-screen CTA deep-links to the just-created term using the circle's slug", async () => {
     mockOrganizerDefaults();
+    vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroupWithPlace);
     vi.mocked(termsApi.createTerm).mockResolvedValue({
       id: LATER_TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
       attendee_count: null, child_count: null,
@@ -1570,6 +1570,7 @@ describe("AppPage — needed item sub-CRUD (in the term dialog)", () => {
     updated_at: "",
     attendee_count: null,
     child_count: null,
+    location: PLACE_REF,
   };
   const neededItem = {
     id: "11",
@@ -1658,7 +1659,7 @@ describe("AppPage — inventory item edit/delete", () => {
     vi.resetAllMocks();
   });
 
-  const invItem = {
+  const invItem: inventoriesApi.MyInventoryItemResponse = {
     id: "21",
     inventory_id: "1",
     home_inventory_id: null,
@@ -1671,6 +1672,7 @@ describe("AppPage — inventory item edit/delete", () => {
     listing_mode: null,
     listing_visibility: null,
     listing_status: "DRAFT" as const,
+    location_id: null,
     photos_moderation_pending: false,
   };
 
@@ -1719,7 +1721,7 @@ describe("AppPage — mode toggle errors and photo-moderation poll", () => {
   const MODERATION_409 =
     "Nie można wystawić tej rzeczy — jej zdjęcia czekają na moderację. Tryb oddam/zamienię włączysz po ich zatwierdzeniu.";
 
-  const modItem = {
+  const modItem: inventoriesApi.MyInventoryItemResponse = {
     id: "70",
     inventory_id: "1",
     home_inventory_id: null,
@@ -1732,6 +1734,7 @@ describe("AppPage — mode toggle errors and photo-moderation poll", () => {
     listing_mode: null,
     listing_visibility: null,
     listing_status: "DRAFT" as const,
+    location_id: null,
     photos_moderation_pending: false,
   };
 
@@ -1933,6 +1936,7 @@ describe("AppPage — needed item edit error path", () => {
     updated_at: "",
     attendee_count: null,
     child_count: null,
+    location: PLACE_REF,
   };
   const neededItem = {
     id: "11",
@@ -2081,7 +2085,7 @@ describe("AppPage — event tile links and the event edit page", () => {
     description: null,
     starts_at: "2027-01-20T14:00:00",
     ends_at: null,
-    location: null,
+    location: PLACE_REF,
     created_at: "",
     updated_at: "",
     author_slug: "zielony-krag",
@@ -2135,7 +2139,7 @@ describe("AppPage — event tile links and the event edit page", () => {
         description: null,
         starts_at: "2027-01-20T14:00:00",
         ends_at: null,
-        location_id: null,
+        location_id: PLACE.id,
       }),
     );
     expect(await screen.findByText("Adres: /zielony-krag/event/ev-1")).toBeInTheDocument();
@@ -2205,7 +2209,7 @@ describe("AppPage — MyItemsView post-term-end fallback buttons (Bug #4c, full 
     vi.resetAllMocks();
   });
 
-  const lockedItem = {
+  const lockedItem: inventoriesApi.MyInventoryItemResponse = {
     id: "30",
     inventory_id: "1",
     home_inventory_id: null,
@@ -2218,6 +2222,7 @@ describe("AppPage — MyItemsView post-term-end fallback buttons (Bug #4c, full 
     listing_mode: null,
     listing_visibility: null,
     listing_status: "DRAFT" as const,
+    location_id: null,
     photos_moderation_pending: false,
   };
 
@@ -2269,7 +2274,7 @@ describe("AppPage — MyItemsView swap accept success sheet", () => {
     vi.resetAllMocks();
   });
 
-  const swapItem = {
+  const swapItem: inventoriesApi.MyInventoryItemResponse = {
     id: "40",
     inventory_id: "1",
     home_inventory_id: null,
@@ -2282,6 +2287,7 @@ describe("AppPage — MyItemsView swap accept success sheet", () => {
     listing_mode: "SWAP" as const,
     listing_visibility: "PUBLIC" as const,
     listing_status: "ACTIVE" as const,
+    location_id: null,
     photos_moderation_pending: false,
   };
 
@@ -2432,20 +2438,11 @@ describe("AppPage — moderation errors inline in the add-group page and add-ter
   });
 
   it("add group: the place picker's + goes to /places/new and comes back with the new place selected and the name kept", async () => {
-    const created: locationsApi.LocationResponse = {
-      id: "loc-new",
-      owner_party_id: "1",
-      name: "Sala nr 2",
-      formatted_address: "ul. Szkolna 5",
-      google_place_id: null,
-      lat: null,
-      lng: null,
-      notes: null,
-      source: "MANUAL",
-      created_at: "",
-      updated_at: "",
-      deleted_at: null,
-    };
+    const created = makeLocationResponse({ id: "loc-new", owner_party_id: "1", source: "MANUAL" });
+    vi.mocked(localitiesApi.searchLocalities).mockResolvedValue({
+      results: [makeLocalitySearchResult()],
+      total: 1,
+    });
     let saved = false;
     vi.mocked(locationsApi.getMyLocations).mockImplementation(async () => (saved ? [created] : []));
     vi.mocked(locationsApi.createLocation).mockImplementation(async () => {
@@ -2458,9 +2455,9 @@ describe("AppPage — moderation errors inline in the add-group page and add-ter
 
     fireEvent.click(await within(page).findByRole("link", { name: "Dodaj nowe miejsce" }));
     const placePage = await screen.findByRole("region", { name: "Nowe miejsce" });
-    fireEvent.change(within(placePage).getByLabelText("Nazwa miejsca"), { target: { value: "Sala nr 2" } });
-    fireEvent.change(within(placePage).getByLabelText("Adres"), { target: { value: "ul. Szkolna 5" } });
-    fireEvent.click(within(placePage).getByRole("button", { name: "Zapisz miejsce" }));
+    fireEvent.change(within(placePage).getByRole("combobox", { name: "Lokalizacja" }), { target: { value: "Kę" } });
+    fireEvent.click(await within(placePage).findByRole("option", { name: /Kęty/ }));
+    fireEvent.click(within(placePage).getByRole("button", { name: "Zapisz" }));
 
     page = await screen.findByRole("region", { name: "Nowa grupa" });
     expect(within(page).getByPlaceholderText("np. Nutki dla starszaków")).toHaveValue("Rytmika");
@@ -2876,14 +2873,18 @@ describe("AppPage — redesigned navigation and pages", () => {
   it("/add/term opened by URL starts on the first group and saves into Spotkania", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.createTerm).mockResolvedValue(TERM_FIXTURE);
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([PLACE]);
     renderPanel("/add/term");
 
     const page = await screen.findByRole("region", { name: "Dodaj termin zajęć" });
     await waitFor(() => expect(within(page).getByRole("combobox", { name: "Grupa" })).not.toHaveValue(""));
     fireEvent.change(within(page).getByLabelText("Data i godzina"), { target: { value: "2026-02-01T17:00" } });
-    fireEvent.click(within(page).getByRole("button", { name: "Dodaj termin" }));
+    const submit = within(page).getByRole("button", { name: "Dodaj termin" });
+    expect(submit).toBeDisabled();
+    fireEvent.change(await within(page).findByRole("combobox", { name: "Miejsce" }), { target: { value: PLACE.id } });
+    fireEvent.click(submit);
 
-    await waitFor(() => expect(termsApi.createTerm).toHaveBeenCalled());
+    await waitFor(() => expect(termsApi.createTerm).toHaveBeenCalledWith(expect.objectContaining({ location_id: PLACE.id })));
     await waitFor(() => expect(screen.queryByRole("region", { name: "Dodaj termin zajęć" })).not.toBeInTheDocument());
     expect(await screen.findByRole("status")).toHaveTextContent("Dodano termin");
   });
@@ -2948,6 +2949,7 @@ describe("AppPage — Dodaj › Wydarzenie", () => {
     fireEvent.change(within(page).getByLabelText("Nazwa"), { target: { value: "  Piknik w parku  " } });
     fireEvent.change(within(page).getByLabelText("Data początku"), { target: { value: "2026-11-02" } });
     fireEvent.change(within(page).getByLabelText("Godzina początku"), { target: { value: "17:00" } });
+    fireEvent.change(await within(page).findByRole("combobox", { name: "Miejsce" }), { target: { value: PLACE.id } });
     return page;
   }
 
@@ -2969,12 +2971,14 @@ describe("AppPage — Dodaj › Wydarzenie", () => {
 
     expect(await within(page).findByText("Podaj nazwę wydarzenia.")).toBeInTheDocument();
     expect(within(page).getByText("Podaj datę i godzinę początku.")).toBeInTheDocument();
+    expect(within(page).getByText("Wybierz miejsce wydarzenia.")).toBeInTheDocument();
     expect(within(page).getByLabelText("Nazwa")).toHaveAttribute("aria-invalid", "true");
     expect(eventsApi.createEvent).not.toHaveBeenCalled();
   });
 
   it("saves the event and lands on its page with the toast in router state", async () => {
     mockGuestDefaults();
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([PLACE]);
     vi.mocked(eventsApi.createEvent).mockResolvedValue(EVENT_FIXTURE);
     renderPanel("/add/event");
 
@@ -2988,7 +2992,7 @@ describe("AppPage — Dodaj › Wydarzenie", () => {
         description: null,
         starts_at: "2026-11-02T17:00:00",
         ends_at: "2026-11-02T19:00:00",
-        location_id: null,
+        location_id: PLACE.id,
       }),
     );
     expect(await screen.findByText("Adres: /zielony-krag/event/ev-1")).toBeInTheDocument();
@@ -2999,6 +3003,7 @@ describe("AppPage — Dodaj › Wydarzenie", () => {
 
   it("shows the server's message when the save is refused", async () => {
     mockGuestDefaults();
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([PLACE]);
     vi.mocked(eventsApi.createEvent).mockRejectedValue(
       new ApiError(400, "Bad Request", { message: "Początek nie może być w przeszłości." }),
     );
@@ -3013,6 +3018,7 @@ describe("AppPage — Dodaj › Wydarzenie", () => {
 
   it("a failed banner upload keeps the saved event and offers a retry", async () => {
     mockGuestDefaults();
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([PLACE]);
     vi.mocked(eventsApi.createEvent).mockResolvedValue(EVENT_FIXTURE);
     vi.mocked(eventsApi.uploadEventBanner)
       .mockRejectedValueOnce(new ApiError(500, "Internal Server Error", {}))

@@ -48,6 +48,7 @@ const item: ItemDetailsResponse = {
   is_owner: true,
   deleted_at: null,
   listing_status: "ACTIVE",
+  location_id: null,
   status: { code: "AVAILABLE", term_occurs_on: null, due_date: null, counterparty_label: null, personal_pickup: false },
 };
 

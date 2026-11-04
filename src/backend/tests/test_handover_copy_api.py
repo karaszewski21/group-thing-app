@@ -16,6 +16,7 @@ from app.groups import service
 from app.groups.models import Group
 from app.product.models import Product
 from app.users.models import UserProfile
+from tests.conftest import create_location
 from tests.test_term_item_listings import (
     _auth,
     _notifications,
@@ -50,7 +51,11 @@ async def _circle_with_term(
     group_id = uuid.UUID(circle.json()["id"])
     term = await client.post(
         "/api/terms",
-        json={"circle_group_id": str(group_id), "occurs_on": _TERM_AT},
+        json={
+            "location_id": await create_location(client, _auth(org_token)),
+            "circle_group_id": str(group_id),
+            "occurs_on": _TERM_AT,
+        },
         headers=_auth(org_token),
     )
     assert term.status_code == 201, term.text
@@ -250,8 +255,8 @@ async def test_acceptSwapProposal_255CharacterNames_swapAcceptedMessageCappedAt5
     freeze_local_now: Callable[[datetime], None],
 ) -> None:
     freeze_local_now(_NOW)
-    lister_token, proposer_token, group_id, _, listed_item_id, proposal_id = (
-        await _accepted_swap(client, db_session, "hc5", "Krąg długi")
+    lister_token, proposer_token, group_id, _, listed_item_id, proposal_id = await _accepted_swap(
+        client, db_session, "hc5", "Krąg długi"
     )
     item = (
         await db_session.execute(select(InventoryItem).where(InventoryItem.id == listed_item_id))

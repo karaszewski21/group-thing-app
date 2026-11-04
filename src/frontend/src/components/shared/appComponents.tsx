@@ -96,10 +96,41 @@ export function HintCard({
   );
 }
 
-export function Field({ label, children }: { label: string; children: ReactNode }) {
+const FIELD_LABEL_CLASS = "text-xs font-extrabold tracking-wide text-ink-soft";
+
+/** A labelled form row. `htmlFor` ties the label to its input; `labelId`
+ * instead renders the label as a `<span id>` for a control named through
+ * `aria-labelledby` (a picker button or a `role="group"`), which must never
+ * sit in a `<label>`. `required` adds a visual `*` kept out of the
+ * accessible name. */
+export function Field({
+  label,
+  htmlFor,
+  labelId,
+  required = false,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  labelId?: string;
+  required?: boolean;
+  children: ReactNode;
+}) {
+  const mark = required && <span aria-hidden="true"> *</span>;
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-extrabold tracking-wide text-ink-soft">{label}</label>
+      {labelId ? (
+        <span id={labelId} className={FIELD_LABEL_CLASS}>
+          {label}
+          {mark}
+        </span>
+      ) : (
+        // The mark sits beside the <label>, so even text-based label lookups see only the name.
+        <span className={FIELD_LABEL_CLASS}>
+          <label htmlFor={htmlFor}>{label}</label>
+          {mark}
+        </span>
+      )}
       {children}
     </div>
   );

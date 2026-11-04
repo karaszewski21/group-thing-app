@@ -1,7 +1,7 @@
 """The item page's action read model behind `GET /api/items/{id}/actions`:
 the item's listing mode and availability, its reserved badge (as on the
-lists), its owner, how the viewer stands (ANONYMOUS/OWN/OTHER), the owner's
-pickup place shaped for the viewer, the owner's upcoming contexts the viewer
+lists), its owner, how the viewer stands (ANONYMOUS/OWN/OTHER), the item's
+own location shaped for the viewer, the owner's upcoming contexts the viewer
 may see and, for the two parties of an open reservation or pending swap
 proposal, what they may do next. A PRIVATE item is a 404 for anyone who may
 not see it (`item_visibility`), is offered only in PRIVATE circles' terms
@@ -85,13 +85,11 @@ async def get_item_actions(
     owner = await _owner(db, inventory.owner_user_id)
     viewer = _viewer(viewer_party_id, owner.party_id)
 
-    personal = await circulation_bridge.find_personal_inventory(db, inventory.owner_user_id)
-    owner_location_id = personal.location_id if personal is not None else None
-    contexts, owner_location = await _contexts(
-        db, owner.party_id, viewer_party_id, viewer, owner_location_id, private_item=private
+    contexts, item_location = await _contexts(
+        db, owner.party_id, viewer_party_id, viewer, item.location_id, private_item=private
     )
-    location = _viewer_location(owner_location, viewer)
-    live_location = owner_location is not None and owner_location.deleted_at is None
+    location = _viewer_location(item_location, viewer)
+    live_location = item_location is not None and item_location.deleted_at is None
     reserved_by = leg.reserved_by_user_id if leg is not None else None
     proposer = proposals[0].proposer_party_id if proposals else None
     names = await load_reserved_by_names(
@@ -156,12 +154,12 @@ async def _contexts(
     owner_party_id: uuid.UUID,
     viewer_party_id: uuid.UUID | None,
     viewer: ItemActionsViewer,
-    owner_location_id: uuid.UUID | None,
+    item_location_id: uuid.UUID | None,
     *,
     private_item: bool,
 ) -> tuple[list[ItemContextOptionResponse], locations_acl.Location | None]:
     """The owner's earliest upcoming terms and events the viewer may see (a
-    term wins a tie), at most `MAX_CONTEXTS`, plus the owner's pickup place
+    term wins a tie), at most `MAX_CONTEXTS`, plus the item's own place
     from the same batched location lookup. `eligible` only for an OTHER
     viewer. A `private_item` gets PRIVATE circles' terms only, filtered in
     SQL before the limit, and no events."""
@@ -193,8 +191,8 @@ async def _contexts(
         else set()
     )
     location_ids = {term.location_id for term in kept_terms if term.location_id is not None}
-    if owner_location_id is not None:
-        location_ids.add(owner_location_id)
+    if item_location_id is not None:
+        location_ids.add(item_location_id)
     locations = await locations_acl.get_locations_by_ids(db, location_ids)
     term_slugs = await resolve_organizer_slugs(db, {term.group_id for term in kept_terms})
     event_slugs = await events_acl.author_slugs(db, kept_events)
@@ -213,7 +211,7 @@ async def _contexts(
                     path=f"/{term_slugs[term.group_id]}/group/{term.group_id}/term/{term.id}",
                     # As `TermContext.has_started`.
                     has_started=term.occurs_on < now,
-                    location_name=term_location.name if term_location is not None else None,
+                    location_name=term_location.label if term_location is not None else None,
                     eligible=other_viewer and bool(term.viewer_eligible),
                 )
             )
@@ -233,27 +231,26 @@ async def _contexts(
                     eligible=event_id in eligible_events,
                 )
             )
-    owner_location = locations.get(owner_location_id) if owner_location_id else None
-    return options, owner_location
+    item_location = locations.get(item_location_id) if item_location_id else None
+    return options, item_location
 
 
 def _viewer_location(
     location: locations_acl.Location | None, viewer: ItemActionsViewer
 ) -> ItemLocationResponse | None:
-    """The owner sees the address and a removal; anyone else logged in only
-    the name of a live place; anonymous viewers nothing. Never coordinates,
-    the Google place id or notes."""
-    if location is None or viewer == "ANONYMOUS":
+    """The owner sees the address and a removal; anyone else, anonymous
+    viewers included, only the locality, even of a removed place. Never the
+    place id, its label, coordinates or the Google place id."""
+    if location is None:
         return None
+    locality = locations_acl.LocalityResponse.model_validate(location.locality)
     if viewer == "OWN":
         return ItemLocationResponse(
-            name=location.name,
+            locality=locality,
             formatted_address=location.formatted_address,
             deleted_at=location.deleted_at,
         )
-    if location.deleted_at is not None:
-        return None
-    return ItemLocationResponse(name=location.name, formatted_address=None, deleted_at=None)
+    return ItemLocationResponse(locality=locality, formatted_address=None, deleted_at=None)
 
 
 async def _party_reservation(

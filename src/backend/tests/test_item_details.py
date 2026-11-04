@@ -115,6 +115,7 @@ async def test_getItemDetails_ownerAndNonOwner_returnsFieldsPhotosAndIsOwnerFlag
         "deleted_at",
         "status",
         "listing_status",
+        "location_id",
     }
     assert owner_view["listing_status"] == "DRAFT"
     assert owner_view["id"] == str(item_id)

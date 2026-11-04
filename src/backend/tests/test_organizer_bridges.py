@@ -20,7 +20,7 @@ from app.organizations import service as organizations_service
 from app.organizations.models import OrganizationMembership, OrganizationRoleType
 from app.organizations.schemas import CreateOwnOrganizationRequest
 from app.product.models import ProductPhoto
-from tests.conftest import count_queries
+from tests.conftest import count_queries, create_location
 from tests.test_term_item_listings import _auth, _register, _resolve_product
 
 
@@ -32,6 +32,7 @@ async def _register_items(client: AsyncClient, token: str, *product_names: str) 
         headers=_auth(token),
     )
     assert inventory.status_code == 201
+    location_id = await create_location(client, _auth(token))
     item_ids = []
     for name in product_names:
         item = await client.post(
@@ -40,6 +41,7 @@ async def _register_items(client: AsyncClient, token: str, *product_names: str) 
                 "inventory_id": inventory.json()["id"],
                 "product_id": await _resolve_product(client, token, name),
                 "condition": "GOOD",
+                "location_id": location_id,
             },
             headers=_auth(token),
         )

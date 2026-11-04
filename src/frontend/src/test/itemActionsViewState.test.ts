@@ -7,6 +7,7 @@ import type {
 } from "../api/itemActions";
 import type { ReservedByResponse } from "../api/groups";
 import { resolveItemActionsView, type ItemActionsView } from "../features/items/product/itemActionsViewState";
+import { makeItemLocation } from "./fixtures/locations";
 
 const OWNER: ItemActionsResponse["owner"] = {
   party_id: "party-1",
@@ -15,7 +16,9 @@ const OWNER: ItemActionsResponse["owner"] = {
   items_total: 12,
 };
 
-const LOCATION: ItemLocationResponse = { name: "Mokotów, Warszawa", formatted_address: null, deleted_at: null };
+const LOCATION: ItemLocationResponse = makeItemLocation();
+const OWN_LOCATION: ItemLocationResponse = makeItemLocation({ formatted_address: "ul. Sienkiewicza 1, 32-650 Kęty" });
+const DELETED_LOCATION: ItemLocationResponse = { ...OWN_LOCATION, deleted_at: "2026-11-01T09:00:00" };
 
 const ELIGIBLE_TERM: ItemContextOptionResponse = {
   kind: "TERM",
@@ -119,6 +122,16 @@ describe("resolveItemActionsView", () => {
       },
     ],
     [
+      "own: the owner's address shape is passed through",
+      { actions: actions({ viewer: "OWN", location: OWN_LOCATION, contexts: [] }) },
+      { kind: "own", mode: "GIFT", location: OWN_LOCATION, contexts: [], visibility: null, partyReservation: null },
+    ],
+    [
+      "own: a deleted place keeps its deleted_at for the (usunięte) card",
+      { actions: actions({ viewer: "OWN", location: DELETED_LOCATION, contexts: [] }) },
+      { kind: "own", mode: "GIFT", location: DELETED_LOCATION, contexts: [], visibility: null, partyReservation: null },
+    ],
+    [
       "own: by details",
       { item: { deleted: false, isOwner: true }, actions: actions({ location: null, contexts: [] }) },
       { kind: "own", mode: "GIFT", location: null, contexts: [], visibility: null, partyReservation: null },
@@ -131,7 +144,12 @@ describe("resolveItemActionsView", () => {
     [
       "anonymous: owner, mode and contexts",
       { isLoggedIn: false, actions: actions({ viewer: "ANONYMOUS", mode: "SWAP", location: null }) },
-      { kind: "anonymous", owner: OWNER, mode: "SWAP", contexts: [ELIGIBLE_TERM, OTHER_EVENT] },
+      { kind: "anonymous", owner: OWNER, mode: "SWAP", location: null, contexts: [ELIGIBLE_TERM, OTHER_EVENT] },
+    ],
+    [
+      "anonymous: the locality-only place for the location card",
+      { isLoggedIn: false, actions: actions({ viewer: "ANONYMOUS" }) },
+      { kind: "anonymous", owner: OWNER, mode: "GIFT", location: LOCATION, contexts: [ELIGIBLE_TERM, OTHER_EVENT] },
     ],
     [
       "reserved: a party of the reservation",
@@ -167,8 +185,16 @@ describe("resolveItemActionsView", () => {
         location: null,
       },
     ],
-    ["unavailable: a non-party of a taken item", { actions: actions({ available: false }) }, { kind: "unavailable", owner: OWNER }],
-    ["unavailable: no listing mode", { actions: actions({ mode: null }) }, { kind: "unavailable", owner: OWNER }],
+    [
+      "unavailable: a non-party of a taken item",
+      { actions: actions({ available: false }) },
+      { kind: "unavailable", owner: OWNER, location: LOCATION },
+    ],
+    [
+      "unavailable: no listing mode and no place",
+      { actions: actions({ mode: null, location: null }) },
+      { kind: "unavailable", owner: OWNER, location: null },
+    ],
     ["choose: a location and an eligible context", {}, CHOOSE],
     [
       "choose: without a location or eligible contexts",
@@ -183,7 +209,7 @@ describe("resolveItemActionsView", () => {
     [
       "anonymous: a finished refetch for another session is shown as it is",
       { actions: actions({ viewer: "ANONYMOUS" }), actionsFetching: false },
-      { kind: "anonymous", owner: OWNER, mode: "GIFT", contexts: [ELIGIBLE_TERM, OTHER_EVENT] },
+      { kind: "anonymous", owner: OWNER, mode: "GIFT", location: LOCATION, contexts: [ELIGIBLE_TERM, OTHER_EVENT] },
     ],
   ])("%s", (_name, overrides, expected) => {
     expect(resolveItemActionsView({ ...BASE, ...overrides })).toEqual(expected);

@@ -21,7 +21,6 @@ import { capitalize, GIFT_LIMIT_MESSAGE, ITEM_MODES, MAX_GIFT_ITEMS, type ItemMo
 import { useAppData } from "../panel/appDataStore";
 import { SafeImage } from "./product/ItemGallery";
 import { itemEditPath, itemPagePath } from "./product/useItemRoutes";
-import { InventoryLocationCard } from "./InventoryLocationCard";
 import { SwapAcceptSuccessSheet, type AcceptedSwap } from "./SwapAcceptSuccessSheet";
 import { VisibilityToggle } from "./VisibilityToggle";
 
@@ -275,9 +274,6 @@ export function MyItemsView() {
 
   return (
     <div>
-
-      <InventoryLocationCard />
-
       {personalSwapAccepted && (
         <p role="status" className="mb-3 rounded-2xl bg-primary-soft px-3.5 py-2.5 text-[13px] font-bold text-primary-fg">
           {PERSONAL_SWAP_ACCEPTED_MESSAGE}

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
 from app.groups import service as groups_service
+from tests.conftest import create_location
 
 CONVERSATION_KEYS = {
     "id",
@@ -46,7 +47,11 @@ async def _create_event(client: AsyncClient, token: str, name: str) -> str:
     starts_at = (clock.local_now() + timedelta(days=3)).replace(second=0, microsecond=0)
     response = await client.post(
         "/api/events",
-        json={"name": name, "starts_at": starts_at.isoformat()},
+        json={
+            "location_id": await create_location(client, _auth(token)),
+            "name": name,
+            "starts_at": starts_at.isoformat(),
+        },
         headers=_auth(token),
     )
     assert response.status_code == 201, response.text

@@ -16,6 +16,7 @@ from app.families.models import FamilyRole
 from app.groups.models import GroupRole, TermAttendance
 from app.party.models import Party
 from app.users.models import UserProfile
+from tests.conftest import create_location
 
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
@@ -50,6 +51,7 @@ async def _create_circle_with_term(client: AsyncClient, email: str) -> tuple[int
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth_headers(token)),
             "circle_group_id": group_id,
             "occurs_on": date.today().isoformat(),
             "description": "Pierwsze spotkanie",

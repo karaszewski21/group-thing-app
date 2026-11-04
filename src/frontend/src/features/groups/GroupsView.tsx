@@ -99,11 +99,8 @@ export function GroupsView() {
                   <div className="min-w-0">
                     <h3 className="text-base font-extrabold wrap-break-word text-ink">{g.name}</h3>
                     <small className="block text-[13px] text-ink-soft">
-                      {g.default_location?.name ?? `${termCount} ${pluralPl(termCount, "termin", "terminy", "terminów")}`}
+                      {g.default_location?.label ?? `${termCount} ${pluralPl(termCount, "termin", "terminy", "terminów")}`}
                     </small>
-                    {g.default_location && (
-                      <small className="block truncate text-xs text-ink-soft">{g.default_location.formatted_address}</small>
-                    )}
                     <Link
                       to={groupDetailsPath(g.id)}
                       className="mt-1.5 inline-block rounded text-[13px] font-bold text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"

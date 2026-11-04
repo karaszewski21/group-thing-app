@@ -274,8 +274,9 @@ def test_resolveRequirement_groupSoftDeleteAndLeadershipRows_resolveToExpectedRo
     [
         ("GET", "/api/locations/mine", READ),
         ("POST", "/api/locations", EDIT),
-        ("PATCH", "/api/locations/x", EDIT),
+        ("PUT", "/api/locations/x", EDIT),
         ("DELETE", "/api/locations/x", EDIT),
+        ("GET", "/api/localities", READ),
         ("GET", "/api/events/mine", READ),
         ("GET", "/api/events/attending", READ),
         ("GET", "/api/events/x", "PUBLIC"),
@@ -285,8 +286,6 @@ def test_resolveRequirement_groupSoftDeleteAndLeadershipRows_resolveToExpectedRo
         ("POST", "/api/events/x/banner", EDIT),
         ("POST", "/api/events/x/attendances", "PUBLIC"),
         ("POST", "/api/events/x/attendances/withdraw", EDIT),
-        ("GET", "/api/inventories/mine/location", READ),
-        ("PUT", "/api/inventories/mine/location", EDIT),
     ],
 )
 def test_resolveRequirement_locationRows_resolveToExpectedRowNotCatchAll(
@@ -295,6 +294,10 @@ def test_resolveRequirement_locationRows_resolveToExpectedRowNotCatchAll(
     requirement = resolve_requirement(method, path)
     assert requirement == expected
     assert requirement != "AUTHENTICATED"
+
+
+def test_matrix_inventoryLocationRow_isRemoved() -> None:
+    assert not any("mine/location" in entry.pattern.pattern for entry in AUTHORIZATION_MATRIX)
 
 
 async def test_adminLoginToken_carriesEdit(client: AsyncClient, db_session: AsyncSession) -> None:

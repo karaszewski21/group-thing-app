@@ -46,6 +46,8 @@ export interface ItemDetailsResponse {
   photos: ProductPhotoResponse[];
   product_photo_url: string | null;
   is_owner: boolean;
+  /** The item's place, set only for the owner while that place is live. */
+  location_id: string | null;
   deleted_at: string | null;
   status: ItemStatusResponse;
 }

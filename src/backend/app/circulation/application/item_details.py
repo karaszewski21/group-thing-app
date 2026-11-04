@@ -42,6 +42,7 @@ class ItemDetails:
     deleted_at: datetime | None
     status: ItemStatus
     listing_status: ItemListingStatus
+    location_id: uuid.UUID | None
 
 
 async def get_item_details(
@@ -52,8 +53,8 @@ async def get_item_details(
 ) -> ItemDetails:
     """A bounded number of queries regardless of gallery size: the details
     row, photos, the viewer, the owning/holding inventories, the balance and,
-    only when reserved/in transit, the active reservations, display names
-    and the term or event."""
+    only when reserved/in transit, the active reservations, display names,
+    the term or event and, for the owner, the live pickup place."""
     row = await repository.get_item_details_row(db, item_id)
     if row is None or (principal is None and not _is_public(row.item)):
         raise EntityNotFoundException("InventoryItem", item_id)
@@ -99,6 +100,7 @@ async def get_item_details(
         display_names=display_names,
     )
     is_owner = viewer is not None and viewer == home_owner
+    location_id = await repository.find_item_live_location_id(db, item_id) if is_owner else None
     description = product_service.get_shared_description(row.plugin_data, row.product_description)
     return ItemDetails(
         id=cast(uuid.UUID, item.id),
@@ -114,6 +116,7 @@ async def get_item_details(
         deleted_at=item.deleted_at,
         status=status,
         listing_status=item.listing_status,
+        location_id=location_id,
     )
 
 

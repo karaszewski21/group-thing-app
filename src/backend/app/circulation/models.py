@@ -170,13 +170,6 @@ class Inventory(BaseEntity):
     structured address shape beyond display text."""
 
     __tablename__ = "inventories"
-    __table_args__ = (
-        Index(
-            "ix_inventories_location_id",
-            "location_id",
-            postgresql_where=text("location_id IS NOT NULL"),
-        ),
-    )
 
     owner_user_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),
@@ -187,13 +180,6 @@ class Inventory(BaseEntity):
         _enum_column(InventoryType, 20), nullable=False
     )
     location: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    # The owner's physical pickup place, a `Location` of the `locations`
-    # module. No `ON DELETE`: locations are only ever soft-deleted.
-    location_id: Mapped[uuid.UUID | None] = mapped_column(
-        postgresql.UUID(as_uuid=True),
-        ForeignKey("locations.id", name="fk_inventories_location_id_locations"),
-        nullable=True,
-    )
 
 
 class InventoryItem(BaseEntity):
@@ -203,6 +189,13 @@ class InventoryItem(BaseEntity):
     referenced `Product`."""
 
     __tablename__ = "inventory_items"
+    __table_args__ = (
+        Index(
+            "ix_inventory_items_location_id",
+            "location_id",
+            postgresql_where=text("location_id IS NOT NULL"),
+        ),
+    )
 
     inventory_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),
@@ -232,6 +225,14 @@ class InventoryItem(BaseEntity):
     home_inventory_id: Mapped[uuid.UUID | None] = mapped_column(
         postgresql.UUID(as_uuid=True),
         ForeignKey("inventories.id", name="fk_inventory_items_home_inventory_id_inventories"),
+        nullable=True,
+    )
+    # The item's pickup place, a `Location` of the `locations` module. Set on
+    # create and by PATCH, cleared by a GIFT/SWAP transfer. No `ON DELETE`:
+    # locations are only ever soft-deleted.
+    location_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("locations.id", name="fk_inventory_items_location_id_locations"),
         nullable=True,
     )
 

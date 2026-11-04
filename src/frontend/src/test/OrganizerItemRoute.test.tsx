@@ -56,6 +56,7 @@ function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsRespo
     category_name: "Zabawki",
     condition: "GOOD",
     listing_status: "ACTIVE",
+    location_id: null,
     description: "Lekki, aluminiowy.",
     photos: [],
     product_photo_url: null,

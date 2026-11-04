@@ -11,13 +11,16 @@ import {
 } from "../../api/terms";
 import { serverMessageOr } from "../../api/problem";
 import { CapacityField, Field, INPUT_CLASS } from "../../components/shared/appComponents";
-import { capacityText, parseCapacity } from "../../utils/appHelpers";
+import { parseCapacity } from "../../utils/appHelpers";
 import { LocationPicker } from "../../components/shared/LocationPicker";
+import { toLocalInput, type TermDraft } from "./termDraft";
 
 /** The "Edytuj termin" form shown on `/terms/:termId/edit` (`TermEditView`).
- * `term`/`neededItems` come as props from the host, which passes fresh values
- * after each `load({ silent: true })` — so every needed-item mutation calls
- * `onChanged()`. Needed-item sub-CRUD is non-optimistic (await, then
+ * The term fields live in the host's draft (AppDataContext `termEdit`), so the
+ * place picker's trip to /places/new keeps them; "Zapisz" sends only what
+ * differs from `term`. `term`/`neededItems` come as props from the host, which
+ * passes fresh values after each `load({ silent: true })` — so every
+ * needed-item mutation calls `onChanged()`. Needed-item sub-CRUD is non-optimistic (await, then
  * refresh); a rejected delete keeps the row and shows an inline message. A
  * needed item is a plain name plus an optional refinement. */
 
@@ -40,10 +43,12 @@ const EMPTY_DRAFT: NeededItemDraft = { name: "", description: "" };
 
 interface TermEditFormProps {
   term: TermResponse;
+  draft: TermDraft;
+  onDraftChange: (draft: TermDraft) => void;
   neededItems: NeededItemResponse[];
   /** `() => void load({ silent: true })` on the host — refreshes the props. */
   onChanged: () => void;
-  /** After "Zapisz" — `saved` is false when nothing had changed. */
+  /** After "Zapisz" or "Anuluj" — `saved` is false when nothing was saved. */
   onDone: (saved: boolean) => void;
 }
 
@@ -76,17 +81,10 @@ function NeededItemFields({
   );
 }
 
-/** `<input type="datetime-local">` wants `YYYY-MM-DDTHH:MM`; the API sends
- * seconds (and sometimes only a date). */
-const toLocalInput = (iso: string): string =>
-  iso.length >= 16 ? iso.slice(0, 16) : `${iso.slice(0, 10)}T00:00`;
-
-export function TermEditForm({ term, neededItems, onChanged, onDone }: TermEditFormProps) {
-  const [occursOn, setOccursOn] = useState(toLocalInput(term.occurs_on));
-  const [description, setDescription] = useState(term.description ?? "");
-  const [locationId, setLocationId] = useState<string | null>(term.location?.id ?? null);
-  const [capacityInput, setCapacityInput] = useState(capacityText(term.capacity));
-  const capacity = parseCapacity(capacityInput);
+export function TermEditForm({ term, draft, onDraftChange, neededItems, onChanged, onDone }: TermEditFormProps) {
+  const { occursOn, description, locationId } = draft;
+  const capacity = parseCapacity(draft.capacity);
+  const set = (patch: Partial<TermDraft>) => onDraftChange({ ...draft, ...patch });
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -96,7 +94,7 @@ export function TermEditForm({ term, neededItems, onChanged, onDone }: TermEditF
   const [itemsError, setItemsError] = useState<string | null>(null);
 
   async function saveTermFields() {
-    if (capacity === undefined) return;
+    if (capacity === undefined || !locationId) return;
     const patch: UpdateTermRequest = {};
     if (occursOn && occursOn !== toLocalInput(term.occurs_on)) patch.occurs_on = occursOn;
     if (description !== (term.description ?? "")) patch.description = description;
@@ -188,7 +186,7 @@ export function TermEditForm({ term, neededItems, onChanged, onDone }: TermEditF
             aria-label="Data i godzina"
             type="datetime-local"
             value={occursOn}
-            onChange={(e) => setOccursOn(e.target.value)}
+            onChange={(e) => set({ occursOn: e.target.value })}
             className={inputClass}
           />
         </Field>
@@ -197,7 +195,7 @@ export function TermEditForm({ term, neededItems, onChanged, onDone }: TermEditF
             aria-label="Opis"
             type="text"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => set({ description: e.target.value })}
             onKeyDown={(e) => {
               if (e.key === "Enter") void saveTermFields();
             }}
@@ -207,19 +205,19 @@ export function TermEditForm({ term, neededItems, onChanged, onDone }: TermEditF
         </Field>
         <Field label="Miejsce">
           <LocationPicker
-            addMode="inline"
             value={locationId}
-            onChange={setLocationId}
+            onChange={(id) => set({ locationId: id })}
             label="Miejsce"
-            noneLabel="Brak miejsca"
             idPrefix={`edit-term-${term.id}-place`}
+            required
+            invalid={locationId === null}
             fallbackLocation={term.location}
           />
         </Field>
         <CapacityField
           label="Ile miejsc"
-          value={capacityInput}
-          onChange={setCapacityInput}
+          value={draft.capacity}
+          onChange={(text) => set({ capacity: text })}
           inputClassName={`${inputClass} w-28`}
         />
       </div>
@@ -231,10 +229,18 @@ export function TermEditForm({ term, neededItems, onChanged, onDone }: TermEditF
       <button
         type="button"
         onClick={() => void saveTermFields()}
-        disabled={busy || capacity === undefined}
+        disabled={busy || !locationId || capacity === undefined}
         className="mt-3 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
       >
         Zapisz
+      </button>
+      <button
+        type="button"
+        onClick={() => onDone(false)}
+        disabled={busy}
+        className="mt-2 w-full rounded-[13px] border-[1.5px] border-line px-5 py-3 text-[13.5px] font-extrabold text-ink-soft disabled:opacity-60"
+      >
+        Anuluj
       </button>
 
       <h4 className="mb-1.5 mt-6 text-sm font-semibold text-ink">Potrzebne rzeczy</h4>

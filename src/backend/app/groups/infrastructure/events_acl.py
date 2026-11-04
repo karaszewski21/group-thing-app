@@ -104,7 +104,7 @@ async def list_upcoming_events_for_parties(
 ) -> list[UpcomingEvent]:
     """Events starting at or after `now` (naive Warsaw, `clock.local_now()`)
     that any of `party_ids` authored or actively attends, earliest first,
-    each with its active attendee count and place name. One events statement
+    each with its active attendee count and place label. One events statement
     plus one location lookup, however many events there are."""
     if not party_ids:
         return []
@@ -136,7 +136,7 @@ async def list_upcoming_events_for_parties(
             event=event,
             attendee_count=count,
             location_name=(
-                locations[event.location_id].name if event.location_id in locations else None
+                locations[event.location_id].label if event.location_id in locations else None
             ),
         )
         for event, count in rows

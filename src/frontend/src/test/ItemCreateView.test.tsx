@@ -1,4 +1,5 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { Activity } from "react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ItemCreateView } from "../features/items/ItemCreateView";
 import { FailedPhotosNotice } from "../features/items/product/ItemDetailPage";
@@ -6,16 +7,61 @@ import * as inventoriesApi from "../api/inventories";
 import * as peopleApi from "../api/people";
 import * as productsApi from "../api/products";
 import * as categoriesApi from "../api/categories";
+import * as locationsApi from "../api/locations";
 import { ApiError } from "../api/client";
 import type { Category } from "../api/categories";
-import type { InventoryItemResponse, InventoryResponse } from "../api/inventories";
+import type { InventoryItemResponse, InventoryResponse, MyInventoryItemResponse } from "../api/inventories";
 import type { UserProfileResponse } from "../api/people";
 import type { ProductResponse } from "../api/products";
 import { useAppParams } from "../routing/navigation";
+import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../utils/itemQuickAdd";
+import { makeLocality, makeLocationResponse } from "./fixtures/locations";
 import { createQueryWrapper } from "./queryClient";
 import { renderWithRoute } from "./renderWithRoute";
 
-vi.mock("../features/panel/appDataStore", () => ({ useAppData: () => ({ ownSlug: "ania" }) }));
+/** A stand-in for the panel's AppDataContext: the item draft slices live
+ * outside the page, so they survive its unmount as they do in the panel. */
+const panel = vi.hoisted(() => {
+  let state: Record<string, unknown> = {};
+  const listeners = new Set<() => void>();
+  function set(key: string, next: unknown) {
+    const value = typeof next === "function" ? (next as (prev: unknown) => unknown)(state[key]) : next;
+    state = { ...state, [key]: value };
+    listeners.forEach((listener) => listener());
+  }
+  return {
+    reset(initial: Record<string, unknown>) {
+      state = initial;
+    },
+    get: () => state,
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    setters: {
+      setItemDraft: (next: unknown) => set("itemDraft", next),
+      setItemPhotos: (next: unknown) => set("itemPhotos", next),
+    },
+  };
+});
+
+vi.mock("../features/panel/appDataStore", async () => {
+  const { useSyncExternalStore } = await import("react");
+  return {
+    useAppData: () => ({ ...useSyncExternalStore(panel.subscribe, panel.get), ...panel.setters }),
+  };
+});
+
+vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: "token-a" }) }));
+
+vi.mock("../api/locations", () => ({
+  getMyLocations: vi.fn(),
+  createLocation: vi.fn(),
+  updateLocation: vi.fn(),
+  deleteLocation: vi.fn(),
+}));
 
 vi.mock("../api/inventories", () => ({
   getOrCreatePersonalInventory: vi.fn(),
@@ -45,6 +91,14 @@ const CAT_KIDS = "4f506172-8394-4a5b-8e6d-7f8091a2b3c4";
 const CAT_STROLLERS = "50617283-94a5-4b6c-9f7e-8091a2b3c4d5";
 const CAT_TOYS = "6172839a-a5b6-4c7d-8e8f-91a2b3c4d5e6";
 
+const KETY = makeLocationResponse();
+const POZNAN = makeLocationResponse({
+  id: "loc-2",
+  locality: makeLocality({ id: "0969400", name: "Poznań", gmina: "Poznań", powiat: "Poznań", voivodeship: "wielkopolskie" }),
+  label: "Poznań, wielkopolskie",
+});
+const MISSING_HINT = "Podaj nazwę, wybierz kategorię i lokalizację, aby zapisać.";
+
 const GIFT_LIMIT_MESSAGE =
   "Możesz mieć maksymalnie 10 rzeczy do oddania. Wybierz „Zamienię” albo zapisz wersję roboczą.";
 
@@ -61,11 +115,35 @@ function category(id: string, name: string, parent_id: string | null, sort_order
   };
 }
 
+function myItem(id: string, location_id: string | null, created_at: string): MyInventoryItemResponse {
+  return {
+    id,
+    inventory_id: INVENTORY_ID,
+    home_inventory_id: null,
+    product_id: PRODUCT_ID,
+    product_name: "Rowerek",
+    condition: "GOOD",
+    listing_status: "DRAFT",
+    added_at: created_at,
+    created_at,
+    updated_at: created_at,
+    listing_mode: null,
+    listing_visibility: null,
+    photos_moderation_pending: false,
+    location_id,
+  };
+}
+
+function storedDraft(): ItemQuickAddValue {
+  return panel.get().itemDraft as ItemQuickAddValue;
+}
+
 function NewItemProbe() {
   const { id } = useAppParams();
   return (
     <>
       <p>ITEM PAGE {id}</p>
+      <p>DRAFT NAME [{storedDraft().name}]</p>
       <FailedPhotosNotice />
     </>
   );
@@ -78,6 +156,10 @@ function renderPage() {
     routes: { "/ania/product/:id": <NewItemProbe /> },
     wrapper: createQueryWrapper(),
   });
+}
+
+function placeSelect() {
+  return screen.getByRole("combobox", { name: "Lokalizacja" });
 }
 
 function categoryTrigger() {
@@ -97,10 +179,13 @@ async function chooseStrollers() {
   await waitFor(() => expect(categoryTrigger()).toHaveTextContent("Wózki"));
 }
 
+/** Fills the name and category; the only saved place (Kęty) is prefilled. */
 async function fillForm(name = "Rowerek") {
-  renderPage();
+  const view = renderPage();
+  await waitFor(() => expect(placeSelect()).toHaveValue(KETY.id));
   fireEvent.change(screen.getByLabelText("Nazwa"), { target: { value: name } });
   await chooseStrollers();
+  return view;
 }
 
 function addPhoto(file: File) {
@@ -109,6 +194,14 @@ function addPhoto(file: File) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  panel.reset({
+    ownSlug: "ania",
+    items: [],
+    refreshItems: vi.fn(async () => {}),
+    itemDraft: createEmptyItemQuickAddValue(),
+    itemPhotos: [],
+  });
+  vi.mocked(locationsApi.getMyLocations).mockResolvedValue([KETY]);
   vi.mocked(categoriesApi.getCategories).mockResolvedValue([
     category(CAT_KIDS, "Dzieci", null, 0),
     category(CAT_STROLLERS, "Wózki", CAT_KIDS, 0),
@@ -147,6 +240,7 @@ describe("ItemCreateView", () => {
       expect(button).toHaveFocus();
     }
 
+    await waitFor(() => expect(placeSelect()).toHaveValue(KETY.id));
     fireEvent.change(screen.getByLabelText("Nazwa"), { target: { value: "   " } });
     await chooseStrollers();
     for (const button of actionButtons()) {
@@ -164,28 +258,203 @@ describe("ItemCreateView", () => {
   });
 
   it("tells screen-reader users why the disabled actions are disabled", async () => {
-    const hint = "Podaj nazwę i wybierz kategorię, aby zapisać.";
     renderPage();
+    await waitFor(() => expect(placeSelect()).toHaveValue(KETY.id));
 
-    expect(screen.getByText(hint)).toBeVisible();
-    for (const button of actionButtons()) expect(button).toHaveAccessibleDescription(hint);
+    // Screen-reader only: the description stays, the visible hint is gone.
+    expect(screen.getByText(MISSING_HINT)).toHaveClass("sr-only");
+    for (const button of actionButtons()) expect(button).toHaveAccessibleDescription(MISSING_HINT);
 
     fireEvent.change(screen.getByLabelText("Nazwa"), { target: { value: "Rowerek" } });
-    for (const button of actionButtons()) expect(button).toHaveAccessibleDescription(hint);
+    for (const button of actionButtons()) expect(button).toHaveAccessibleDescription(MISSING_HINT);
 
     await chooseStrollers();
-    expect(screen.queryByText(hint)).not.toBeInTheDocument();
+    expect(screen.queryByText(MISSING_HINT)).not.toBeInTheDocument();
     for (const button of actionButtons()) {
       expect(button).not.toHaveAttribute("aria-disabled");
       expect(button).not.toHaveAttribute("aria-describedby");
     }
   });
 
+  it("keeps the actions blocked without a place: empty picker, hint, and an error on a click", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
+    renderPage();
+    await waitFor(() => expect(placeSelect()).toHaveTextContent("Nie masz jeszcze miejsc"));
+    fireEvent.change(screen.getByLabelText("Nazwa"), { target: { value: "Rowerek" } });
+    await chooseStrollers();
+
+    expect(
+      screen.getByText("Dodaj miejsce przyciskiem „+”. Wrócisz tu z zachowanymi danymi i zdjęciami."),
+    ).toBeVisible();
+    expect(screen.getByRole("link", { name: "Dodaj nowe miejsce" })).toBeInTheDocument();
+    for (const button of actionButtons()) {
+      expect(button).toHaveAttribute("aria-disabled", "true");
+      expect(button).toHaveAccessibleDescription(MISSING_HINT);
+    }
+    expect(placeSelect()).not.toHaveAttribute("aria-invalid");
+
+    fireEvent.click(screen.getByRole("button", { name: "Oddam" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Wybierz lokalizację");
+    expect(placeSelect()).toHaveAttribute("aria-invalid", "true");
+    expect(peopleApi.getMyProfile).not.toHaveBeenCalled();
+    expect(inventoriesApi.registerInventoryItem).not.toHaveBeenCalled();
+  });
+
+  it("keeps the typed draft and photos in the panel across an unmount and remount", async () => {
+    const view = await fillForm();
+    fireEvent.change(screen.getByLabelText("Opis"), { target: { value: "Mało używany" } });
+    addPhoto(new File(["a"], "a.jpg", { type: "image/jpeg" }));
+    expect(screen.getByRole("button", { name: "Usuń zdjęcie 1" })).toBeInTheDocument();
+
+    view.unmount();
+    expect(screen.queryByLabelText("Nazwa")).not.toBeInTheDocument();
+    renderPage();
+
+    expect(screen.getByLabelText("Nazwa")).toHaveValue("Rowerek");
+    expect(screen.getByLabelText("Opis")).toHaveValue("Mało używany");
+    expect(screen.getByRole("button", { name: "Usuń zdjęcie 1" })).toBeInTheDocument();
+    await waitFor(() => expect(categoryTrigger()).toHaveTextContent("Wózki"));
+    await waitFor(() => expect(placeSelect()).toHaveValue(KETY.id));
+  });
+
+  it("gives a kept draft photo a fresh, unrevoked preview when the page's effects re-run (back from /places/new)", async () => {
+    panel.reset({ ...panel.get(), itemPhotos: [new File(["a"], "a.jpg", { type: "image/jpeg" })] });
+    const page = (mode: "visible" | "hidden") => (
+      <Activity mode={mode}>
+        <ItemCreateView />
+      </Activity>
+    );
+    const view = renderWithRoute(page("visible"), {
+      url: "/add/product",
+      pattern: "/add/product",
+      wrapper: createQueryWrapper(),
+    });
+    await waitFor(() => expect(view.container.querySelector("img")).not.toBeNull());
+
+    // Hiding runs the effect cleanups (revoking the previews) but keeps the state, as a remount in dev does.
+    view.rerender(page("hidden"));
+    view.rerender(page("visible"));
+
+    await waitFor(() => {
+      const src = view.container.querySelector("img")?.getAttribute("src");
+      expect(src).toMatch(/^blob:preview-/);
+      expect(vi.mocked(URL.revokeObjectURL).mock.calls.map(([url]) => url)).not.toContain(src);
+    });
+  });
+
+  it("clears the draft and photos after a successful create, before the item page shows", async () => {
+    vi.mocked(productsApi.addProductPhoto).mockResolvedValue(
+      {} as Awaited<ReturnType<typeof productsApi.addProductPhoto>>,
+    );
+    await fillForm();
+    addPhoto(new File(["a"], "a.jpg", { type: "image/jpeg" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Wersja robocza" }));
+
+    expect(await screen.findByText(`ITEM PAGE ${NEW_ITEM_ID}`)).toBeInTheDocument();
+    expect(screen.getByText("DRAFT NAME []")).toBeInTheDocument();
+    expect(panel.get().itemDraft).toEqual(createEmptyItemQuickAddValue());
+    expect(panel.get().itemPhotos).toEqual([]);
+    expect(panel.get().refreshItems).toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "the newest item's live place",
+      [myItem("i1", KETY.id, "2026-10-01T10:00:00"), myItem("i2", POZNAN.id, "2026-10-02T10:00:00")],
+      POZNAN.id,
+    ],
+    [
+      "the newest live place, skipping a newer item whose place is gone",
+      [myItem("i1", KETY.id, "2026-10-01T10:00:00"), myItem("i2", "loc-deleted", "2026-10-03T10:00:00")],
+      KETY.id,
+    ],
+    ["nothing with several places and no located item", [myItem("i1", null, "2026-10-01T10:00:00")], ""],
+  ])("prefills %s", async (_label, items, expected) => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([KETY, POZNAN]);
+    panel.reset({ ...panel.get(), items });
+    renderPage();
+
+    await waitFor(() => expect(within(placeSelect()).getAllByRole("option")).toHaveLength(3));
+    await waitFor(() => expect(placeSelect()).toHaveValue(expected));
+  });
+
+  it("keeps the resumed draft and its place when /places/new hands back a cancelled (null) pick", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([KETY, POZNAN]);
+    panel.reset({
+      ...panel.get(),
+      items: [myItem("i1", KETY.id, "2026-10-01T10:00:00")],
+      itemDraft: { ...createEmptyItemQuickAddValue(), name: "Rowerek", location_id: POZNAN.id },
+    });
+    renderWithRoute(<ItemCreateView />, {
+      url: "/add/product",
+      pattern: "/add/product",
+      state: { pickedLocation: { picker: "item-create-place", locationId: null } },
+      wrapper: createQueryWrapper(),
+    });
+
+    await waitFor(() => expect(within(placeSelect()).getAllByRole("option")).toHaveLength(3));
+    expect(placeSelect()).toHaveValue(POZNAN.id);
+    expect(screen.getByLabelText("Nazwa")).toHaveValue("Rowerek");
+    expect(storedDraft().location_id).toBe(POZNAN.id);
+  });
+
+  it("treats a resumed draft's deleted place as no place: inline error, no request", async () => {
+    panel.reset({
+      ...panel.get(),
+      itemDraft: { ...createEmptyItemQuickAddValue(), name: "Rowerek", location_id: "loc-deleted" },
+    });
+    renderPage();
+    await waitFor(() => expect(within(placeSelect()).getAllByRole("option")).toHaveLength(2));
+    await chooseStrollers();
+
+    for (const button of actionButtons()) expect(button).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Oddam" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Wybierz lokalizację");
+    expect(placeSelect()).toHaveAttribute("aria-invalid", "true");
+    expect(inventoriesApi.registerInventoryItem).not.toHaveBeenCalled();
+  });
+
+  it("does not prefill over a resumed draft", async () => {
+    panel.reset({ ...panel.get(), itemDraft: { ...createEmptyItemQuickAddValue(), name: "Rowerek" } });
+    renderPage();
+
+    await waitFor(() => expect(within(placeSelect()).getAllByRole("option")).toHaveLength(2));
+    expect(placeSelect()).toHaveValue("");
+  });
+
+  it("orders the page Zdjęcia, Nazwa, Stan, Kategoria, Opis, Lokalizacja and saves the description to the product", async () => {
+    vi.mocked(productsApi.updateProductDescription).mockResolvedValue(
+      {} as Awaited<ReturnType<typeof productsApi.updateProductDescription>>,
+    );
+    await fillForm();
+
+    const fields = [
+      screen.getByLabelText("Dodaj zdjęcia"),
+      screen.getByLabelText("Nazwa"),
+      screen.getByLabelText("Stan"),
+      categoryTrigger(),
+      screen.getByLabelText("Opis"),
+      placeSelect(),
+    ];
+    for (const [before, after] of fields.slice(0, -1).map((field, i) => [field, fields[i + 1]])) {
+      expect(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    expect(screen.queryByText("Kupujący zobaczą tylko miejscowość. Adres widzisz tylko Ty.")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Opis"), { target: { value: "  Mało używany  " } });
+    fireEvent.click(screen.getByRole("button", { name: "Wersja robocza" }));
+
+    expect(await screen.findByText(`ITEM PAGE ${NEW_ITEM_ID}`)).toBeInTheDocument();
+    expect(productsApi.updateProductDescription).toHaveBeenCalledWith(PRODUCT_ID, "Mało używany");
+  });
+
   it.each([
     ["Oddam", "GIFT"],
     ["Zamienię", "SWAP"],
     ["Wersja robocza", null],
-  ] as const)("%s registers the item with listing_mode %s, then uploads the photos", async (label, mode) => {
+  ] as const)("%s registers the item at its place with listing_mode %s, then uploads the photos", async (label, mode) => {
     const photo = new File(["a"], "a.jpg", { type: "image/jpeg" });
     vi.mocked(productsApi.addProductPhoto).mockResolvedValue(
       {} as Awaited<ReturnType<typeof productsApi.addProductPhoto>>,
@@ -202,34 +471,12 @@ describe("ItemCreateView", () => {
       inventory_id: INVENTORY_ID,
       product_id: PRODUCT_ID,
       condition: "LIKE_NEW",
+      location_id: KETY.id,
       listing_mode: mode,
     });
     expect(vi.mocked(productsApi.addProductPhoto).mock.calls).toEqual([[PRODUCT_ID, photo]]);
     const registerOrder = vi.mocked(inventoriesApi.registerInventoryItem).mock.invocationCallOrder[0];
     expect(registerOrder).toBeLessThan(vi.mocked(productsApi.addProductPhoto).mock.invocationCallOrder[0]);
-  });
-
-  it("orders the page Zdjęcia, Nazwa, Stan, Kategoria, Opis and saves the description to the product", async () => {
-    vi.mocked(productsApi.updateProductDescription).mockResolvedValue(
-      {} as Awaited<ReturnType<typeof productsApi.updateProductDescription>>,
-    );
-    await fillForm();
-
-    const fields = [
-      screen.getByLabelText("Dodaj zdjęcia"),
-      screen.getByLabelText("Nazwa"),
-      screen.getByLabelText("Stan"),
-      categoryTrigger(),
-      screen.getByLabelText("Opis"),
-    ];
-    for (const [before, after] of fields.slice(0, -1).map((field, i) => [field, fields[i + 1]])) {
-      expect(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    }
-    fireEvent.change(screen.getByLabelText("Opis"), { target: { value: "  Mało używany  " } });
-    fireEvent.click(screen.getByRole("button", { name: "Wersja robocza" }));
-
-    expect(await screen.findByText(`ITEM PAGE ${NEW_ITEM_ID}`)).toBeInTheDocument();
-    expect(productsApi.updateProductDescription).toHaveBeenCalledWith(PRODUCT_ID, "Mało używany");
   });
 
   it("skips an empty description", async () => {

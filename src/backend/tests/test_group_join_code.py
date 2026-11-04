@@ -20,6 +20,7 @@ from app.core import clock
 from app.groups import service
 from app.groups.application.join_code_limiter import limiter
 from app.groups.infrastructure import repository
+from tests.conftest import create_location
 
 WRONG_CODE_MESSAGE = "Nieprawidłowy kod dostępu — sprawdź i spróbuj ponownie"
 PUBLIC_GROUP_MESSAGE = "Grupa jest publiczna — kod dostępu nie jest potrzebny"
@@ -48,6 +49,7 @@ async def _create_circle_and_term(
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": group_id,
             "occurs_on": (clock.local_now() + timedelta(days=7)).replace(microsecond=0).isoformat(),
         },

@@ -60,12 +60,7 @@ export function AdminTermsPage() {
               </Table.Cell>
               <Table.Cell color="#334155" fontSize="13px">
                 {term.location ? (
-                  <>
-                    <Text fontWeight="500">{term.location.name}</Text>
-                    <Text fontSize="12px" color="#64748B">
-                      {term.location.formatted_address}
-                    </Text>
-                  </>
+                  <Text fontWeight="500">{term.location.label}</Text>
                 ) : (
                   <EmptyCell />
                 )}

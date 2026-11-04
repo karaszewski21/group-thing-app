@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.circulation.application.identity import get_user_id_by_principal
 from app.circulation.application.inventory import get_inventory
-from app.circulation.infrastructure import repository
+from app.circulation.infrastructure import locations_acl, repository
 from app.circulation.infrastructure.ledger import MovementLeg, post_movement
 from app.circulation.infrastructure.repository import AvailableItemView
 from app.circulation.models import (
@@ -46,6 +46,7 @@ async def register_item(
     product_id: uuid.UUID,
     condition: str,
     *,
+    location_id: uuid.UUID,
     owner_user_id: uuid.UUID | None = None,
     listing_mode: ReservationType | None = None,
     on_registered: OnItemRegistered | None = None,
@@ -55,12 +56,14 @@ async def register_item(
     starts ACTIVE and the flushed item is handed to `on_registered` (the
     router injects `app.groups`' listing-preference insert — circulation
     never imports groups) before that single commit, so a failing hook
-    persists nothing."""
+    persists nothing. `location_id` must be one of the inventory owner's
+    live saved places (404 unknown or deleted, then 403 foreign)."""
     if listing_mode is not None and on_registered is None:
         raise ValueError("listing_mode requires an on_registered hook")
     inventory = await get_inventory(db, inventory_id)
     if owner_user_id is not None and inventory.owner_user_id != owner_user_id:
         raise AccessDeniedException
+    await _require_owned_location(db, inventory.owner_user_id, location_id)
     product = await product_service.get_product(db, product_id)
 
     item = InventoryItem(
@@ -71,6 +74,7 @@ async def register_item(
             ItemListingStatus.DRAFT if listing_mode is None else ItemListingStatus.ACTIVE
         ),
         added_at=datetime.utcnow(),
+        location_id=location_id,
     )
     db.add(item)
     await db.flush()
@@ -90,6 +94,15 @@ async def register_item(
     await db.commit()
     await db.refresh(item)
     return item
+
+
+async def _require_owned_location(
+    db: AsyncSession, owner_user_id: uuid.UUID, location_id: uuid.UUID
+) -> None:
+    party_id = await repository.find_party_id_by_user_id(db, owner_user_id)
+    if party_id is None:
+        raise EntityNotFoundException("UserProfile", owner_user_id)
+    await locations_acl.get_owned_location(db, location_id, party_id)
 
 
 async def get_item(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
@@ -252,15 +265,20 @@ async def update_item(
     principal: Principal,
     data: UpdateInventoryItemRequest,
 ) -> InventoryItem:
-    """PATCH an item's `condition` and/or re-point it to another `product_id`.
-    Allowed regardless of the item's `InventoryBalance` status — a reserved
-    item can still be corrected."""
+    """PATCH an item's `condition`, `location_id` and/or re-point it to
+    another `product_id`. Allowed regardless of the item's `InventoryBalance`
+    status — a reserved item can still be corrected, and an open personal
+    pickup follows the item's current place without a notification."""
     item = await _require_item_owner(db, item_id, principal)
     if data.product_id is not None and data.product_id != item.product_id:
         await product_service.get_product(db, data.product_id)
         item.product_id = data.product_id
     if data.condition is not None:
         item.condition = data.condition
+    if data.location_id is not None:
+        acting_user_id = await get_user_id_by_principal(db, principal)
+        await _require_owned_location(db, acting_user_id, data.location_id)
+        item.location_id = data.location_id
     await db.commit()
     await db.refresh(item)
     return item

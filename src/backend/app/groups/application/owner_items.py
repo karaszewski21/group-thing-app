@@ -160,7 +160,7 @@ async def list_owner_dates(
             id=term_id,
             name=group_name,
             starts_at=occurs_on,
-            location_name=locations[location_id].name if location_id in locations else None,
+            location_name=locations[location_id].label if location_id in locations else None,
             attendee_count=attendee_count,
             path=f"/{term_slugs[group_id]}/group/{group_id}/term/{term_id}",
         )

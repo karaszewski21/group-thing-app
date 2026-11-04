@@ -8,7 +8,9 @@ import type {
 
 type Owner = ItemActionsResponse["owner"];
 
-/** The one state the item page's actions card shows (spec R5.2). */
+/** The one state the item page's actions card shows (spec R5.2). The views
+ * with an owner carry the item's place for the location card: the owner's
+ * shape (address, `deleted_at`) or the locality-only one. */
 export type ItemActionsView =
   | { kind: "loading" }
   | { kind: "hidden" }
@@ -22,7 +24,13 @@ export type ItemActionsView =
       visibility: ItemActionsResponse["visibility"];
       partyReservation: ItemPartyReservationResponse | null;
     }
-  | { kind: "anonymous"; owner: Owner; mode: ExchangeMode; contexts: ItemContextOptionResponse[] }
+  | {
+      kind: "anonymous";
+      owner: Owner;
+      mode: ExchangeMode;
+      location: ItemLocationResponse | null;
+      contexts: ItemContextOptionResponse[];
+    }
   | {
       kind: "reserved";
       owner: Owner;
@@ -31,7 +39,7 @@ export type ItemActionsView =
       partyReservation: ItemPartyReservationResponse | null;
       location: ItemLocationResponse | null;
     }
-  | { kind: "unavailable"; owner: Owner }
+  | { kind: "unavailable"; owner: Owner; location: ItemLocationResponse | null }
   | {
       kind: "choose";
       owner: Owner;
@@ -95,8 +103,8 @@ export function resolveItemActionsView({
       location,
     };
   }
-  if (!actions.available || mode === null) return { kind: "unavailable", owner };
-  if (actions.viewer === "ANONYMOUS") return { kind: "anonymous", owner, mode, contexts };
+  if (!actions.available || mode === null) return { kind: "unavailable", owner, location };
+  if (actions.viewer === "ANONYMOUS") return { kind: "anonymous", owner, mode, location, contexts };
   return {
     kind: "choose",
     owner,

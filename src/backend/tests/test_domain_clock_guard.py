@@ -21,7 +21,7 @@ from app.core.errors import BusinessConflictException
 from app.core.security import decode_token
 from app.groups import service
 from app.groups.models import SwapProposalStatus, Term
-from tests.conftest import leaf_category_ids
+from tests.conftest import create_location, leaf_category_ids
 from tests.test_term_item_listings import _propose_in_term
 
 _APP_ROOT = Path(__file__).resolve().parents[1] / "app"
@@ -84,6 +84,7 @@ async def _register_swap_item(
             "inventory_id": inv.json()["id"],
             "product_id": product.json()["id"],
             "condition": "GOOD",
+            "location_id": await create_location(client, _auth(token)),
         },
         headers=_auth(token),
     )
@@ -108,7 +109,11 @@ async def _proposed_swap(
     group_id = circle.json()["id"]
     created = await client.post(
         "/api/terms",
-        json={"circle_group_id": group_id, "occurs_on": "2099-06-10T16:30:00"},
+        json={
+            "location_id": await create_location(client, _auth(org_token)),
+            "circle_group_id": group_id,
+            "occurs_on": "2099-06-10T16:30:00",
+        },
         headers=_auth(org_token),
     )
     assert created.status_code == 201
@@ -166,8 +171,6 @@ async def test_acceptSwapProposal_frozenClockBeforeTermStart_accepts(
     lister_token, proposal_id, occurs_on = await _proposed_swap(client, db_session, "2")
     freeze_local_now(occurs_on - timedelta(minutes=1))
 
-    accepted = await service.accept_swap_proposal(
-        db_session, _principal(lister_token), proposal_id
-    )
+    accepted = await service.accept_swap_proposal(db_session, _principal(lister_token), proposal_id)
 
     assert accepted.status == SwapProposalStatus.ACCEPTED

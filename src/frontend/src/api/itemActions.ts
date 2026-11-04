@@ -1,6 +1,7 @@
 import { api } from "./client";
 import type { ExchangeMode, ReservedByResponse } from "./groups";
 import type { ItemVisibility } from "./itemListingPreferences";
+import type { Locality } from "./locations";
 import type { ReservationType } from "./reservations";
 
 /** The term or event an item is reserved in. `name` is the circle's name for
@@ -17,14 +18,16 @@ export interface ItemContextResponse {
 /** An upcoming term or event the owner takes part in. `eligible` is whether
  * the logged-in, non-owner viewer may reserve in it. */
 export interface ItemContextOptionResponse extends ItemContextResponse {
+  /** The term or event place's full `label`. */
   location_name: string | null;
   eligible: boolean;
 }
 
-/** The owner's pickup place as the viewer may see it: the owner gets the
- * address (and `deleted_at` once removed); anyone else only the name. */
+/** The item's place as the viewer may see it: the owner gets the address
+ * (and `deleted_at` once removed); anyone else only the locality, with both
+ * other keys `null`. */
 export interface ItemLocationResponse {
-  name: string;
+  locality: Locality;
   formatted_address: string | null;
   deleted_at: string | null;
 }
@@ -66,7 +69,7 @@ export interface ItemActionsResponse {
     items_total: number;
   };
   viewer: ItemActionsViewer;
-  /** `null` for an anonymous viewer or when the owner has no place set. */
+  /** `null` when the item has no place. */
   location: ItemLocationResponse | null;
   /** At most 5 upcoming contexts the viewer may see. */
   contexts: ItemContextOptionResponse[];

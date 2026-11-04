@@ -13,7 +13,7 @@ A guarded downgrade is allowed when rows referenced by the ledger (`circulation_
 Because each revision runs in its own transaction, a refusal stops the chain at the refusing revision with later ones already undone. Operators run **every** guard count before any downgrade or image-only rollback (the old image has the same hazards without the guards) — the queries and recovery steps live in the runbook in `project/architecture.md`.
 
 ### Lock Timeouts and Concurrent Index Builds
-Revisions that take ACCESS EXCLUSIVE locks on live tables start with `op.execute("SET LOCAL lock_timeout = '5s'")` so a blocked deploy fails fast instead of queueing every request behind it (`0073`–`0076`). Indexes on large live tables are built with `postgresql_concurrently=True` inside `with op.get_context().autocommit_block():`, since `CREATE INDEX CONCURRENTLY` cannot run in a transaction; the downgrade drops them the same way (`0053_terms_circle_occurs_on_index.py`, `0077_swap_proposals_listing_item_index.py`).
+Revisions that take ACCESS EXCLUSIVE locks on live tables start with `op.execute("SET LOCAL lock_timeout = '5s'")` so a blocked deploy fails fast instead of queueing every request behind it (`0073`–`0076`, `0080`). Indexes on large live tables are built with `postgresql_concurrently=True` inside `with op.get_context().autocommit_block():`, since `CREATE INDEX CONCURRENTLY` cannot run in a transaction; the downgrade drops them the same way (`0053_terms_circle_occurs_on_index.py`, `0077_swap_proposals_listing_item_index.py`).
 
 ### Migration Test for Every Revision
 Every migration gets a pytest test that downgrades the shared session database to the previous revision, asserts the schema change is gone (tables, columns, named FKs/indexes via `sqlalchemy.inspect` in `conn.run_sync`), then upgrades to `head` in a `finally` block and asserts it is back — so later tests always see the full schema. Run Alembic as `subprocess.run([sys.executable, "-m", "alembic", ...], cwd=BACKEND_ROOT, env={..., "DATABASE_URL": database_url})` and call `await engine.dispose()` after each step. Name it after the round trip, e.g. `test_migration_downgradeTo0056AndUpgradeHead_succeeds` or `test_migration0053_downgradeUpgrade_roundTrip`; upgrade-shape and partial-unique checks may be separate tests in the same file. Templates: `tests/test_group_soft_delete_migration.py`, `tests/test_locations_migration.py`.
@@ -56,6 +56,17 @@ When a tree table has a partial root-unique index (e.g. `uq_categories_root_name
 ### Data Migrations That Delete Storage-Backed Rows
 A data migration that deletes rows backed by object storage (e.g. product photos) stages `storage.objects_delete` outbox entries in the same transaction, before deleting the rows. The payload is `{"keys": [...]}` exactly as produced by `_stage_photo_files_delete` in `app/product/service.py`, with at most 1000 keys per entry because DeleteObjects is capped at 1000. Otherwise the objects are orphaned and stay public. Reference: `alembic/versions/0069_vinted_categories.py`.
 
+### Seeding Reference Data From Fixtures
+Large read-only reference data (the TERYT locality dictionary: ~54k localities, ~72k postal pairs) ships as gzipped CSV fixtures in `alembic/data/` with a README naming the sources, licence, snapshot date, source-file hashes and the rebuild script (`localities_pl.README.md`, `scripts/build_localities.py`), as `vinted_categories_pl.json` does for categories. The table-creating revision (`0078_localities.py`) is schema only; a separate data revision (`0079_seed_localities.py`) seeds it:
+- **Validate before inserting**: read every fixture first and check the exact header, id format and uniqueness, enum values, non-empty names, value formats and that every child row's parent exists; raise with the fixture line on the first violation, so a broken fixture inserts nothing.
+- **Chunked `unnest` inserts**: one `INSERT … SELECT * FROM unnest(...)` per 10k-row chunk with each column bound as an array, then log the row counts and elapsed time (0079 seeds both tables in about 2 s). In `sa.text`, bind the arrays as `CAST(:col AS text[])`, not `:col::text[]` — the `::` cast clashes with SQLAlchemy's `:name` bind-parameter parsing. Postgres `COPY` was not needed; consider it only if a seed outgrows the migration-suite time budget.
+- **`TRUNCATE` downgrade**: the data revision's `downgrade()` is `op.execute("TRUNCATE <children>, <parents>")`, valid while nothing references the dictionary at that revision (later revisions that add FKs to it, like `0080`'s RESTRICT FK from `locations`, undo themselves first).
+- **Refreshing** the data means rebuilding the fixtures with the script and adding a **new** data revision; never edit the applied seed revision.
+```python
+arrays = ", ".join(f"CAST(:{c} AS text[])" for c in columns)
+sa.text(f"INSERT INTO {table} ({names}) SELECT * FROM unnest({arrays})")
+```
+
 ### Zero-Downtime Awareness
 Consider deployment order and backward compatibility for high-availability systems — not yet a live concern for this project (no production deployment exists yet), but the convention still applies going forward: additive changes (new nullable column, new table) before any changes that could break an in-flight older application version.
 
@@ -80,4 +91,6 @@ The tree-deletion and storage-outbox conventions were added from `0069_vinted_ca
 
 The guarded-downgrade examples, lock-timeout and concurrent-index conventions were extended from `0074`–`0077`.
 
-*Last Updated*: 2026-11-02
+The reference-data fixture, chunked `unnest` seed and `TRUNCATE` downgrade conventions were added from `0078`–`0079`.
+
+*Last Updated*: 2026-11-03

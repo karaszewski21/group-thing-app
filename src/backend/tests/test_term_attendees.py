@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.families.members import create_lightweight_family_member
 from app.families.models import Family, FamilyRoleType
 from app.families.service import bootstrap_family_for_party
+from tests.conftest import create_location
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -40,6 +41,7 @@ async def _create_circle_and_term(
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": circle.json()["id"],
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },

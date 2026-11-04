@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { INPUT_CLASS } from "../../components/shared/appComponents";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Field, INPUT_CLASS } from "../../components/shared/appComponents";
 import { LocationPicker } from "../../components/shared/LocationPicker";
 import { PhotoGalleryField } from "../../components/shared/PhotoGalleryField";
 import dayjs from "../../utils/dayjs";
@@ -13,9 +13,7 @@ import {
   type EventDraftErrors,
 } from "./eventDraft";
 
-const LABEL_CLASS = "text-xs font-extrabold tracking-wide text-ink-soft";
 const ERROR_CLASS = "text-[12.5px] font-semibold text-danger";
-const OPTIONAL = <span className="font-semibold normal-case opacity-75"> (opcjonalnie)</span>;
 const SUBMIT_HINT_ID = "event-submit-hint";
 
 /** Wires an input to its inline error: `aria-invalid` plus `aria-describedby`. */
@@ -98,15 +96,13 @@ export function EventForm({
   const startError = visible("start");
   const endError = visible("end");
   const descriptionError = visible("description");
+  const locationError = visible("location");
 
   return (
     <form noValidate onSubmit={submit} className="rounded-[22px] border border-line bg-paper p-5">
       <div className="grid grid-cols-1 gap-3">
         {banner && <BannerField value={banner.value} onChange={banner.onChange} disabled={busy} />}
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="event-name" className={LABEL_CLASS}>
-            Nazwa
-          </label>
+        <Field label="Nazwa" required htmlFor="event-name">
           <input
             id="event-name"
             value={draft.name}
@@ -118,13 +114,10 @@ export function EventForm({
             className={INPUT_CLASS}
           />
           <FieldError id="event-name-error" message={nameError} />
-        </div>
+        </Field>
 
-        <div role="group" aria-labelledby="event-start-label" className="flex flex-col gap-1.5">
-          <span id="event-start-label" className={LABEL_CLASS}>
-            Początek
-          </span>
-          <div className="grid grid-cols-2 gap-2">
+        <Field label="Początek" required labelId="event-start-label">
+          <div role="group" aria-labelledby="event-start-label" className="grid grid-cols-2 gap-2">
             <input
               type="date"
               aria-label="Data początku"
@@ -148,12 +141,9 @@ export function EventForm({
             />
           </div>
           <FieldError id="event-start-error" message={startError} />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="event-end" className={LABEL_CLASS}>
-            Godzina końca{OPTIONAL}
-          </label>
+        <Field label="Godzina końca" htmlFor="event-end">
           <input
             id="event-end"
             type="time"
@@ -164,23 +154,25 @@ export function EventForm({
             className={`${INPUT_CLASS} w-1/2 min-w-0`}
           />
           <FieldError id="event-end-error" message={endError} />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <span className={LABEL_CLASS}>Miejsce{OPTIONAL}</span>
+        {/* The picker names itself through its aria-label; the Field label is visible copy. */}
+        <Field label="Miejsce" required labelId={`${placeIdPrefix}-label`}>
           <LocationPicker
             value={draft.locationId}
-            onChange={(id) => set("locationId", id)}
+            onChange={(id) => {
+              touch("location");
+              set("locationId", id);
+            }}
             label="Miejsce"
-            noneLabel="Bez miejsca"
             idPrefix={placeIdPrefix}
+            required
+            invalid={locationError !== undefined}
+            errorText={locationError}
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="event-description" className={LABEL_CLASS}>
-            Opis{OPTIONAL}
-          </label>
+        <Field label="Opis" htmlFor="event-description">
           <textarea
             id="event-description"
             rows={4}
@@ -199,7 +191,7 @@ export function EventForm({
             {charCount(draft.description)} / {EVENT_DESCRIPTION_MAX}
           </p>
           <FieldError id="event-description-error" message={descriptionError} />
-        </div>
+        </Field>
       </div>
 
       {error && (
@@ -223,8 +215,9 @@ export function EventForm({
       >
         {busy ? "Zapisywanie…" : submitLabel}
       </button>
+      {/* Not shown, but still describes the blocked button to screen readers. */}
       {invalid && (
-        <p id={SUBMIT_HINT_ID} className="mt-2 text-xs text-ink-soft">
+        <p id={SUBMIT_HINT_ID} className="sr-only">
           Uzupełnij nazwę oraz datę i godzinę początku, aby zapisać.
         </p>
       )}
@@ -232,15 +225,25 @@ export function EventForm({
   );
 }
 
+/** A local preview of the picked banner. The object URL is created in the effect,
+ * so a re-run effect (remount, StrictMode) never reuses a URL its cleanup revoked. */
+function useBannerPreview(file: File | null): string | null {
+  const [preview, setPreview] = useState<{ file: File; url: string } | null>(null);
+  useEffect(() => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the URL is an external resource this effect owns
+    setPreview({ file, url });
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  return preview && preview.file === file ? preview.url : null;
+}
+
 /** Optional banner in the shared photo slider (a single wide photo). An
  * invalid file is refused here and the previous choice is kept. */
 function BannerField({ value, onChange, disabled }: { value: File | null; onChange: (file: File | null) => void; disabled: boolean }) {
   const [error, setError] = useState<string | null>(null);
-  const preview = useMemo(() => (value ? URL.createObjectURL(value) : null), [value]);
-
-  useEffect(() => {
-    if (preview) return () => URL.revokeObjectURL(preview);
-  }, [preview]);
+  const preview = useBannerPreview(value);
 
   function pick([file]: File[]) {
     if (!file) return;
@@ -251,9 +254,6 @@ function BannerField({ value, onChange, disabled }: { value: File | null; onChan
 
   return (
     <section aria-labelledby="event-banner-heading" className="flex flex-col gap-1.5">
-      <h2 id="event-banner-heading" className={LABEL_CLASS}>
-        Baner{OPTIONAL}
-      </h2>
       <PhotoGalleryField
         photos={preview ? [{ id: preview, src: preview }] : []}
         max={1}

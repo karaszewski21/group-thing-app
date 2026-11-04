@@ -6,6 +6,7 @@ import { EventAttendeeList } from "../features/events/components/EventAttendeeLi
 import { EventChatRow } from "../features/events/components/EventChatRow";
 import { EventFooter } from "../features/events/components/EventFooter";
 import { EventWhenCard } from "../features/events/components/EventWhenCard";
+import { makeLocality, makeLocationRef } from "./fixtures/locations";
 import { renderWithRoute } from "./renderWithRoute";
 
 const EMPTY_COPY =
@@ -23,14 +24,11 @@ function eventFixture(overrides: Partial<EventResponse> = {}): EventResponse {
     description: null,
     starts_at: "2026-11-14T11:00:00",
     ends_at: "2026-11-14T15:00:00",
-    location: {
-      id: "loc-1",
-      name: "Park Skaryszewski",
+    location: makeLocationRef({
+      locality: makeLocality({ name: "Warszawa", gmina: "Warszawa", powiat: "Warszawa", voivodeship: "mazowieckie" }),
+      label: "Warszawa — al. Jerzego Waszyngtona, Warszawa",
       formatted_address: "al. Jerzego Waszyngtona, Warszawa",
-      google_place_id: null,
-      notes: null,
-      deleted_at: null,
-    },
+    }),
     created_at: "",
     updated_at: "",
     author_slug: "zielony-krag",
@@ -71,7 +69,8 @@ describe("EventWhenCard", () => {
     expect(within(card).getByText("Termin wydarzenia")).toBeInTheDocument();
     expect(within(card).getByText("sobota, 14 listopada 2026")).toBeInTheDocument();
     expect(within(card).getByText("godz. 11:00–15:00")).toBeInTheDocument();
-    expect(within(card).getByText("Park Skaryszewski")).toBeInTheDocument();
+    expect(within(card).getByText("Warszawa")).toBeInTheDocument();
+    expect(within(card).getByText("al. Jerzego Waszyngtona, Warszawa")).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: /Dodaj do kalendarza/ })).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "Kopiuj link" })).toBeInTheDocument();
 

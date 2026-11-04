@@ -1,6 +1,7 @@
-"""Migration `0075_inventory_location`. The test moves the shared session
-database to 0074 and always upgrades it back to head, so later tests see the
-full schema."""
+"""Migrations `0075_inventory_location` and `0080_item_location_locality`.
+The test moves the shared session database to 0074, checks the 0075 shape of
+`inventories.location_id`, and always upgrades it back to head, where 0080
+has replaced it with `inventory_items.location_id`."""
 
 from __future__ import annotations
 
@@ -15,8 +16,10 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from tests.conftest import BACKEND_ROOT
 
-LOCATION_FK = "fk_inventories_location_id_locations"
-LOCATION_INDEX = "ix_inventories_location_id"
+INVENTORY_FK = "fk_inventories_location_id_locations"
+INVENTORY_INDEX = "ix_inventories_location_id"
+ITEM_FK = "fk_inventory_items_location_id_locations"
+ITEM_INDEX = "ix_inventory_items_location_id"
 
 
 def _alembic(database_url: str, *args: str) -> subprocess.CompletedProcess[str]:
@@ -34,9 +37,12 @@ def _alembic(database_url: str, *args: str) -> subprocess.CompletedProcess[str]:
 def _schema(sync_conn: Connection) -> dict[str, Any]:
     inspector = inspect(sync_conn)
     return {
-        "columns": {col["name"]: col for col in inspector.get_columns("inventories")},
-        "indexes": {index["name"]: index for index in inspector.get_indexes("inventories")},
-        "fks": {fk["name"]: fk for fk in inspector.get_foreign_keys("inventories")},
+        table: {
+            "columns": {col["name"]: col for col in inspector.get_columns(table)},
+            "indexes": {index["name"]: index for index in inspector.get_indexes(table)},
+            "fks": {fk["name"]: fk for fk in inspector.get_foreign_keys(table)},
+        }
+        for table in ("inventories", "inventory_items")
     }
 
 
@@ -45,28 +51,45 @@ async def _read_schema(engine: AsyncEngine) -> dict[str, Any]:
         return await conn.run_sync(_schema)
 
 
-async def test_downgradeThenUpgrade_0075_roundTrips(engine: AsyncEngine, database_url: str) -> None:
+def _assert_location_ref(table: dict[str, Any], fk_name: str, index_name: str) -> None:
+    assert table["columns"]["location_id"]["nullable"] is True
+    fk = table["fks"][fk_name]
+    assert fk["constrained_columns"] == ["location_id"]
+    assert fk["referred_table"] == "locations"
+    assert fk["options"].get("ondelete") is None
+    index = table["indexes"][index_name]
+    assert index["column_names"] == ["location_id"]
+    assert "location_id IS NOT NULL" in index["dialect_options"]["postgresql_where"]
+
+
+async def test_migration0075And0080_downgradeUpgrade_movesLocationToItems(
+    engine: AsyncEngine, database_url: str
+) -> None:
     try:
         result = _alembic(database_url, "downgrade", "0074")
         assert result.returncode == 0, result.stderr
         await engine.dispose()
-        schema = await _read_schema(engine)
-        assert "location_id" not in schema["columns"]
-        assert "location" in schema["columns"]
-        assert LOCATION_FK not in schema["fks"]
-        assert LOCATION_INDEX not in schema["indexes"]
+        inventories = (await _read_schema(engine))["inventories"]
+        assert "location_id" not in inventories["columns"]
+        assert "location" in inventories["columns"]
+        assert INVENTORY_FK not in inventories["fks"]
+        assert INVENTORY_INDEX not in inventories["indexes"]
+
+        result = _alembic(database_url, "upgrade", "0075")
+        assert result.returncode == 0, result.stderr
+        await engine.dispose()
+        _assert_location_ref(
+            (await _read_schema(engine))["inventories"], INVENTORY_FK, INVENTORY_INDEX
+        )
     finally:
         result = _alembic(database_url, "upgrade", "head")
         await engine.dispose()
     assert result.returncode == 0, result.stderr
 
     schema = await _read_schema(engine)
-    assert schema["columns"]["location_id"]["nullable"] is True
-    assert "location" in schema["columns"]
-    fk = schema["fks"][LOCATION_FK]
-    assert fk["constrained_columns"] == ["location_id"]
-    assert fk["referred_table"] == "locations"
-    assert fk["options"].get("ondelete") is None
-    index = schema["indexes"][LOCATION_INDEX]
-    assert index["column_names"] == ["location_id"]
-    assert "location_id IS NOT NULL" in index["dialect_options"]["postgresql_where"]
+    inventories, items = schema["inventories"], schema["inventory_items"]
+    assert "location_id" not in inventories["columns"]
+    assert "location" in inventories["columns"]
+    assert INVENTORY_FK not in inventories["fks"]
+    assert INVENTORY_INDEX not in inventories["indexes"]
+    _assert_location_ref(items, ITEM_FK, ITEM_INDEX)

@@ -1,6 +1,6 @@
 """Personal pickup: a GIFT/SWAP reserved outside any term or event through
 `POST /api/items/{id}/take|propose` with `{"kind": "PERSONAL"}`. The
-reservation has no context column, needs the owner's pickup place, settles
+reservation has no context column, needs the item's live location, settles
 immediately and is never prompted by the term-end scan."""
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from app.groups.domain import swap_events
 from app.groups.models import GiveawayTermEndMarker
 from app.outbox.models import OutboxEntry
 from app.users.models import UserProfile
+from tests.conftest import create_location
 from tests.test_event_item_reservations import (
     _create_event,
     _listed_items,
@@ -30,26 +31,17 @@ from tests.test_event_item_reservations import (
 from tests.test_term_item_listings import _auth, _item_link, _register
 
 PERSONAL = {"kind": "PERSONAL"}
-NO_LOCATION_MESSAGE = "Właściciel nie ustawił miejsca odbioru"
+NO_LOCATION_MESSAGE = "Właściciel nie ustawił lokalizacji przedmiotu"
+ITEM_ADDRESS = "ul. Puławska 1, 02-515 Warszawa"
 
 
-async def _set_location(client: AsyncClient, token: str, place_id: str) -> str:
-    created = await client.post(
-        "/api/locations",
-        json={
-            "name": f"Dom {place_id}",
-            "formatted_address": "ul. Puławska 1, 02-515 Warszawa",
-            "source": "GOOGLE",
-            "google_place_id": place_id,
-            "lat": 52.2,
-            "lng": 21.0,
-        },
-        headers=_auth(token),
-    )
-    assert created.status_code == 201, created.text
-    location_id: str = created.json()["id"]
-    response = await client.put(
-        "/api/inventories/mine/location",
+async def _set_location(
+    client: AsyncClient, token: str, item_id: uuid.UUID, *, address: str | None = ITEM_ADDRESS
+) -> str:
+    """A new place of the owner, set as the item's location by PATCH."""
+    location_id = await create_location(client, _auth(token), address=address)
+    response = await client.patch(
+        f"/api/inventory-items/{item_id}",
         json={"location_id": location_id},
         headers=_auth(token),
     )
@@ -57,13 +49,24 @@ async def _set_location(client: AsyncClient, token: str, place_id: str) -> str:
     return location_id
 
 
+async def _remove_location(client: AsyncClient, token: str, item_id: uuid.UUID) -> None:
+    """Soft-deletes the item's place, leaving the item without a live one."""
+    details = await client.get(f"/api/inventory-items/{item_id}/details", headers=_auth(token))
+    assert details.status_code == 200, details.text
+    deleted = await client.delete(
+        f"/api/locations/{details.json()['location_id']}", headers=_auth(token)
+    )
+    assert deleted.status_code == 204, deleted.text
+
+
 async def _owner(
     client: AsyncClient, prefix: str, mode: str = "GIFT", *, located: bool = True
 ) -> tuple[str, uuid.UUID]:
+    """A listed item; `located=False` soft-deletes its place."""
     token, _ = await _register(client, "GUEST", f"{prefix}.owner@example.com")
     (item_id,) = await _listed_items(client, token, (f"Rowerek {prefix}", mode))
-    if located:
-        await _set_location(client, token, f"ChIJ-{prefix}")
+    if not located:
+        await _remove_location(client, token, item_id)
     return token, item_id
 
 
@@ -123,23 +126,30 @@ async def test_takeItem_personalGift_createsNoContextReservationAndNullContext(
     assert detail.json()["personal_pickup"] is True
 
 
-async def test_takeItem_personalOwnerWithoutLocation_returns409(
+async def test_takeItem_personalItemWithoutLiveLocation_returns409UntilRelocated(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    owner, item_id = await _owner(client, "pp2", located=False)
+    owner, _ = await _register(client, "GUEST", "pp2.owner@example.com")
+    unlocated, located = await _listed_items(
+        client, owner, ("Rowerek pp2", "GIFT"), ("Sanki pp2", "GIFT")
+    )
+    await _remove_location(client, owner, unlocated)
     taker, _ = await _register(client, "GUEST", "pp2.taker@example.com")
 
-    unset_status, unset_body = await _take(client, item_id, taker)
-    location_id = await _set_location(client, owner, "ChIJ-pp2")
-    deleted = await client.delete(f"/api/locations/{location_id}", headers=_auth(owner))
-    assert deleted.status_code == 204, deleted.text
-    deleted_status, deleted_body = await _take(client, item_id, taker)
+    deleted_status, deleted_body = await _take(client, unlocated, taker)
     unlisted_status, _ = await _take(client, uuid.uuid4(), taker)
+    pickup = await client.get(f"/api/items/{unlocated}/actions", headers=_auth(taker))
 
-    assert (unset_status, unset_body["message"]) == (409, NO_LOCATION_MESSAGE)
     assert (deleted_status, deleted_body["message"]) == (409, NO_LOCATION_MESSAGE)
     assert unlisted_status == 404
-    assert await _reservations(db_session, item_id) == []
+    assert pickup.json()["personal_pickup_available"] is False
+    assert await _reservations(db_session, unlocated) == []
+    assert (await _take(client, located, taker))[0] == 200
+
+    await _set_location(client, owner, unlocated)
+    relocated_status, relocated_body = await _take(client, unlocated, taker)
+
+    assert relocated_status == 200, relocated_body
 
 
 async def test_proposeItemSwap_personal_acceptPairsNoContextLegsWithNullTermFields(
@@ -222,7 +232,6 @@ async def test_takeItem_personal_notificationCopyForOwnerAndTaker(
 ) -> None:
     owner_token, owner_party = await _register(client, "GUEST", "pp6.owner@example.com")
     (item_id,) = await _listed_items(client, owner_token, ("Hulajnoga pp6", "GIFT"))
-    await _set_location(client, owner_token, "ChIJ-pp6")
     taker, taker_party = await _register(client, "GUEST", "pp6.taker@example.com")
     owner_name = await _display_name(db_session, owner_party)
     taker_name = await _display_name(db_session, taker_party)
@@ -303,7 +312,7 @@ async def test_personalGift_itemMadePrivateAndLocationRemoved_takerStillConfirms
 ) -> None:
     owner, _ = await _register(client, "GUEST", "pp9.owner@example.com")
     (item_id,) = await _listed_items(client, owner, ("Rowerek pp9", "GIFT"))
-    location_id = await _set_location(client, owner, "ChIJ-pp9")
+    location_id = await _set_location(client, owner, item_id)
     taker, _ = await _register(client, "GUEST", "pp9.taker@example.com")
     status, body = await _take(client, item_id, taker)
     assert status == 200, body

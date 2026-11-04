@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sessionFromToken } from "../auth/session";
 import type { EventDetailResponse } from "../api/events";
 import type { GroupAccessResponse } from "../api/groups";
+import type { ItemActionsResponse } from "../api/itemActions";
+import type { ItemDetailsResponse } from "../api/items";
 import { AuthProvider } from "../auth/AuthContext";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { LoginPage } from "../features/auth/LoginPage";
@@ -17,8 +19,11 @@ import { LandingPage } from "../features/landing/LandingPage";
 import { OwnerPage } from "../features/owner-page/OwnerPage";
 import { TermPage } from "../features/terms/TermPage";
 import { EVENT_KEY } from "../hooks/useEvent";
+import { ITEM_ACTIONS_KEY } from "../hooks/useItemActions";
+import { ITEM_DETAILS_KEY } from "../hooks/useItemDetail";
 import { GROUP_ACCESS_KEY } from "../hooks/useTermAccess";
 import { system } from "../theme/system";
+import { makeItemLocation } from "./fixtures/locations";
 import { createTestQueryClient } from "./queryClient";
 import { routeElement } from "./renderWithRoute";
 
@@ -73,6 +78,39 @@ const ACCESS: GroupAccessResponse = {
     is_attending: false,
     is_active_attendee: false,
   },
+};
+
+const ITEM_ID = "it-1";
+const ITEM_ADDRESS = "ul. Polna 12, 32-650 Kęty";
+
+const ITEM: ItemDetailsResponse = {
+  id: ITEM_ID,
+  product_id: "p-1",
+  name: "Wózek spacerowy",
+  category_id: "c-1",
+  category_name: "Wózki",
+  condition: "GOOD",
+  listing_status: "ACTIVE",
+  description: null,
+  photos: [],
+  product_photo_url: null,
+  is_owner: true,
+  location_id: "loc-1",
+  deleted_at: null,
+  status: { code: "AVAILABLE", term_occurs_on: null, due_date: null, counterparty_label: null, personal_pickup: false },
+};
+
+const ITEM_ACTIONS: ItemActionsResponse = {
+  mode: "GIFT",
+  visibility: "PUBLIC",
+  available: true,
+  reservation: null,
+  party_reservation: null,
+  owner: { party_id: "party-1", display_name: "Ania Kowalska", slug: null, items_total: 1 },
+  viewer: "OWN",
+  location: makeItemLocation({ formatted_address: ITEM_ADDRESS }),
+  contexts: [],
+  personal_pickup_available: true,
 };
 
 /** An unsigned JWT-shaped token: the server render only decodes its claims. */
@@ -171,6 +209,25 @@ describe("SSR safety", () => {
 
     expect(html.length).toBeGreaterThan(0);
     if (text !== null) expect(html).toContain(text);
+  });
+
+  it("renders a loaded item page with the owner's location card for a cookie session", () => {
+    const client = createTestQueryClient();
+    client.setQueryData([ITEM_DETAILS_KEY, ITEM_ID], ITEM);
+    client.setQueryData([ITEM_ACTIONS_KEY, ITEM_ID, "ania@example.com"], ITEM_ACTIONS);
+
+    const html = renderOnServer(
+      `/product/${ITEM_ID}`,
+      "/product/:id",
+      <PublicLayout>
+        <ItemDetailBody />
+      </PublicLayout>,
+      client,
+      SESSION,
+    );
+
+    expect(html).toContain("Lokalizacja przedmiotu");
+    expect(html).toContain(ITEM_ADDRESS);
   });
 
   it("renders the item page shell while its data is loading", () => {

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — Mandatory item location + OLX-style locality</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.cols { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:760px){ .cols { grid-template-columns:1fr; } }
+.stories { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; }
+.story { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:var(--radius); padding:10px 12px; font-size:13px; }
+.tldr ul { margin:6px 0; padding-left:18px; }
+.prio { font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:99px; background:var(--crit-soft); color:var(--crit); }
+.prio.m { background:var(--warn-soft); color:var(--warn); }
+.prio.l { background:var(--info-soft); color:var(--info); }
+.toc { font-size:13px; color:var(--dim); }
+.res td:first-child { font-weight:700; white-space:nowrap; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/spec-audit.md" target="_blank" rel="noopener">Spec audit ↗</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Specification · revised after audit</span>
+  <h1>Mandatory item location + OLX-style locality (TERYT) in the place form</h1>
+  <div style="color:var(--dim);font-size:12.5px">Task 2026-11-03-item-location-olx-locality · revised 2026-11-03 · <a href="spec.md" target="_blank" rel="noopener">spec.md</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>37</b><span>requirements</span></div>
+  <div class="tile"><b>19</b><span>reused components</span></div>
+  <div class="tile"><b>10</b><span>new components</span></div>
+  <div class="tile"><b>7</b><span>binding mockup refs</span></div>
+  <div class="tile"><b>16</b><span>audit findings resolved</span></div>
+  <div class="tile"><b style="color:var(--crit)">High</b><span>risk level</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul>
+    <li>A place becomes <b>Lokalizacja</b> (a required TERYT locality from our own dictionary, by name or postal code) plus an optional <b>Adres</b> (Google or typed). <code>name</code> and <code>notes</code> are dropped, and responses carry a computed <code>label</code>.</li>
+    <li>Every item gets its own required <code>location_id</code>: set on create, editable on edit, cleared on GIFT/SWAP, and required to list a draft item. It replaces the removed <code>inventories.location_id</code>.</li>
+    <li>The item's own location block shows everyone the locality only; only the owner gets the address. Term/event context lines keep the full label, because those addresses are already public.</li>
+    <li>Every picker uses page mode, and both legs of the <code>/places/new</code> trip replace the history entry. Drafts live in <code>AppDataContext</code> with defined clear points.</li>
+    <li>Migrations: 0078 (tables), 0079 (chunked <code>unnest</code> seed) and 0080 (rework), all with plain downgrades.</li>
+  </ul>
+  <h2>Key Decisions</h2>
+  <table>
+    <tr><th>Decision</th><th>Rationale</th></tr>
+    <tr><td>Dictionary in <code>app/locations</code>, SIMC <code>String(7)</code> natural PK</td><td>Read-only reference data; third PK carve-out, documented in models.md</td></tr>
+    <tr><td><code>Location.locality</code> <code>lazy="raise"</code> + <code>load_location</code> loaders (joinedload, populate_existing)</td><td>Used on every read, after POST/PUT commits and in the ACLs, so there is no MissingGreenlet and no stale locality</td></tr>
+    <tr><td>Python <code>fold_polish</code> (explicit ł/Ł) + <code>name_search</code> prefix index; escaped LIKE</td><td>No unaccent/pg_trgm, per the minimal-dependencies standard</td></tr>
+    <tr><td><code>GET /api/localities</code>, READ-gated, TOWN first</td><td>User decision "towns before villages"; matches the mockup</td></tr>
+    <tr><td>Server-computed <code>label</code></td><td>One format everywhere: "Kęty, małopolskie" / "Kęty — {address}"</td></tr>
+    <tr><td><b>Privacy scope = the item's own location block</b></td><td>User decision "Adres terminu publiczny": term/event context <code>location_name</code> keeps the full label</td></tr>
+    <tr><td>PATCH → PUT <code>/api/locations/{id}</code></td><td>Full replacement of locality + address</td></tr>
+    <tr><td>No dedup</td><td>User decision; the unique index is dropped</td></tr>
+    <tr><td>Transfer clears the location only for GIFT/SWAP</td><td>REGISTER also passes through the projection</td></tr>
+    <tr><td><b>Listing guard only on DRAFT → ACTIVE</b></td><td>Mode and visibility changes are never blocked; a place delete leaves listings ACTIVE</td></tr>
+    <tr><td><b>Deleted place = "no location" in item edit</b></td><td>Owner-only <code>location_id</code> is null for a deleted place, so the picker is empty with the banner</td></tr>
+    <tr><td><b>Both legs of the round trip use <code>replace: true</code></b></td><td>History is unchanged, so the existing <code>navigate(-1)</code> works</td></tr>
+    <tr><td><b>Cancelled trip hands back <code>locationId: null</code></b></td><td>The stepper reopens on cancel too; pickers ignore null</td></tr>
+    <tr><td><b>No <code>location_id</code> on <code>InventoryItemResponse</code></b></td><td>Readable by non-owners; the owner gets it from MyInventoryItem/Details</td></tr>
+    <tr><td>0080 deletes all <code>locations</code> rows</td><td>MVP with a DB wipe; documented deviation</td></tr>
+  </table>
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li><span class="sev warning">warning</span>GUGiK PRG postal licence and format must be confirmed during data prep. Fallback: an empty postal table.</li>
+    <li><span class="sev warning">warning</span>Test cost: 22 migration tests re-run the 0079 seed. Target ≤3 s; a 2-minute overhead budget triggers the COPY fallback.</li>
+    <li><span class="sev info">info</span>Same-place reuse: an item place also used by a term shows its address in the term context line (accepted; it is public on the term page).</li>
+    <li><span class="sev info">info</span>Browser Back on <code>/places/new</code> skips the opener form; the draft survives in the context (accepted).</li>
+    <li><span class="sev info">info</span>Fixture size is estimated at 1–3 MB gzipped.</li>
+    <li><span class="sev info">info</span>A Google address may disagree with the locality; there is no server check (accepted).</li>
+    <li><span class="sev warning">warning</span>Wide regression surface: about 20 backend files, 4 key-set DTOs, about 15 display sites, 19 frontend tests (typed factories).</li>
+    <li><span class="sev info">info</span>The 12 pre-existing vitest failures are not regressions.</li>
+  </ul>
+</section>
+
+<p class="toc">Contents: <a href="#scope">Scope</a> · <a href="#stories">User Stories</a> · <a href="#requirements">Requirements</a> · <a href="#drafts">Draft lifecycle</a> · <a href="#visual">Visual Design</a> · <a href="#components">Components</a> · <a href="#tech">Technical Approach</a> · <a href="#testing">Testing</a> · <a href="#success">Success Criteria</a> · <a href="#audit">Audit resolutions</a></p>
+
+<main>
+<h2 id="scope">Goal &amp; Scope</h2>
+<div class="card">Make every item carry a required, owner-chosen place, shown publicly as an OLX-style locality. Reduce the place form to "Lokalizacja" (TERYT, name or postal code) plus an optional "Adres", used consistently through one page-mode picker.</div>
+<div class="cols">
+  <div class="card"><h3 style="margin-top:0" class="pass">In scope</h3><ul>
+    <li>Locality dictionary (TERYT SIMC/TERC + GUGiK postal) with build script, fixture and seed</li>
+    <li><code>GET /api/localities</code> search</li>
+    <li>Places reworked: locality + optional address, computed label, PUT, no dedup</li>
+    <li>Required per-item location: create, edit, transfer clear, DRAFT → ACTIVE guard</li>
+    <li>Item location privacy (locality public, address owner-only)</li>
+    <li>Pickup reads the item location; inventory location removed</li>
+    <li>Page-mode pickers everywhere with history-replacing round trip and AppDataContext drafts</li>
+    <li>About 15 display sites updated</li>
+  </ul></div>
+  <div class="card"><h3 style="margin-top:0" class="fail">Out of scope</h3><ul>
+    <li>Locality on item cards and lists</li>
+    <li>City districts and locality parts</li>
+    <li>Coordinates for locality-only places; distance or area search; filtering by locality</li>
+    <li>A server-side Google vs TERYT consistency check</li>
+    <li>Notifying the other party of a location change during an open personal pickup</li>
+    <li>A warning or cascade when deleting a place used by listed items</li>
+    <li>Truncating long <code>location_name</code> in OwnerMeetingsPage/ChooseContextSheet</li>
+    <li>mypy on <code>scripts/</code> (ruff only)</li>
+    <li>Legacy data migration; automated dictionary refresh</li>
+    <li>Changing place optionality on terms, events and groups</li>
+  </ul></div>
+</div>
+
+<h2 id="stories">User Stories</h2>
+<div class="stories">
+  <div class="story">As an <b>item owner</b>, I want to choose where my item is when I add it, so buyers know the town without seeing my address.</div>
+  <div class="story">As an <b>item owner</b>, I want to add a new place with <code>+</code> without losing the name, category, description and photos I entered.</div>
+  <div class="story">As the <b>owner of a received item</b>, I want to set my own location before offering it again.</div>
+  <div class="story">As a <b>buyer</b> (logged in or anonymous), I want to see the item's town with gmina/powiat/województwo and open it in Maps.</div>
+  <div class="story">As a <b>user adding a place</b>, I want to find my village by name or postal code, and add an exact address only when needed.</div>
+  <div class="story">As an <b>organizer</b>, I want the term/event place picker to work the same way, with my form kept intact.</div>
+</div>
+
+<h2 id="requirements">Core Requirements</h2>
+<p style="color:var(--dim);font-size:12.5px">Priority: <span class="prio">H</span> core and privacy · <span class="prio m">M</span> supporting · <span class="prio l">L</span> cleanup and display. <b>Bold</b> rows were changed or added in the audit revision.</p>
+<table>
+  <tr><th>#</th><th>Requirement</th><th>Prio</th></tr>
+  <tr><td colspan="3"><b>Locality dictionary</b></td></tr>
+  <tr><td>1</td><td><code>localities</code>: SIMC id PK, name, <code>name_search</code>, kind TOWN/VILLAGE, gmina/powiat/voivodeship; independent only</td><td><span class="prio">H</span></td></tr>
+  <tr><td>2</td><td><code>locality_postal_codes</code> (code, locality FK CASCADE), composite PK + prefix index; dependent SIMC mapped to root</td><td><span class="prio m">M</span></td></tr>
+  <tr><td><b>3</b></td><td><b>Build script in the new <code>src/backend/scripts/</code>; run with <code>uv run python scripts/build_localities.py …</code>; ruff-linted, mypy app-only</b></td><td><span class="prio m">M</span></td></tr>
+  <tr><td>4</td><td>Fixture README: sources, dates, licences, counts, rules, rebuild command</td><td><span class="prio l">L</span></td></tr>
+  <tr><td><b>5</b></td><td><b><code>GET /api/localities</code>: postal or name prefix, LIKE escaped via <code>autoescape</code>, TOWN first, limit 1–20, <code>total</code>, READ row, 2 statements</b></td><td><span class="prio">H</span></td></tr>
+  <tr><td colspan="3"><b>Locations</b></td></tr>
+  <tr><td>6</td><td><code>locations</code>: +<code>locality_id</code> NOT NULL, −name/notes, nullable address/source, <code>ck_locations_address_fields</code>, drop the unique index</td><td><span class="prio">H</span></td></tr>
+  <tr><td>7</td><td><code>POST /api/locations</code> body rules; unknown locality 404; always 201 with a new row</td><td><span class="prio">H</span></td></tr>
+  <tr><td>8</td><td><code>PUT /api/locations/{id}</code> replaces PATCH; 404/403</td><td><span class="prio m">M</span></td></tr>
+  <tr><td><b>9</b></td><td><b>Post-write reload: POST/PUT return <code>load_location</code> (joinedload + populate_existing); <code>get_own_location</code> joinedloads</b></td><td><span class="prio">H</span></td></tr>
+  <tr><td>10</td><td>Response shapes with <code>locality</code> + <code>label</code>: LocationResponse, LocationRefResponse, PublicLocationResponse</td><td><span class="prio">H</span></td></tr>
+  <tr><td>11</td><td><code>/mine</code> ordered by locality name, then created_at; soft delete unchanged</td><td><span class="prio l">L</span></td></tr>
+  <tr><td><b>12</b></td><td><b>Term/event <code>location_name</code> = full <code>label</code> (context options, owner_items, events_acl); outside the item privacy guarantee</b></td><td><span class="prio m">M</span></td></tr>
+  <tr><td colspan="3"><b>Item location</b></td></tr>
+  <tr><td>13</td><td><code>inventory_items.location_id</code> FK + partial index</td><td><span class="prio">H</span></td></tr>
+  <tr><td>14</td><td>Create requires <code>location_id</code>; ACL <code>get_owned_location</code> (built from <code>load_location</code>)</td><td><span class="prio">H</span></td></tr>
+  <tr><td><b>15</b></td><td><b>Update: optional, live owned, <code>null</code> → 422; a change during an open personal pickup is allowed and read live, with no notification</b></td><td><span class="prio">H</span></td></tr>
+  <tr><td><b>16</b></td><td><b><code>location_id</code> on MyInventoryItemResponse and ItemDetailsResponse (owner + live place only); NOT on InventoryItemResponse</b></td><td><span class="prio">H</span></td></tr>
+  <tr><td>17</td><td>GIFT/SWAP clears <code>location_id</code> in <code>_apply_projection</code>; the received item arrives as DRAFT</td><td><span class="prio">H</span></td></tr>
+  <tr><td><b>18</b></td><td><b>409 only on DRAFT → ACTIVE without a live location; mode and visibility changes never blocked; clearing always allowed</b></td><td><span class="prio">H</span></td></tr>
+  <tr><td><b>19</b></td><td><b>Place soft delete leaves listings ACTIVE; pickup unavailable; owner prompted</b></td><td><span class="prio m">M</span></td></tr>
+  <tr><td colspan="3"><b>Item page privacy and pickup</b></td></tr>
+  <tr><td><b>20</b></td><td><b>Privacy guarantee: non-owner <code>location</code> = <code>{locality, formatted_address: null, deleted_at: null}</code>; no item address, label or id via /actions, /details or GET item</b></td><td><span class="prio">H</span></td></tr>
+  <tr><td>21</td><td>Pickup gate and page location read <code>item.location_id</code> (<code>get_item_live_location_id</code>)</td><td><span class="prio">H</span></td></tr>
+  <tr><td>22</td><td>Inventory-location API, schemas, matrix row and column removed</td><td><span class="prio m">M</span></td></tr>
+  <tr><td colspan="3"><b>Frontend</b></td></tr>
+  <tr><td>23</td><td><code>LocalityCombobox</code> with options, overflow line, chip, error, inline-combobox a11y</td><td><span class="prio">H</span></td></tr>
+  <tr><td>24</td><td><code>LocationAddForm</code> with 2 fields (create and edit); address disabled until a locality is chosen</td><td><span class="prio">H</span></td></tr>
+  <tr><td><b>25</b></td><td><b><code>PlaceCreateView</code>: with <code>returnTo</code>, save and cancel use <code>replace: true</code>; cancel hands back <code>locationId: null</code>; PlacesView rows and footer</b></td><td><span class="prio">H</span></td></tr>
+  <tr><td><b>26</b></td><td><b><code>LocationPicker</code>: no inline mode; <code>+</code> Link with <code>replace</code> + <code>onAddClick</code>; once-only pick, null ignored; <code>required</code>, empty state, <code>label</code></b></td><td><span class="prio">H</span></td></tr>
+  <tr><td><b>27</b></td><td><b><code>PickedLocationState.locationId: string | null</code></b></td><td><span class="prio m">M</span></td></tr>
+  <tr><td><b>28</b></td><td><b>Navigation after the round trip: history unchanged; item edit Zapisz/Anuluj and item "Wróć" land correctly</b></td><td><span class="prio">H</span></td></tr>
+  <tr><td>29</td><td>Item create: draft + photos in context, required picker, prefill, blocked hint, sends <code>location_id</code></td><td><span class="prio">H</span></td></tr>
+  <tr><td><b>30</b></td><td><b>Draft lifecycle table (see below)</b></td><td><span class="prio">H</span></td></tr>
+  <tr><td><b>31</b></td><td><b>Item edit: required picker; null (none or deleted) → banner; invalidates ITEM_DETAILS_KEY + ITEM_ACTIONS_KEY + my-items</b></td><td><span class="prio">H</span></td></tr>
+  <tr><td>32</td><td>Term edit draft in <code>termEdit</code>; page-mode picker</td><td><span class="prio m">M</span></td></tr>
+  <tr><td><b>33</b></td><td><b>Stepper: <code>closeStepperForPlace()</code> keeps the draft; reopen on pick or cancel with a once-only guard</b></td><td><span class="prio m">M</span></td></tr>
+  <tr><td>34</td><td>Event, add-term and group forms keep their drafts; switch to <code>label</code>; get <code>replace</code> via the picker</td><td><span class="prio l">L</span></td></tr>
+  <tr><td><b>35</b></td><td><b>Item page card for all viewers; owner extras; non-owners of a deleted place see the plain locality (intended)</b></td><td><span class="prio">H</span></td></tr>
+  <tr><td><b>36</b></td><td><b>Display sites incl. PersonalPickupSheet, TermCard Maps, EventWhenCard calendar; long location_name accepted</b></td><td><span class="prio l">L</span></td></tr>
+  <tr><td>37</td><td>Removals: InventoryLocationCard, useMyInventoryLocation, API fns, dedup, name/notes types</td><td><span class="prio l">L</span></td></tr>
+</table>
+
+<h2 id="drafts">Draft lifecycle (Req. 30)</h2>
+<table>
+  <tr><th>Slice</th><th>Seeded</th><th>Cleared</th></tr>
+  <tr><td><code>itemDraft</code> + <code>itemPhotos</code></td><td>empty</td><td>after a successful create; otherwise kept (like <code>eventDraft</code>)</td></tr>
+  <tr><td><code>itemEdit {itemId, draft}</code></td><td>once per itemId from <code>/details</code></td><td>on save and on "Anuluj", before <code>done()</code>; other leave paths keep it</td></tr>
+  <tr><td><code>termEdit {termId, draft}</code></td><td>once per termId</td><td>on save and on cancel, before TermEditView navigates</td></tr>
+  <tr><td><code>firstTermDraft</code></td><td>reset when opened from its normal trigger</td><td>on close (✕/Esc/backdrop) and on finish; <b>not</b> on the <code>+</code> close</td></tr>
+</table>
+
+<h2 id="visual">Visual Design</h2>
+<p>Mockups in <code>analysis/design-context/</code> are binding inputs. The implementation-planner will attach <code>Visual References</code> to UI task groups. Fidelity is mid; layout, copy and states are binding.</p>
+<table>
+  <tr><th>ID</th><th>Mockup</th><th>Binding elements</th></tr>
+  <tr><td><code>screen:place-create</code></td><td><a href="../analysis/design-context/mockups/dodaj-miejsce-lokalizacja-adres.html">dodaj-miejsce-lokalizacja-adres.html</a></td><td>5 states: empty, name suggestions, postal suggestions, chosen + Google address, error. Applies to /places/new and /places/:id/edit</td></tr>
+  <tr><td><code>screen:item-create</code></td><td><a href="../analysis/design-context/mockups/dodaj-rzecz-obowi-zkowa-lokalizacja.html">dodaj-rzecz-obowi-zkowa-lokalizacja.html</a></td><td>Required picker under Opis with <code>+</code>, helper, no-places state, return with toast and intact draft, blocked hint</td></tr>
+  <tr><td><code>screen:item-edit</code></td><td><a href="../analysis/design-context/mockups/edytuj-rzecz-zmiana-lokalizacji.html">edytuj-rzecz-zmiana-lokalizacji.html</a></td><td>Required picker; banner (also for a deleted place); inline error</td></tr>
+  <tr><td><code>screen:item-page-location</code></td><td><a href="../analysis/design-context/mockups/strona-przedmiotu-blok-lokalizacji.html">strona-przedmiotu-blok-lokalizacji.html</a></td><td>Guest/other locality card; owner address + "Zmień lokalizację"; owner deleted state</td></tr>
+  <tr><td><code>screen:places-list</code></td><td><a href="../analysis/design-context/mockups/moje-miejsca-lista.html">moje-miejsca-lista.html</a></td><td>Locality primary, address · voivodeship secondary, footer note</td></tr>
+  <tr><td><code>component:locality-combobox</code></td><td><a href="../analysis/design-context/mockups/dodaj-miejsce-lokalizacja-adres.html">dodaj-miejsce-lokalizacja-adres.html</a></td><td>Option anatomy, overflow line, chosen chip</td></tr>
+  <tr><td><code>component:location-picker-required</code></td><td><a href="../analysis/design-context/mockups/dodaj-rzecz-obowi-zkowa-lokalizacja.html">dodaj-rzecz-obowi-zkowa-lokalizacja.html</a></td><td>No "none" option, placeholder, <code>+</code>, error and helper</td></tr>
+</table>
+
+<h2 id="components">Reusable vs New Components</h2>
+<div class="cols">
+<div class="card"><h3 style="margin-top:0">Reuse (19)</h3><ul style="font-size:13px">
+  <li><code>0069_vinted_categories.py</code> + README: fixture and provenance pattern</li>
+  <li><code>0075_inventory_location.py</code>: FK/index naming; re-added in 0080's downgrade</li>
+  <li>The two migration tests: <code>_alembic</code> + inspector pattern (rewritten)</li>
+  <li>Three <code>locations_acl.py</code>: delegate to the loaders</li>
+  <li><code>locations/service.py::get_own_location</code>: 404 → 403</li>
+  <li><code>item_actions.py::_viewer_location</code>, <code>cache_headers.py</code></li>
+  <li><code>reservation_context.load_personal_context</code>, <code>find_personal_inventory_live_location_id</code></li>
+  <li><code>term_item_listings.set_item_listing_preference</code>: guard on <code>existing is None</code></li>
+  <li><code>term_item_listings</code> confirm path: already resets to DRAFT</li>
+  <li><code>ledger._apply_projection</code></li>
+  <li><code>authorization_matrix.py</code></li>
+  <li><code>conftest.leaf_category_ids</code>, <code>test_personal_pickup._set_location</code></li>
+  <li><code>LocationPicker</code> (<code>handledPick</code>), <code>placeCreatePath</code>, <code>PlaceCreateView</code></li>
+  <li><code>routing/navigation.tsx</code>: <code>replace</code> already supported</li>
+  <li><code>AppDataContext</code> drafts; <code>EventEditView</code> clear-on-save</li>
+  <li><code>LocationAddForm</code>, <code>lib/googleMaps.ts</code></li>
+  <li><code>ItemCreateView</code> blocked-action pattern</li>
+  <li><code>useMyLocations</code></li>
+  <li><code>ITEM_DETAILS_KEY</code>, <code>ITEM_ACTIONS_KEY</code></li>
+</ul></div>
+<div class="card"><h3 style="margin-top:0">New (10)</h3><ul style="font-size:13px">
+  <li><code>Locality</code>, <code>LocalityPostalCode</code>, <code>localities.py</code>: no geo dictionary exists</li>
+  <li><code>scripts/build_localities.py</code> + fixtures + README: reproducible data prep</li>
+  <li>Migrations 0078–0080 + <code>test_localities_migration.py</code></li>
+  <li><code>GET /api/localities</code> route + schemas</li>
+  <li><code>load_location</code>/<code>load_locations_by_ids</code>: required by <code>lazy="raise"</code></li>
+  <li><code>api/localities.ts</code>, <code>useLocalitySearch</code></li>
+  <li><code>LocalityCombobox.tsx</code>: different source and shape from the Google combobox</li>
+  <li><code>utils/locationLabel.ts</code>: one formatter</li>
+  <li><code>conftest.locality_ids</code>, <code>create_location</code></li>
+  <li><code>src/test/fixtures/locations.ts</code> typed factories</li>
+</ul></div>
+</div>
+
+<h2 id="tech">Technical Approach</h2>
+<details class="card"><summary>Data flow</summary>
+<ol style="font-size:13px">
+  <li><code>LocalityCombobox</code> calls <code>/api/localities</code>; the address field calls Google client-side.</li>
+  <li><code>LocationAddForm</code> calls POST/PUT <code>/api/locations</code>, re-read via <code>load_location</code>.</li>
+  <li>The pickers hand the place id to their hosts.</li>
+  <li>Item POST/PATCH stores <code>location_id</code> after the ACL check.</li>
+  <li><code>/actions</code> and pickup read the item's location; the ledger clears it on GIFT/SWAP; DRAFT → ACTIVE requires it to be live.</li>
+</ol></details>
+<details class="card"><summary>Migrations 0078 / 0079 / 0080 and seed cost</summary>
+<ul style="font-size:13px">
+  <li><b>0078</b>: <code>localities</code> (pk, <code>text_pattern_ops</code> index, kind CHECK) and <code>locality_postal_codes</code> (pk, CASCADE FK, <code>varchar_pattern_ops</code> index). Downgrade drops both.</li>
+  <li><b>0079</b>: streams the gzipped CSVs and validates them; one <code>INSERT … SELECT * FROM unnest(bound arrays)</code> per 10k-row chunk; logs counts and time. Downgrade: <code>TRUNCATE</code>.</li>
+  <li><b>Seed cost</b>: ≤3 s target, 10 s ceiling. All 22 migration tests cross 0079, and no skip is possible (0078's downgrade drops the tables). The runtime is measured; above a 2-minute overhead, 0079 switches to asyncpg <code>copy_records_to_table</code> via <code>driver_connection</code> + <code>await_only</code>.</li>
+  <li><b>0080 up</b>: lock_timeout → null the 4 FKs + <code>DELETE FROM locations</code> → <code>locality_id</code>, drop name/notes, nullable address/source, CHECK, drop the unique index → item <code>location_id</code> + FK + index → drop <code>inventories.location_id</code>.</li>
+  <li><b>0080 down</b>: the reverse; lossy and plain. The docstring and runbook say all places and item locations are deleted.</li>
+</ul></details>
+<details class="card"><summary>Locations module, item reads and writes, frontend state, docs</summary>
+<ul style="font-size:13px">
+  <li>Loaders use <code>joinedload</code> + <code>populate_existing</code> and include soft-deleted rows. POST/PUT and <code>get_own_location</code> use them, the ACLs delegate to them, and the label builder reads the loaded locality.</li>
+  <li>Circulation resolves the party via <code>find_party_id_by_user_id</code> before <code>get_owned_location</code>. <code>item_actions</code> uses <code>item.location_id</code>, and <code>_viewer_location</code> returns the locality only for non-owners. The <code>/details</code> <code>location_id</code> uses the pickup's live check.</li>
+  <li>The new AppDataContext slices follow the eventDraft/eventEdit shape with Req. 30 clear points; photos stay in-memory <code>File[]</code>; the facade is unchanged.</li>
+  <li>Docs: architecture.md (dictionary, item location, guard scope, runbook), models.md (carve-out, loaders and post-write reload), migrations.md (CSV + unnest, TRUNCATE downgrade), INDEX.md.</li>
+</ul></details>
+
+<h2 id="testing">Testing Approach</h2>
+<div class="card" style="font-size:13px">
+<p style="margin-top:0">Write 2–8 focused tests per step group, and run only the new and changed tests.</p>
+<details><summary>Backend</summary><ul>
+  <li><code>test_localities_migration.py</code> (new): a 0077 round trip; logs the 0079 duration.</li>
+  <li><code>test_inventory_location_migration.py</code> (<b>rewritten</b>): 0074 → 0075 asserts the inventory column, FK and index. At head: those are absent, and <code>inventory_items.location_id</code> with its FK and partial index exist.</li>
+  <li><code>test_locations_migration.py</code> (<b>rewritten</b>): 0056 → 0058 asserts the unique index and the FKs. At head: the unique index is absent; <code>locality_id</code> FK NOT NULL; no name/notes; nullable address; the CHECK and the FKs exist.</li>
+  <li><code>test_personal_pickup_migration.py</code>: unchanged.</li>
+  <li><code>test_localities.py</code>: folding (incl. ł), TOWN first, postal prefixes, literal <code>%</code>/<code>_</code>, limit, short q, key set, 2 statements, 401.</li>
+  <li><code>test_locations.py</code>: address rules, 404, no dedup, a PUT locality change reflected in the response, key sets, 403.</li>
+  <li><code>test_item_location.py</code> (new): create 422/403/404; PATCH; null 422; DRAFT → ACTIVE 409; a visibility/mode change on a deleted place succeeds; GIFT clears and REGISTER keeps; no <code>location_id</code> on GET item; <code>/details</code> null for a non-owner and for a deleted place.</li>
+  <li><code>test_item_actions.py</code>/<code>test_personal_pickup.py</code>: exact non-owner <code>location</code>; no item-address substring (place not used by a term); a term-reuse case asserting the context label; deleted place; pickup gate.</li>
+  <li>Helpers <code>locality_ids</code> and <code>create_location</code>; <code>test_events.py</code>, <code>test_group_location_defaults.py</code> and <code>test_term_location_capacity.py</code> updated; <code>_set_location</code> rewritten for <code>test_item_actions.py</code> and <code>test_item_visibility.py</code>; <code>test_inventory_location.py</code> deleted; the auth matrix and key-set tests updated.</li>
+</ul></details>
+<details><summary>Frontend</summary><ul>
+  <li><code>src/test/fixtures/locations.ts</code> typed factories, adopted by every touched test.</li>
+  <li><code>LocalityCombobox</code>, <code>LocationAddForm</code>.</li>
+  <li><code>PlaceCreateView</code>: replace + pick on save; replace + null on cancel; push without returnTo.</li>
+  <li><code>LocationPicker</code>: required mode, error, empty state, <code>+</code> with replace + <code>onAddClick</code>, once-only pick, null pick ignored.</li>
+  <li><code>ItemCreateView</code>: blocked, draft survives, sends <code>location_id</code>, cleared after create.</li>
+  <li><code>ItemEditView</code>: save and invalidation, banner, Anuluj clears, no <code>/places/new</code> in history.</li>
+  <li>Item page card: owner, other, anonymous and owner-deleted states. <code>PlacesView</code>, <code>TermPlaceLine</code>.</li>
+  <li><code>FirstTermStepperOrganizer</code>: reopen on pick and cancel, once only; ✕ clears, <code>+</code> keeps.</li>
+  <li><code>ssrSafety</code> green; 12-failure baseline.</li>
+</ul></details>
+</div>
+<details class="card"><summary>Standards compliance</summary>
+<ul style="font-size:13px">
+  <li><b>models.md</b>: carve-out, <code>lazy="raise"</code> + joinedload incl. post-write, ACL 404-before-403, no new non-owner <code>location_id</code> exposure.</li>
+  <li><b>migrations.md</b>: names, lock_timeout, reverse downgrades, round-trip tests incl. the two rewritten ones.</li>
+  <li><b>queries.md / jooq.md</b>: bound params, autoescaped LIKE, SQL LIMIT, ordering, no N+1.</li>
+  <li><b>security.md</b>: matrix rows; personalised cache headers.</li>
+  <li><b>api.md</b>: plural resources; PUT for full replacement.</li>
+  <li><b>time.md</b>: audit timestamps unchanged.</li>
+  <li><b>components.md</b>: facade only (<code>replace</code> via NavigateOptions), drafts in AppDataContext, SSR-safe.</li>
+  <li><b>accessibility.md</b>: combobox rules, aria-disabled hint, aria-invalid errors, focus return.</li>
+  <li><b>data-fetching.md</b>: prefix keys, update as a prop, awaited invalidation incl. ITEM_DETAILS_KEY + ITEM_ACTIONS_KEY.</li>
+  <li><b>css.md / responsive.md</b>, <b>validation.md</b>, <b>minimal-implementation.md</b>, <b>backend/frontend-testing.md</b>.</li>
+  <li><b>Secrets</b>: no secrets in the script or README; Google key presence only.</li>
+</ul></details>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card"><ul style="font-size:13px">
+  <li>☐ <code>upgrade head</code> seeds counts matching the README; 0079 ≤3 s (ceiling 10 s); migration-test overhead ≤2 min, or the COPY fallback.</li>
+  <li>☐ <code>q=kety</code> → Kęty (TOWN) first; <code>q=32-650</code> by code; 2 statements; literal <code>%</code>/<code>_</code>.</li>
+  <li>☐ Item POST without <code>location_id</code> → 422; foreign place → 403; every item has a location.</li>
+  <li>☐ After GIFT/SWAP: <code>location_id = null</code> + DRAFT; listing → 409 until a live location; a listed item with a deleted place can still change mode or visibility.</li>
+  <li>☐ OTHER/ANONYMOUS <code>location</code> is exactly <code>{locality, formatted_address: null, deleted_at: null}</code>; /details and GET item carry no item <code>location_id</code>; no item-address substring unless the place is also a term/event place (context label only, accepted).</li>
+  <li>☐ No <code>/places/new</code> entry left in history; item edit Zapisz/Anuluj and item "Wróć" land correctly.</li>
+  <li>☐ No inline add form; every host keeps its values and photos across <code>/places/new</code>; drafts clear per Req. 30.</li>
+  <li>☐ <code>/places/new</code> and <code>/places/:id/edit</code> show 2 fields and 5 states.</li>
+  <li>☐ The inventory-location API, card, hook and column are gone (grep is clean).</li>
+  <li>☐ Backend tests incl. the rewritten migration tests pass; mypy ≤15; ruff clean incl. <code>scripts/</code>; no new vitest failures beyond 12; typecheck clean.</li>
+</ul></div>
+
+<h2 id="audit">Audit resolutions</h2>
+<table class="res">
+  <tr><th>ID</th><th>Resolution</th></tr>
+  <tr><td><span class="sev critical">H1</span></td><td>Both round-trip legs use <code>replace: true</code>; history is unchanged, so <code>navigate(-1)</code> in ItemEditView/ItemBackButton works; Event/TermEditView targets are unaffected.</td></tr>
+  <tr><td><span class="sev critical">H2</span></td><td>"Adres terminu publiczny": the guarantee is narrowed to the item location block; the context label stays full; null-valued keys for non-owners; the test is pinned to an item-only place, plus a term-reuse case.</td></tr>
+  <tr><td><span class="sev warning">M1</span></td><td>Both migration tests are rewritten: revision schema at 0075/0058, the 0080 shape at head.</td></tr>
+  <tr><td><span class="sev warning">M2</span></td><td>POST/PUT return <code>load_location</code> (joinedload + populate_existing); <code>get_own_location</code> and circulation <code>get_owned_location</code> too; a test covers it.</td></tr>
+  <tr><td><span class="sev warning">M3</span></td><td>409 only on DRAFT → ACTIVE; mode and visibility never blocked; a place delete leaves listings ACTIVE.</td></tr>
+  <tr><td><span class="sev warning">M4</span></td><td>Owner <code>location_id</code> is null for a deleted place → empty required picker + banner.</td></tr>
+  <tr><td><span class="sev warning">M5</span></td><td>Clear-point table; <code>closeStepperForPlace()</code>; once-only reopen; cancel hands back null and reopens.</td></tr>
+  <tr><td><span class="sev warning">M6</span></td><td>Chunked unnest, TRUNCATE downgrade, ≤3 s target, 2-minute budget, COPY fallback; skip is impossible.</td></tr>
+  <tr><td><span class="sev info">L1</span></td><td>No <code>location_id</code> on InventoryItemResponse; tested.</td></tr>
+  <tr><td><span class="sev info">L2</span></td><td>Non-owner plain locality for a deleted place confirmed as intended.</td></tr>
+  <tr><td><span class="sev info">L3</span></td><td>PersonalPickupSheet, TermCard Maps and EventWhenCard calendar added; long strings accepted.</td></tr>
+  <tr><td><span class="sev info">L4</span></td><td>Typed frontend factories; 3 backend files named; <code>_set_location</code> rewritten.</td></tr>
+  <tr><td><span class="sev info">L5</span></td><td><code>autoescape=True</code>; explicit ł/Ł folding; both tested.</td></tr>
+  <tr><td><span class="sev info">L6</span></td><td>New <code>scripts/</code>, run command, ruff covers it, mypy app-only.</td></tr>
+  <tr><td><span class="sev info">L7</span></td><td>TOWN-first kept (user decision + mockup).</td></tr>
+  <tr><td><span class="sev info">L8</span></td><td>A change during an open pickup is allowed and read live; ITEM_ACTIONS_KEY + my-items refreshed.</td></tr>
+</table>
+</main>
+</body>
+</html>

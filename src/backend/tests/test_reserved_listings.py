@@ -21,7 +21,7 @@ from app.core import clock
 from app.groups import service
 from app.groups.infrastructure import circulation_bridge, repository
 from app.groups.models import SwapProposal, SwapProposalStatus
-from tests.conftest import count_queries
+from tests.conftest import count_queries, create_location
 from tests.test_item_visibility import _world as _private_world
 from tests.test_organizer_bridges import _register_items
 from tests.test_organizer_page import _circle, _in_days, _listed_items, _organization_slug, _term
@@ -260,7 +260,11 @@ async def _owner_world(
     starts_at = (clock.local_now() + timedelta(days=10)).replace(microsecond=0)
     event = await client.post(
         "/api/events",
-        json={"name": f"Wymiana {prefix}", "starts_at": starts_at.isoformat()},
+        json={
+            "location_id": await create_location(client, _auth(owner_token)),
+            "name": f"Wymiana {prefix}",
+            "starts_at": starts_at.isoformat(),
+        },
         headers=_auth(owner_token),
     )
     assert event.status_code == 201, event.text
@@ -421,7 +425,11 @@ async def test_personalisedReads_cacheHeaders_principalPrivateNoStore_anonymousP
     [item_id] = await _listed_items(client, owner_token, (f"rb-pcache {route}", "GIFT"))
     event = await client.post(
         "/api/events",
-        json={"name": f"Wymiana {route}", "starts_at": _in_days(6).isoformat()},
+        json={
+            "location_id": await create_location(client, _auth(owner_token)),
+            "name": f"Wymiana {route}",
+            "starts_at": _in_days(6).isoformat(),
+        },
         headers=_auth(owner_token),
     )
     assert event.status_code == 201, event.text
@@ -443,7 +451,13 @@ async def test_personalisedReads_cacheHeaders_principalPrivateNoStore_anonymousP
     ):
         assert response.status_code == 200, response.text
         assert response.headers["cache-control"] == cache_control
-        assert response.headers["vary"] == "Authorization, Cookie"
+        # GZipMiddleware appends `Accept-Encoding` to bodies of 1000+ bytes
+        # (the actions payload with the item's location).
+        vary = [token.strip() for token in response.headers["vary"].split(",")]
+        assert [token for token in vary if token != "Accept-Encoding"] == [
+            "Authorization",
+            "Cookie",
+        ]
 
 
 async def _term_with_reserved_listings(

@@ -30,7 +30,7 @@ function useDismissibleHint(storageKey: string): [boolean, () => void] {
 }
 
 export function HomeView() {
-  const { profile, organizationSlug, terms, myGroups, items, itemModes, setView, setModal } = useAppData();
+  const { profile, organizationSlug, terms, myGroups, items, itemModes, setView, openFirstTermStepper } = useAppData();
   const { username } = useAuth();
   // Dismissed flags are per account (`hintKey`): a browser shared by several
   // accounts never hides a new account's hints because another dismissed them.
@@ -159,9 +159,7 @@ export function HomeView() {
             title="Dodaj swój pierwszy termin"
             description="Ustal pierwsze spotkanie w swojej grupie."
             ctaLabel="Dodaj termin →"
-            onCtaClick={() => {
-              setModal("pierwszy-termin");
-            }}
+            onCtaClick={openFirstTermStepper}
             onDismiss={dismissOrgFirstTermHint}
           />
         )}

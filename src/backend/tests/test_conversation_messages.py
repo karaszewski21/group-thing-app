@@ -29,7 +29,7 @@ from app.messaging.models import Message
 from app.moderation import text_guard
 from app.notifications.models import Notification
 from app.users.models import UserProfile
-from tests.conftest import leaf_category_ids
+from tests.conftest import create_location, leaf_category_ids
 
 BODY_ERROR = "Wiadomość musi mieć od 1 do 1000 znaków"
 MESSAGE_KEYS = {"id", "body", "created_at", "is_mine", "sender_name", "sender_is_organizer"}
@@ -85,6 +85,7 @@ async def _create_item(
             "inventory_id": str(inventory_id),
             "product_id": product.json()["id"],
             "condition": "GOOD",
+            "location_id": await create_location(client, _auth(token)),
         },
         headers=_auth(token),
     )

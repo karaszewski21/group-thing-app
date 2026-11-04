@@ -22,7 +22,7 @@ export interface CreateItemResult {
 }
 
 /** Adds an item to the caller's PERSONAL inventory: resolves the product by
- * name within its category, registers the item with `mode` (`GIFT`/`SWAP`
+ * name within its category, registers the item at the chosen place with `mode` (`GIFT`/`SWAP`
  * offers it at once, `null` saves a draft; the server writes both
  * atomically), then saves the optional description and uploads `photos` to
  * the product in order (the owner check needs the item to exist first).
@@ -32,7 +32,7 @@ export interface CreateItemResult {
  * invalidated. */
 export function useCreateItem() {
   return useCallback(async (
-    value: ItemQuickAddValue,
+    value: ItemQuickAddValue & { location_id: string },
     photos: File[],
     mode: ListingMode | null,
   ): Promise<CreateItemResult> => {
@@ -49,6 +49,7 @@ export function useCreateItem() {
         inventory_id: inventory.id,
         product_id: product.id,
         condition: value.condition,
+        location_id: value.location_id,
         listing_mode: mode,
       });
     } catch (err) {

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edytuj rzecz — zmiana lokalizacji — Product Design</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      color: #222;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1.5rem;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+    }
+    header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+    #status { font-size: 0.8rem; color: #4a4; font-weight: 500; }
+    #status.disconnected { color: #a44; }
+
+    /* Screen navigation */
+    .screen-nav {
+      background: #fafafa;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 0.5rem 1.5rem;
+    }
+    .nav-screens {
+      display: flex;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.25rem;
+    }
+    .nav-screen {
+      padding: 0.3rem 0.7rem;
+      border-radius: 4px;
+      text-decoration: none;
+      color: #555;
+      font-size: 0.8rem;
+      background: #eee;
+      transition: background 0.15s;
+    }
+    .nav-screen:hover { background: #ddd; }
+    .nav-screen.active { background: #333; color: #fff; }
+    .nav-prevnext {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.25rem;
+    }
+    .nav-arrow {
+      font-size: 0.8rem;
+      color: #0066cc;
+      text-decoration: none;
+    }
+    .nav-arrow:hover { text-decoration: underline; }
+
+    /* Gallery */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      padding: 1rem 0;
+    }
+    .gallery-card {
+      display: block;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow 0.2s, transform 0.15s;
+    }
+    .gallery-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+    }
+    .gallery-card-title {
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #eee;
+      background: #fafafa;
+    }
+    .gallery-card-preview {
+      height: 230px;
+      overflow: hidden;
+      position: relative;
+      background: #0e0f11;
+    }
+    /* The screen renders in a private iframe at desktop width, scaled down to a
+       thumbnail. pointer-events off so the whole card stays a single click target. */
+    .gallery-frame {
+      width: 1280px;
+      height: 820px;
+      border: 0;
+      transform: scale(0.27);
+      transform-origin: top left;
+      pointer-events: none;
+    }
+
+    /* Mockup content */
+    main {
+      max-width: 1200px;
+      margin: 1.5rem auto;
+      padding: 1.5rem;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      min-height: 300px;
+      position: relative;
+    }
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      color: #999;
+      font-size: 1rem;
+      text-align: center;
+      line-height: 1.8;
+    }
+    .annotation-tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 3px;
+      pointer-events: none;
+      max-width: 250px;
+      z-index: 1000;
+      line-height: 1.3;
+    }
+    .annotation-tooltip::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: 10px;
+      width: 8px;
+      height: 8px;
+      background: rgba(0, 0, 0, 0.75);
+      transform: rotate(45deg);
+    }
+
+    /* Interactive screen-to-screen navigation */
+    [data-screen] { cursor: pointer; }
+    [data-screen]:hover { outline: 2px solid #0066cc; outline-offset: 2px; border-radius: 2px; }
+
+    /* Annotation toggle */
+    .annotations-hidden .annotation-tooltip { display: none; }
+    #annotation-toggle {
+      font-size: 0.8rem;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      background: #f0f0f0;
+      cursor: pointer;
+      margin-left: 0.75rem;
+    }
+    #annotation-toggle:hover { background: #e0e0e0; }
+    #annotation-toggle.active { background: #333; color: #fff; border-color: #333; }
+    #gallery-link {
+      display: inline-block; margin-right: 0.5rem; padding: 0.35rem 0.75rem;
+      border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem;
+      color: #333; text-decoration: none; background: #f5f5f5;
+    }
+    #gallery-link:hover { background: #e0e0e0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Edytuj rzecz — zmiana lokalizacji</h1>
+    <div>
+      <a href="/" id="gallery-link" title="Back to the gallery of all screens">⊞ Gallery</a>
+      <button id="annotation-toggle" class="active" title="Toggle annotation tooltips">Annotations</button>
+      <span id="status">Connected</span>
+    </div>
+  </header>
+
+  <nav class="screen-nav"><div class="nav-screens"><a href="/screen/dodaj-miejsce-lokalizacja-adres" class="nav-screen">Dodaj miejsce — Lokalizacja + Adres</a><a href="/screen/dodaj-rzecz-obowi-zkowa-lokalizacja" class="nav-screen">Dodaj rzecz — obowiązkowa lokalizacja</a><a href="/screen/edytuj-rzecz-zmiana-lokalizacji" class="nav-screen active">Edytuj rzecz — zmiana lokalizacji</a></div><div class="nav-prevnext"><a href="/screen/dodaj-rzecz-obowi-zkowa-lokalizacja" class="nav-arrow">&larr; Dodaj rzecz — obowiązkowa lokalizacja</a><span></span></div></nav>
+
+  <main id="mockup-container">
+    <style>
+:root{--mint:#1b8168;--mint-soft:#d8f0e6;--cream:#f4f8f0;--stage:#edf1ea;--line:#e2eadf;--line-strong:#cbdac7;--paper:#fff;--ink:#1e2e27;--ink-soft:#5c7069;--teal-soft:#d9ecec;--danger:#b23b3b;--danger-soft:#f6e4e2;--lime-soft:#eaf2ce}
+body{background:var(--stage);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--ink)}
+.wrap{display:flex;flex-wrap:wrap;gap:24px;padding:24px;align-items:flex-start}
+.phone{width:380px;background:var(--cream);border-radius:28px;padding:18px 16px;box-shadow:0 2px 10px rgb(0 0 0/.06)}
+.state{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 8px}
+h1{font-size:22px;font-weight:900;margin:4px 0 14px}
+.back{font-size:13px;font-weight:700;color:var(--ink-soft)}
+.card{border:1px solid var(--line);background:var(--paper);border-radius:22px;padding:18px}
+.lbl{display:block;font-size:11px;font-weight:800;letter-spacing:.03em;color:var(--ink-soft);margin:12px 0 5px}
+.lbl .req{color:var(--danger)}
+.in{width:100%;box-sizing:border-box;border:1.5px solid var(--line-strong);border-radius:12px;padding:10px 12px;font-size:14px;background:var(--paper);color:var(--ink)}
+.in.ph{color:#9aa9a2}
+.in.err{border-color:var(--danger)}
+.in.focus{border-color:var(--mint);box-shadow:0 0 0 3px var(--mint-soft)}
+.help{font-size:12.5px;color:var(--ink-soft);margin:5px 0 0}
+.error{font-size:12.5px;font-weight:600;color:var(--danger);margin:5px 0 0}
+.lb{border:1.5px solid var(--line-strong);border-radius:12px;margin-top:4px;background:var(--paper);overflow:hidden}
+.opt{padding:8px 12px;font-size:13.5px;border-bottom:1px solid var(--line)}
+.opt:last-child{border-bottom:0}
+.opt b{font-weight:800}
+.opt small{display:block;color:var(--ink-soft);font-size:12px}
+.opt.active{background:var(--mint-soft)}
+.chip{display:flex;justify-content:space-between;align-items:center;border:1.5px solid var(--mint);background:var(--mint-soft);border-radius:12px;padding:9px 12px;font-size:13.5px}
+.chip small{display:block;color:var(--ink-soft);font-size:12px}
+.chip button{border:0;background:none;font-weight:800;color:var(--ink-soft);font-size:12px}
+.row{display:flex;gap:8px;margin-top:16px}
+.btn{border-radius:9px;padding:9px 14px;font-size:13px;font-weight:800;border:0}
+.save{background:var(--mint);color:#fff}
+.cancel{background:transparent;border:1px solid var(--line);color:var(--ink-soft)}
+.disabled{opacity:.55}
+.pick{display:flex;gap:8px;align-items:center}
+.pick select,.pick .sel{flex:1}
+.add{flex:none;width:40px;height:40px;border-radius:12px;background:var(--mint);color:#fff;font-weight:900;font-size:20px;display:flex;align-items:center;justify-content:center;text-decoration:none}
+.photos{display:flex;gap:8px}
+.ph-box{width:64px;height:64px;border-radius:14px;background:var(--lime-soft);border:1.5px dashed var(--line-strong);display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:22px}
+.ph-box.img{background:linear-gradient(135deg,#cfe3d6,#a9c24f);border-style:solid}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.act{border-radius:14px;padding:12px;font-weight:800;font-size:14px;text-align:center;border:0}
+.gift{background:var(--mint);color:#fff}.swap{background:var(--teal-soft);color:var(--ink)}
+.draft{grid-column:span 2;background:transparent;border:1.5px solid var(--line-strong);color:var(--ink)}
+.banner{background:var(--lime-soft);border-radius:14px;padding:10px 12px;font-size:13px;font-weight:600;margin-bottom:12px}
+.banner.warn{background:var(--danger-soft);color:var(--danger)}
+.loc{display:flex;gap:10px;align-items:flex-start}
+.pin{width:34px;height:34px;border-radius:10px;background:var(--mint-soft);display:flex;align-items:center;justify-content:center;flex:none}
+.loc b{display:block;font-size:14.5px}
+.loc span{font-size:12.5px;color:var(--ink-soft)}
+.link{font-size:12.5px;font-weight:800;color:var(--mint);text-decoration:underline}
+.own{margin-top:10px;border-top:1px dashed var(--line-strong);padding-top:10px;font-size:13px}
+.own em{font-style:normal;font-size:11px;font-weight:800;color:var(--ink-soft);display:block;text-transform:uppercase;letter-spacing:.05em}
+.prow{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.prow:last-child{border-bottom:0}
+.prow b{display:block;font-size:14px}
+.prow span{font-size:12.5px;color:var(--ink-soft)}
+.prow .acts{font-size:12px;font-weight:800;color:var(--ink-soft)}
+.top{display:flex;justify-content:space-between;align-items:center}
+.muted{color:var(--ink-soft)}
+</style>
+<div id="mockup-content"><div class="wrap"><div class="phone"><p class="state">1 · edycja z lokalizacją</p><span class="back">← Wróć</span><h1>Edytuj rzecz</h1><div class="card"><label class="lbl">Nazwa</label><div class="in">Rower dziecięcy 16"</div><label class="lbl">Stan</label><div class="in">Dobry ▾</div><label class="lbl">Kategoria</label><div class="in">Dzieci › Rowery ›</div><label class="lbl">Opis</label><div class="in ph">Opcjonalnie</div><label class="lbl">Lokalizacja <span class="req">*</span></label><div class="pick"><div class="in sel">Kęty, małopolskie ▾</div><a class="add" data-screen="place-create" aria-label="Dodaj nowe miejsce">+</a></div><p class="help">Kupujący zobaczą tylko miejscowość. Adres widzisz tylko Ty.</p></div><div class="row"><button class="btn save">Zapisz zmiany</button><button class="btn cancel">Anuluj</button></div></div><div class="phone"><p class="state">2 · przekazany przedmiot bez lokalizacji</p><span class="back">← Wróć</span><h1>Edytuj rzecz</h1><div class="banner warn" role="status">Ustaw lokalizację, aby wystawić przedmiot.</div><div class="card"><label class="lbl">Nazwa</label><div class="in">Rower dziecięcy 16"</div><label class="lbl">Stan</label><div class="in">Dobry ▾</div><label class="lbl">Kategoria</label><div class="in">Dzieci › Rowery ›</div><label class="lbl">Opis</label><div class="in ph">Opcjonalnie</div><label class="lbl">Lokalizacja <span class="req">*</span></label><div class="pick"><div class="in sel ph err">Wybierz miejsce ▾</div><a class="add" data-screen="place-create">+</a></div><p class="error" role="alert">Wybierz lokalizację</p></div><div class="row"><button class="btn save">Zapisz zmiany</button><button class="btn cancel">Anuluj</button></div></div></div></div>
+  </main>
+
+  <script>
+    // SSE client for live refresh. It must NOT hijack the user's location — during a
+    // multi-screen batch that would repeatedly yank the browser to the newest screen and
+    // make it impossible to browse the gallery. On the gallery/latest we reload in place
+    // (so new cards appear live); on an individual screen we show a dismissible toast so a
+    // reader is never interrupted mid-review.
+    const statusEl = document.getElementById('status');
+    const evtSource = new EventSource('/events');
+    function showRefreshToast() {
+      if (document.getElementById('refresh-toast')) return;
+      const t = document.createElement('button');
+      t.id = 'refresh-toast';
+      t.textContent = '↻ Screens updated — click to refresh';
+      t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;'
+        + 'background:#2563eb;color:#fff;border:0;border-radius:8px;padding:10px 16px;font:600 13px Inter,sans-serif;'
+        + 'cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35)';
+      t.onclick = function(){ window.location.reload(); };
+      document.body.appendChild(t);
+    }
+    evtSource.onmessage = function(e) {
+      if (e.data !== 'refresh') return;
+      if (window.location.pathname === '/' || window.location.pathname === '/latest') {
+        window.location.reload();
+      } else {
+        showRefreshToast();
+      }
+    };
+    evtSource.onopen = function() {
+      statusEl.textContent = 'Connected';
+      statusEl.className = '';
+    };
+    evtSource.onerror = function() {
+      statusEl.textContent = 'Reconnecting...';
+      statusEl.className = 'disconnected';
+    };
+
+    // Annotation overlay rendering
+    const annotations = [{"selector":".phone:nth-child(2) .banner","note":"Po przekazaniu location_id = null; bez lokalizacji nie da się wystawić"}];
+    function renderAnnotations() {
+      const container = document.getElementById('mockup-container');
+      annotations.forEach(function(ann) {
+        if (!ann.selector) return;
+        const target = container.querySelector(ann.selector);
+        if (!target) return;
+        const text = ann.note || ann.text || '';
+        if (!text) return;
+        const rect = target.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const tooltip = document.createElement('div');
+        tooltip.className = 'annotation-tooltip';
+        tooltip.textContent = text;
+        tooltip.style.top = (rect.bottom - containerRect.top + 6) + 'px';
+        tooltip.style.left = (rect.left - containerRect.left) + 'px';
+        container.appendChild(tooltip);
+      });
+    }
+    if (annotations.length > 0) requestAnimationFrame(renderAnnotations);
+
+    // Annotation toggle with localStorage persistence
+    var toggleBtn = document.getElementById('annotation-toggle');
+    var container = document.getElementById('mockup-container');
+    var annotationsVisible = localStorage.getItem('annotations-visible') !== 'false'; // default: true
+    function updateToggle() {
+      if (annotationsVisible) {
+        container.classList.remove('annotations-hidden');
+        toggleBtn.classList.add('active');
+      } else {
+        container.classList.add('annotations-hidden');
+        toggleBtn.classList.remove('active');
+      }
+    }
+    updateToggle();
+    toggleBtn.addEventListener('click', function() {
+      annotationsVisible = !annotationsVisible;
+      localStorage.setItem('annotations-visible', annotationsVisible);
+      updateToggle();
+    });
+
+    // Screen-to-screen navigation: clicking elements with data-screen="slug" navigates to that screen
+    document.getElementById('mockup-container').addEventListener('click', function(e) {
+      var target = e.target.closest('[data-screen]');
+      if (target) {
+        e.preventDefault();
+        window.location.href = '/screen/' + target.getAttribute('data-screen');
+      }
+    });
+  </script>
+</body>
+</html>

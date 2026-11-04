@@ -1,13 +1,40 @@
-"""`app.locations` tests: the caller's saved places (`/api/locations`) —
-idempotent GOOGLE create by active place_id, MANUAL always new, validation,
-404-then-403 ownership, the GOOGLE address lock, and soft delete."""
+"""`app.locations` tests: the caller's saved places (`/api/locations`) — a
+required TERYT locality plus an optional MANUAL/GOOGLE address, the computed
+`label`, no dedup, `PUT` replacement re-read with the new locality, and
+404-then-403 ownership with soft delete."""
 
 from __future__ import annotations
 
 from typing import Any
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+
+KETY = "0924365"
+LODZ = "0957650"
+KETY_LOCALITY = {
+    "id": KETY,
+    "name": "Kęty",
+    "kind": "TOWN",
+    "gmina": "Kęty",
+    "powiat": "oświęcimski",
+    "voivodeship": "małopolskie",
+}
+LOCATION_KEYS = {
+    "id",
+    "owner_party_id",
+    "locality",
+    "label",
+    "formatted_address",
+    "google_place_id",
+    "lat",
+    "lng",
+    "source",
+    "created_at",
+    "updated_at",
+    "deleted_at",
+}
 
 
 async def _register(client: AsyncClient, email: str) -> str:
@@ -16,7 +43,7 @@ async def _register(client: AsyncClient, email: str) -> str:
         json={"role": "GUEST", "email": email, "password": "secret123"},
     )
     assert response.status_code == 201
-    return response.json()["token"]
+    return str(response.json()["token"])
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -25,8 +52,8 @@ def _auth(token: str) -> dict[str, str]:
 
 def _manual(**overrides: Any) -> dict[str, Any]:
     return {
-        "name": "Sala w bibliotece",
-        "formatted_address": "ul. Długa 1, 00-001 Warszawa",
+        "locality_id": KETY,
+        "formatted_address": "ul. Długa 1, 32-650 Kęty",
         "source": "MANUAL",
         **overrides,
     }
@@ -34,12 +61,12 @@ def _manual(**overrides: Any) -> dict[str, Any]:
 
 def _google(**overrides: Any) -> dict[str, Any]:
     return {
-        "name": "Park Skaryszewski",
-        "formatted_address": "al. Zieleniecka, 03-901 Warszawa",
+        "locality_id": KETY,
+        "formatted_address": "Rynek 1, 32-650 Kęty",
         "source": "GOOGLE",
-        "google_place_id": "ChIJ-park-skaryszewski",
-        "lat": 52.244444,
-        "lng": 21.054722,
+        "google_place_id": "ChIJ-kety-rynek",
+        "lat": 49.883333,
+        "lng": 19.216667,
         **overrides,
     }
 
@@ -47,204 +74,141 @@ def _google(**overrides: Any) -> dict[str, Any]:
 async def _create(client: AsyncClient, token: str, body: dict[str, Any]) -> dict[str, Any]:
     response = await client.post("/api/locations", json=body, headers=_auth(token))
     assert response.status_code == 201, response.text
-    return response.json()
+    return dict(response.json())
 
 
-async def test_createLocation_manual_returns201AndListsInMine(
+async def test_createLocation_localityOnlyManualGoogle_return201WithLabel_andNoDedup(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    token = await _register(client, "loc.manual@example.com")
+    token = await _register(client, "loc.create@example.com")
 
-    response = await client.post(
-        "/api/locations", json=_manual(notes="  wejście od podwórza  "), headers=_auth(token)
-    )
+    bare = await _create(client, token, {"locality_id": KETY, "formatted_address": "   "})
+    manual = await _create(client, token, _manual())
+    google = await _create(client, token, _google())
+    google_again = await _create(client, token, _google())
 
-    assert response.status_code == 201
-    created = response.json()
-    assert created["source"] == "MANUAL"
-    assert created["google_place_id"] is None
-    assert created["lat"] is None
-    assert created["notes"] == "wejście od podwórza"
-    assert created["deleted_at"] is None
+    assert set(bare) == LOCATION_KEYS
+    assert bare["locality"] == KETY_LOCALITY
+    assert bare["label"] == "Kęty, małopolskie"
+    assert (bare["formatted_address"], bare["source"], bare["lat"]) == (None, None, None)
+    assert manual["label"] == "Kęty — ul. Długa 1, 32-650 Kęty"
+    assert manual["source"] == "MANUAL" and manual["google_place_id"] is None
+    assert google["source"] == "GOOGLE"
+    assert isinstance(google["lat"], float) and google["lat"] == 49.883333
+    assert google_again["id"] != google["id"]
 
     mine = await client.get("/api/locations/mine", headers=_auth(token))
     assert mine.status_code == 200
-    assert [row["id"] for row in mine.json()] == [created["id"]]
+    assert [row["id"] for row in mine.json()] == [
+        bare["id"],
+        manual["id"],
+        google["id"],
+        google_again["id"],
+    ]
+    assert set(mine.json()[0]) == LOCATION_KEYS
 
 
-async def test_createLocation_google_returns201_andDuplicateActivePlaceIdReturns200SameId(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    token = await _register(client, "loc.google@example.com")
-
-    first = await client.post("/api/locations", json=_google(), headers=_auth(token))
-    assert first.status_code == 201
-    body = first.json()
-    assert body["source"] == "GOOGLE"
-    assert isinstance(body["lat"], float)
-    assert isinstance(body["lng"], float)
-    assert body["lat"] == 52.244444
-
-    duplicate = await client.post(
-        "/api/locations", json=_google(name="Inna nazwa"), headers=_auth(token)
-    )
-    assert duplicate.status_code == 200
-    assert duplicate.json()["id"] == body["id"]
-    assert duplicate.json()["name"] == "Park Skaryszewski"
-
-    mine = await client.get("/api/locations/mine", headers=_auth(token))
-    assert len(mine.json()) == 1
-    assert mine.json()[0]["owner_party_id"] == body["owner_party_id"]
-    assert isinstance(mine.json()[0]["lat"], float)
-    assert isinstance(mine.json()[0]["lng"], float)
-
-
-async def test_createLocation_validation_googleWithoutPlaceIdOrCoords_manualWithPlaceId_blankAddress_return400(  # noqa: E501
-    client: AsyncClient, db_session: AsyncSession
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"formatted_address": "ul. Długa 1"},
+        {"locality_id": "123"},
+        {"locality_id": KETY, "source": "MANUAL"},
+        {"locality_id": KETY, "google_place_id": "ChIJ-x", "lat": 49.0, "lng": 19.0},
+        {"locality_id": KETY, "formatted_address": "ul. Długa 1"},
+        _manual(google_place_id="ChIJ-x"),
+        _manual(lat=49.0, lng=19.0),
+        _google(google_place_id=None),
+        _google(lat=91.0),
+        _manual(formatted_address="x" * 501),
+        _manual(name="Sala"),
+        _manual(owner_party_id="00000000-0000-0000-0000-000000000000"),
+    ],
+)
+async def test_createLocation_invalidBody_returns400(
+    client: AsyncClient, db_session: AsyncSession, body: dict[str, Any]
 ) -> None:
     token = await _register(client, "loc.validation@example.com")
-    google_without_place_id = _google()
-    del google_without_place_id["google_place_id"]
-    google_without_coords = _google()
-    del google_without_coords["lat"]
-    del google_without_coords["lng"]
-    invalid_bodies = [
-        google_without_place_id,
-        google_without_coords,
-        _manual(google_place_id="ChIJ-x"),
-        _manual(lat=52.0, lng=21.0),
-        _manual(formatted_address="   "),
-        _manual(name=""),
-        _google(lat=91.0),
-        _manual(owner_party_id="00000000-0000-0000-0000-000000000000"),
-    ]
 
-    for body in invalid_bodies:
-        response = await client.post("/api/locations", json=body, headers=_auth(token))
-        assert response.status_code == 400, body
+    response = await client.post("/api/locations", json=body, headers=_auth(token))
 
+    assert response.status_code == 400, response.text
+
+
+async def test_createLocation_unknownLocality_returns404(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register(client, "loc.unknown@example.com")
+
+    response = await client.post(
+        "/api/locations", json={"locality_id": "0000000"}, headers=_auth(token)
+    )
+
+    assert response.status_code == 404, response.text
     mine = await client.get("/api/locations/mine", headers=_auth(token))
     assert mine.json() == []
 
 
-async def test_listMine_excludesOtherOwnersAndSoftDeleted(
+async def test_putLocation_newLocalityReturnedAtOnce_clearsAddress_andPatchIsGone(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    owner = await _register(client, "loc.list.owner@example.com")
-    other = await _register(client, "loc.list.other@example.com")
-    zebra = await _create(client, owner, _manual(name="Zebra"))
-    alpha = await _create(client, owner, _manual(name="Alfa"))
-    removed = await _create(client, owner, _manual(name="Beta"))
-    await _create(client, other, _manual(name="Cudza"))
-    deleted = await client.delete(f"/api/locations/{removed['id']}", headers=_auth(owner))
-    assert deleted.status_code == 204
+    token = await _register(client, "loc.put@example.com")
+    location = await _create(client, token, _google())
 
-    mine = await client.get("/api/locations/mine", headers=_auth(owner))
-
-    assert mine.status_code == 200
-    assert [row["id"] for row in mine.json()] == [alpha["id"], zebra["id"]]
-
-
-async def test_updateLocation_nameNotes200_addressOnGoogleRow409(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    token = await _register(client, "loc.update@example.com")
-    manual = await _create(client, token, _manual(notes="stare"))
-    google = await _create(client, token, _google())
-
-    renamed = await client.patch(
-        f"/api/locations/{manual['id']}",
-        json={"name": "Nowa sala", "notes": "  ", "formatted_address": "ul. Krótka 2"},
+    moved = await client.put(
+        f"/api/locations/{location['id']}",
+        json={"locality_id": LODZ, "formatted_address": "Piotrkowska 1", "source": "MANUAL"},
         headers=_auth(token),
     )
-    assert renamed.status_code == 200
-    assert renamed.json()["name"] == "Nowa sala"
-    assert renamed.json()["notes"] is None
-    assert renamed.json()["formatted_address"] == "ul. Krótka 2"
-
-    google_renamed = await client.patch(
-        f"/api/locations/{google['id']}", json={"notes": "przy fontannie"}, headers=_auth(token)
+    cleared = await client.put(
+        f"/api/locations/{location['id']}", json={"locality_id": LODZ}, headers=_auth(token)
     )
-    assert google_renamed.status_code == 200
-    assert google_renamed.json()["notes"] == "przy fontannie"
-    assert google_renamed.json()["name"] == "Park Skaryszewski"
-
-    address_on_google = await client.patch(
-        f"/api/locations/{google['id']}",
-        json={"formatted_address": "gdzie indziej"},
-        headers=_auth(token),
-    )
-    assert address_on_google.status_code == 409
-
-    null_name = await client.patch(
-        f"/api/locations/{manual['id']}", json={"name": None}, headers=_auth(token)
-    )
-    assert null_name.status_code == 400
-    place_id_edit = await client.patch(
-        f"/api/locations/{google['id']}", json={"google_place_id": "x"}, headers=_auth(token)
-    )
-    assert place_id_edit.status_code == 400
-
-
-async def test_updateOrDeleteLocation_nonOwner403(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    owner = await _register(client, "loc.owner403@example.com")
-    stranger = await _register(client, "loc.stranger403@example.com")
-    location = await _create(client, owner, _manual())
-
     patched = await client.patch(
-        f"/api/locations/{location['id']}", json={"name": "Moje"}, headers=_auth(stranger)
+        f"/api/locations/{location['id']}", json={"locality_id": KETY}, headers=_auth(token)
     )
-    deleted = await client.delete(f"/api/locations/{location['id']}", headers=_auth(stranger))
 
-    assert patched.status_code == 403
-    assert deleted.status_code == 403
-    mine = await client.get("/api/locations/mine", headers=_auth(owner))
-    assert [row["name"] for row in mine.json()] == ["Sala w bibliotece"]
+    assert moved.status_code == 200, moved.text
+    assert set(moved.json()) == LOCATION_KEYS
+    assert moved.json()["locality"]["id"] == LODZ
+    assert moved.json()["locality"]["name"] == "Łódź"
+    assert moved.json()["label"] == "Łódź — Piotrkowska 1"
+    assert (moved.json()["google_place_id"], moved.json()["lat"]) == (None, None)
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["label"] == "Łódź, łódzkie"
+    assert (cleared.json()["formatted_address"], cleared.json()["source"]) == (None, None)
+    assert patched.status_code == 405
 
 
-async def test_deleteLocation_204_thenMineExcludes_andPatchDeleteOnDeleted404(
+async def test_putOrDeleteLocation_foreign403_deletedOrMissing404(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    token = await _register(client, "loc.delete@example.com")
-    stranger = await _register(client, "loc.delete.stranger@example.com")
-    location = await _create(client, token, _manual())
+    owner = await _register(client, "loc.owner@example.com")
+    stranger = await _register(client, "loc.stranger@example.com")
+    location = await _create(client, owner, _manual())
+    removed = await _create(client, owner, _manual())
+    body = {"locality_id": KETY}
 
-    deleted = await client.delete(f"/api/locations/{location['id']}", headers=_auth(token))
-    assert deleted.status_code == 204
-
-    mine = await client.get("/api/locations/mine", headers=_auth(token))
-    assert mine.json() == []
-    patch_deleted = await client.patch(
-        f"/api/locations/{location['id']}", json={"name": "x"}, headers=_auth(token)
+    foreign_put = await client.put(
+        f"/api/locations/{location['id']}", json=body, headers=_auth(stranger)
     )
-    assert patch_deleted.status_code == 404
-    delete_again = await client.delete(f"/api/locations/{location['id']}", headers=_auth(token))
-    assert delete_again.status_code == 404
-    stranger_on_deleted = await client.delete(
+    foreign_delete = await client.delete(
         f"/api/locations/{location['id']}", headers=_auth(stranger)
     )
-    assert stranger_on_deleted.status_code == 404
-    missing = await client.patch(
-        "/api/locations/00000000-0000-0000-0000-000000000000",
-        json={"name": "x"},
-        headers=_auth(token),
+    deleted = await client.delete(f"/api/locations/{removed['id']}", headers=_auth(owner))
+    put_deleted = await client.put(
+        f"/api/locations/{removed['id']}", json=body, headers=_auth(owner)
     )
-    assert missing.status_code == 404
+    stranger_on_deleted = await client.delete(
+        f"/api/locations/{removed['id']}", headers=_auth(stranger)
+    )
+    missing = await client.put(
+        "/api/locations/00000000-0000-0000-0000-000000000000", json=body, headers=_auth(owner)
+    )
 
-
-async def test_createLocation_afterDelete_reAddingSamePlaceIdCreatesNewRow201(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    token = await _register(client, "loc.readd@example.com")
-    first = await _create(client, token, _google())
-    deleted = await client.delete(f"/api/locations/{first['id']}", headers=_auth(token))
+    assert (foreign_put.status_code, foreign_delete.status_code) == (403, 403)
     assert deleted.status_code == 204
-
-    again = await client.post("/api/locations", json=_google(), headers=_auth(token))
-
-    assert again.status_code == 201
-    assert again.json()["id"] != first["id"]
-    mine = await client.get("/api/locations/mine", headers=_auth(token))
-    assert [row["id"] for row in mine.json()] == [again.json()["id"]]
+    assert put_deleted.status_code == 404
+    assert stranger_on_deleted.status_code == 404
+    assert missing.status_code == 404
+    mine = await client.get("/api/locations/mine", headers=_auth(owner))
+    assert [row["id"] for row in mine.json()] == [location["id"]]

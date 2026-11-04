@@ -1,14 +1,12 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as locationsApi from "../api/locations";
-import type { LocationResponse } from "../api/locations";
 import { LocationPicker, type FallbackLocation } from "../components/shared/LocationPicker";
-import * as googleMaps from "../lib/googleMaps";
-import type { PlacesApi, Suggestion } from "../lib/googleMaps";
 import type { PickedLocationState } from "../utils/appHelpers";
+import { makeLocality, makeLocationResponse } from "./fixtures/locations";
 import { createQueryWrapper } from "./queryClient";
-import { renderWithRoute } from "./renderWithRoute";
+import { getTestRouter, renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: "token-a" }) }));
 
@@ -19,67 +17,25 @@ vi.mock("../api/locations", () => ({
   deleteLocation: vi.fn(),
 }));
 
-// The real `isGoogleMapsConfigured` stays so `vi.stubEnv` flips the mode;
-// only the network-facing calls are replaced.
-vi.mock("../lib/googleMaps", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../lib/googleMaps")>()),
-  loadPlaces: vi.fn(),
-  newSessionToken: vi.fn(),
-  suggest: vi.fn(),
-  resolve: vi.fn(),
-}));
-
-const SWIETLICA: LocationResponse = {
-  id: "loc-1",
-  owner_party_id: "party-1",
-  name: "Świetlica na Polnej",
-  formatted_address: "ul. Polna 12, 60-595 Poznań",
-  google_place_id: "ChIJ-polna",
-  lat: 52.4,
-  lng: 16.9,
-  notes: "wejście od podwórza",
-  source: "GOOGLE",
-  created_at: "2026-10-01T10:00:00",
-  updated_at: "2026-10-01T10:00:00",
-  deleted_at: null,
-};
-
-const PARK: LocationResponse = {
-  ...SWIETLICA,
+const KETY = makeLocationResponse();
+const POLNA = makeLocationResponse({
   id: "loc-2",
-  name: "Park Sołacki",
-  formatted_address: "Park Sołacki, Poznań",
-  google_place_id: null,
-  lat: null,
-  lng: null,
-  notes: null,
+  locality: makeLocality({ id: "0969400", name: "Poznań", gmina: "Poznań", powiat: "Poznań", voivodeship: "wielkopolskie" }),
+  label: "Poznań — ul. Polna 12",
+  formatted_address: "ul. Polna 12",
   source: "MANUAL",
-};
+});
 
-const fakePlaces = {
-  AutocompleteSessionToken: class {},
-  AutocompleteSuggestion: {},
-  Place: class {},
-} as unknown as PlacesApi;
-
-const SUGGESTION: Suggestion = {
-  placeId: "ChIJ-test",
-  mainText: "Świetlica Osiedlowa",
-  secondaryText: "Polna 12, Poznań",
-  raw: {} as Suggestion["raw"],
-};
-
-function Harness({
-  initial = null,
-  onChange,
-  fallbackLocation,
-  addMode = "inline",
-}: {
+interface HarnessProps {
   initial?: string | null;
   onChange: (id: string | null) => void;
+  required?: boolean;
+  invalid?: boolean;
   fallbackLocation?: FallbackLocation | null;
-  addMode?: "page" | "inline";
-}) {
+  onAddClick?: () => void;
+}
+
+function Harness({ initial = null, onChange, ...rest }: HarnessProps) {
   const [value, setValue] = useState<string | null>(initial);
   return (
     <LocationPicker
@@ -88,312 +44,130 @@ function Harness({
         setValue(id);
         onChange(id);
       }}
-      label="Miejsce"
+      label="Lokalizacja"
       noneLabel="Brak miejsca"
       idPrefix="test"
-      fallbackLocation={fallbackLocation}
-      addMode={addMode}
+      {...rest}
     />
   );
 }
 
-function renderPicker(props: Parameters<typeof Harness>[0], url = "/form", state?: PickedLocationState) {
+function renderPicker(props: HarnessProps, url = "/form", state?: PickedLocationState) {
   return renderWithRoute(<Harness {...props} />, { url, state, wrapper: createQueryWrapper() });
-}
-
-function stubGoogle() {
-  vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "test-key");
-  vi.mocked(googleMaps.loadPlaces).mockResolvedValue(fakePlaces);
-  vi.mocked(googleMaps.newSessionToken).mockImplementation(
-    () => new fakePlaces.AutocompleteSessionToken(),
-  );
-  vi.mocked(googleMaps.suggest).mockImplementation(async (_api, input) =>
-    input.trim() ? [SUGGESTION] : [],
-  );
-  vi.mocked(googleMaps.resolve).mockResolvedValue({
-    placeId: "ChIJ-test",
-    name: "Świetlica Osiedlowa",
-    formattedAddress: "Polna 12, 60-595 Poznań",
-    lat: 52.4064,
-    lng: 16.9252,
-  });
 }
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "");
-});
-
-afterEach(() => {
-  vi.unstubAllEnvs();
 });
 
 describe("LocationPicker", () => {
-  it("is a native select: none option first, own places, change selects; no edit/delete controls", async () => {
-    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([SWIETLICA, PARK]);
+  it("required: no none option, a disabled 'Wybierz miejsce' placeholder, labels as options and the selected place's detail", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([KETY, POLNA]);
     const onChange = vi.fn();
-    renderPicker({ initial: "loc-1", onChange });
+    renderPicker({ onChange, required: true });
 
-    const select = await screen.findByRole("combobox", { name: "Miejsce" });
-    expect(select.tagName).toBe("SELECT");
+    const select = await screen.findByRole("combobox", { name: "Lokalizacja" });
     const options = within(select).getAllByRole("option");
-    expect(options.map((o) => o.textContent)).toEqual(["Brak miejsca", "Świetlica na Polnej", "Park Sołacki"]);
-    expect(select).toHaveValue("loc-1");
-    expect(screen.getByText("ul. Polna 12, 60-595 Poznań")).toBeInTheDocument();
-    expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Edytuj/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Usuń/ })).not.toBeInTheDocument();
+    expect(options.map((o) => o.textContent)).toEqual(["Wybierz miejsce", "Kęty, małopolskie", "Poznań — ul. Polna 12"]);
+    expect(options[0]).toBeDisabled();
+    expect(select).toHaveValue("");
+    expect(screen.queryByText("Brak miejsca")).not.toBeInTheDocument();
+    expect(select).not.toHaveAttribute("aria-invalid");
 
+    fireEvent.change(select, { target: { value: "loc-1" } });
+    expect(onChange).toHaveBeenLastCalledWith("loc-1");
+    expect(screen.getByText("gm. Kęty, pow. oświęcimski, małopolskie")).toBeInTheDocument();
     fireEvent.change(select, { target: { value: "loc-2" } });
-    expect(onChange).toHaveBeenLastCalledWith("loc-2");
-    expect(select).toHaveValue("loc-2");
-
-    fireEvent.change(select, { target: { value: "" } });
-    expect(onChange).toHaveBeenLastCalledWith(null);
+    expect(screen.getByText("ul. Polna 12")).toBeInTheDocument();
   });
 
-  it("lists a selected '(usunięte)' fallback place that is no longer among own places", async () => {
-    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([PARK]);
+  it("invalid: aria-invalid and aria-describedby point at the 'Wybierz lokalizację' alert", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([KETY]);
+    renderPicker({ onChange: vi.fn(), required: true, invalid: true });
+
+    const select = await screen.findByRole("combobox", { name: "Lokalizacja" });
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Wybierz lokalizację");
+    expect(select).toHaveAttribute("aria-invalid", "true");
+    expect(select).toHaveAttribute("aria-describedby", alert.id);
+  });
+
+  it("required with no places: 'Nie masz jeszcze miejsc', the '+' link and the helper", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
+    renderPicker({ onChange: vi.fn(), required: true });
+
+    const select = await screen.findByRole("combobox", { name: "Lokalizacja" });
+    expect(within(select).getAllByRole("option").map((o) => o.textContent)).toEqual(["Nie masz jeszcze miejsc"]);
+    expect(screen.getByRole("link", { name: "Dodaj nowe miejsce" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Dodaj miejsce przyciskiem „+”. Wrócisz tu z zachowanymi danymi i zdjęciami."),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Nazwa miejsca")).not.toBeInTheDocument();
+  });
+
+  it("'+' replaces this entry with /places/new (returnTo + picker), running onAddClick first", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([KETY]);
+    let callsAtAddClick = -1;
+    const onAddClick = vi.fn(() => {
+      callsAtAddClick = getTestRouter().calls.length;
+    });
+    renderPicker({ onChange: vi.fn(), onAddClick }, "/items/1/edit?x=1");
+
+    const add = await screen.findByRole("link", { name: "Dodaj nowe miejsce" });
+    const href = "/places/new?returnTo=%2Fitems%2F1%2Fedit%3Fx%3D1&picker=test";
+    expect(add).toHaveAttribute("href", href);
+    fireEvent.click(add);
+
+    expect(onAddClick).toHaveBeenCalledTimes(1);
+    expect(callsAtAddClick).toBe(0);
+    expect(getTestRouter().calls).toEqual([{ method: "replace", url: href, scroll: true }]);
+  });
+
+  it("a pick handed back to this picker is applied once; another picker's is ignored", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([KETY, POLNA]);
+    const onChange = vi.fn();
+    const other = renderPicker({ onChange, required: true }, "/form", {
+      pickedLocation: { picker: "other", locationId: POLNA.id },
+    });
+    await screen.findByRole("combobox", { name: "Lokalizacja" });
+    expect(onChange).not.toHaveBeenCalled();
+    other.unmount();
+
+    const { rerender } = renderPicker({ onChange, required: true }, "/form", {
+      pickedLocation: { picker: "test", locationId: POLNA.id },
+    });
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Lokalizacja" })).toHaveValue(POLNA.id));
+    rerender(<Harness onChange={onChange} required />);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(POLNA.id);
+  });
+
+  it("a null pick (cancelled on /places/new) leaves the value unchanged", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([KETY, POLNA]);
+    const onChange = vi.fn();
+    renderPicker({ onChange, required: true, initial: KETY.id }, "/form", {
+      pickedLocation: { picker: "test", locationId: null },
+    });
+
+    const select = await screen.findByRole("combobox", { name: "Lokalizacja" });
+    expect(select).toHaveValue(KETY.id);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("lists a selected fallback place missing from own places, '(usunięte)' when soft-deleted", async () => {
+    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([KETY]);
     renderPicker({
       initial: "loc-gone",
       onChange: vi.fn(),
-      fallbackLocation: {
-        id: "loc-gone",
-        name: "Sala nr 2",
-        formatted_address: "ul. Stara 1, Poznań",
-        notes: null,
-        deleted_at: "2026-10-10T10:00:00",
-      },
+      fallbackLocation: { id: "loc-gone", label: "Kęty — ul. Stara 1", deleted_at: "2026-10-10T10:00:00" },
     });
 
-    const select = await screen.findByRole("combobox", { name: "Miejsce" });
+    const select = await screen.findByRole("combobox", { name: "Lokalizacja" });
     expect(select).toHaveValue("loc-gone");
-    expect(within(select).getByRole("option", { name: "Sala nr 2 (usunięte)" })).toBeInTheDocument();
-  });
-
-  it("lists an active fallback place owned by someone else under its plain name", async () => {
-    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([PARK]);
-    renderPicker({
-      initial: "loc-other",
-      onChange: vi.fn(),
-      fallbackLocation: {
-        id: "loc-other",
-        name: "Sala nr 2",
-        formatted_address: "ul. Stara 1, Poznań",
-        notes: null,
-        deleted_at: null,
-      },
-    });
-
-    const select = await screen.findByRole("combobox", { name: "Miejsce" });
-    expect(select).toHaveValue("loc-other");
     expect(within(select).getAllByRole("option").map((o) => o.textContent)).toEqual([
       "Brak miejsca",
-      "Park Sołacki",
-      "Sala nr 2",
+      "Kęty, małopolskie",
+      "Kęty — ul. Stara 1 (usunięte)",
     ]);
-  });
-
-  it("page mode: '+' links to /places/new with this form as returnTo and the picker's name", async () => {
-    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([SWIETLICA]);
-    renderPicker({ onChange: vi.fn(), addMode: "page" }, "/groups/new?x=1");
-
-    const add = await screen.findByRole("link", { name: "Dodaj nowe miejsce" });
-    expect(add).toHaveAttribute("href", "/places/new?returnTo=%2Fgroups%2Fnew%3Fx%3D1&picker=test");
-    expect(screen.queryByLabelText("Nazwa miejsca")).not.toBeInTheDocument();
-  });
-
-  it("page mode: back from /places/new, the place handed to this picker gets selected; another picker's is ignored", async () => {
-    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([SWIETLICA, PARK]);
-    const onChange = vi.fn();
-    const { unmount } = renderPicker(
-      { onChange, addMode: "page" },
-      "/form",
-      { pickedLocation: { picker: "other", locationId: PARK.id } },
-    );
-    await screen.findByRole("combobox", { name: "Miejsce" });
-    expect(onChange).not.toHaveBeenCalled();
-    unmount();
-
-    renderPicker(
-      { onChange, addMode: "page" },
-      "/form",
-      { pickedLocation: { picker: "test", locationId: PARK.id } },
-    );
-    await waitFor(() => expect(screen.getByRole("combobox", { name: "Miejsce" })).toHaveValue(PARK.id));
-    expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenCalledWith(PARK.id);
-  });
-
-  it("'+' expands the inline add form; manual save selects the new place, collapses and refocuses the select", async () => {
-    const created: LocationResponse = { ...PARK, id: "loc-new", name: "Sala nr 2", formatted_address: "ul. Szkolna 5" };
-    vi.mocked(locationsApi.getMyLocations).mockResolvedValueOnce([]).mockResolvedValue([created]);
-    vi.mocked(locationsApi.createLocation).mockResolvedValue(created);
-    const onChange = vi.fn();
-    renderPicker({ onChange });
-
-    const select = await screen.findByRole("combobox", { name: "Miejsce" });
-    expect(within(select).getAllByRole("option")).toHaveLength(1);
-    const plus = screen.getByRole("button", { name: "Dodaj nowe miejsce" });
-    expect(plus).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByLabelText("Nazwa miejsca")).not.toBeInTheDocument();
-
-    fireEvent.click(plus);
-    expect(plus).toHaveAttribute("aria-expanded", "true");
-    const formId = plus.getAttribute("aria-controls");
-    expect(formId).toBeTruthy();
-    expect(document.getElementById(formId!)).toContainElement(screen.getByLabelText("Nazwa miejsca"));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByText("szukaj w Google")).not.toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText("Nazwa miejsca"), { target: { value: "Sala nr 2" } });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz miejsce" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Podaj adres");
-    expect(locationsApi.createLocation).not.toHaveBeenCalled();
-
-    fireEvent.change(screen.getByLabelText("Adres"), { target: { value: "ul. Szkolna 5" } });
-    fireEvent.change(screen.getByLabelText("Notatka"), { target: { value: "  " } });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz miejsce" }));
-
-    await waitFor(() => expect(onChange).toHaveBeenCalledWith("loc-new"));
-    expect(locationsApi.createLocation).toHaveBeenCalledWith({
-      source: "MANUAL",
-      name: "Sala nr 2",
-      formatted_address: "ul. Szkolna 5",
-      notes: null,
-    });
-    await waitFor(() => expect(select).toHaveValue("loc-new"));
-    expect(plus).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByLabelText("Nazwa miejsca")).not.toBeInTheDocument();
-    await waitFor(() => expect(select).toHaveFocus());
-  });
-
-  it("Anuluj collapses the add form and returns focus to '+'", async () => {
-    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([PARK]);
-    renderPicker({ onChange: vi.fn() });
-
-    const plus = await screen.findByRole("button", { name: "Dodaj nowe miejsce" });
-    fireEvent.click(plus);
-    fireEvent.click(screen.getByRole("button", { name: "Anuluj" }));
-    expect(plus).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByLabelText("Nazwa miejsca")).not.toBeInTheDocument();
-    await waitFor(() => expect(plus).toHaveFocus());
-  });
-
-  it("Google mode: suggestions in the own listbox; Esc closes only the listbox and is defaultPrevented", async () => {
-    stubGoogle();
-    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
-    renderPicker({ onChange: vi.fn() });
-
-    fireEvent.click(await screen.findByRole("button", { name: "Dodaj nowe miejsce" }));
-    const input = screen.getByRole("combobox", { name: "Szukaj adresu lub nazwy miejsca" });
-    expect(screen.getByRole("button", { name: "wpisz ręcznie" })).toBeInTheDocument();
-    expect(googleMaps.loadPlaces).not.toHaveBeenCalled();
-    fireEvent.focus(input);
-    await waitFor(() => expect(googleMaps.loadPlaces).toHaveBeenCalledTimes(1));
-    fireEvent.change(input, { target: { value: "pol" } });
-
-    const listbox = await screen.findByRole("listbox");
-    expect(within(listbox).getByRole("option", { name: /Świetlica Osiedlowa/ })).toBeInTheDocument();
-    expect(input).toHaveAttribute("aria-expanded", "true");
-
-    const outer = vi.fn();
-    document.addEventListener("keydown", outer);
-    const notCancelled = fireEvent.keyDown(input, { key: "Escape" });
-    document.removeEventListener("keydown", outer);
-    expect(notCancelled).toBe(false);
-    expect(outer).not.toHaveBeenCalled();
-    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-    expect(input).toHaveAttribute("aria-expanded", "false");
-    expect(input).not.toHaveAttribute("aria-controls");
-    expect(input).toBeInTheDocument();
-  });
-
-  it("Google mode: a rejected suggest request switches to manual entry with the unavailable alert", async () => {
-    stubGoogle();
-    vi.mocked(googleMaps.suggest).mockRejectedValue(new Error("REQUEST_DENIED"));
-    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
-    renderPicker({ onChange: vi.fn() });
-
-    fireEvent.click(await screen.findByRole("button", { name: "Dodaj nowe miejsce" }));
-    const input = screen.getByRole("combobox", { name: "Szukaj adresu lub nazwy miejsca" });
-    fireEvent.focus(input);
-    await waitFor(() => expect(googleMaps.loadPlaces).toHaveBeenCalledTimes(1));
-    fireEvent.change(input, { target: { value: "pol" } });
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("Wyszukiwarka niedostępna — wpisz adres ręcznie");
-    expect(googleMaps.suggest).toHaveBeenCalledWith(fakePlaces, "pol", expect.any(fakePlaces.AutocompleteSessionToken));
-    expect(screen.queryByRole("combobox", { name: "Szukaj adresu lub nazwy miejsca" })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Adres")).toBeInTheDocument();
-  });
-
-  it("Google mode: picking prefills the name and saves a GOOGLE row; a duplicate place_id selects the existing row", async () => {
-    stubGoogle();
-    const created: LocationResponse = {
-      ...SWIETLICA,
-      id: "loc-new",
-      name: "Świetlica Osiedlowa",
-      formatted_address: "Polna 12, 60-595 Poznań",
-      google_place_id: "ChIJ-test",
-      lat: 52.4064,
-      lng: 16.9252,
-      notes: null,
-    };
-    vi.mocked(locationsApi.getMyLocations).mockResolvedValueOnce([PARK]).mockResolvedValue([PARK, created]);
-    vi.mocked(locationsApi.createLocation).mockResolvedValue(created);
-    const onChange = vi.fn();
-    renderPicker({ onChange });
-
-    const select = await screen.findByRole("combobox", { name: "Miejsce" });
-    fireEvent.click(screen.getByRole("button", { name: "Dodaj nowe miejsce" }));
-    const input = screen.getByRole("combobox", { name: "Szukaj adresu lub nazwy miejsca" });
-    fireEvent.focus(input);
-    fireEvent.change(input, { target: { value: "pol" } });
-    await screen.findByRole("listbox");
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-    expect(input).toHaveAttribute("aria-activedescendant", expect.stringContaining("opt-0"));
-    fireEvent.keyDown(input, { key: "Enter" });
-
-    expect(await screen.findByLabelText("Nazwa miejsca")).toHaveValue("Świetlica Osiedlowa");
-    expect(screen.getByText("Polna 12, 60-595 Poznań")).toBeInTheDocument();
-    expect(googleMaps.newSessionToken).toHaveBeenCalledTimes(2);
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz miejsce" }));
-
-    await waitFor(() => expect(onChange).toHaveBeenCalledWith("loc-new"));
-    expect(locationsApi.createLocation).toHaveBeenCalledWith({
-      source: "GOOGLE",
-      name: "Świetlica Osiedlowa",
-      formatted_address: "Polna 12, 60-595 Poznań",
-      google_place_id: "ChIJ-test",
-      lat: 52.4064,
-      lng: 16.9252,
-      notes: null,
-    });
-    await waitFor(() => expect(select).toHaveValue("loc-new"));
-
-    // Same place again: the hook finds it in the loaded list, no second request.
-    fireEvent.change(select, { target: { value: "" } });
-    fireEvent.click(screen.getByRole("button", { name: "Dodaj nowe miejsce" }));
-    const again = screen.getByRole("combobox", { name: "Szukaj adresu lub nazwy miejsca" });
-    fireEvent.focus(again);
-    fireEvent.change(again, { target: { value: "pol" } });
-    fireEvent.click(within(await screen.findByRole("listbox")).getByRole("option", { name: /Świetlica Osiedlowa/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Zapisz miejsce" }));
-    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith("loc-new"));
-    expect(locationsApi.createLocation).toHaveBeenCalledTimes(1);
-  });
-
-  it("Google mode: loadPlaces resolving null falls back to the manual form with an alert", async () => {
-    stubGoogle();
-    vi.mocked(googleMaps.loadPlaces).mockResolvedValue(null);
-    vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
-    renderPicker({ onChange: vi.fn() });
-
-    fireEvent.click(await screen.findByRole("button", { name: "Dodaj nowe miejsce" }));
-    fireEvent.focus(screen.getByRole("combobox", { name: "Szukaj adresu lub nazwy miejsca" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Wyszukiwarka niedostępna — wpisz adres ręcznie");
-    expect(screen.queryByRole("combobox", { name: "Szukaj adresu lub nazwy miejsca" })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Adres")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "szukaj w Google" })).toBeInTheDocument();
   });
 });

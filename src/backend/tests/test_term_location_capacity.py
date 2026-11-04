@@ -1,9 +1,11 @@
 """Term `location`/`capacity`: group defaults copied by value only when a
-field is omitted on `POST /api/terms` (explicit `null` suppresses), clearable
-via `PATCH`, and attached with batched lookups on every read — the terms
-list, the ADMIN moderation list, the public circle view (with the active
-`attendee_count`) and the caller's own attendances. Public/attendance/
-moderation payloads never carry the place's `owner_party_id`."""
+field is omitted on `POST /api/terms`; a term always needs a place (no sent
+place and no group default, or an explicit `null` -> 400 on create and on
+`PATCH`) while capacity stays optional. Both are attached with batched
+lookups on every read — the terms list, the ADMIN moderation list, the
+public circle view (with the active `attendee_count`) and the caller's own
+attendances. Public/attendance/moderation payloads never carry the place's
+`owner_party_id`."""
 
 from __future__ import annotations
 
@@ -15,7 +17,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.core import clock
-from tests.conftest import count_queries
+from tests.conftest import count_queries, locality_ids
 
 
 async def _register(client: AsyncClient, email: str) -> str:
@@ -35,7 +37,7 @@ async def _create_location(client: AsyncClient, token: str, place_id: str) -> di
     response = await client.post(
         "/api/locations",
         json={
-            "name": f"Miejsce {place_id}",
+            "locality_id": (await locality_ids(client, _auth(token)))[0],
             "formatted_address": "al. Zieleniecka, 03-901 Warszawa",
             "source": "GOOGLE",
             "google_place_id": place_id,
@@ -115,7 +117,21 @@ async def test_createTerm_omittedFields_inheritGroupDefaultsByValue_andLaterGrou
     assert fetched.json()["capacity"] == 12
 
 
-async def test_createTerm_explicitNull_suppressesInheritance(
+async def test_createTerm_noPlaceAndNoGroupDefault_400(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    token = await _register(client, "tlc.noplace@example.com")
+    group = await _create_circle(client, token)
+
+    omitted = await _post_term(client, token, group["id"])
+    explicit_null = await _post_term(client, token, group["id"], location_id=None)
+
+    for response in (omitted, explicit_null):
+        assert response.status_code == 400, response.text
+        assert response.json()["message"] == "Wybierz miejsce terminu."
+
+
+async def test_createTerm_explicitNullLocation_400_evenWithGroupDefault_butNullCapacitySuppresses(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     token = await _register(client, "tlc.null@example.com")
@@ -124,9 +140,12 @@ async def test_createTerm_explicitNull_suppressesInheritance(
         client, token, default_location_id=location["id"], default_capacity=12
     )
 
-    term = await _create_term(client, token, group["id"], location_id=None, capacity=None)
+    response = await _post_term(client, token, group["id"], location_id=None)
+    assert response.status_code == 400, response.text
+    assert response.json()["message"] == "Wybierz miejsce terminu."
 
-    assert term["location"] is None
+    term = await _create_term(client, token, group["id"], capacity=None)
+    assert term["location"]["id"] == location["id"]
     assert term["capacity"] is None
 
 
@@ -150,14 +169,14 @@ async def test_createTerm_ownLocation_overridesDefault_andOtherUsersLocation403(
     assert response.status_code == 403
 
 
-async def test_updateTerm_nullClears_omittedKeeps(
+async def test_updateTerm_nullLocation400_nullCapacityClears_omittedKeeps(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     token = await _register(client, "tlc.update@example.com")
+    first = await _create_location(client, token, "ChIJ-tlc-update-first")
     location = await _create_location(client, token, "ChIJ-tlc-update")
     group = await _create_circle(client, token)
-    term = await _create_term(client, token, group["id"])
-    assert term["location"] is None
+    term = await _create_term(client, token, group["id"], location_id=first["id"])
 
     set_response = await client.patch(
         f"/api/terms/{term['id']}",
@@ -176,13 +195,19 @@ async def test_updateTerm_nullClears_omittedKeeps(
     assert kept.json()["location"]["id"] == location["id"]
     assert kept.json()["capacity"] == 10
 
-    cleared = await client.patch(
+    rejected = await client.patch(
         f"/api/terms/{term['id']}",
         json={"location_id": None, "capacity": None},
         headers=_auth(token),
     )
+    assert rejected.status_code == 400, rejected.text
+    assert rejected.json()["message"] == "Wybierz miejsce terminu."
+
+    cleared = await client.patch(
+        f"/api/terms/{term['id']}", json={"capacity": None}, headers=_auth(token)
+    )
     assert cleared.status_code == 200
-    assert cleared.json()["location"] is None
+    assert cleared.json()["location"]["id"] == location["id"]
     assert cleared.json()["capacity"] is None
 
 
@@ -323,7 +348,7 @@ async def test_moderationTerms_carryLocationAndCapacity(
     assert response.status_code == 200, response.text
     row = next(row for row in response.json()["items"] if row["id"] == term["id"])
     assert row["capacity"] == 9
-    assert row["location"]["name"] == location["name"]
+    assert row["location"]["label"] == location["label"]
     assert row["location"]["google_place_id"] == "ChIJ-tlc-moderation"
     assert "owner_party_id" not in row["location"]
 
@@ -355,14 +380,14 @@ async def test_publicCircleView_termHasLocationWithoutOwnerPartyId_capacity_andA
     assert public_term["capacity"] == 10
     assert public_term["attendee_count"] == 1
     assert set(public_term["location"].keys()) == {
-        "name",
+        "locality",
+        "label",
         "formatted_address",
         "google_place_id",
         "lat",
         "lng",
-        "notes",
     }
-    assert public_term["location"]["name"] == location["name"]
+    assert public_term["location"]["label"] == location["label"]
 
 
 async def test_myAttendances_carryLocationCapacityAttendeeCount_withQueryCountNotGrowing(
@@ -388,7 +413,7 @@ async def test_myAttendances_carryLocationCapacityAttendeeCount_withQueryCountNo
     row = response.json()[0]
     assert row["capacity"] == 5
     assert row["attendee_count"] == 2
-    assert row["location"]["name"] == location["name"]
+    assert row["location"]["label"] == location["label"]
     assert "owner_party_id" not in row["location"]
 
     for index in (2, 3):

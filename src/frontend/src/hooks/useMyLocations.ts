@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import type { CreateLocationRequest, LocationResponse, UpdateLocationRequest } from "../api/locations";
+import type { LocationRequest, LocationResponse } from "../api/locations";
 import {
   createLocation as apiCreateLocation,
   deleteLocation as apiDeleteLocation,
@@ -15,8 +15,8 @@ interface UseMyLocationsResult {
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
-  create: (request: CreateLocationRequest) => Promise<LocationResponse>;
-  update: (id: string, request: UpdateLocationRequest) => Promise<LocationResponse>;
+  create: (request: LocationRequest) => Promise<LocationResponse>;
+  update: (id: string, request: LocationRequest) => Promise<LocationResponse>;
   remove: (id: string) => Promise<void>;
 }
 
@@ -24,8 +24,8 @@ export const LOCATIONS_KEY = "locations";
 const NO_LOCATIONS: LocationResponse[] = [];
 
 /** The caller's own active saved places. The token is part of the key: another
- * account's places must never show, even briefly. `create` reuses an already
- * loaded active row with the same `google_place_id` instead of sending a request. */
+ * account's places must never show, even briefly. Hosts pass `create`,
+ * `update` and `remove` down to their forms instead of re-subscribing. */
 export function useMyLocations(): UseMyLocationsResult {
   const { token } = useAuth();
   const queryClient = useQueryClient();
@@ -47,12 +47,7 @@ export function useMyLocations(): UseMyLocationsResult {
   );
 
   const create = useCallback(
-    async (request: CreateLocationRequest) => {
-      const placeId = request.google_place_id;
-      const existing = placeId
-        ? locations.find((l) => l.google_place_id === placeId && l.deleted_at === null)
-        : undefined;
-      if (existing) return existing;
+    async (request: LocationRequest) => {
       let created: LocationResponse;
       try {
         created = await apiCreateLocation(request);
@@ -62,11 +57,11 @@ export function useMyLocations(): UseMyLocationsResult {
       await invalidate();
       return created;
     },
-    [locations, invalidate],
+    [invalidate],
   );
 
   const update = useCallback(
-    async (id: string, request: UpdateLocationRequest) => {
+    async (id: string, request: LocationRequest) => {
       let updated: LocationResponse;
       try {
         updated = await apiUpdateLocation(id, request);

@@ -42,7 +42,7 @@ from app.core.errors import (
 )
 from app.groups.domain.confirm_race_rules import _require_race_participant
 from app.groups.infrastructure import circulation_bridge
-from tests.conftest import leaf_category_ids
+from tests.conftest import create_location, leaf_category_ids
 from tests.ledger_assertions import movements_for_item
 
 
@@ -52,13 +52,12 @@ async def _create_term(client: AsyncClient, headers: dict[str, str]) -> int:
     The caller's own identity/role is irrelevant to takeability here, so
     reusing whichever `headers` the test already has avoids a second
     registration round-trip."""
-    circle = await client.post(
-        "/api/groups/mine", json={"name": "Krąg testowy"}, headers=headers
-    )
+    circle = await client.post("/api/groups/mine", json={"name": "Krąg testowy"}, headers=headers)
     assert circle.status_code == 201
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, headers),
             "circle_group_id": circle.json()["id"],
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
@@ -102,7 +101,12 @@ async def _create_item(client: AsyncClient, headers: dict[str, str]) -> tuple[in
 
     item = await client.post(
         "/api/inventory-items",
-        json={"inventory_id": inventory_id, "product_id": product_id, "condition": "GOOD"},
+        json={
+            "inventory_id": inventory_id,
+            "product_id": product_id,
+            "condition": "GOOD",
+            "location_id": await create_location(client, headers),
+        },
         headers=headers,
     )
     assert item.status_code == 201
@@ -378,9 +382,7 @@ async def test_deleteInventoryItem_nonOwner_returns403(client: AsyncClient) -> N
     _, item_id = await _create_item(client, owner_headers)
     intruder_headers = await _authed_headers(client, "circ-delete-intruder@example.com")
 
-    response = await client.delete(
-        f"/api/inventory-items/{item_id}", headers=intruder_headers
-    )
+    response = await client.delete(f"/api/inventory-items/{item_id}", headers=intruder_headers)
     assert response.status_code == 403
 
     # Nothing was deleted — the owner can still fetch it.
@@ -431,7 +433,9 @@ async def test_circulationBridge_cancelReservation_pendingReservation_cancelsAnd
         borrower_user_id=borrower_user_id,
     )
 
-    cancelled = await circulation_bridge.cancel_reservation(db_session, reservation_id, owner_user_id)
+    cancelled = await circulation_bridge.cancel_reservation(
+        db_session, reservation_id, owner_user_id
+    )
     assert cancelled.status == ReservationStatus.CANCELLED
 
     balance = (
@@ -471,19 +475,13 @@ async def test_circulationBridge_fulfillExchange_singleGiftLeg_fulfillsAndPostsG
 
 
 async def test_requireRaceParticipant_reservedByOrHolderUser_doesNotRaise() -> None:
-    _require_race_participant(
-        reserved_by_user_id=1, holder_user_id=2, acting_user_id=1
-    )
-    _require_race_participant(
-        reserved_by_user_id=1, holder_user_id=2, acting_user_id=2
-    )
+    _require_race_participant(reserved_by_user_id=1, holder_user_id=2, acting_user_id=1)
+    _require_race_participant(reserved_by_user_id=1, holder_user_id=2, acting_user_id=2)
 
 
 async def test_requireRaceParticipant_thirdParty_raisesAccessDenied() -> None:
     with pytest.raises(AccessDeniedException):
-        _require_race_participant(
-            reserved_by_user_id=1, holder_user_id=2, acting_user_id=3
-        )
+        _require_race_participant(reserved_by_user_id=1, holder_user_id=2, acting_user_id=3)
 
 
 async def test_circulationBridge_cancelReservation_repeatCall_raisesBusinessConflict_distinctFromWrongPartyAccessDenied(
@@ -524,7 +522,9 @@ async def test_circulationBridge_cancelReservation_repeatCall_raisesBusinessConf
     )
 
     with pytest.raises(AccessDeniedException):
-        await circulation_bridge.cancel_reservation(db_session, other_reservation_id, intruder_user_id)
+        await circulation_bridge.cancel_reservation(
+            db_session, other_reservation_id, intruder_user_id
+        )
 
 
 async def test_getOrCreatePersonalInventory_calledTwice_isIdempotent_noDuplicateRow(
@@ -666,7 +666,9 @@ async def test_migration0034_backfillsLegacyNullTermIdRows_withoutError(
     await db_session.commit()
 
     backfilled = (
-        await db_session.execute(text("SELECT term_id FROM reservations WHERE id = :id"), {"id": reservation_id})
+        await db_session.execute(
+            text("SELECT term_id FROM reservations WHERE id = :id"), {"id": reservation_id}
+        )
     ).scalar_one()
     assert backfilled is not None
 
@@ -680,7 +682,6 @@ async def test_rawCreateSwap_routeRemoved_returns404or405(client: AsyncClient) -
     response = await client.post("/api/reservations/swap", json={}, headers=headers)
 
     assert response.status_code in (404, 405)
-
 
 
 # --- Reservation reads are party-only ------------------------------------------

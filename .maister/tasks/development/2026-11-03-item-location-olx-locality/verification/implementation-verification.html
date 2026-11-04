@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Verification — Mandatory item location + OLX-style locality form</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+
+/* extensions */
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.tile.warn b { color:var(--warn); } .tile.ok b { color:var(--ok); } .tile.info b { color:var(--info); }
+header .meta { color:var(--dim); font-size:12.5px; }
+.verdict { border-radius:var(--radius); padding:14px 18px; margin:14px 0;
+  background:var(--warn-soft); border:1px solid var(--warn); }
+.verdict .v { font-size:18px; font-weight:700; color:var(--warn); }
+.verdict .counts { margin-top:6px; }
+.tldr ul { margin:6px 0; padding-left:20px; }
+.tldr h3 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); margin:14px 0 4px; }
+.toc { font-size:13px; color:var(--dim); margin:8px 0 4px; }
+.res { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; background:var(--ok-soft); color:var(--ok); margin-right:6px; }
+.history { border:2px solid var(--ok); }
+.after { font-weight:700; color:var(--ok); }
+.grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; }
+.grid2 .card { margin:0; }
+ul.check { list-style:none; padding-left:4px; margin:6px 0; }
+ul.check li { padding:3px 0; }
+ul.check li.done::before { content:"\2611  "; color:var(--ok); }
+ul.check li.todo::before { content:"\2610  "; color:var(--dim); }
+ol.issues li, ul.issues li { margin:6px 0; }
+.src { color:var(--dim); font-size:12px; }
+pre { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 14px; font-size:12.5px; overflow-x:auto; }
+@media (max-width:600px) { body { padding:16px 16px 48px; } table { font-size:13px; } }
+.tablewrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">&larr; Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a>
+  <a href="../implementation/implementation-plan.html">Plan</a>
+  <span class="here">Verification</span>
+  <a href="completeness-report.md" target="_blank" rel="noopener">Completeness</a>
+  <a href="test-suite-results.md" target="_blank" rel="noopener">Tests (cycle 1)</a>
+  <a href="test-suite-results-reverify.md" target="_blank" rel="noopener">Tests (reverify)</a>
+  <a href="code-review-report.md" target="_blank" rel="noopener">Code review</a>
+  <a href="code-review-reverify.md" target="_blank" rel="noopener">Code re-review</a>
+  <a href="pragmatic-review.md" target="_blank" rel="noopener">Pragmatic</a>
+  <a href="pragmatic-review-reverify.md" target="_blank" rel="noopener">Pragmatic re-check</a>
+  <a href="production-readiness-report.md" target="_blank" rel="noopener">Production readiness</a>
+  <a href="reality-check.md" target="_blank" rel="noopener">Reality check</a>
+  <a href="reality-check-reverify.md" target="_blank" rel="noopener">Reality re-check</a>
+  <a href="implementation-verification.md" target="_blank" rel="noopener" class="md">md twin &#8599;</a>
+</nav>
+
+<header>
+  <span class="badge">Implementation Verification</span>
+  <h1>Mandatory item location + OLX-style locality form</h1>
+  <div class="meta">Source of truth: <a href="implementation-verification.md" target="_blank" rel="noopener">implementation-verification.md</a> · re-verify count: 1</div>
+</header>
+
+<div class="verdict">
+  <div class="v">&#9888;&#65039; Passed with Issues (after 1 fix cycle)</div>
+  <div class="counts">
+    <span class="sev critical">critical 0</span>
+    <span class="sev warning">warning 4</span>
+    <span class="sev info">info 9</span>
+    <span class="src">Remaining warnings are operational (none in code).</span>
+  </div>
+</div>
+
+<div class="tiles">
+  <div class="tile ok"><b>99/99</b><span>plan</span></div>
+  <div class="tile ok"><b>19/19</b><span>standards followed</span></div>
+  <div class="tile ok"><b>1176/1176</b><span>backend pytest</span></div>
+  <div class="tile"><b>1482/1503</b><span>frontend vitest</span></div>
+  <div class="tile ok"><b>0</b><span>regressions</span></div>
+  <div class="tile ok"><b>5/5</b><span>code warnings fixed</span></div>
+  <div class="tile warn"><b>4</b><span>warnings left</span></div>
+  <div class="tile info"><b>9</b><span>info left</span></div>
+</div>
+
+<section class="tldr card">
+  <h3>TL;DR</h3>
+  <ul>
+    <li>Plan 99/99, standards 19/19 followed.</li>
+    <li>Tests: backend 1176/1176. Frontend 1482/1503; all 21 failures also fail on a clean HEAD, so there are <b>0 regressions</b>.</li>
+    <li>All 5 code warnings were fixed and re-verified: lost picks, combobox stale Enter, deleted-place draft, hidden stepper reset, flaky timing assertion. The code re-review is clean.</li>
+    <li>What remains is operational: migrate the dev DB and run E2E, commit the untracked files together, and deploy web and backend together. A docs trim was declined by the user.</li>
+  </ul>
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li><span class="sev warning">risk</span>Migrating the dev DB to 0080 is destructive:
+      <ul>
+        <li>It deletes all existing places.</li>
+        <li>It clears the place on 18 terms, 9 events and 10 groups.</li>
+        <li>It leaves all 83 items without a location.</li>
+        <li>This is accepted (MVP, the DB will be wiped), but it must be done knowingly before E2E.</li>
+      </ul>
+    </li>
+    <li><span class="sev warning">risk</span>26 new paths are untracked: migrations 0078–0080, both fixtures, <code>localities.py</code>, <code>LocalityCombobox.tsx</code> and others. <code>commit -a</code> would leave them out.</li>
+    <li><span class="sev info">open</span>The owner must confirm the TERYT reuse terms. The PRG licence is "free for any use".</li>
+    <li><span class="sev info">risk</span>12 AppPage tests already fail on HEAD, so the group-edit and add-term place pickers are covered only by unit tests. E2E should click through them.</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents:
+  <a href="#summary">Summary</a> ·
+  <a href="#tests">Tests</a> ·
+  <a href="#reviews">Reviews</a> ·
+  <a href="#history">Fix &amp; Re-Verification History</a> ·
+  <a href="#issues">Remaining Issues</a> ·
+  <a href="#assessment">Assessment</a> ·
+  <a href="#recommendations">Recommendations</a> ·
+  <a href="#checklist">Checklist</a>
+</nav>
+
+<main>
+
+<h2 id="summary">Executive Summary</h2>
+<div class="card">
+  <p>All requested behaviour is implemented and the frontend and backend contracts match:</p>
+  <ul>
+    <li>Every item requires a location, chosen with the shared page-mode picker (<code>+</code> &rarr; <code>/places/new</code>).</li>
+    <li>Places have exactly 2 fields: a TERYT locality, searchable by name or postal code, and an optional Google address.</li>
+    <li>Non-owners see only the locality.</li>
+  </ul>
+  <p>The first verification cycle found 0 critical and 9 warnings. The user chose to fix warnings 1–5 plus two info items. After the fixes: the full suites show no regressions, the code re-review is clean, and the reality re-check closed all the code gaps.</p>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <b>Implementation Plan Verification</b> <span class="pass">100%</span>
+    <div class="src">Source: <a href="completeness-report.md" target="_blank" rel="noopener">completeness-report.md</a></div>
+    <ul>
+      <li>113 checkboxes, 100% checked. Spot checks found the code for all 14 groups.</li>
+      <li>Follow-up Group 11b and the verification fixes are recorded in <code>work-log.md</code>.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <b>Standards Compliance</b> <span class="pass">Compliant</span>
+    <ul>
+      <li>21 standards checked, 19 applicable, 19 followed.</li>
+      <li>New and touched code is ruff-clean.</li>
+      <li>The 7 E501 findings in touched files are on lines committed earlier.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <b>Documentation Completeness</b> <span class="pass">Complete</span>
+    <ul>
+      <li>Updated: <code>architecture.md</code>, <code>models.md</code>, <code>migrations.md</code>, <code>INDEX.md</code>.</li>
+      <li>Visual coverage: 7/7 design IDs.</li>
+      <li>The docs trim (pragmatic finding 2) was declined by the user.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <b>Visual Fidelity</b> <span class="badge">not available yet</span>
+    <p>Phase 12 (E2E) will write <code>visual-fidelity.md</code>. This section is report-only.</p>
+  </div>
+</div>
+
+<h2 id="tests">Test Suite Results — Cycle 1 vs After Fixes</h2>
+<div class="card tablewrap">
+  <div class="src">Source: <a href="test-suite-results-reverify.md" target="_blank" rel="noopener">test-suite-results-reverify.md</a>; the first run is in <a href="test-suite-results.md" target="_blank" rel="noopener">test-suite-results.md</a>.</div>
+  <table>
+    <thead><tr><th>Suite</th><th>Cycle 1</th><th>After fixes</th></tr></thead>
+    <tbody>
+      <tr><td>Backend pytest</td><td>1174/1174</td><td class="after">1176/1176</td></tr>
+      <tr><td>Backend mypy</td><td>15 (baseline)</td><td>15 (baseline)</td></tr>
+      <tr><td>Frontend vitest</td><td>1477/1498</td><td class="after">1482/1503</td></tr>
+      <tr><td>Frontend typecheck</td><td>4 pre-existing (<code>ThreadPage.tsx</code>)</td><td>4 pre-existing</td></tr>
+    </tbody>
+  </table>
+  <details style="margin-top:12px">
+    <summary>21 vitest failures — all on the clean-HEAD list (combined pass rate 99.2%)</summary>
+    <table style="margin-top:8px">
+      <thead><tr><th>File</th><th>Failures</th></tr></thead>
+      <tbody>
+        <tr><td>AppPage</td><td>12</td></tr>
+        <tr><td>PublicLayout</td><td>3</td></tr>
+        <tr><td>extension-points</td><td>2</td></tr>
+        <tr><td>TermPage</td><td>1</td></tr>
+        <tr><td>foundation</td><td>1</td></tr>
+        <tr><td>LayoutRenderer</td><td>1</td></tr>
+        <tr><td>PendingActionsHost</td><td>1</td></tr>
+      </tbody>
+    </table>
+  </details>
+</div>
+
+<h2 id="reviews">Optional Review Results — Cycle 1 vs After Fixes</h2>
+<div class="card tablewrap">
+  <table>
+    <thead><tr><th>Review</th><th>Cycle 1</th><th>After fixes</th></tr></thead>
+    <tbody>
+      <tr><td>Code review</td><td><a href="code-review-report.md" target="_blank" rel="noopener">issues_found</a> (0C/3W/7I)</td>
+        <td><span class="after">clean</span> (0C/0W/7I), <a href="code-review-reverify.md" target="_blank" rel="noopener">code-review-reverify.md</a></td></tr>
+      <tr><td>Pragmatic review</td><td><a href="pragmatic-review.md" target="_blank" rel="noopener">appropriate, minor</a> (0C/3W/8I)</td>
+        <td><span class="after">appropriate</span> (0 warnings; 1 declined), <a href="pragmatic-review-reverify.md" target="_blank" rel="noopener">pragmatic-review-reverify.md</a></td></tr>
+      <tr><td>Production readiness</td><td><a href="production-readiness-report.md" target="_blank" rel="noopener">GO WITH MITIGATIONS</a> (0C/3W/5I)</td>
+        <td>unchanged; not re-run, since the fixes touch no deploy/migration code</td></tr>
+      <tr><td>Reality check</td><td><a href="reality-check.md" target="_blank" rel="noopener">issues found</a> (0C/1W/6I)</td>
+        <td>issues found, no critical gaps; code gaps closed, W1 waits for E2E, <a href="reality-check-reverify.md" target="_blank" rel="noopener">reality-check-reverify.md</a></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="history">Fix &amp; Re-Verification History</h2>
+<div class="card history tablewrap">
+  <table>
+    <thead><tr><th>Issue</th><th>Fix applied</th><th>Re-check outcome</th></tr></thead>
+    <tbody>
+      <tr><td><span class="sev warning">W1</span>Picks lost on late-mounting picker hosts</td>
+        <td><code>useNavigationState(isAddressed?)</code> predicate; <code>useFirstTermStepper</code> reads only <code>FIRST_TERM_PICKER</code> state; test for a late-mounting host</td>
+        <td><span class="res">&#10003; resolved</span>Code re-review and reality re-check. Other callers unchanged.</td></tr>
+      <tr><td><span class="sev warning">W2</span>LocalityCombobox stale active index &rarr; TypeError</td>
+        <td>Reset <code>active</code> on results change; guarded Enter; test</td>
+        <td><span class="res">&#10003; resolved</span>Code re-review.</td></tr>
+      <tr><td><span class="sev warning">W3</span>Draft with deleted place &rarr; server 404</td>
+        <td><code>liveLocationId</code> helper used in ItemCreateView and ItemEditForm; 2 tests</td>
+        <td><span class="res">&#10003; resolved</span>Code re-review and reality re-check. Residual (accepted): while places are loading or failed to load, the id is kept.</td></tr>
+      <tr><td><span class="sev warning">W4</span><code>setModal</code> hidden stepper reset</td>
+        <td>Explicit <code>openFirstTermStepper</code> on the context; HomeView CTA uses it</td>
+        <td><span class="res">&#10003; resolved</span>Pragmatic re-check.</td></tr>
+      <tr><td><span class="sev warning">W5</span>Flaky seed timing assertion</td>
+        <td><code>SEED_CEILING_SECONDS</code> assertion removed</td>
+        <td><span class="res">&#10003; resolved</span>Pragmatic re-check. The +57 s re-seed cost remains (info).</td></tr>
+      <tr><td><span class="sev info">info</span>No "no results" feedback</td>
+        <td>Persistent <code>role="status"</code> region with "Brak wyników — sprawdź pisownię albo wpisz kod pocztowy" and the overflow line; test</td>
+        <td><span class="res">&#10003; resolved</span>Code re-review and reality re-check. A follow-up nuance remains (N1).</td></tr>
+      <tr><td><span class="sev info">info</span>Empty folded query matches everything</td>
+        <td>Return <code>[], 0</code> before SQL when the folded query is shorter than the minimum; 2 parametrized cases</td>
+        <td><span class="res">&#10003; resolved</span>Code re-review.</td></tr>
+    </tbody>
+  </table>
+  <p class="src">Re-verify count: 1. Fix-cycle tests: backend 38/38 and frontend related suites 261 passed, apart from the 12 AppPage failures that also fail on HEAD. The full suites re-ran green; see Test Suite Results.</p>
+</div>
+
+<h2 id="issues">Issues Requiring Attention (remaining)</h2>
+<div class="card tablewrap">
+  <table>
+    <thead><tr><th style="width:110px">Severity</th><th>Issue</th><th style="width:160px">Source</th></tr></thead>
+    <tbody>
+      <tr><td><span class="sev warning">warning</span></td><td><b>Not run end to end yet.</b> The dev DB is at 0077 and E2E has not run. Next step (Phase 12): <code>alembic upgrade head</code>, then the E2E pass.</td><td>reality W1</td></tr>
+      <tr><td><span class="sev warning">warning</span></td><td><b>Untracked work.</b> The fixtures and migrations must be staged and committed together. Manual.</td><td>production 1</td></tr>
+      <tr><td><span class="sev warning">warning</span></td><td><b>Deploy constraints.</b> Web and backend must deploy together, and there is no image-only rollback; this is accepted. Manual.</td><td>production 2/3</td></tr>
+      <tr><td><span class="sev warning">warning</span></td><td><b>Docs volume.</b> The user declined the fix.</td><td>pragmatic 2</td></tr>
+      <tr><td><span class="sev info">info</span></td><td><code>LocalityCombobox</code> can show "Brak wyników" for the previous query, and stale options stay pickable during the debounce and request. Fix: an <code>isPlaceholderData</code>-aware loading flag.</td><td>code N1/I2</td></tr>
+      <tr><td><span class="sev info">info</span></td><td>A draft with a deleted place never gets the suggested place filled in again; the user picks one.</td><td>code N2</td></tr>
+      <tr><td><span class="sev info">info</span></td><td>"zmień" clears the address even when the same locality is picked again.</td><td>code I3</td></tr>
+      <tr><td><span class="sev info">info</span></td><td>0080's index is built without CONCURRENTLY; acceptable for the MVP.</td><td>code I4</td></tr>
+      <tr><td><span class="sev info">info</span></td><td><code>onAddClick</code> fires on Ctrl/middle-click.</td><td>code I5</td></tr>
+      <tr><td><span class="sev info">info</span></td><td>A place used for both an item and a term shows its address in the term context; accepted by the spec.</td><td>code I7</td></tr>
+      <tr><td><span class="sev info">info</span></td><td><code>plugins/events</code> (not mounted) still posts the old <code>{name}</code> body.</td><td>reality I2</td></tr>
+      <tr><td><span class="sev info">info</span></td><td>Optional cleanups:
+        <ul style="margin:4px 0;padding-left:18px">
+          <li>LocalityCombobox &harr; LocationAddForm import each other circularly, and some exports are dead.</li>
+          <li>The helper self-test.</li>
+          <li>Migration downgrades could be retargeted to avoid the +57 s re-seed.</li>
+        </ul></td><td>pragmatic</td></tr>
+      <tr><td><span class="sev info">info</span></td><td><code>spec.md</code> says 422 where the app returns 400; the work log and runbook document this.</td><td>completeness</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="assessment">Overall Assessment</h2>
+<div class="card tablewrap">
+  <table>
+    <thead><tr><th>Dimension</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>Implementation</td><td class="pass">100%</td></tr>
+      <tr><td>Tests</td><td class="pass">99.2% pass, 0 regressions</td></tr>
+      <tr><td>Standards</td><td class="pass">Compliant</td></tr>
+      <tr><td>Docs</td><td class="pass">Complete</td></tr>
+      <tr><td>Critical issues</td><td class="pass">0</td></tr>
+      <tr><td>Verdict</td><td><b style="color:var(--warn)">&#9888;&#65039; Passed with Issues</b> (operational items only)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="recommendations">Recommendations</h2>
+<div class="card">
+  <ol>
+    <li><b>Phase 12:</b> back up and migrate the dev DB (<code>alembic upgrade head</code>), knowing that 0080 deletes the places. Then run E2E over the 5 mockup screens, the <code>/places/new</code> round trips, group edit / add term, the postal code <code>32-650</code>, "Brak wyników", and a non-owner view.</li>
+    <li><b>At commit:</b> stage all new paths, deploy web and backend together, and confirm the TERYT terms.</li>
+    <li><b>Optional follow-up:</b> fix N1 (loading flag) and clean up the events plugin.</li>
+  </ol>
+</div>
+
+<h2 id="checklist">Verification Checklist</h2>
+<div class="card">
+  <ul class="check">
+    <li class="done">Completeness check</li>
+    <li class="done">Full test suite (twice)</li>
+    <li class="done">Code review + re-review</li>
+    <li class="done">Pragmatic review + re-check</li>
+    <li class="done">Production readiness</li>
+    <li class="done">Reality check + re-check</li>
+    <li class="done">All report artifacts present on disk</li>
+    <li class="todo">E2E / visual fidelity (Phase 12)</li>
+  </ul>
+  <pre>status: passed_with_issues
+issue_counts: {critical: 0, warning: 4, info: 9}
+reverify_count: 1</pre>
+</div>
+
+</main>
+</body>
+</html>

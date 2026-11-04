@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.groups import service
 from app.groups.models import Group
+from tests.conftest import create_location
 from tests.test_group_soft_delete import _register_admin
 from tests.test_organizer_page import _circle, _in_days, _needed_item, _organization_slug, _term
 from tests.test_term_item_listings import _auth, _register, _rsvp
@@ -219,7 +220,11 @@ async def test_mutationsOnDeletedGroup_return404(client: AsyncClient) -> None:
         ),
         "create term": await client.post(
             "/api/terms",
-            json={"circle_group_id": str(group_id), "occurs_on": _in_days(5).isoformat()},
+            json={
+                "location_id": await create_location(client, org),
+                "circle_group_id": str(group_id),
+                "occurs_on": _in_days(5).isoformat(),
+            },
             headers=org,
         ),
         "patch term": await client.patch(

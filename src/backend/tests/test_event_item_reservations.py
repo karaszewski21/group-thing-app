@@ -16,6 +16,7 @@ from app.core import clock
 from app.events.models import Event
 from app.groups.infrastructure import events_acl
 from app.users.models import UserProfile
+from tests.conftest import create_location
 from tests.test_term_item_listings import _auth, _item_link, _register, _resolve_product
 
 EVENT_NAME = "Piknik wymiany"
@@ -26,7 +27,11 @@ async def _create_event(client: AsyncClient, token: str) -> tuple[uuid.UUID, dat
     starts_at = (clock.local_now() + timedelta(days=7)).replace(second=0, microsecond=0)
     response = await client.post(
         "/api/events",
-        json={"name": EVENT_NAME, "starts_at": starts_at.isoformat()},
+        json={
+            "location_id": await create_location(client, _auth(token)),
+            "name": EVENT_NAME,
+            "starts_at": starts_at.isoformat(),
+        },
         headers=_auth(token),
     )
     assert response.status_code == 201, response.text
@@ -58,6 +63,7 @@ async def _listed_items(
                 "inventory_id": inventory.json()["id"],
                 "product_id": await _resolve_product(client, token, name),
                 "condition": "GOOD",
+                "location_id": await create_location(client, _auth(token)),
             },
             headers=_auth(token),
         )

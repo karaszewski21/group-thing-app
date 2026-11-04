@@ -26,7 +26,7 @@ from tests.test_event_item_reservations import _listed_items, _sign_up
 from tests.test_item_actions import _circle, _day, _event, _make_private, _term
 from tests.test_organizer_page import _organization_slug
 from tests.test_personal_pickup import _owner as _personal_owner
-from tests.test_personal_pickup import _propose, _set_location
+from tests.test_personal_pickup import _propose
 from tests.test_term_item_listings import _register as _register_party
 from tests.test_term_item_listings import _rsvp
 from tests.test_term_item_listings_router import _auth, _register, _register_personal_item
@@ -194,7 +194,6 @@ async def _world(client: AsyncClient, db_session: AsyncSession, prefix: str) -> 
             client, owner, str(item_id), {"mode": "GIFT", "visibility": "PRIVATE"}
         )
         assert response.status_code == 200, response.text
-    await _set_location(client, owner, f"ChIJ-{prefix}")
     return _World(
         owner=owner,
         owner_party=owner_party,

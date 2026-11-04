@@ -11,6 +11,8 @@ from datetime import date, timedelta
 
 from httpx import AsyncClient
 
+from tests.conftest import create_location
+
 
 def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
@@ -36,6 +38,7 @@ async def _create_term(client: AsyncClient, org_token: str, group_id: str, days:
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": group_id,
             "occurs_on": (date.today() + timedelta(days=days)).isoformat(),
         },

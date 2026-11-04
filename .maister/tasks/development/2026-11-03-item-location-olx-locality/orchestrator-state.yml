@@ -1,0 +1,188 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7, phase-8, phase-9, phase-10, phase-11, phase-12, phase-13, phase-14]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    sequential: null
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: "2026-11-03T16:35:33Z"
+  updated: "2026-11-04T09:01:16Z"
+  task_path: .maister/tasks/development/2026-11-03-item-location-olx-locality
+  task_ids: {}
+  completed: "2026-11-04T09:01:16Z"
+
+task:
+  title: Mandatory item location + OLX-style locality form
+  description: "When adding an item, location becomes mandatory, using the same location picker as terms/events ('+' goes to /places/new). The add-location form is reduced to 2 fields: Locality (required, OLX-style voivodeship + city, also findable by postal code or village name, no exact address) and Address (optional, mainly for terms/events)."
+  status: completed
+  tags: [items, locations, frontend, backend]
+  priority: null
+
+task_context:
+  risk_level: high
+  clarifications_resolved: true
+  scope_expanded: true
+  architecture_decision: "Locality dictionary in app/locations (SIMC natural PK), computed label, PUT locations, item-level location_id, page-mode pickers with AppDataContext drafts"
+  tech_clarified: true
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: mockup-studio
+    product_design_path: null
+    mockup_count: 5
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  project_context:
+    project_doc_paths:
+      - .maister/docs/project/tech-stack.md
+      - .maister/docs/project/architecture.md
+  phase_summaries:
+    codebase_analysis:
+      summary: "Items have no own location; they inherit the owner's PERSONAL inventories.location_id (0075). locations table has no locality/voivodeship/postal fields and formatted_address is NOT NULL and rendered at ~10 sites. Item mandatory location is moderate; OLX-style locality is a medium-high schema+display change."
+      key_files:
+        - src/frontend/src/components/shared/LocationAddForm.tsx
+        - src/frontend/src/components/shared/LocationPicker.tsx
+        - src/frontend/src/features/items/ItemCreateView.tsx
+        - src/frontend/src/features/places/PlaceCreateView.tsx
+        - src/frontend/src/hooks/useCreateItem.ts
+        - src/frontend/src/lib/googleMaps.ts
+        - src/backend/app/locations/models.py
+        - src/backend/app/locations/schemas.py
+        - src/backend/app/locations/service.py
+      primary_language: TypeScript + Python
+      decisions: []
+      risks:
+        - "~10 display sites assume non-null formatted_address (TermPlaceLine/buildMapsUrl, EventWhenCard, TermCard, GroupDetailsPage, GroupsView, ItemContextActions, AdminTermsPage, PlacesView, LocationPicker)"
+        - "ItemCreateView holds state (incl. photo File[]) in local useState; page-mode round trip to /places/new loses it"
+        - "No TERYT/postal dataset in repo; only Google Places (browser-side)"
+      artifacts:
+        - path: analysis/codebase-analysis.md
+          label: Codebase analysis
+          html: null
+    clarifications:
+      - "Item location stored per item (item-level FK), not on PERSONAL inventory"
+      - "Locality from own TERYT (GUS) dictionary in Postgres with backend search (name/postal code); optional Address via Google Places"
+      - "Remove 'Nazwa miejsca' and 'Notatka' from place form; name derived from locality (+address)"
+      - "No backward compatibility for existing data: MVP, DB will be wiped"
+    gap_analysis:
+      summary: "4 workstreams: TERYT+postal dictionary with search API, locations rework (locality required, address optional, drop name/notes), item-level location_id, frontend (required picker, item draft store, 2-field form, ~10 display sites). Found transfer and name-leak privacy gaps."
+      integration_points:
+        - circulation/infrastructure/ledger.py _apply_projection (transfer)
+        - groups/application/item_actions.py _viewer_location
+        - circulation CreateInventoryItemRequest / UpdateInventoryItemRequest
+        - frontend AppDataContext draft store
+      decisions:
+        - {decision: "Postal codes from GUGiK PRG address points reduced to postal<->SIMC pairs", rationale: "official, keyed by TERYT id"}
+        - {decision: "Dataset via gzipped fixture + seeding migration", rationale: "0069 precedent; test DBs get data"}
+        - {decision: "Clear item location_id on transfer", rationale: "avoid leaking giver address"}
+        - {decision: "Backend + frontend enforce location on item create", rationale: "user choice"}
+        - {decision: "Item location editable on /items/:id/edit", rationale: "correctability, transferred items"}
+        - {decision: "Locality public to all, address owner-only", rationale: "OLX-like privacy"}
+        - {decision: "Pickup/item page use item location; remove inventory location card+API+column", rationale: "single source"}
+        - {decision: "Item create draft in AppDataContext", rationale: "survive /places/new round trip"}
+        - {decision: "No coords for locality-only; Maps link by label", rationale: "TERYT has no coords"}
+        - {decision: "Independent localities only; labels include gmina/powiat/woj", rationale: "disambiguation"}
+        - {decision: "Google address biased by locality, no server check", rationale: "browser-only Google"}
+        - {decision: "Allow soft delete of used places", rationale: "default"}
+        - {decision: "Always create new places (no dedup)", rationale: "user override"}
+        - {decision: "Drop name/notes; computed label", rationale: "2-field form"}
+        - {decision: "Item card locality out of scope", rationale: "default"}
+        - {decision: "Migrations 0078 tables, 0079 seed, 0080 rework; delete old location rows", rationale: "MVP DB wipe"}
+      risks:
+        - "High complexity: new reference-data subsystem + contract changes across 4 bounded contexts"
+        - "Postal-code dataset licensing unverified"
+        - "Privacy: non-owners currently see location.name, which would leak address once name is derived"
+      artifacts:
+        - path: analysis/gap-analysis.md
+          label: Gap analysis
+          html: null
+    ui_mockups:
+      summary: "5 HTML screens: place-create (2 fields, TERYT combobox), item-create (required picker, draft), item-edit, item-page location block, places list. Gallery http://localhost:3847"
+      components_designed: [locality-combobox, location-picker-required]
+      format_used: html
+      decisions: []
+      risks: []
+      artifacts:
+        - {path: analysis/design-context/INDEX.md, label: Design index, html: null}
+        - {path: analysis/design-context/design-resources.md, label: Design resources, html: null}
+    specification:
+      summary: "32 requirements, 8 test groups: TERYT+postal dictionary with GET /api/localities, locations rework (computed label, PUT, no dedup), required item location (create/edit, cleared on GIFT/SWAP, 409 listing without live place), privacy (non-owners get locality only), page-mode pickers with drafts, display-site updates."
+      decisions:
+        - {decision: "Locality tables in app/locations keyed by SIMC String(7) natural PK", rationale: "new carve-out from UUID rule; update models.md"}
+        - {decision: "GET /api/localities?q=&limit= (READ), towns first, {results,total}", rationale: "mockup needs total"}
+        - {decision: "Computed label replaces name; non-owners get locality object only", rationale: "no address leak"}
+        - {decision: "PATCH /api/locations -> PUT", rationale: "2-field form edits both"}
+        - {decision: "Transfer clears location_id for GIFT/SWAP only", rationale: "REGISTER uses same projection"}
+        - {decision: "Listing without live location -> 409", rationale: "required location"}
+        - {decision: "Migration 0080 deletes old location rows, lossy downgrade", rationale: "MVP DB wipe"}
+      risks:
+        - "GUGiK PRG postal licence/format unconfirmed (fallback: name-only search)"
+        - "Migration tests reseed ~100k rows; seed must be chunked (<10s)"
+        - "Address leak via label/transfer is worst regression; explicit tests required"
+        - "Wide regression surface: ~20 backend test files, 4 response shapes, ~10 frontend display sites"
+      artifacts:
+        - {path: implementation/spec.md, label: Specification, html: implementation/spec.html}
+        - {path: analysis/requirements.md, label: Requirements, html: null}
+    spec_audit:
+      summary: "pass-with-concerns (0C/2H/6M/8L); user chose public term address in contexts (privacy scoped to item location block) and spec revision; all findings resolved, spec now 37 requirements."
+      decisions:
+        - {decision: "Privacy guarantee scoped to item location block; term context labels stay full", rationale: "term/event addresses public anyway (user)"}
+        - {decision: "/places/new round trip uses replace on both legs", rationale: "H1"}
+        - {decision: "Listing 409 only on first listing of draft item", rationale: "M3"}
+      risks: []
+      artifacts:
+        - {path: verification/spec-audit.md, label: Spec audit, html: null}
+    planning:
+      summary: "14 task groups, 99 steps, ~70-80 tests, 8 waves (W1: 1,7; W2: 2,8,9,12; W3: 3,10; W4: 4,11; W5: 5; W6: 6; W7: 13; W8: 14). Backend critical path 1-2-3-4-5-6-13-14; frontend parallel from W1."
+      decisions:
+        - {decision: "Frontend groups run parallel to backend", rationale: "spec pins API shapes; tests mock API"}
+        - {decision: "Two-step live-location lookup switch (G4 add, G5 remove)", rationale: "keep bridge working"}
+      risks:
+        - "Suite red between groups (backend G4-G6, typecheck G7-G12)"
+        - "PRG licence open; seed cost measured in steps 1.2/1.9"
+      artifacts:
+        - {path: implementation/implementation-plan.md, label: Implementation plan, html: implementation/implementation-plan.html}
+        - {path: implementation/visual-coverage.md, label: Visual coverage, html: null}
+    implementation:
+      summary: "14 groups + follow-up 11b done in 8 waves. Backend full suite 1173/1173, mypy 15 (baseline), no new ruff findings. Frontend feature tests 162/162; full vitest 1477/1498 with all 21 failures pre-existing on HEAD; typecheck only 4 pre-existing ThreadPage errors."
+      decisions:
+        - {decision: "TERYT SIMC + GUGiK PRG postal data shipped (54,440 localities, 72,245 postal pairs, ~0.95 MB gz)", rationale: "official data, PRG free any-use"}
+        - {decision: "City districts folded into their city", rationale: "districts out of scope"}
+        - {decision: "Follow-up Group 11b: leaving-ref guard in EventEditView/ItemEditView", rationale: "stale draft re-seed bug found by Group 11"}
+      risks:
+        - "Owner to confirm TERYT reuse terms (README notes it)"
+        - "Migration test suite +57 s due to 0079 reseed"
+        - "Browser Back on /places/new skips past the opening form (accepted; draft survives)"
+      artifacts:
+        - {path: implementation/work-log.md, label: Work log, html: null}
+    design:
+      summary: "Design context generated in Phase 4 by mockup-studio; 5 screens, 2 components."
+      screen_count: 5
+      component_count: 2
+      index_path: analysis/design-context/INDEX.md
+
+verification_context:
+  last_status: passed_with_issues
+  issues_found: [W1 late-mount pick loss, W2 combobox stale active, W3 deleted place draft, W4 setModal hidden reset, W5 seed timing assertion, W6 docs volume, W7 dev DB not migrated/no E2E, W8 untracked files, W9 deploy together]
+  fixes_applied: [W1, W2, W3, W4, W5, info-brak-wynikow, info-empty-fold-guard]
+  decisions_made: ["Fix 1-5 + Brak wynikow; skip docs trim (W6)"]
+  reverify_count: 1

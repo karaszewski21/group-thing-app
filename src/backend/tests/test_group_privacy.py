@@ -12,6 +12,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.groups import service
+from tests.conftest import create_location
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -36,6 +37,7 @@ async def _create_circle_and_term(
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": circle.json()["id"],
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },

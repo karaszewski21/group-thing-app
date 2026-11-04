@@ -1,6 +1,6 @@
 import type { PublicLocationResponse } from "../../../api/locations";
-import { buildMapsUrl } from "../../../lib/googleMaps";
 import dayjs from "../../../utils/dayjs";
+import { termPlaceMapsUrl } from "../../../utils/locationLabel";
 
 const EYEBROW = "text-xs font-extrabold tracking-[.12em] text-ink-soft uppercase";
 
@@ -41,11 +41,9 @@ export function TermCard({ date, location, capacity, attendeeCount }: TermCardPr
           {location && (
             <div className="mt-3 border-t border-line pt-3">
               <p className={EYEBROW}>Miejsce</p>
-              <p className="font-bold text-ink">{location.name}</p>
-              <p className="text-sm text-ink-soft">{location.formatted_address}</p>
-              {location.notes && <p className="text-sm text-ink-soft">{location.notes}</p>}
+              <p className="font-bold wrap-break-word text-ink">{location.label}</p>
               <a
-                href={buildMapsUrl(location)}
+                href={termPlaceMapsUrl(location)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-1 inline-block text-sm font-bold text-ink underline"

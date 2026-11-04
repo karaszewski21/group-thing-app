@@ -30,7 +30,7 @@ from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.domain import swap_events
 from app.groups.models import Term
 from app.outbox.models import OutboxEntry
-from tests.conftest import leaf_category_ids
+from tests.conftest import create_location, leaf_category_ids
 from tests.test_term_item_listings import _propose_in_term, _take_in_term
 
 WARSAW = ZoneInfo("Europe/Warsaw")
@@ -89,6 +89,7 @@ async def _add_term(client: AsyncClient, org_token: str, group_id: uuid.UUID) ->
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": str(group_id),
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
@@ -98,9 +99,7 @@ async def _add_term(client: AsyncClient, org_token: str, group_id: uuid.UUID) ->
     return uuid.UUID(term.json()["id"])
 
 
-async def _rsvp(
-    client: AsyncClient, token: str, group_id: uuid.UUID, term_id: uuid.UUID
-) -> None:
+async def _rsvp(client: AsyncClient, token: str, group_id: uuid.UUID, term_id: uuid.UUID) -> None:
     r = await client.post(
         f"/api/groups/public/{group_id}/rsvp",
         json={"term_id": str(term_id), "guardian_name": "ignored", "child_count": 0},
@@ -129,6 +128,7 @@ async def _register_personal_item(client: AsyncClient, token: str, product_name:
             "inventory_id": inv.json()["id"],
             "product_id": product.json()["id"],
             "condition": "GOOD",
+            "location_id": await create_location(client, _auth(token)),
         },
         headers=_auth(token),
     )

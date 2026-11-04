@@ -3,11 +3,11 @@ import type { ItemCondition } from "../../api/inventories";
 import type { ItemQuickAddValue } from "../../utils/itemQuickAdd";
 import { PRODUCT_DESCRIPTION_MAX } from "../../features/items/product/itemPageShared";
 import { CONDITION_LABELS } from "../../utils/productCategory";
+import { Field } from "./appComponents";
 import { CategoryTreePicker } from "./CategoryTreePicker";
 
 const inputClass =
   "min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-cream px-3.5 py-2.5 text-ink";
-const labelClass = "text-xs font-extrabold tracking-wide text-ink-soft";
 
 interface ItemQuickAddFormProps {
   value: ItemQuickAddValue;
@@ -18,16 +18,19 @@ interface ItemQuickAddFormProps {
 /**
  * Freeform "add item" form — Nazwa (name) / Stan (condition) / Kategoria
  * (required leaf category, no default) / Opis (optional). Purely presentational: the caller
- * owns submission (`resolveProduct()`, then `registerInventoryItem`). Used by
- * `ItemCreateView` (`/add/product`).
+ * owns submission (`resolveProduct()`, then `registerInventoryItem`) and renders the
+ * required place picker below it, writing `location_id`. Used by `ItemCreateView`
+ * (`/add/product`).
  */
 export function ItemQuickAddForm({ value, onChange, disabled = false }: ItemQuickAddFormProps) {
-  const categoryLabelId = useId();
+  const id = useId();
+  const categoryLabelId = `${id}-category`;
 
   return (
     <div className="flex flex-col gap-3">
-      <Field label="Nazwa">
+      <Field label="Nazwa" required htmlFor={`${id}-name`}>
         <input
+          id={`${id}-name`}
           className={inputClass}
           placeholder="np. Rowerek biegowy"
           value={value.name}
@@ -36,8 +39,9 @@ export function ItemQuickAddForm({ value, onChange, disabled = false }: ItemQuic
         />
       </Field>
 
-      <Field label="Stan">
+      <Field label="Stan" htmlFor={`${id}-condition`}>
         <select
+          id={`${id}-condition`}
           className={inputClass}
           value={value.condition}
           onChange={(e) => onChange({ ...value, condition: e.target.value as ItemCondition })}
@@ -51,21 +55,19 @@ export function ItemQuickAddForm({ value, onChange, disabled = false }: ItemQuic
         </select>
       </Field>
 
-      {/* Not a <label>-wrapping Field: the picker's trigger is a button labelled by the span. */}
-      <div className="flex flex-col gap-1.5">
-        <span id={categoryLabelId} className={labelClass}>
-          Kategoria <span aria-hidden="true">*</span>
-        </span>
+      {/* The picker's trigger is a button labelled by the span, never inside a <label>. */}
+      <Field label="Kategoria" required labelId={categoryLabelId}>
         <CategoryTreePicker
           labelledBy={categoryLabelId}
           value={value.category_id || null}
           onChange={(id) => onChange({ ...value, category_id: id ?? "" })}
           disabled={disabled}
         />
-      </div>
+      </Field>
 
-      <Field label="Opis">
+      <Field label="Opis" htmlFor={`${id}-description`}>
         <textarea
+          id={`${id}-description`}
           className={`${inputClass} resize-y`}
           rows={4}
           maxLength={PRODUCT_DESCRIPTION_MAX}
@@ -76,14 +78,5 @@ export function ItemQuickAddForm({ value, onChange, disabled = false }: ItemQuic
         />
       </Field>
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1.5">
-      <span className={labelClass}>{label}</span>
-      {children}
-    </label>
   );
 }

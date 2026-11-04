@@ -73,7 +73,22 @@ describe("ItemQuickAddForm", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Dzieci" }));
     fireEvent.click(screen.getByRole("button", { name: "Zabawki" }));
 
-    expect(onChange).toHaveBeenCalledWith({ name: "Rowerek", condition: "GOOD", category_id: "2", description: "" });
+    expect(onChange).toHaveBeenCalledWith({
+      name: "Rowerek",
+      condition: "GOOD",
+      category_id: "2",
+      description: "",
+      location_id: null,
+    });
+  });
+
+  it("keeps the host's place when another field changes", async () => {
+    const onChange = vi.fn();
+    await renderForm({ value: { ...createEmptyItemQuickAddValue(), location_id: "loc-1" }, onChange });
+
+    fireEvent.change(screen.getByLabelText("Nazwa"), { target: { value: "Rowerek" } });
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ name: "Rowerek", location_id: "loc-1" }));
   });
 
   it("disables every field when `disabled` is true", async () => {

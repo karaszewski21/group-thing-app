@@ -36,6 +36,7 @@ from app.circulation.models import (
 from app.core.base_model import BaseEntity
 from app.core.errors import BusinessConflictException
 from app.product.models import Product
+from tests.conftest import create_location
 from tests.ledger_assertions import assert_ledger_matches_projection, movements_for_item
 
 
@@ -367,6 +368,7 @@ async def _create_term(client: AsyncClient, headers: dict[str, str]) -> uuid.UUI
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, headers),
             "circle_group_id": circle.json()["id"],
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
@@ -392,6 +394,7 @@ async def _register_item_via_api(
             "inventory_id": inventory.json()["id"],
             "product_id": str(product_id),
             "condition": "GOOD",
+            "location_id": await create_location(client, headers),
         },
         headers=headers,
     )

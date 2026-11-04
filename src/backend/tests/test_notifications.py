@@ -27,6 +27,7 @@ from app.notifications.models import Notification, NotificationKind
 from app.notifications.outbox_listener import register as register_outbox_handlers
 from app.outbox import service as outbox_service
 from app.outbox.dispatcher import dispatch_pending
+from tests.conftest import create_location
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -58,7 +59,11 @@ async def _setup_pledge(
     )
     term = await client.post(
         "/api/terms",
-        json={"circle_group_id": circle.json()["id"], "occurs_on": date.today().isoformat()},
+        json={
+            "location_id": await create_location(client, _auth(org_token)),
+            "circle_group_id": circle.json()["id"],
+            "occurs_on": date.today().isoformat(),
+        },
         headers=_auth(org_token),
     )
     needed = await client.post(

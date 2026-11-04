@@ -1,7 +1,9 @@
+import { useEffect, useRef } from "react";
 import type { ItemDetailsResponse } from "../../api/items";
 import { useItemDetail, useItemEditing, type ProductDetailsState } from "../../hooks/useItemDetail";
 import { Link, useAppNavigate, useAppParams, useHasInAppHistory } from "../../routing/navigation";
 import { viewPath } from "../../routing/paths";
+import { itemEditDraftFrom } from "../../utils/itemQuickAdd";
 import { useAppData } from "../panel/appDataStore";
 import { ItemEditForm } from "./product/ItemEditForm";
 import { ItemGalleryEditor } from "./product/ItemGalleryEditor";
@@ -11,9 +13,12 @@ import { itemPagePath } from "./product/useItemRoutes";
 const TITLE = "Edytuj rzecz";
 
 /** `/items/:id/edit`: the owner edits an item in the panel — photos at the
- * top (each change saves at once), then name, condition, category and
- * description saved together. "Zapisz" and "Anuluj" go back where the owner
- * came from (`/items` or the item page), or to `/items` when opened directly. */
+ * top (each change saves at once), then name, condition, category,
+ * description and place saved together. The typed values live in
+ * AppDataContext (`itemEdit`, seeded once per item) so the place picker's
+ * trip to /places/new keeps them; a save or "Anuluj" clears them. Both go
+ * back where the owner came from (`/items` or the item page — the trip
+ * replaces its history entries), or to `/items` when opened directly. */
 export function ItemEditView() {
   const { id = "" } = useAppParams();
   const navigate = useAppNavigate();
@@ -56,7 +61,24 @@ interface ItemEditContentProps {
 }
 
 function ItemEditContent({ item, details, onRefetch, onDone, itemHref }: ItemEditContentProps) {
-  const editing = useItemEditing(item.id, details);
+  const { itemEdit, setItemEdit, refreshItems } = useAppData();
+  const editing = useItemEditing(item.id, details, refreshItems);
+  const draft = itemEdit?.itemId === item.id ? itemEdit.draft : null;
+  // Set on save/cancel: the cleared draft must not be re-seeded (from the
+  // not yet refreshed item) while the page is still mounted.
+  const leaving = useRef(false);
+
+  useEffect(() => {
+    if (leaving.current || itemEdit?.itemId === item.id) return;
+    setItemEdit({ itemId: item.id, draft: itemEditDraftFrom(item) });
+  }, [item, itemEdit, setItemEdit]);
+
+  const leave = () => {
+    leaving.current = true;
+    setItemEdit(null);
+    onDone();
+  };
+
   return (
     <>
       <div className="overflow-hidden rounded-[22px]">
@@ -69,13 +91,18 @@ function ItemEditContent({ item, details, onRefetch, onDone, itemHref }: ItemEdi
         />
       </div>
       <div className="mt-4 rounded-[22px] border border-line bg-paper p-5">
-        <ItemEditForm
-          item={item}
-          editing={editing}
-          detailsFailed={details.failed && !details.fetching}
-          onRetryDetails={onRefetch}
-          onDone={onDone}
-        />
+        {draft && (
+          <ItemEditForm
+            item={item}
+            editing={editing}
+            draft={draft}
+            onDraftChange={(next) => setItemEdit({ itemId: item.id, draft: next })}
+            detailsFailed={details.failed && !details.fetching}
+            onRetryDetails={onRefetch}
+            onSaved={leave}
+            onCancel={leave}
+          />
+        )}
       </div>
       <p className="mt-3 text-center text-[12.5px]">
         <Link to={itemHref} className="font-extrabold text-primary-fg underline">

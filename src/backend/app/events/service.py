@@ -46,6 +46,7 @@ END_NOT_AFTER_MESSAGE = "Koniec musi być później niż początek."
 END_OTHER_DAY_MESSAGE = "Koniec musi przypadać tego samego dnia co początek."
 DATETIME_AWARE_MESSAGE = "Podaj datę i godzinę bez strefy czasowej."
 DESCRIPTION_LENGTH_MESSAGE = "Opis może mieć najwyżej 2000 znaków."
+LOCATION_REQUIRED_MESSAGE = "Wybierz miejsce wydarzenia."
 EVENT_NOT_FOUND_MESSAGE = "Nie znaleziono wydarzenia."
 NOT_EVENT_AUTHOR_MESSAGE = "Możesz dodać baner tylko do swojego wydarzenia."
 BANNER_TOO_LARGE_MESSAGE = "Baner jest za duży (maks. 5 MB)"
@@ -152,8 +153,9 @@ async def create_event(db: AsyncSession, principal: Principal, data: CreateEvent
     ends_at = _validate_end(data.ends_at, starts_at)
     name = _validate_name(data.name)
     description = _validate_description(data.description)
-    if data.location_id is not None:
-        await locations_acl.get_owned_location(db, data.location_id, profile.party_id)
+    if data.location_id is None:
+        raise ValueError(LOCATION_REQUIRED_MESSAGE)
+    await locations_acl.get_owned_location(db, data.location_id, profile.party_id)
     await check_text(TextField.EVENT_NAME, name)
     await check_text(TextField.EVENT_DESCRIPTION, description)
 
@@ -248,6 +250,8 @@ async def update_event(
         _validate_description(data.description) if "description" in sent else event.description
     )
     location_id = data.location_id if "location_id" in sent else event.location_id
+    if "location_id" in sent and location_id is None:
+        raise ValueError(LOCATION_REQUIRED_MESSAGE)
     if location_id is not None and location_id != event.location_id:
         await locations_acl.get_owned_location(db, location_id, party_id)
     if name != event.name:

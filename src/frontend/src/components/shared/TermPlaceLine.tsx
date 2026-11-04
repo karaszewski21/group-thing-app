@@ -1,13 +1,9 @@
-import { buildMapsUrl } from "../../lib/googleMaps";
+import type { TermPlaceLocation } from "../../utils/appHelpers";
+import { localityDetail, termPlaceMapsUrl } from "../../utils/locationLabel";
 import { MapPinIcon } from "./MapPinIcon";
 
 interface TermPlaceLineProps {
-  location: {
-    name: string;
-    formatted_address: string;
-    google_place_id: string | null;
-    notes: string | null;
-  } | null;
+  location: TermPlaceLocation | null;
   capacity: number | null;
   attendeeCount?: number | null;
   /** Off inside a card that is itself a link: no nested anchors. */
@@ -15,7 +11,8 @@ interface TermPlaceLineProps {
   className?: string;
 }
 
-/** A term's place (name, address, notes, optional Maps link) and capacity line. */
+/** A term's place (bold locality, then the address or the locality's
+ * detail line, optional Maps link) and capacity line. */
 export function TermPlaceLine({ location, capacity, attendeeCount, withMapLink, className = "" }: TermPlaceLineProps) {
   if (location === null && capacity === null) return null;
   const capacityText =
@@ -29,15 +26,14 @@ export function TermPlaceLine({ location, capacity, attendeeCount, withMapLink, 
             <MapPinIcon />
           </span>
           <div className="flex min-w-0 flex-col">
-            <span className="font-bold text-ink">{location.name}</span>
-            <span>{location.formatted_address}</span>
-            {location.notes && <span>{location.notes}</span>}
+            <span className="font-bold text-ink">{location.locality.name}</span>
+            <span>{location.formatted_address ?? localityDetail(location.locality)}</span>
             {withMapLink && (
               <a
-                href={buildMapsUrl(location)}
+                href={termPlaceMapsUrl(location)}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={`Otwórz ${location.name} w Google Maps (nowa karta)`}
+                aria-label={`Otwórz ${location.label} w Google Maps (nowa karta)`}
                 className="mt-0.5 self-start font-bold text-ink underline"
               >
                 Otwórz w Google Maps

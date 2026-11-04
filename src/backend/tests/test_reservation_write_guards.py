@@ -14,7 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
-from tests.conftest import leaf_category_ids
+from tests.conftest import create_location, leaf_category_ids
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -39,6 +39,7 @@ async def _create_circle_and_term(
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": circle.json()["id"],
             "occurs_on": (clock.local_now().date() + timedelta(days=7)).isoformat(),
         },
@@ -80,6 +81,7 @@ async def _register_personal_item(client: AsyncClient, token: str, product_name:
             "inventory_id": inv.json()["id"],
             "product_id": product.json()["id"],
             "condition": "GOOD",
+            "location_id": await create_location(client, _auth(token)),
         },
         headers=_auth(token),
     )
@@ -154,6 +156,7 @@ async def test_confirmTransaction_otherPastTermId_whileOwnTermUpcoming_returns40
     other_term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": group_id,
             "occurs_on": (clock.local_now().date() + timedelta(days=3)).isoformat(),
         },

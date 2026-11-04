@@ -78,7 +78,7 @@ Each concrete subclass sets only `__tablename__` and its own columns. FK columns
 
 **`updated_at` doubles as the optimistic-lock token.** `updated_at` is registered as SQLAlchemy's `version_id_col`, with a custom `version_id_generator` (`_version_timestamp`) that returns a fresh `datetime.utcnow()` on every INSERT and UPDATE regardless of the previous value. One column serves as both the audit timestamp and the optimistic-lock version — it is NOT split into a separate integer version column. A concurrent stale write raises SQLAlchemy's `StaleDataError`.
 
-**Not every entity uses this mixin.** `PluginDescriptor` (`plugins` table, `app/plugin/models.py`) and `RegisteredClient` (`oauth2_registered_client` table, `app/oauth2/models.py`) extend plain `Base`, not `BaseEntity`: the first has a plugin-supplied string slug PK (and duplicates the `updated_at` version generator locally), the second a UUID PK with only a Python-side `uuid.uuid4` default. Don't force a table onto the shared mixin if its PK strategy genuinely differs.
+**Not every entity uses this mixin.** `PluginDescriptor` (`plugins` table, `app/plugin/models.py`) and `RegisteredClient` (`oauth2_registered_client` table, `app/oauth2/models.py`) extend plain `Base`, not `BaseEntity`: the first has a plugin-supplied string slug PK (and duplicates the `updated_at` version generator locally), the second a UUID PK with only a Python-side `uuid.uuid4` default. The third carve-out is the read-only TERYT dictionary in `app/locations/models.py`: `Locality` has the 7-character SIMC id as a natural `String(7)` PK and `LocalityPostalCode` the composite natural PK `(postal_code, locality_id)`; both are seeded by a data migration, never written by the app, and carry no `created_at`/`updated_at`. Don't force a table onto the shared mixin if its PK strategy genuinely differs.
 
 - Don't manage `updated_at` manually in application code — the `version_id_generator` handles it on every flush
 - Don't add new `BigInteger`/`Sequence`/`IDENTITY` PKs — new tables use `BaseEntity`'s UUID id
@@ -87,7 +87,7 @@ Each concrete subclass sets only `__tablename__` and its own columns. FK columns
 
 ### Primary Keys
 
-Default: UUID via `BaseEntity` (`uuid.uuid4` in Python, `gen_random_uuid()` server default; the migration declares the same server default and names the constraint `pk_<table>` — see `standards/backend/migrations.md`). Carve-outs: `PluginDescriptor` (business-supplied string PK), `RegisteredClient` (UUID PK, app-generated only, no server default).
+Default: UUID via `BaseEntity` (`uuid.uuid4` in Python, `gen_random_uuid()` server default; the migration declares the same server default and names the constraint `pk_<table>` — see `standards/backend/migrations.md`). Carve-outs: `PluginDescriptor` (business-supplied string PK), `RegisteredClient` (UUID PK, app-generated only, no server default), `Locality`/`LocalityPostalCode` (natural string PKs of seeded dictionary data).
 
 ---
 
@@ -101,6 +101,12 @@ Use a plain Python `Enum`/`enum.StrEnum` for every enumeration, stored as a `Str
 
 #### Fetch Types
 Default every relationship to explicit, non-implicit loading — `lazy="raise"` combined with an explicit `joinedload(...)`/`selectinload(...)` at the call site that actually needs the related rows. This is a stronger guarantee than JPA's LAZY-by-default: `AsyncSession` cannot support implicit lazy-loading at all (attribute access outside an active event loop raises `MissingGreenlet`), so relationships must be eagerly loaded via an explicit `.options(...)` on the query that needs them, every time. `app/product/query_service.py`'s `list_products` (`joinedload(Product.category)`) is the reference example.
+
+#### Required Relationships Behind Module Loaders
+When a same-module relationship is needed by almost every read of the row (e.g. a model property built from it), keep it `lazy="raise"` and give the module named loaders that always eager-load it, instead of repeating `.options(...)` at each call site. `Location.locality` is the reference: `Location.label` reads it, so every `Location` that is serialised or labelled must come from `app/locations/service.py::load_location` / `load_locations_by_ids` (`joinedload(Location.locality)` + `execution_options(populate_existing=True)`, so a row already in the session after a write is refreshed). Create and update reload the row through the loader before returning it, and the other BCs' `locations_acl.py` delegate to these loaders rather than calling `db.get`. A `Location` from any other query raises on `label`.
+```python
+select(Location).options(joinedload(Location.locality)).execution_options(populate_existing=True)
+```
 
 #### Ownership
 There is no `mappedBy`-equivalent to forget — SQLAlchemy relationships are declared independently on each side via `relationship(..., back_populates=...)` when both directions are actually needed. Don't declare a `relationship()` at all for a direction nothing in the codebase queries (YAGNI applies more directly here than under JPA, since there's no bidirectional-helper-method convention pulling you toward declaring both sides by default).
@@ -143,8 +149,8 @@ Store geographic coordinates as `Numeric(9, 6)` (`Location.lat`/`lng`, typed `Ma
 When one bounded context needs another (e.g. `app.groups` → `app.locations`), a single `app/<bc>/infrastructure/<other>_acl.py` is the only module of the consuming BC that imports the other BC, and the other BC imports nothing back. The ACL must not import its own BC's `..schemas`: the schemas import the response types the ACL re-exports, so importing back is a cycle.
 
 - Validation re-uses the owning BC's ownership check (`get_owned_location` = `app.locations.service.get_own_location`: 404 for missing or soft-deleted before 403 for a foreign owner).
-- Loading exposes `get_<x>(db, id)` and batched `get_<x>s_by_ids(db, ids)` (one `IN` query, soft-deleted rows included) plus narrow response mappers (`location_ref_response`, `public_location_response`).
-- READ-level embeds (endpoints any logged-in user may call) use a narrow reference shape — `LocationRefResponse`: `id`, `name`, `formatted_address`, `google_place_id`, `notes`, `deleted_at`; no owner party id, no coordinates. Public pages use `PublicLocationResponse` (no ids, no timestamps). The full `LocationResponse` is returned only by the owner's own `/api/locations` endpoints.
+- Loading exposes `get_<x>(db, id)` and batched `get_<x>s_by_ids(db, ids)` (one `IN` query, soft-deleted rows included) plus narrow response mappers (`location_ref_response`, `public_location_response`). The ACL delegates to the owning BC's loaders (`load_location`/`load_locations_by_ids`, see **Required Relationships Behind Module Loaders**), so the rows it hands out are fully loaded. Consumers: `app/groups/`, `app/events/` and `app/circulation/infrastructure/locations_acl.py`.
+- READ-level embeds (endpoints any logged-in user may call) use a narrow reference shape — `LocationRefResponse`: `id`, `locality`, `label`, `formatted_address`, `google_place_id`, `deleted_at`; no owner party id, no coordinates. Public pages use `PublicLocationResponse` (no ids, no timestamps). The full `LocationResponse` is returned only by the owner's own `/api/locations` endpoints.
 - Re-sending an unchanged reference id (or, for a Term, the Circle's own `default_location_id`) is not re-validated, so a soft-deleted or handed-over reference survives an unrelated save; only a newly assigned id goes through the ownership check.
 
 Reference: `app/groups/infrastructure/locations_acl.py`, `app/locations/schemas.py`, `app/groups/application/circles.py` (`update_group`), `app/groups/application/terms.py`.
@@ -176,7 +182,7 @@ _visible_preferences(False, private_circle_id=circle.id)   # + PRIVATE of circle
 
 Use a business key (natural ID) for `__eq__`/`__hash__` when a mapped class has one — never the surrogate `id`, which is `None` until first flush and therefore useless for identity comparison before that point.
 
-**Carve-out**: `PluginDescriptor`'s primary key IS its business identifier (a plugin-supplied slug), so no separate business-key `__eq__`/`__hash__` override is needed there — the PK already serves that role.
+**Carve-out**: `PluginDescriptor`'s primary key IS its business identifier (a plugin-supplied slug), so no separate business-key `__eq__`/`__hash__` override is needed there — the PK already serves that role. The same holds for `Locality` (SIMC id). `Location` has no natural business key and defines no override.
 
 ---
 
@@ -188,7 +194,7 @@ No direct equivalent needed — Python dataclasses/SQLAlchemy declarative classe
 #### Soft Delete Pattern
 Soft-deletable tables (`groups` — migration `0056_group_soft_delete.py`; `locations` — `0057_locations.py`; also `needed_items`) carry a nullable `deleted_at: Mapped[datetime | None]` (`DateTime()`, naive UTC set via `datetime.utcnow()`; `groups` also records `deleted_by_party_id`). SQLAlchemy has no global `@Where` filter, so every list query adds `.where(Model.deleted_at.is_(None))` explicitly.
 
-Uniqueness among live rows uses a partial unique index with `deleted_at IS NULL` in its `WHERE` (e.g. `uq_locations_owner_party_id_google_place_id`), so a deleted row can be re-added as a new row.
+Uniqueness among live rows uses a partial unique index with `deleted_at IS NULL` in its `WHERE` (e.g. `uq_locations_owner_party_id_google_place_id` until `0080` dropped it), so a deleted row can be re-added as a new row.
 
 By-id behaviour depends on the row's role:
 - A soft-deleted Circle is nonexistent to every caller: `repository.get_group` returns `None` (404); only restore uses `get_group_including_deleted`.
@@ -217,7 +223,7 @@ By-id behaviour depends on the row's role:
 | Strategy | Pros | Cons | Use? |
 |----------|------|------|------|
 | **UUID via `BaseEntity`** (`uuid4` + `gen_random_uuid()` default) | Non-enumerable, no sequence to manage, DB-side fallback | Larger index, no natural ordering | Yes — default |
-| Business-supplied string key | Simple | Only valid when the domain has a real natural key | Yes, for `PluginDescriptor` only |
+| Business-supplied string key | Simple | Only valid when the domain has a real natural key | Yes, for `PluginDescriptor` and the seeded `Locality`/`LocalityPostalCode` dictionary only |
 | UUID, app-generated only | Globally unique | No DB-side default | Yes, for `RegisteredClient` only |
 | `BigInteger` + explicit `Sequence` / `IDENTITY` / `SERIAL` | Ordered, compact | Enumerable ids; legacy shape replaced by UUIDs | No |
 
@@ -233,4 +239,6 @@ The category-tree and listing-status section was added with the Vinted categorie
 
 The listing-visibility section was added with the product-page reservations task (`0076_item_listing_visibility.py`).
 
-*Last Updated*: 2026-11-02
+The locality-dictionary PK carve-out and the loader-backed `Location.locality` section were added with the item-location task (`0078`–`0080`).
+
+*Last Updated*: 2026-11-03

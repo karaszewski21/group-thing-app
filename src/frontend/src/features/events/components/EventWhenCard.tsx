@@ -2,8 +2,8 @@ import type { EventResponse } from "../../../api/events";
 import { AddToCalendarButton } from "../../../components/shared/AddToCalendarButton";
 import { CopyIcon } from "../../../components/shared/appIcons";
 import { BTN_GHOST, BTN_SM, CARD } from "../../../components/shared/uiStyles";
-import { buildMapsUrl } from "../../../lib/googleMaps";
 import dayjs from "../../../utils/dayjs";
+import { localityDetail, termPlaceMapsUrl } from "../../../utils/locationLabel";
 
 const EYEBROW = "text-xs font-extrabold tracking-[.12em] text-ink-soft uppercase";
 
@@ -42,11 +42,10 @@ export function EventWhenCard({ event, url, onCopyLink }: EventWhenCardProps) {
       {location && (
         <div className="mt-3 border-t border-line pt-3">
           <p className={EYEBROW}>Miejsce</p>
-          <p className="font-bold text-ink">{location.name}</p>
-          <p className="text-sm text-ink-soft">{location.formatted_address}</p>
-          {location.notes && <p className="text-sm text-ink-soft">{location.notes}</p>}
+          <p className="font-bold text-ink">{location.locality.name}</p>
+          <p className="text-sm text-ink-soft">{location.formatted_address ?? localityDetail(location.locality)}</p>
           <a
-            href={buildMapsUrl(location)}
+            href={termPlaceMapsUrl(location)}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-1 inline-block text-sm font-bold text-ink underline"
@@ -62,7 +61,7 @@ export function EventWhenCard({ event, url, onCopyLink }: EventWhenCardProps) {
             uid: event.id,
             title: event.name,
             occursOn: event.starts_at,
-            groupName: location?.name ?? event.name,
+            groupName: location?.label ?? event.name,
             url,
           }}
           size="sm"

@@ -168,8 +168,6 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("POST"), r"^/api/needed-items(/.*)?$", ("EDIT", "mcp:edit")),  # 35
     (_methods("GET"), r"^/api/pledges(/.*)?$", ("READ", "mcp:read")),  # 36
     (_methods("POST"), r"^/api/pledges(/.*)?$", ("EDIT", "mcp:edit")),  # 37
-    # The owner's pickup place — ahead of rows 38-39, which cover no PUT.
-    (_methods("PUT"), r"^/api/inventories/mine/location$", ("EDIT", "mcp:edit")),
     (_methods("GET"), r"^/api/inventories(/.*)?$", ("READ", "mcp:read")),  # 38
     (_methods("POST"), r"^/api/inventories(/.*)?$", ("EDIT", "mcp:edit")),  # 39
     # Fine-grained inventory-item edit + soft-delete — ahead of rows 40-41's
@@ -204,9 +202,11 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     ),
     # app.locations — the caller's saved places. Ownership (only the owning
     # party may edit/delete) lives in `app.locations.service`.
-    (_methods("PATCH", "DELETE"), r"^/api/locations/[^/]+$", ("EDIT", "mcp:edit")),
+    (_methods("PUT", "DELETE"), r"^/api/locations/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("GET"), r"^/api/locations(/.*)?$", ("READ", "mcp:read")),
     (_methods("POST"), r"^/api/locations(/.*)?$", ("EDIT", "mcp:edit")),
+    # The TERYT locality dictionary the place form searches.
+    (_methods("GET"), r"^/api/localities$", ("READ", "mcp:read")),
     # app.events — one-off events, their banner and sign-ups. Authorship (only
     # the author may upload the banner) lives in `app.events.service`.
     # `/mine` and `/attending` sit ahead of the public `/{event_id}` page row

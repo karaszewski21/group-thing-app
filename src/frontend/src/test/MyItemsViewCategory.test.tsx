@@ -21,9 +21,6 @@ vi.mock("../api/reservations", async () => {
   return { ...actual, confirmTransaction: vi.fn(), cancelTransaction: vi.fn() };
 });
 
-// The location card has its own query-backed tests in `MyItemsView.test.tsx`.
-vi.mock("../features/items/InventoryLocationCard", () => ({ InventoryLocationCard: () => null }));
-
 vi.mock("../features/panel/appDataStore", async () => {
   const actual = await vi.importActual<typeof import("../features/panel/appDataStore")>(
     "../features/panel/appDataStore",
@@ -132,6 +129,7 @@ const item: MyInventoryItemResponse = {
   listing_visibility: null,
   listing_status: "DRAFT",
   photos_moderation_pending: false,
+  location_id: "loc-1",
 };
 
 const pendingItem: MyInventoryItemResponse = { ...item, photos_moderation_pending: true };

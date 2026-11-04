@@ -1,6 +1,5 @@
 import { api } from "./client";
 import type { ItemVisibility, ListingMode } from "./itemListingPreferences";
-import type { LocationRefResponse } from "./locations";
 import type { ProductResponse } from "./products";
 import type { ReservationType } from "./reservations";
 
@@ -49,12 +48,16 @@ export interface MyInventoryItemResponse extends InventoryItemResponse {
   photos_moderation_pending: boolean;
   /** The product's first approved photo (thumbnail), or null without one. */
   thumb_url?: string | null;
+  /** The item's place (owner only), or `null` without one. */
+  location_id: string | null;
 }
 
 export interface CreateInventoryItemRequest {
   inventory_id: string;
   product_id: string;
   condition: ItemCondition;
+  /** One of the caller's live saved places. */
+  location_id: string;
   /** Offers the item right away (`ACTIVE`); null or omitted saves a `DRAFT`. */
   listing_mode?: ListingMode | null;
 }
@@ -140,6 +143,8 @@ export async function getInventoryItemBalances(
 export interface UpdateInventoryItemRequest {
   condition?: ItemCondition;
   product_id?: ProductResponse["id"];
+  /** Omitted keeps the place; `null` is rejected (422). */
+  location_id?: string;
 }
 
 export function updateInventoryItem(
@@ -151,22 +156,4 @@ export function updateInventoryItem(
 
 export function deleteInventoryItem(id: string): Promise<void> {
   return api.delete(`/inventory-items/${id}`);
-}
-
-/** The caller's pickup place on their PERSONAL inventory, `null` when unset. */
-export interface InventoryLocationResponse {
-  location: LocationRefResponse | null;
-}
-
-/** `location_id: null` clears the place. */
-export interface SetInventoryLocationRequest {
-  location_id: string | null;
-}
-
-export function getMyInventoryLocation(): Promise<InventoryLocationResponse> {
-  return api.get("/inventories/mine/location");
-}
-
-export function setMyInventoryLocation(request: SetInventoryLocationRequest): Promise<InventoryLocationResponse> {
-  return api.put("/inventories/mine/location", request);
 }

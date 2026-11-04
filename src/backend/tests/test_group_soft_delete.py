@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core import clock
 from app.core.security import encode_login_token
+from tests.conftest import create_location
 
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
@@ -29,12 +30,16 @@ def _auth_headers(token: str) -> dict[str, str]:
 
 
 async def _create_circle(client: AsyncClient, token: str, name: str) -> str:
-    response = await client.post("/api/groups/mine", json={"name": name}, headers=_auth_headers(token))
+    response = await client.post(
+        "/api/groups/mine", json={"name": name}, headers=_auth_headers(token)
+    )
     assert response.status_code == 201
     return response.json()["id"]
 
 
-async def test_deleteGroup_activeOrganizer_hidesGroupAndKeepsLeadership(client: AsyncClient) -> None:
+async def test_deleteGroup_activeOrganizer_hidesGroupAndKeepsLeadership(
+    client: AsyncClient,
+) -> None:
     token = await _register_organizer(client, "softdel.owner@example.com")
     group_id = await _create_circle(client, token, "Krąg do usunięcia")
     leadership_before = await client.get(
@@ -141,7 +146,11 @@ async def test_deleteGroup_upcomingTermWithActiveRsvp_returns409WithDate(
     occurs_on = clock.local_now() + timedelta(days=7)
     term = await client.post(
         "/api/terms",
-        json={"circle_group_id": group_id, "occurs_on": occurs_on.isoformat()},
+        json={
+            "location_id": await create_location(client, _auth_headers(token)),
+            "circle_group_id": group_id,
+            "occurs_on": occurs_on.isoformat(),
+        },
         headers=_auth_headers(token),
     )
     assert term.status_code == 201

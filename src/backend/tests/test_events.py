@@ -1,5 +1,5 @@
 """`/api/events`: one-off event creation with service-level Polish
-validation, owned-location check and text moderation, the author's public
+validation, a required owned location, text moderation, the author's public
 slug on every response, and the caller's own and attended event lists."""
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from app.core import clock
 from app.events.models import Event
 from app.groups.domain.organizer_slug import derive_organizer_slug
 from app.moderation import text_guard
-from tests.conftest import count_queries
+from tests.conftest import count_queries, locality_ids
 
 EVENT_KEYS = {
     "id",
@@ -78,7 +78,7 @@ async def _create_location(client: AsyncClient, token: str) -> dict[str, Any]:
     response = await client.post(
         "/api/locations",
         json={
-            "name": "Park Skaryszewski",
+            "locality_id": (await locality_ids(client, _auth(token)))[0],
             "formatted_address": "al. Zieleniecka, 03-901 Warszawa",
             "source": "MANUAL",
         },
@@ -89,6 +89,9 @@ async def _create_location(client: AsyncClient, token: str) -> dict[str, Any]:
 
 
 async def _create_event(client: AsyncClient, token: str, **body: Any) -> Response:
+    """Posts an event at a new place of the caller unless `location_id` is given."""
+    if "location_id" not in body:
+        body["location_id"] = (await _create_location(client, token))["id"]
     return await client.post("/api/events", json=body, headers=_auth(token))
 
 
@@ -156,7 +159,16 @@ async def test_createEvent_validWithOwnLocation_returns201ExactKeys(
     assert body["starts_at"] == _iso(starts_at.replace(second=0))
     assert body["ends_at"] == _iso(starts_at.replace(hour=18, second=0))
     assert body["location"]["id"] == location["id"]
-    assert body["location"]["name"] == "Park Skaryszewski"
+    assert body["location"]["label"] == location["label"]
+    assert body["location"]["formatted_address"] == "al. Zieleniecka, 03-901 Warszawa"
+    assert set(body["location"]) == {
+        "id",
+        "locality",
+        "label",
+        "formatted_address",
+        "google_place_id",
+        "deleted_at",
+    }
     assert await _count_events(db_session) == 1
 
 
@@ -305,6 +317,45 @@ async def test_createEvent_foreignOrMissingLocation_returns403Or404(
     assert await _count_events(db_session) == 0
 
 
+async def test_createEvent_withoutLocation_returns400NoEvent(
+    client: AsyncClient, db_session: AsyncSession, frozen: datetime
+) -> None:
+    token = await _register(client, "ev.noplace@example.com")
+    body = {"name": "Piknik", "starts_at": "2026-11-15T14:00:00"}
+
+    omitted = await client.post("/api/events", json=body, headers=_auth(token))
+    explicit_null = await _create_event(client, token, **body, location_id=None)
+
+    for response in (omitted, explicit_null):
+        assert response.status_code == 400, response.text
+        assert response.json()["message"] == "Wybierz miejsce wydarzenia."
+    assert await _count_events(db_session) == 0
+
+
+async def test_updateEvent_nullLocation_returns400KeepsPlace_otherFieldsStillEditable(
+    client: AsyncClient, frozen: datetime
+) -> None:
+    token = await _register(client, "ev.patch.noplace@example.com")
+    location = await _create_location(client, token)
+    created = await _create_event(
+        client, token, name="Piknik", starts_at="2026-11-15T14:00:00", location_id=location["id"]
+    )
+    assert created.status_code == 201, created.text
+    event_id = created.json()["id"]
+
+    rejected = await client.patch(
+        f"/api/events/{event_id}", json={"location_id": None}, headers=_auth(token)
+    )
+    renamed = await client.patch(
+        f"/api/events/{event_id}", json={"name": "Piknik 2"}, headers=_auth(token)
+    )
+
+    assert rejected.status_code == 400, rejected.text
+    assert rejected.json()["message"] == "Wybierz miejsce wydarzenia."
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["location"]["id"] == location["id"]
+
+
 @pytest.mark.usefixtures("_restore_classifier")
 async def test_createEvent_rejectedText_returns400(
     client: AsyncClient,
@@ -356,7 +407,7 @@ async def test_listMyEvents_ownOnly_returnsEarliestFirstExactKeys(
     location = await _create_location(client, token)
     later = (frozen + timedelta(days=9)).replace(hour=12, minute=0)
     sooner = (frozen + timedelta(days=2)).replace(hour=12, minute=0)
-    await _create_event(client, token, name="Później", starts_at=_iso(later))
+    later_response = await _create_event(client, token, name="Później", starts_at=_iso(later))
     await _create_event(
         client, token, name="Wcześniej", starts_at=_iso(sooner), location_id=location["id"]
     )
@@ -369,7 +420,7 @@ async def test_listMyEvents_ownOnly_returnsEarliestFirstExactKeys(
     assert [e["name"] for e in body] == ["Wcześniej", "Później"]
     assert all(set(e) == EVENT_KEYS for e in body)
     assert body[0]["location"]["id"] == location["id"]
-    assert body[1]["location"] is None
+    assert body[1]["location"]["id"] == later_response.json()["location"]["id"] != location["id"]
 
 
 async def test_listMyEvents_manyEventsWithPlaces_queryCountDoesNotGrow(
@@ -467,7 +518,7 @@ async def test_listAttending_onlyActiveAttendances_orderedByStartsAt(
     assert all(set(e) == EVENT_KEYS for e in body)
     assert all(e["author_slug"] == slug for e in body)
     assert body[0]["location"]["id"] == location["id"]
-    assert body[1]["location"] is None
+    assert body[1]["location"]["id"] != location["id"]
     assert anonymous.status_code == 401
 
 

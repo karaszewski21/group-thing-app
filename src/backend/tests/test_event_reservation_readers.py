@@ -16,6 +16,7 @@ from app.circulation import service as circulation_service
 from app.circulation.models import ReservationType
 from app.core import clock
 from app.groups.infrastructure import circulation_bridge
+from tests.conftest import create_location
 from tests.test_event_item_reservations import _listed_items, _sign_up, _take
 from tests.test_term_item_listings import (
     _auth,
@@ -54,7 +55,11 @@ async def _create_event(
     starts_at = (clock.local_now() + timedelta(days=7)).replace(second=0, microsecond=0)
     response = await client.post(
         "/api/events",
-        json={"name": name, "starts_at": starts_at.isoformat()},
+        json={
+            "location_id": await create_location(client, _auth(token)),
+            "name": name,
+            "starts_at": starts_at.isoformat(),
+        },
         headers=_auth(token),
     )
     assert response.status_code == 201, response.text

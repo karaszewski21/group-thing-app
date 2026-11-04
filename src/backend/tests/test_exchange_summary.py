@@ -27,7 +27,7 @@ from app.families.models import Family, FamilyMembership, FamilyRole, FamilyRole
 from app.groups import service
 from app.party.models import Party, PartyType
 from app.users.service import get_profile_by_principal
-from tests.conftest import leaf_category_ids
+from tests.conftest import create_location, leaf_category_ids
 from tests.test_term_item_listings import _propose_in_term, _take_in_term
 
 
@@ -58,6 +58,7 @@ async def _create_circle_and_term(
     term = await client.post(
         "/api/terms",
         json={
+            "location_id": await create_location(client, _auth(org_token)),
             "circle_group_id": circle.json()["id"],
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
@@ -118,7 +119,12 @@ async def _register_personal_item(client: AsyncClient, token: str, product_name:
     assert inv.status_code == 201
     item = await client.post(
         "/api/inventory-items",
-        json={"inventory_id": inv.json()["id"], "product_id": product_id, "condition": "GOOD"},
+        json={
+            "inventory_id": inv.json()["id"],
+            "product_id": product_id,
+            "condition": "GOOD",
+            "location_id": await create_location(client, _auth(token)),
+        },
         headers=_auth(token),
     )
     assert item.status_code == 201

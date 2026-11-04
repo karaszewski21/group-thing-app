@@ -13,6 +13,7 @@ import {
   resolveProduct,
   updateProductDescription,
 } from "../api/products";
+import { ITEM_ACTIONS_KEY } from "./useItemActions";
 
 export const ITEM_DETAILS_KEY = "itemDetails";
 
@@ -85,8 +86,15 @@ export interface ProductDetailsState {
  * `productEditable` is false). Every call re-reads the details afterwards,
  * on failure too, so a 409 (stale photo list, photo limit) leaves the page
  * showing the server state; errors are rethrown as Polish messages.
- * `photoBusy` covers a photo call through its follow-up refetch. */
-export function useItemEditing(itemId: string, details: ProductDetailsState) {
+ * `photoBusy` covers a photo call through its follow-up refetch. A place
+ * change also re-reads the item page's actions (its location block and
+ * pickup) and then `reloadMyItems` (the panel's list, the create page's
+ * place suggestion). */
+export function useItemEditing(
+  itemId: string,
+  details: ProductDetailsState,
+  reloadMyItems?: () => Promise<void>,
+) {
   const { productId, fetching, failed } = details;
   const queryClient = useQueryClient();
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -144,6 +152,15 @@ export function useItemEditing(itemId: string, details: ProductDetailsState) {
     [mutate, itemId],
   );
 
+  const saveLocation = useCallback(
+    async (locationId: string) => {
+      await mutate(() => updateInventoryItem(itemId, { location_id: locationId }), SAVE_FALLBACK);
+      await queryClient.invalidateQueries({ queryKey: [ITEM_ACTIONS_KEY] });
+      await reloadMyItems?.();
+    },
+    [mutate, itemId, queryClient, reloadMyItems],
+  );
+
   const saveDescription = useCallback(
     (text: string) =>
       mutateProduct((id) => updateProductDescription(id, text.trim() || null), SAVE_FALLBACK),
@@ -176,6 +193,7 @@ export function useItemEditing(itemId: string, details: ProductDetailsState) {
   return {
     saveNameCategory,
     saveCondition,
+    saveLocation,
     saveDescription,
     addPhoto,
     removePhoto,

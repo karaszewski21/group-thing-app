@@ -11,7 +11,7 @@ from httpx import AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tests.conftest import leaf_category_ids
+from tests.conftest import create_location, leaf_category_ids
 
 
 async def _authed_headers(client: AsyncClient, email: str) -> dict[str, str]:
@@ -115,7 +115,12 @@ async def test_resolveProduct_thenRegisterInventoryItem_producesRealInventoryIte
 
     item = await client.post(
         "/api/inventory-items",
-        json={"inventory_id": inventory_id, "product_id": product_id, "condition": "GOOD"},
+        json={
+            "inventory_id": inventory_id,
+            "product_id": product_id,
+            "condition": "GOOD",
+            "location_id": await create_location(client, headers),
+        },
         headers=headers,
     )
 

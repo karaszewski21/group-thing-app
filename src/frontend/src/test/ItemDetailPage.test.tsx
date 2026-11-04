@@ -10,6 +10,7 @@ import * as itemActionsApi from "../api/itemActions";
 import * as itemReservationsApi from "../api/itemReservations";
 import * as reservationsApi from "../api/reservations";
 import * as termItemListingsApi from "../api/termItemListings";
+import * as locationsApi from "../api/locations";
 import type {
   ItemActionsResponse,
   ItemContextOptionResponse,
@@ -24,6 +25,7 @@ import type { InventoryBalanceResponse, InventoryItemResponse, MyInventoryItemRe
 import type { AcceptedSwapProposalResponse, SwapProposalResponse } from "../api/termItemListings";
 import type { ProductResponse } from "../api/products";
 import { Link } from "../routing/navigation";
+import { makeItemLocation, makeLocality, makeLocationResponse } from "./fixtures/locations";
 import { createQueryWrapper } from "./queryClient";
 import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
@@ -60,7 +62,45 @@ vi.mock("../api/termItemListings", async (importOriginal) => ({
 
 const mockAuth: { token: string | null } = { token: "valid.jwt.token" };
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
-vi.mock("../features/panel/appDataStore", () => ({ useAppData: () => ({ ownSlug: "ania" }) }));
+/** A stand-in for the panel's AppDataContext: `itemEdit` lives outside the
+ * edit page, as it does in the panel. */
+const panel = vi.hoisted(() => {
+  let state: Record<string, unknown> = {};
+  const listeners = new Set<() => void>();
+  return {
+    reset() {
+      state = { ownSlug: "ania", itemEdit: null };
+    },
+    get: () => state,
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    setters: {
+      setItemEdit: (next: unknown) => {
+        state = { ...state, itemEdit: next };
+        listeners.forEach((listener) => listener());
+      },
+      refreshItems: async () => {},
+    },
+  };
+});
+
+vi.mock("../features/panel/appDataStore", async () => {
+  const { useSyncExternalStore } = await import("react");
+  return {
+    useAppData: () => ({ ...useSyncExternalStore(panel.subscribe, panel.get), ...panel.setters }),
+  };
+});
+
+vi.mock("../api/locations", () => ({
+  getMyLocations: vi.fn(),
+  createLocation: vi.fn(),
+  updateLocation: vi.fn(),
+  deleteLocation: vi.fn(),
+}));
 
 vi.mock("../api/products", () => ({
   resolveProduct: vi.fn(),
@@ -77,7 +117,6 @@ vi.mock("../api/categories", () => ({
 const conversationHook = vi.hoisted(() => ({ openConversation: vi.fn() }));
 vi.mock("../hooks/useOpenConversation", () => ({ useOpenConversation: () => conversationHook }));
 
-
 const ITEM_ID = "5d7e9f10-2a3b-4c4d-8e5f-6a7b8c9d0e1f";
 const PRODUCT_ID = "6e8f0a21-3b4c-4d5e-9f60-7b8c9d0e1f2a";
 const REPOINTED_PRODUCT_ID = "b3d45f76-8091-42a3-8eb5-2a3b4c5d6e7f";
@@ -86,6 +125,9 @@ const CAT_STROLLERS = "7f901b32-4c5d-4e6f-8a71-8c9d0e1f2a3b";
 const CAT_TOYS = "80a12c43-5d6e-4f70-9b82-9d0e1f2a3b4c";
 const PHOTO_1 = "91b23d54-6e7f-4081-8c93-0e1f2a3b4c5d";
 const PHOTO_2 = "a2c34e65-7f80-4192-9da4-1f2a3b4c5d6e";
+
+/** The owner's live place the edit page's required picker shows. */
+const OWN_PLACE = makeLocationResponse();
 
 function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsResponse {
   return {
@@ -97,13 +139,26 @@ function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsRespo
     condition: "GOOD",
     description: "Lekki, składany, z daszkiem i koszem.",
     photos: [
-      { id: PHOTO_1, url: "https://img.example/1.webp", thumb_url: "https://img.example/1-thumb.webp", status: "APPROVED", sort_order: 0 },
-      { id: PHOTO_2, url: "https://img.example/2.webp", thumb_url: "https://img.example/2-thumb.webp", status: "APPROVED", sort_order: 1 },
+      {
+        id: PHOTO_1,
+        url: "https://img.example/1.webp",
+        thumb_url: "https://img.example/1-thumb.webp",
+        status: "APPROVED",
+        sort_order: 0,
+      },
+      {
+        id: PHOTO_2,
+        url: "https://img.example/2.webp",
+        thumb_url: "https://img.example/2-thumb.webp",
+        status: "APPROVED",
+        sort_order: 1,
+      },
     ],
     product_photo_url: null,
     is_owner: true,
     deleted_at: null,
     listing_status: "DRAFT",
+    location_id: OWN_PLACE.id,
     status: {
       code: "LENT",
       term_occurs_on: null,
@@ -122,7 +177,13 @@ const OWNER: ItemActionsResponse["owner"] = {
   items_total: 12,
 };
 
-const LOCATION: ItemLocationResponse = { name: "Mokotów, Warszawa", formatted_address: null, deleted_at: null };
+const LOCATION: ItemLocationResponse = makeItemLocation({
+  locality: makeLocality({ id: "0941370", name: "Nowa Wieś", kind: "VILLAGE" }),
+});
+const LOCALITY_DETAIL = "gm. Kęty, pow. oświęcimski, małopolskie";
+const LOCALITY_MAPS_URL =
+  "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent("Nowa Wieś, gmina Kęty, małopolskie, Polska");
+const OWN_LOCATION: ItemLocationResponse = { ...LOCATION, formatted_address: "ul. Polna 12, 32-650 Nowa Wieś" };
 
 // 2026-11-07 is a Saturday, 2026-11-11 a Wednesday.
 const TERM_CONTEXT: ItemContextOptionResponse = {
@@ -185,9 +246,12 @@ function party(overrides: Partial<ItemPartyReservationResponse> = {}): ItemParty
   };
 }
 
-/** After `vi.resetAllMocks()`: a logged-in viewer and an actions read with no location or contexts. */
+/** After `vi.resetAllMocks()`: a logged-in viewer, an actions read with no
+ * location or contexts, the owner's places and a fresh panel. */
 function mockDefaults() {
   mockAuth.token = "valid.jwt.token";
+  panel.reset();
+  vi.mocked(locationsApi.getMyLocations).mockResolvedValue([OWN_PLACE]);
   vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions());
 }
 
@@ -239,19 +303,14 @@ describe("ItemDetailPage", () => {
   it("view renders fields, gallery and status with an owner Edytuj link, and no history", async () => {
     renderPage(`/bartek/product/${ITEM_ID}`);
 
-    expect(
-      await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" })).toBeInTheDocument();
     expect(screen.getByText("Wózki · Stan: Dobry")).toBeInTheDocument();
     expect(screen.getByText("Lekki, składany, z daszkiem i koszem.")).toBeInTheDocument();
     expect(screen.getByAltText("Wózek spacerowy Baby Jogger — zdjęcie 1")).toHaveAttribute(
       "referrerpolicy",
       "no-referrer",
     );
-    expect(screen.getByRole("button", { name: "Zdjęcie 2 z 2" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    expect(screen.getByRole("button", { name: "Zdjęcie 2 z 2" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByText("Pożyczona do 20.10.2026")).toBeInTheDocument();
     expect(screen.getByText("U: Anna Kowalska")).toBeInTheDocument();
 
@@ -285,32 +344,32 @@ describe("ItemDetailPage", () => {
       new ApiError(500, "Server Error", { message: "Awaria serwera" }),
     );
     renderPage(`/bartek/product/${ITEM_ID}`);
-    expect(
-      await screen.findByText("Nie udało się wczytać rzeczy — spróbuj ponownie"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Nie udało się wczytać rzeczy — spróbuj ponownie")).toBeInTheDocument();
     expect(screen.getByText("Awaria serwera")).toBeInTheDocument();
 
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
     fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
-    expect(
-      await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" })).toBeInTheDocument();
   });
 
   it("deleted item shows the banner and no Edytuj; its edit page refuses to edit", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
       details({
         deleted_at: "2026-10-14T09:00:00",
-        status: { code: "DELETED", term_occurs_on: null, due_date: null, counterparty_label: null, personal_pickup: false },
+        status: {
+          code: "DELETED",
+          term_occurs_on: null,
+          due_date: null,
+          counterparty_label: null,
+          personal_pickup: false,
+        },
       }),
     );
     const { unmount } = renderPage(`/bartek/product/${ITEM_ID}`);
 
     const banner = await screen.findByText("Rzecz usunięta");
     expect(banner.closest('[role="status"]')).not.toBeNull();
-    expect(
-      screen.getByText("Ta rzecz została usunięta 14.10.2026."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Ta rzecz została usunięta 14.10.2026.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Edytuj/ })).not.toBeInTheDocument();
     unmount();
 
@@ -323,9 +382,7 @@ describe("ItemDetailPage", () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
     const { unmount } = renderPage(`/bartek/product/${ITEM_ID}`);
 
-    expect(
-      await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Edytuj/ })).not.toBeInTheDocument();
     unmount();
 
@@ -352,11 +409,9 @@ describe("ItemDetailPage", () => {
 
     fireEvent.change(within(form).getByLabelText("Stan"), { target: { value: "LIKE_NEW" } });
     fireEvent.change(within(form).getByLabelText("Opis"), { target: { value: "Nowy opis" } });
-    fireEvent.click(within(form).getByRole("button", { name: "Zapisz" }));
+    fireEvent.click(within(form).getByRole("button", { name: "Zapisz zmiany" }));
 
-    await waitFor(() =>
-      expect(productsApi.updateProductDescription).toHaveBeenCalledWith(PRODUCT_ID, "Nowy opis"),
-    );
+    await waitFor(() => expect(productsApi.updateProductDescription).toHaveBeenCalledWith(PRODUCT_ID, "Nowy opis"));
     await waitFor(() =>
       expect(inventoriesApi.updateInventoryItem).toHaveBeenCalledWith(ITEM_ID, { condition: "LIKE_NEW" }),
     );
@@ -385,7 +440,9 @@ describe("ItemDetailPage", () => {
     const form = await screen.findByRole("form", { name: "Edycja rzeczy" });
     fireEvent.change(within(form).getByLabelText("Nazwa"), { target: { value: "Grzechotka" } });
     expect(
-      within(form).getByText(/Zdjęcia i opis należą do produktu — po zmianie nazwy lub kategorii rzecz pokaże zdjęcia i opis nowego produktu\./),
+      within(form).getByText(
+        /Zdjęcia i opis należą do produktu — po zmianie nazwy lub kategorii rzecz pokaże zdjęcia i opis nowego produktu\./,
+      ),
     ).toBeInTheDocument();
     expect(within(form).getByLabelText("Opis")).toBeDisabled();
     const picker = await within(form).findByRole("button", { name: /^Kategoria Dzieci ›\s+Wózki/ });
@@ -396,7 +453,7 @@ describe("ItemDetailPage", () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
       details({ product_id: REPOINTED_PRODUCT_ID, name: "Grzechotka", category_id: CAT_TOYS }),
     );
-    fireEvent.click(within(form).getByRole("button", { name: "Zapisz" }));
+    fireEvent.click(within(form).getByRole("button", { name: "Zapisz zmiany" }));
 
     await waitFor(() =>
       expect(inventoriesApi.updateInventoryItem).toHaveBeenCalledWith(ITEM_ID, { product_id: resolved.id }),
@@ -434,7 +491,7 @@ describe("ItemDetailPage", () => {
 
     const form = await screen.findByRole("form", { name: "Edycja rzeczy" });
     fireEvent.change(within(form).getByLabelText("Opis"), { target: { value: "Inny opis" } });
-    fireEvent.click(within(form).getByRole("button", { name: "Zapisz" }));
+    fireEvent.click(within(form).getByRole("button", { name: "Zapisz zmiany" }));
     expect(await within(form).findByRole("alert")).toHaveTextContent(ACCESS_DENIED_MESSAGE);
     expect(within(form).getByLabelText("Opis")).toHaveValue("Inny opis");
   });
@@ -450,23 +507,17 @@ describe("ItemDetailPage", () => {
     fireEvent.change(screen.getByLabelText("Dodaj zdjęcia"), {
       target: { files: [new File(["x"], "x.gif", { type: "image/gif" })] },
     });
-    expect(
-      screen.getByText("Nieobsługiwany plik — dodaj zdjęcie JPG, PNG lub WebP"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Nieobsługiwany plik — dodaj zdjęcie JPG, PNG lub WebP")).toBeInTheDocument();
     expect(productsApi.addProductPhoto).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Przesuń zdjęcie 1 dalej" }));
-    await waitFor(() =>
-      expect(productsApi.reorderProductPhotos).toHaveBeenCalledWith(PRODUCT_ID, [PHOTO_2, PHOTO_1]),
-    );
+    await waitFor(() => expect(productsApi.reorderProductPhotos).toHaveBeenCalledWith(PRODUCT_ID, [PHOTO_2, PHOTO_1]));
     expect(screen.getByRole("button", { name: "Usuń zdjęcie 1" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Przesuń zdjęcie 1 dalej" })).toBeDisabled();
     expect(screen.getByLabelText("Dodaj zdjęcia")).toBeDisabled();
 
     pending.resolve([]);
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Usuń zdjęcie 1" })).toBeEnabled(),
-    );
+    await waitFor(() => expect(screen.getByRole("button", { name: "Usuń zdjęcie 1" })).toBeEnabled());
     expect(itemsApi.getItemDetails).toHaveBeenCalledTimes(2);
 
     vi.mocked(productsApi.deleteProductPhoto).mockResolvedValue(undefined);
@@ -490,9 +541,7 @@ describe("ItemDetailPage", () => {
     );
     renderPage(`/bartek/product/${ITEM_ID}`);
 
-    expect(
-      await screen.findByText("Zaproponowana do zamiany — czeka na decyzję"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Zaproponowana do zamiany — czeka na decyzję")).toBeInTheDocument();
     expect(screen.getByText("Dla: Ty")).toBeInTheDocument();
   });
 });
@@ -515,6 +564,7 @@ describe("ItemDetailPage context actions", () => {
     updated_at: "2026-10-01T10:00:00",
     listing_mode: "SWAP",
     listing_visibility: "PUBLIC",
+    location_id: null,
     photos_moderation_pending: false,
   };
   const availableBalance: InventoryBalanceResponse = {
@@ -558,19 +608,24 @@ describe("ItemDetailPage context actions", () => {
 
     expect(await screen.findByText("Chcę się zamienić")).toBeInTheDocument();
     const location = screen.getByRole("region", { name: "Lokalizacja przedmiotu" });
-    expect(location).toHaveTextContent("Mokotów, Warszawa");
-    expect(location).toHaveTextContent("Dokładny adres ustalicie na czacie.");
+    expect(location).toHaveTextContent(`Nowa Wieś${LOCALITY_DETAIL}`);
+    expect(within(location).getByRole("link", { name: "Otwórz w Mapach (nowa karta)" })).toHaveAttribute(
+      "href",
+      LOCALITY_MAPS_URL,
+    );
+    expect(location).toHaveTextContent("Odbiór osobisty dostępny.");
+    expect(location).not.toHaveTextContent("Widoczne tylko dla Ciebie");
     const list = screen.getByRole("region", { name: "Gdzie jeszcze można odebrać" });
     expect(list).toHaveTextContent("Terminy i wydarzenia, na których bywa Bartek K.");
     expect(within(list).getAllByRole("listitem")).toHaveLength(2);
     expect(within(list).getByText("Jarmark sąsiedzki").closest("li")).toHaveTextContent("wydarzenie");
     expect(within(list).getByText("📍 Park Dreszera · 16:00")).toBeInTheDocument();
     const actionsCard = screen.getByRole("region", { name: "Jak chcesz odebrać?" });
-    expect(within(actionsCard).getAllByRole("button").map((b) => b.textContent)).toEqual([
-      "Odbiorę osobiście",
-      "Wybieram termin",
-      CHAT,
-    ]);
+    expect(
+      within(actionsCard)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["Odbiorę osobiście", "Wybieram termin", CHAT]);
     expect(itemActionsApi.getItemActions).toHaveBeenCalledWith(ITEM_ID);
 
     fireEvent.click(screen.getByRole("button", { name: CHAT }));
@@ -687,7 +742,7 @@ describe("ItemDetailPage context actions", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: PERSONAL }));
     const sheet = await screen.findByRole("dialog", { name: "Odbiór osobisty" });
-    expect(sheet).toHaveTextContent("📍 Mokotów, Warszawa");
+    expect(sheet).toHaveTextContent("📍 Nowa Wieś");
     expect(sheet).toHaveTextContent(
       "Dokładny adres i godzinę ustalicie z Bartek K. na czacie — nie udostępniamy adresu w aplikacji.",
     );
@@ -709,7 +764,11 @@ describe("ItemDetailPage context actions", () => {
     vi.mocked(itemActionsApi.getItemActions)
       .mockResolvedValueOnce(itemActions({ location: LOCATION, personal_pickup_available: true }))
       .mockResolvedValue(
-        itemActions({ available: false, location: LOCATION, party_reservation: party({ can_confirm: true, can_cancel: true }) }),
+        itemActions({
+          available: false,
+          location: LOCATION,
+          party_reservation: party({ can_confirm: true, can_cancel: true }),
+        }),
       );
     vi.mocked(itemReservationsApi.takeItem).mockResolvedValue({
       item_id: ITEM_ID,
@@ -757,42 +816,79 @@ describe("ItemDetailPage context actions", () => {
     });
   });
 
-  it("anonymous: the context list and the login gate, with no location, reserve or chat buttons", async () => {
+  it("anonymous: the locality card, the context list and the login gate, with no reserve or chat buttons", async () => {
     mockAuth.token = null;
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
-      itemActions({ viewer: "ANONYMOUS", contexts: [TERM_CONTEXT] }),
+      itemActions({ viewer: "ANONYMOUS", location: LOCATION, contexts: [TERM_CONTEXT] }),
     );
     renderPage(`/bartek/product/${ITEM_ID}`);
 
     const gate = await screen.findByRole("region", { name: "Chcesz tę rzecz?" });
     expect(gate).toHaveTextContent("Zaloguj się, żeby zarezerwować lub napisać do właściciela.");
     const returnTo = encodeURIComponent(`/bartek/product/${ITEM_ID}`);
-    expect(within(gate).getByRole("link", { name: "Zaloguj się" })).toHaveAttribute("href", `/login?returnTo=${returnTo}`);
+    expect(within(gate).getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
+      "href",
+      `/login?returnTo=${returnTo}`,
+    );
     expect(within(gate).getByRole("link", { name: "Załóż konto" })).toHaveAttribute(
       "href",
       `/login?mode=register&returnTo=${returnTo}`,
     );
-    expect(screen.getByRole("region", { name: "Gdzie jeszcze można odebrać" })).toHaveTextContent("Wymianka przedszkolna");
-    expect(screen.queryByRole("region", { name: "Lokalizacja przedmiotu" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Gdzie jeszcze można odebrać" })).toHaveTextContent(
+      "Wymianka przedszkolna",
+    );
+    const location = screen.getByRole("region", { name: "Lokalizacja przedmiotu" });
+    expect(location).toHaveTextContent(`Nowa Wieś${LOCALITY_DETAIL}`);
+    expect(within(location).getByRole("link", { name: "Otwórz w Mapach (nowa karta)" })).toHaveAttribute(
+      "href",
+      LOCALITY_MAPS_URL,
+    );
+    expect(within(location).queryByRole("link", { name: "Zmień lokalizację" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: PERSONAL })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Napisz/ })).not.toBeInTheDocument();
   });
 
-  it("own: address only for the owner, the Moje rzeczy link and note, no reserve or chat", async () => {
+  it("with a Maps key, the location card maps the locality for others and the address for the owner", async () => {
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "test-key");
+    try {
+      vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions({ location: OWN_LOCATION }));
+      const { unmount } = renderPage(`/bartek/product/${ITEM_ID}`);
+      const othersMap = new URL((await screen.findByTitle("Mapa: Nowa Wieś")).getAttribute("src")!);
+      expect(othersMap.pathname).toBe("/maps/embed/v1/place");
+      expect(othersMap.searchParams.get("q")).not.toContain("Polna");
+      unmount();
+
+      vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: true }));
+      vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
+        itemActions({ viewer: "OWN", location: OWN_LOCATION }),
+      );
+      renderPage(`/bartek/product/${ITEM_ID}`);
+      const ownMap = new URL((await screen.findByTitle("Mapa: Nowa Wieś")).getAttribute("src")!);
+      expect(ownMap.searchParams.get("q")).toMatch(/^ul\. Polna 12, 32-650 Nowa Wieś, Nowa Wieś/);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("own: the locality card plus the owner-only address and Zmień lokalizację, no reserve or chat", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: true }));
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
-      itemActions({
-        viewer: "OWN",
-        location: { name: "Dom – Mokotów", formatted_address: "ul. Puławska 120/4, 02-620 Warszawa", deleted_at: null },
-        contexts: [TERM_CONTEXT],
-      }),
+      itemActions({ viewer: "OWN", location: OWN_LOCATION, contexts: [TERM_CONTEXT] }),
     );
     renderPage(`/bartek/product/${ITEM_ID}`);
 
-    const location = await screen.findByRole("region", { name: "Lokalizacja przedmiotu (widzisz tylko Ty)" });
-    expect(location).toHaveTextContent("Dom – Mokotów");
-    expect(location).toHaveTextContent("ul. Puławska 120/4, 02-620 Warszawa");
-    expect(within(location).getByRole("link", { name: "Zmień w „Moje rzeczy”" })).toHaveAttribute("href", "/items");
+    const location = await screen.findByRole("region", { name: "Lokalizacja przedmiotu" });
+    expect(location).toHaveTextContent(`Nowa Wieś${LOCALITY_DETAIL}`);
+    expect(within(location).getByRole("link", { name: "Otwórz w Mapach (nowa karta)" })).toHaveAttribute(
+      "href",
+      LOCALITY_MAPS_URL,
+    );
+    expect(location).toHaveTextContent("Widoczne tylko dla Ciebieul. Polna 12, 32-650 Nowa Wieś");
+    expect(within(location).getByRole("link", { name: "Zmień lokalizację" })).toHaveAttribute(
+      "href",
+      `/items/${ITEM_ID}/edit`,
+    );
+    expect(location).not.toHaveTextContent("Odbiór osobisty niedostępny");
     expect(
       screen.getByText("To Twoja rzecz. Inni mogą ją zarezerwować osobiście albo na Twoich terminach."),
     ).toBeInTheDocument();
@@ -800,11 +896,44 @@ describe("ItemDetailPage context actions", () => {
     expect(screen.queryByRole("button", { name: /Napisz/ })).not.toBeInTheDocument();
   });
 
+  it.each<[string, ItemLocationResponse | null, string]>([
+    [
+      "a deleted place",
+      { ...OWN_LOCATION, deleted_at: "2026-11-01T09:00:00" },
+      `📍Nowa Wieś (usunięte)${LOCALITY_DETAIL}`,
+    ],
+    ["no place", null, ""],
+  ])(
+    "own with %s: no Maps link or address, personal pickup off with a link to set the place",
+    async (_name, place, heading) => {
+      vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: true }));
+      vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions({ viewer: "OWN", location: place }));
+      renderPage(`/bartek/product/${ITEM_ID}`);
+
+      const location = await screen.findByRole("region", { name: "Lokalizacja przedmiotu" });
+      expect(location).toHaveTextContent(
+        `Lokalizacja przedmiotu${heading}Odbiór osobisty niedostępny — ustaw lokalizację.`,
+      );
+      expect(within(location).queryByRole("link", { name: "Otwórz w Mapach (nowa karta)" })).not.toBeInTheDocument();
+      expect(location).not.toHaveTextContent("Widoczne tylko dla Ciebie");
+      expect(within(location).getByRole("link", { name: "ustaw lokalizację" })).toHaveAttribute(
+        "href",
+        `/items/${ITEM_ID}/edit`,
+      );
+    },
+  );
+
   it("own unlisted item: no Dostępna offer or reserve note, a hint linking to Moje rzeczy instead", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
       details({
         is_owner: true,
-        status: { code: "AVAILABLE", term_occurs_on: null, due_date: null, counterparty_label: null, personal_pickup: false },
+        status: {
+          code: "AVAILABLE",
+          term_occurs_on: null,
+          due_date: null,
+          counterparty_label: null,
+          personal_pickup: false,
+        },
       }),
     );
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions({ viewer: "OWN", mode: null }));
@@ -850,7 +979,11 @@ describe("ItemDetailPage context actions", () => {
 
   it("party: confirm and cancel call the transaction APIs; an already-resolved 409 shows its message and refetches", async () => {
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
-      itemActions({ available: false, location: LOCATION, party_reservation: party({ can_confirm: true, can_cancel: true }) }),
+      itemActions({
+        available: false,
+        location: LOCATION,
+        party_reservation: party({ can_confirm: true, can_cancel: true }),
+      }),
     );
     vi.mocked(reservationsApi.confirmTransaction).mockRejectedValue(
       new ApiError(409, "Conflict", { reservation_id: "r-1", status: "ALREADY_RESOLVED", already_resolved: true }),
@@ -865,7 +998,9 @@ describe("ItemDetailPage context actions", () => {
     const confirm = await screen.findByRole("button", { name: "Potwierdzam przekazanie" });
     const calls = vi.mocked(itemActionsApi.getItemActions).mock.calls.length;
     fireEvent.click(confirm);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Transakcja została już rozstrzygnięta przez drugą stronę.");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Transakcja została już rozstrzygnięta przez drugą stronę.",
+    );
     expect(reservationsApi.confirmTransaction).toHaveBeenCalledWith("r-1");
     await waitFor(() => expect(vi.mocked(itemActionsApi.getItemActions).mock.calls.length).toBeGreaterThan(calls));
 
@@ -883,7 +1018,12 @@ describe("ItemDetailPage context actions", () => {
       itemActions({ available: false, location: LOCATION, party_reservation: party({ can_cancel: true }) }),
     );
     vi.mocked(reservationsApi.cancelTransaction).mockRejectedValue(
-      new ApiError(409, "Conflict", { type: "about:blank", title: "Conflict", status: 409, detail: "Termin już minął" }),
+      new ApiError(409, "Conflict", {
+        type: "about:blank",
+        title: "Conflict",
+        status: 409,
+        detail: "Termin już minął",
+      }),
     );
     renderPage(`/bartek/product/${ITEM_ID}`);
 
@@ -959,11 +1099,7 @@ describe("ItemDetailPage context actions", () => {
       party({ reservation_id: "r-2", proposal_id: "s1", reservation_type: "SWAP" }),
       "Czekasz na odpowiedź Bartek K. Możesz napisać na czacie.",
     ],
-    [
-      "a term reservation before its end",
-      party({ personal_pickup: false }),
-      "Potwierdzicie po terminie.",
-    ],
+    ["a term reservation before its end", party({ personal_pickup: false }), "Potwierdzicie po terminie."],
   ])("party hint: %s", async (_name, partyReservation, hint) => {
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
       itemActions({ available: false, party_reservation: partyReservation }),
@@ -1026,7 +1162,13 @@ describe("ItemDetailPage context actions", () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
       details({
         is_owner: false,
-        status: { code: "AVAILABLE", term_occurs_on: null, due_date: null, counterparty_label: null, personal_pickup: false },
+        status: {
+          code: "AVAILABLE",
+          term_occurs_on: null,
+          due_date: null,
+          counterparty_label: null,
+          personal_pickup: false,
+        },
       }),
     );
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
@@ -1190,9 +1332,7 @@ describe("ItemDetailPage reservation party view", () => {
   });
 
   it("owner gets a Przekazanie title with the Term link in the details", async () => {
-    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
-      details({ is_owner: true, status: partyStatus("RESERVED") }),
-    );
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: true, status: partyStatus("RESERVED") }));
     renderPage(`/bartek/product/${ITEM_ID}`);
 
     const url = await openCalendarMenu();
@@ -1208,9 +1348,7 @@ describe("ItemDetailPage reservation party view", () => {
     );
     renderPage(`/bartek/product/${ITEM_ID}`);
 
-    expect(
-      await screen.findByText("W drodze — odbiór w śr 14.10 o 16:30 · Muzyczne Maluchy"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("W drodze — odbiór w śr 14.10 o 16:30 · Muzyczne Maluchy")).toBeInTheDocument();
     const url = await openCalendarMenu();
     expect(url.searchParams.get("text")).toBe("Odbiór: Wózek spacerowy Baby Jogger");
   });
@@ -1220,9 +1358,7 @@ describe("ItemDetailPage reservation party view", () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ status: partyStatus("RESERVED") }));
     renderPage(`/bartek/product/${ITEM_ID}`);
 
-    expect(
-      await screen.findByText("Zarezerwowana — odbiór w śr 14.10 o 16:30 · Muzyczne Maluchy"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Zarezerwowana — odbiór w śr 14.10 o 16:30 · Muzyczne Maluchy")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Dodaj do kalendarza/ })).not.toBeInTheDocument();
   });
 

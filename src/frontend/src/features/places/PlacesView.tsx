@@ -5,6 +5,7 @@ import { LOCATION_ERROR_CLASS } from "../../components/shared/LocationAddForm";
 import { ConfirmDeleteDialog } from "../../components/shared/ConfirmDeleteDialog";
 import { useMyLocations } from "../../hooks/useMyLocations";
 import { placeEditPath, viewPath } from "../../routing/paths";
+import { localityDetail } from "../../utils/locationLabel";
 import { usePanelReload } from "../panel/appDataStore";
 
 /* ------------------------------------------------------------------ */
@@ -13,11 +14,17 @@ import { usePanelReload } from "../panel/appDataStore";
 /*  /places/:id/edit).                                                 */
 /* ------------------------------------------------------------------ */
 
+/** The row's second line: the address with the voivodeship, or the
+ * locality's detail line for a place without an address. */
+function placeSecondLine({ locality, formatted_address }: LocationResponse): string {
+  return formatted_address ? `${formatted_address} · ${locality.voivodeship}` : localityDetail(locality);
+}
+
 const rowBtn =
   "flex-none rounded-[9px] px-2.5 py-1.5 text-[11.5px] font-extrabold text-ink-soft transition-colors";
 
 /** `onPlacesChanged` (the panel reload) lets the panel refresh the group tiles and term cards
- * that show a place's name and address. */
+ * that show a place's locality and address. */
 export function PlacesView() {
   const onPlacesChanged = usePanelReload();
   const { data: locations, loading, error, remove } = useMyLocations();
@@ -69,14 +76,13 @@ export function PlacesView() {
           {locations.map((location) => (
             <li key={location.id} className="flex items-start gap-1 border-t border-line/60 p-3.5 first:border-t-0">
               <div className="flex min-w-0 flex-1 flex-col text-[13px]">
-                <span className="font-bold text-ink">{location.name}</span>
-                <span className="text-ink-soft">{location.formatted_address}</span>
-                {location.notes && <span className="text-ink-soft">{location.notes}</span>}
+                <span className="font-bold text-ink">{location.locality.name}</span>
+                <span className="text-ink-soft">{placeSecondLine(location)}</span>
               </div>
               <Link
                 ref={focusRef(`edit:${location.id}`)}
                 to={placeEditPath(location.id)}
-                aria-label={`Edytuj miejsce ${location.name}`}
+                aria-label={`Edytuj miejsce ${location.label}`}
                 className={`${rowBtn} hover:bg-cream hover:text-ink`}
               >
                 Edytuj
@@ -84,7 +90,7 @@ export function PlacesView() {
               <button
                 type="button"
                 onClick={() => setDeleting(location)}
-                aria-label={`Usuń miejsce ${location.name}`}
+                aria-label={`Usuń miejsce ${location.label}`}
                 className={`${rowBtn} hover:bg-danger-soft hover:text-danger`}
               >
                 Usuń
@@ -101,6 +107,11 @@ export function PlacesView() {
         >
           + Dodaj miejsce
         </Link>
+      )}
+      {!loading && (
+        <p className="mt-3 text-[12.5px] text-ink-soft">
+          Miejsca bez adresu wystarczą dla przedmiotów. Dla terminów i wydarzeń dodaj adres.
+        </p>
       )}
       {deleting && (
         <DeleteLocationDialog
@@ -126,7 +137,7 @@ function DeleteLocationDialog({
 }) {
   return (
     <ConfirmDeleteDialog
-      title={`Usunąć miejsce „${location.name}”?`}
+      title={`Usunąć miejsce „${location.label}”?`}
       body="Zniknie z Twojej listy miejsc. Grupy i terminy, które już je mają, nadal je pokażą."
       confirmLabel="Usuń miejsce"
       fallbackError="Nie udało się usunąć miejsca."

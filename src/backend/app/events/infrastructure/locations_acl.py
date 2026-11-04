@@ -10,14 +10,13 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Collection
-from typing import cast
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.locations.models import Location
 from app.locations.schemas import LocationRefResponse
 from app.locations.service import get_own_location as get_owned_location
+from app.locations.service import load_location, load_locations_by_ids
 
 __all__ = [
     "LocationRefResponse",
@@ -29,19 +28,16 @@ __all__ = [
 
 
 async def get_location(db: AsyncSession, location_id: uuid.UUID | None) -> Location | None:
-    """A single referenced place, soft-deleted rows included."""
-    return None if location_id is None else await db.get(Location, location_id)
+    """A single referenced place with its locality, soft-deleted rows included."""
+    return None if location_id is None else await load_location(db, location_id)
 
 
 async def get_locations_by_ids(
     db: AsyncSession, ids: Collection[uuid.UUID]
 ) -> dict[uuid.UUID, Location]:
-    """One `IN` query; soft-deleted rows included so existing references
-    still render."""
-    if not ids:
-        return {}
-    rows = await db.scalars(select(Location).where(Location.id.in_(set(ids))))
-    return {cast(uuid.UUID, location.id): location for location in rows}
+    """One `IN` query with the localities; soft-deleted rows included so
+    existing references still render."""
+    return await load_locations_by_ids(db, ids)
 
 
 def location_ref_response(location: Location | None) -> LocationRefResponse | None:

@@ -1,11 +1,15 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { renderWithRoute } from "./renderWithRoute";
+import { useState, type ComponentProps } from "react";
+import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import * as locationsApi from "../api/locations";
 import type { LocationRefResponse, LocationResponse } from "../api/locations";
 import * as termsApi from "../api/terms";
 import { TermEditForm } from "../features/terms/TermEditForm";
+import { TermEditView } from "../features/terms/TermEditView";
+import { termEditDraftFrom } from "../features/terms/termDraft";
+import { makeLocality, makeLocationResponse } from "./fixtures/locations";
 import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../api/terms", () => ({
@@ -20,28 +24,52 @@ vi.mock("../api/locations", () => ({
   updateLocation: vi.fn(),
   deleteLocation: vi.fn(),
 }));
+/** A stand-in for the panel's AppDataContext: `termEdit` lives outside the
+ * page, so it survives the page's unmount. */
+const panel = vi.hoisted(() => {
+  let state: Record<string, unknown> = {};
+  const listeners = new Set<() => void>();
+  return {
+    reset(initial: Record<string, unknown>) {
+      state = initial;
+    },
+    get: () => state,
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    setters: {
+      setTermEdit: (next: unknown) => {
+        state = { ...state, termEdit: next };
+        listeners.forEach((listener) => listener());
+      },
+    },
+  };
+});
+
+vi.mock("../features/panel/appDataStore", async () => {
+  const { useSyncExternalStore } = await import("react");
+  return {
+    useAppData: () => ({ ...useSyncExternalStore(panel.subscribe, panel.get), ...panel.setters }),
+  };
+});
+
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: "tok" }) }));
 
-const salaNr2: LocationResponse = {
+const salaNr2: LocationResponse = makeLocationResponse({
   id: "loc-2",
-  owner_party_id: "party-1",
-  name: "Sala nr 2",
+  locality: makeLocality({ id: "0969400", name: "Poznań", gmina: "Poznań", powiat: "Poznań", voivodeship: "wielkopolskie" }),
+  label: "Poznań, wielkopolskie",
   formatted_address: "ul. Szkolna 2, Poznań",
-  google_place_id: null,
-  lat: null,
-  lng: null,
-  notes: null,
-  source: "MANUAL",
-  created_at: "2026-01-01T00:00:00Z",
-  updated_at: "2026-01-01T00:00:00Z",
-  deleted_at: null,
-};
+});
 
-const groupDefault: LocationResponse = { ...salaNr2, id: "loc-9", name: "Świetlica na Polnej" };
+const groupDefault: LocationResponse = makeLocationResponse({ id: "loc-9" });
 
 /** The nested group/term view of a saved place. */
-function locationRef({ id, name, formatted_address, google_place_id, notes, deleted_at }: LocationResponse): LocationRefResponse {
-  return { id, name, formatted_address, google_place_id, notes, deleted_at };
+function locationRef({ id, locality, label, formatted_address, google_place_id, deleted_at }: LocationResponse): LocationRefResponse {
+  return { id, locality, label, formatted_address, google_place_id, deleted_at };
 }
 
 const term: termsApi.TermResponse = {
@@ -67,9 +95,15 @@ const neededItem: termsApi.NeededItemResponse = {
   updated_at: "2026-01-01T00:00:00Z",
 };
 
+/** The form with its draft held as `TermEditView` holds it. */
+function FormWithDraft(props: Omit<ComponentProps<typeof TermEditForm>, "draft" | "onDraftChange">) {
+  const [draft, setDraft] = useState(() => termEditDraftFrom(props.term));
+  return <TermEditForm {...props} draft={draft} onDraftChange={setDraft} />;
+}
+
 function renderForm(shownTerm: termsApi.TermResponse = term, onChanged = vi.fn(), onDone = vi.fn()) {
   return renderWithRoute(
-    <TermEditForm
+    <FormWithDraft
       term={shownTerm}
       neededItems={[neededItem]}
       onChanged={onChanged}
@@ -185,21 +219,37 @@ describe("TermEditForm — place and capacity", () => {
 
     const select = await screen.findByRole("combobox", { name: "Miejsce" });
     expect(select).toHaveValue("loc-2");
-    expect(select).toHaveDisplayValue("Sala nr 2");
-    expect(within(select).getByRole("option", { name: "Świetlica na Polnej" })).toBeInTheDocument();
+    expect(select).toHaveDisplayValue("Poznań, wielkopolskie");
+    expect(within(select).getByRole("option", { name: "Kęty, małopolskie" })).toBeInTheDocument();
     expect(screen.getByLabelText("Ile miejsc")).toHaveValue("10");
   });
 
-  it("saveTermFields_clearedPlace_sendsOnlyLocationIdNull", async () => {
+  it("placePicker_offersNoEmptyChoice", async () => {
+    renderForm();
+
+    const select = await screen.findByRole("combobox", { name: "Miejsce" });
+    expect(within(select).queryByRole("option", { name: "Brak miejsca" })).not.toBeInTheDocument();
+    expect(within(select).getByRole("option", { name: "Wybierz miejsce" })).toBeDisabled();
+  });
+
+  it("saveTermFields_termWithoutPlace_blocksSaveUntilPicked", async () => {
     vi.mocked(termsApi.updateTerm).mockResolvedValue(term);
     const onDone = vi.fn();
-    renderForm(term, vi.fn(), onDone);
+    renderForm({ ...term, location: null }, vi.fn(), onDone);
 
-    fireEvent.change(await screen.findByRole("combobox", { name: "Miejsce" }), { target: { value: "" } });
-    fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[0]);
+    const select = await screen.findByRole("combobox", { name: "Miejsce" });
+    expect(select).toHaveAttribute("aria-invalid", "true");
+    const save = screen.getAllByRole("button", { name: "Zapisz" })[0];
+    expect(save).toBeDisabled();
+    fireEvent.click(save);
+    expect(termsApi.updateTerm).not.toHaveBeenCalled();
+
+    fireEvent.change(select, { target: { value: "loc-9" } });
+    expect(save).toBeEnabled();
+    fireEvent.click(save);
 
     await waitFor(() => expect(onDone).toHaveBeenCalledWith(true));
-    expect(termsApi.updateTerm).toHaveBeenCalledWith("t1", { location_id: null });
+    expect(termsApi.updateTerm).toHaveBeenCalledWith("t1", { location_id: "loc-9" });
   });
 
   it("saveTermFields_changedCapacity_sendsOnlyCapacity", async () => {
@@ -234,6 +284,65 @@ describe("TermEditForm — place and capacity", () => {
 
     const select = await screen.findByRole("combobox", { name: "Miejsce" });
     expect(select).toHaveValue("loc-2");
-    expect(select).toHaveDisplayValue("Sala nr 2 (usunięte)");
+    expect(select).toHaveDisplayValue("Poznań, wielkopolskie (usunięte)");
+  });
+});
+
+describe("TermEditView — draft in the panel", () => {
+  const EDIT_URL = "/terms/t1/edit";
+
+  function renderEditPage() {
+    return renderWithRoute(<TermEditView />, {
+      url: EDIT_URL,
+      pattern: "/terms/:termId/edit",
+      routes: { "/meetings": <p>Spotkania</p> },
+      wrapper: createQueryWrapper(),
+    });
+  }
+
+  beforeEach(() => {
+    panel.reset({
+      terms: [{ term, group: { id: "g1" }, neededItems: [neededItem] }],
+      myGroups: [{ id: "g1" }],
+      termEdit: null,
+      load: vi.fn(),
+      showToast: vi.fn(),
+    });
+  });
+
+  it("draft_survivesRemount_andPickerHasNoInlineForm", async () => {
+    const { unmount } = renderEditPage();
+    fireEvent.change(await screen.findByLabelText("Opis"), { target: { value: "Nowy opis" } });
+
+    const plus = screen.getByRole("link", { name: "Dodaj nowe miejsce" });
+    expect(plus.getAttribute("href")).toMatch(/^\/places\/new\?/);
+    expect(screen.queryByLabelText("Nazwa miejsca")).not.toBeInTheDocument();
+    unmount();
+    renderEditPage();
+
+    expect(await screen.findByLabelText("Opis")).toHaveValue("Nowy opis");
+    expect(await screen.findByRole("combobox", { name: "Miejsce" })).toHaveValue("loc-2");
+  });
+
+  it("save_clearsDraftBeforeGoingToMeetings", async () => {
+    vi.mocked(termsApi.updateTerm).mockResolvedValue(term);
+    renderEditPage();
+    await screen.findByRole("combobox", { name: "Miejsce" });
+    fireEvent.change(screen.getByLabelText("Ile miejsc"), { target: { value: "8" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[0]);
+
+    await waitFor(() => expect(getTestLocation().pathname).toBe("/meetings"));
+    expect(termsApi.updateTerm).toHaveBeenCalledWith("t1", { capacity: 8 });
+    expect(panel.get().termEdit).toBeNull();
+  });
+
+  it("cancel_clearsDraftWithoutSaving", async () => {
+    renderEditPage();
+    fireEvent.change(await screen.findByLabelText("Opis"), { target: { value: "Porzucony" } });
+    fireEvent.click(screen.getByRole("button", { name: "Anuluj" }));
+
+    await waitFor(() => expect(getTestLocation().pathname).toBe("/meetings"));
+    expect(termsApi.updateTerm).not.toHaveBeenCalled();
+    expect(panel.get().termEdit).toBeNull();
   });
 });

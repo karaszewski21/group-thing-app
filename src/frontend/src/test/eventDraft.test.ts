@@ -10,14 +10,26 @@ import {
   type EventDraftErrors,
 } from "../features/events/eventDraft";
 import dayjs from "../utils/dayjs";
+import { makeLocationRef } from "./fixtures/locations";
 
 const NOW = dayjs("2026-10-29 12:00:30", "YYYY-MM-DD HH:mm:ss");
-const VALID: EventDraft = { ...EMPTY_EVENT_DRAFT, name: "Piknik", date: "2026-11-02", startTime: "17:00" };
+const VALID: EventDraft = {
+  ...EMPTY_EVENT_DRAFT,
+  name: "Piknik",
+  date: "2026-11-02",
+  startTime: "17:00",
+  locationId: "loc-1",
+};
 
 describe("validateEventDraft", () => {
   it.each<[string, Partial<EventDraft>, EventDraftErrors]>([
     ["a valid draft", {}, {}],
-    ["an empty draft", EMPTY_EVENT_DRAFT, { name: EVENT_MESSAGES.nameBlank, start: EVENT_MESSAGES.startMissing }],
+    [
+      "an empty draft",
+      EMPTY_EVENT_DRAFT,
+      { name: EVENT_MESSAGES.nameBlank, start: EVENT_MESSAGES.startMissing, location: EVENT_MESSAGES.locationMissing },
+    ],
+    ["no place", { locationId: null }, { location: EVENT_MESSAGES.locationMissing }],
     ["a too short name", { name: " ab " }, { name: EVENT_MESSAGES.nameLength }],
     ["a start earlier today", { date: "2026-10-29", startTime: "11:59" }, { start: EVENT_MESSAGES.startPast }],
     ["a start this very minute", { date: "2026-10-29", startTime: "12:00" }, {}],
@@ -49,14 +61,7 @@ describe("draftFromEvent", () => {
       description: null,
       starts_at: "2026-11-02T17:00:00",
       ends_at: "2026-11-02T19:30:00",
-      location: {
-        id: "loc-1",
-        name: "Park",
-        formatted_address: "ul. Parkowa 1",
-        google_place_id: null,
-        notes: null,
-        deleted_at: null,
-      },
+      location: makeLocationRef({ id: "loc-1", label: "Kęty — ul. Parkowa 1", formatted_address: "ul. Parkowa 1" }),
       created_at: "",
       updated_at: "",
       author_slug: "zielony-krag",
@@ -75,7 +80,7 @@ describe("draftFromEvent", () => {
 describe("toCreateEventRequest", () => {
   it("sends trimmed text and naive wall-clock times on the start date", () => {
     expect(
-      toCreateEventRequest({ ...VALID, name: " Piknik ", endTime: "19:30", description: "  ", locationId: "loc-1" }),
+      toCreateEventRequest({ ...VALID, name: " Piknik ", endTime: "19:30", description: "  " }),
     ).toEqual({
       name: "Piknik",
       description: null,

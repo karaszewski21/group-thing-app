@@ -5,7 +5,7 @@ import { BTN_GHOST, BTN_LG, BTN_PRIMARY } from "../../../components/shared/uiSty
 interface PersonalPickupSheetProps {
   ownerName: string;
   itemName: string;
-  /** The owner's place as the viewer sees it: the name only. */
+  /** The item's locality name; the address is never shown here. */
   locationName: string;
   mode: ExchangeMode;
   /** Reserves (GIFT) or continues to the swap picker (SWAP) for a personal pickup. */

@@ -46,7 +46,7 @@ export function organizationMetadata(organization: PublicOrganizationResponse | 
 export function eventMetadata(event: EventDetailResponse | null): Metadata {
   if (event === null) return {};
   let description = formatWhen(event.starts_at);
-  if (event.location?.name) description += ` · ${event.location.name}`;
+  if (event.location) description += ` · ${event.location.label}`;
   if (event.description) description += ` ${event.description}`;
   return previewMetadata(event.name, description, event.banner_url);
 }

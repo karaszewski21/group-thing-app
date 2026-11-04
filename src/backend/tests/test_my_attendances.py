@@ -18,6 +18,8 @@ from typing import cast
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from tests.conftest import create_location
+
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
     response = await client.post(
@@ -53,7 +55,12 @@ async def _create_circle(client: AsyncClient, token: str, name: str) -> int:
 async def _create_term(client: AsyncClient, token: str, group_id: int, occurs_on: date) -> int:
     term = await client.post(
         "/api/terms",
-        json={"circle_group_id": group_id, "occurs_on": occurs_on.isoformat(), "description": None},
+        json={
+            "location_id": await create_location(client, _auth_headers(token)),
+            "circle_group_id": group_id,
+            "occurs_on": occurs_on.isoformat(),
+            "description": None,
+        },
         headers=_auth_headers(token),
     )
     assert term.status_code == 201

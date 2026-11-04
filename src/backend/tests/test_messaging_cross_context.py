@@ -19,7 +19,7 @@ from app.groups import service
 from app.groups.models import Group, GroupVisibility
 from app.users import service as users_service
 from app.users.models import UserProfile
-from tests.conftest import count_queries
+from tests.conftest import count_queries, create_location
 from tests.test_organizer_page import _circle, _in_days, _term
 from tests.test_term_item_listings import _auth, _register, _resolve_product, _rsvp
 
@@ -39,6 +39,7 @@ async def _register_items(client: AsyncClient, token: str, names: list[str]) -> 
         headers=_auth(token),
     )
     assert inventory.status_code == 201, inventory.text
+    location_id = await create_location(client, _auth(token))
     item_ids = []
     for name in names:
         item = await client.post(
@@ -47,6 +48,7 @@ async def _register_items(client: AsyncClient, token: str, names: list[str]) -> 
                 "inventory_id": inventory.json()["id"],
                 "product_id": await _resolve_product(client, token, name),
                 "condition": "GOOD",
+                "location_id": location_id,
             },
             headers=_auth(token),
         )

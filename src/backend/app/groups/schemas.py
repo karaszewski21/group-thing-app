@@ -12,7 +12,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.circulation.models import ItemCondition, ItemListingStatus, ReservationType
 from app.users.schemas import EMAIL_PATTERN, normalize_email
 
-from .infrastructure.locations_acl import LocationRefResponse, PublicLocationResponse
+from .infrastructure.locations_acl import (
+    LocalityResponse,
+    LocationRefResponse,
+    PublicLocationResponse,
+)
 from .models import (
     GroupLayoutMode,
     GroupRoleType,
@@ -171,8 +175,8 @@ class TermResponse(BaseModel):
 
 
 class CreateTermRequest(BaseModel):
-    """`location_id`/`capacity` omitted -> copied from the Circle's defaults;
-    an explicit `null` suppresses that copy (told apart via `model_fields_set`)."""
+    """`location_id`/`capacity` omitted -> copied from the Circle's defaults
+    (told apart via `model_fields_set`); a term without any place is rejected."""
 
     circle_group_id: uuid.UUID
     occurs_on: datetime
@@ -183,7 +187,8 @@ class CreateTermRequest(BaseModel):
 
 class UpdateTermRequest(BaseModel):
     """`occurs_on`/`description` apply only when non-null; `location_id`/
-    `capacity` apply when present in `model_fields_set` (`null` clears)."""
+    `capacity` apply when present in `model_fields_set` (`null` clears the
+    capacity; a `null` place is rejected)."""
 
     occurs_on: datetime | None = None
     description: str | None = Field(default=None, max_length=2000)
@@ -694,7 +699,8 @@ class MyInventoryItemResponse(BaseModel):
     PENDING/NEEDS_REVIEW photo; it is informational only and does not
     block listing the item.
     `thumb_url` is the product's first APPROVED photo (400 px), `None`
-    without one or without object storage."""
+    without one or without object storage. `location_id` is the item's
+    place as stored, soft-deleted or not."""
 
     id: uuid.UUID
     inventory_id: uuid.UUID
@@ -708,6 +714,7 @@ class MyInventoryItemResponse(BaseModel):
     listing_mode: ReservationType | None
     listing_visibility: ItemVisibility | None
     listing_status: ItemListingStatus
+    location_id: uuid.UUID | None
     photos_moderation_pending: bool
     thumb_url: str | None = None
 
@@ -805,10 +812,11 @@ class ItemContextOptionResponse(ItemContextResponse):
 
 
 class ItemLocationResponse(BaseModel):
-    """The owner's pickup place as the viewer may see it: the owner gets the
-    address (and `deleted_at` once removed); anyone else only the name."""
+    """The item's own place as the viewer may see it: the owner gets the
+    address (and `deleted_at` once removed); anyone else, anonymous viewers
+    included, only the locality, with both other fields null."""
 
-    name: str
+    locality: LocalityResponse
     formatted_address: str | None
     deleted_at: datetime | None
 

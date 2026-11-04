@@ -174,9 +174,7 @@ function GroupDetailsCard({ group }: { group: GroupResponse }) {
     { label: "Układ", value: LAYOUT_LABEL[group.layout_mode] },
     {
       label: "Domyślne miejsce",
-      value: group.default_location
-        ? `${group.default_location.name} · ${group.default_location.formatted_address}`
-        : "Nie ustawiono",
+      value: group.default_location?.label ?? "Nie ustawiono",
     },
     {
       label: "Domyślny limit miejsc",

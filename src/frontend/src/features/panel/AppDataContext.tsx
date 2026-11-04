@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useAppNavigate, useAppPathname } from "../../routing/navigation";
 import { useAuth } from "../../auth/AuthContext";
@@ -54,6 +54,9 @@ import { hasStatus, serverMessageOr } from "../../api/problem";
 import { setItemListingPreference, type ItemVisibility } from "../../api/itemListingPreferences";
 import type { GroupFormValue } from "../groups/GroupFormFields";
 import { EMPTY_EVENT_DRAFT, type EventDraft } from "../events/eventDraft";
+import { newTermDraft, type TermDraft } from "../terms/termDraft";
+import { useFirstTermStepper } from "../terms/hooks/useFirstTermStepper";
+import { createEmptyItemQuickAddValue, type ItemEditDraft, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
 import { defaultVisibility, termPublicPath, GIFT_LIMIT_MESSAGE, ITEM_MODE_TO_RESERVATION_TYPE, MAX_GIFT_ITEMS, RESERVATION_TYPE_TO_ITEM_MODE, type GuestTermCard, type ItemMode, type ModalKind, type NewFamilyMember, type TermWithNeeded, capacityText, parseCapacity } from "../../utils/appHelpers";
 import { type View, viewPath } from "../../routing/paths";
 import { AppDataContext } from "./appDataStore";
@@ -163,6 +166,25 @@ function useAppDataValue() {
   const [eventBanner, setEventBanner] = useState<File | null>(null);
   // `/events/:id/edit` — kept here for the same trip, seeded once per event.
   const [eventEdit, setEventEdit] = useState<{ eventId: string; draft: EventDraft } | null>(null);
+
+  // --- formularz: nowa rzecz (/add/product) and /items/:id/edit — kept here
+  // for the same trip. `itemDraft` + `itemPhotos` are cleared after a
+  // successful create; `itemEdit` (seeded once per item) after a save or
+  // "Anuluj". ---
+  const [itemDraft, setItemDraft] = useState<ItemQuickAddValue>(createEmptyItemQuickAddValue);
+  const [itemPhotos, setItemPhotos] = useState<File[]>([]);
+  const [itemEdit, setItemEdit] = useState<{ itemId: string; draft: ItemEditDraft } | null>(null);
+
+  // --- /terms/:termId/edit and the first-term stepper — kept here for the
+  // same trip. `termEdit` (seeded once per term) is cleared on save and
+  // cancel; the stepper's draft lifecycle lives in `useFirstTermStepper`. ---
+  const [termEdit, setTermEdit] = useState<{ termId: string; draft: TermDraft } | null>(null);
+  const firstGroup = myGroups[0];
+  const firstTermDefaults = useMemo(
+    () => newTermDraft(firstGroup?.default_location ?? null, firstGroup?.default_capacity ?? null),
+    [firstGroup],
+  );
+  const firstTerm = useFirstTermStepper(setModal, firstTermDefaults);
 
   // --- formularz: dodaj termin ---
   const [termGroupId, setTermGroupId] = useState<string | null>(null);
@@ -718,6 +740,11 @@ function useAppDataValue() {
     eventDraft,
     eventBanner,
     eventEdit,
+    itemDraft,
+    itemPhotos,
+    itemEdit,
+    termEdit,
+    firstTermDraft: firstTerm.firstTermDraft,
     termGroupId,
     termDate,
     termDescription,
@@ -730,11 +757,20 @@ function useAppDataValue() {
     setView,
     setProfile,
     setModal,
+    /** The first-term stepper's trigger: opens it with a fresh draft. */
+    openFirstTermStepper: firstTerm.openStepper,
     setSettings,
     setGroupForm,
     setEventDraft,
     setEventBanner,
     setEventEdit,
+    setItemDraft,
+    setItemPhotos,
+    setItemEdit,
+    setTermEdit,
+    setFirstTermDraft: firstTerm.setFirstTermDraft,
+    closeStepper: firstTerm.closeStepper,
+    closeStepperForPlace: firstTerm.closeStepperForPlace,
     selectTermGroup,
     setTermDate,
     setTermDescription,
@@ -745,6 +781,8 @@ function useAppDataValue() {
     // --- derived ---
     showToast,
     load,
+    /** Items-only re-read of "Moje rzeczy" (e.g. after an item's place changed). */
+    refreshItems,
     // --- handlers ---
     handleAddGroup,
     addDraftNeededItem,

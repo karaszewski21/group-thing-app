@@ -28,13 +28,15 @@ from ..schemas import (
 )
 from .circles import _require_active_organizer, get_group, is_active_group_organizer
 
+TERM_LOCATION_REQUIRED_MESSAGE = "Wybierz miejsce terminu."
+
 
 async def create_term(db: AsyncSession, principal: Principal, data: CreateTermRequest) -> Term:
     """Omitted `location_id`/`capacity` copy the Circle's current defaults by
-    value (later default changes never propagate); an explicit `null` keeps
-    the field empty. Only a caller-supplied place other than the Circle's
-    default is ownership-checked — the default (inherited or re-sent) is the
-    Circle's own and may even be soft-deleted."""
+    value (later default changes never propagate). A term needs a place:
+    neither a sent one nor the Circle's default -> 400. Only a caller-supplied
+    place other than the Circle's default is ownership-checked — the default
+    (inherited or re-sent) is the Circle's own and may even be soft-deleted."""
     profile = await get_profile_by_principal(db, principal)
     group = await get_group(db, data.circle_group_id)
     await _require_active_organizer(db, data.circle_group_id, profile.party_id)
@@ -46,6 +48,8 @@ async def create_term(db: AsyncSession, principal: Principal, data: CreateTermRe
             await locations_acl.get_owned_location(db, location_id, profile.party_id)
     else:
         location_id = group.default_location_id
+    if location_id is None:
+        raise ValueError(TERM_LOCATION_REQUIRED_MESSAGE)
     capacity = data.capacity if "capacity" in data.model_fields_set else group.default_capacity
 
     term = Term(
@@ -139,11 +143,14 @@ async def update_term(
     db: AsyncSession, term_id: uuid.UUID, caller_party_id: uuid.UUID, data: UpdateTermRequest
 ) -> Term:
     """Partial in-place term edit. Only the parent Circle's currently active
-    organizer may edit — enforced here, not by the coarse matrix. A newly
-    assigned place is ownership-checked; re-sending the current one or the
+    organizer may edit — enforced here, not by the coarse matrix. The place
+    cannot be cleared (`null` -> 400). A newly assigned place is
+    ownership-checked; re-sending the current one or the
     Circle's default (mirrors `create_term`) is not."""
     term = await get_term(db, term_id)
     await _require_active_organizer(db, term.circle_group_id, caller_party_id)
+    if "location_id" in data.model_fields_set and data.location_id is None:
+        raise ValueError(TERM_LOCATION_REQUIRED_MESSAGE)
     await check_text(TextField.TERM_DESCRIPTION, data.description, term.description)
 
     if data.occurs_on is not None:

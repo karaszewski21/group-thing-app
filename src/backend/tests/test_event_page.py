@@ -22,7 +22,7 @@ from app.groups.models import ItemListingPreference
 from app.moderation.status import ModerationStatus
 from app.outbox.models import OutboxEntry
 from app.storage.outbox_listener import OBJECTS_DELETE
-from tests.conftest import count_queries
+from tests.conftest import count_queries, create_location
 from tests.fake_storage import FakeStorage
 from tests.test_organizer_bridges import _item, _photo, _set_balance, _uploader_id
 from tests.test_organizer_page import _listed_items
@@ -81,7 +81,11 @@ async def _register_with_party(
 async def _create_event(client: AsyncClient, token: str) -> str:
     response = await client.post(
         "/api/events",
-        json={"name": "Piknik w parku", "starts_at": "2026-11-15T14:00:00"},
+        json={
+            "location_id": await create_location(client, _auth(token)),
+            "name": "Piknik w parku",
+            "starts_at": "2026-11-15T14:00:00",
+        },
         headers=_auth(token),
     )
     assert response.status_code == 201, response.text

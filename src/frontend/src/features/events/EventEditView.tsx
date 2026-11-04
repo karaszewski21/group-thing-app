@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppNavigate, useAppParams } from "../../routing/navigation";
 import { useAppData } from "../panel/appDataStore";
 import { useEvent } from "../../hooks/useEvent";
@@ -23,9 +23,13 @@ export function EventEditView() {
   const editable = event !== null && event.is_author;
   const eventHref = event ? eventPath(event.author_slug, event.id) : viewPath("meetings");
   const draft = eventEdit?.eventId === eventId ? eventEdit.draft : null;
+  // Set on save: the cleared draft must not be re-seeded (from the event
+  // refetched by the save) while the page is still mounted.
+  const leaving = useRef(false);
 
   useEffect(() => {
-    if (editable && eventEdit?.eventId !== eventId) setEventEdit({ eventId, draft: draftFromEvent(event) });
+    if (leaving.current || !editable || eventEdit?.eventId === eventId) return;
+    setEventEdit({ eventId, draft: draftFromEvent(event) });
   }, [editable, event, eventEdit, eventId, setEventEdit]);
 
   async function save() {
@@ -39,6 +43,7 @@ export function EventEditView() {
       setBusy(false);
       return;
     }
+    leaving.current = true;
     setEventEdit(null);
     navigate(eventHref);
   }
