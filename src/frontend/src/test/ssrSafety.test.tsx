@@ -13,8 +13,8 @@ import { AuthProvider } from "../auth/AuthContext";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { LoginPage } from "../features/auth/LoginPage";
 import { EventPage } from "../features/events/EventPage";
-import { ItemDetailBody } from "../features/items/product/ItemDetailPage";
 import { OrganizerItemLayout } from "../features/items/product/OrganizerItemLayout";
+import { itemRouteElement } from "./itemRoute";
 import { LandingPage } from "../features/landing/LandingPage";
 import { OwnerPage } from "../features/owner-page/OwnerPage";
 import { TermPage } from "../features/terms/TermPage";
@@ -144,6 +144,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+const ORGANIZER_ITEM_ROUTE = await itemRouteElement("/zielony-krag/product/it-1");
+
 describe("SSR safety", () => {
   it("renders the landing page inside PublicLayout and the login page without browser globals", () => {
     expect(typeof window).toBe("undefined");
@@ -179,11 +181,7 @@ describe("SSR safety", () => {
       page: "organizer item page",
       url: "/zielony-krag/product/it-1",
       pattern: "/:slug/product/:id",
-      element: (
-        <OrganizerItemLayout>
-          <ItemDetailBody />
-        </OrganizerItemLayout>
-      ),
+      element: <OrganizerItemLayout>{ORGANIZER_ITEM_ROUTE}</OrganizerItemLayout>,
       text: null,
     },
     {
@@ -211,17 +209,15 @@ describe("SSR safety", () => {
     if (text !== null) expect(html).toContain(text);
   });
 
-  it("renders a loaded item page with the owner's location card for a cookie session", () => {
+  it("renders a loaded item page with the owner's location card for a cookie session", async () => {
     const client = createTestQueryClient();
     client.setQueryData([ITEM_DETAILS_KEY, ITEM_ID], ITEM);
     client.setQueryData([ITEM_ACTIONS_KEY, ITEM_ID, "ania@example.com"], ITEM_ACTIONS);
 
     const html = renderOnServer(
-      `/product/${ITEM_ID}`,
-      "/product/:id",
-      <PublicLayout>
-        <ItemDetailBody />
-      </PublicLayout>,
+      `/party-1/product/${ITEM_ID}`,
+      "/:slug/product/:id",
+      <PublicLayout>{await itemRouteElement(`/party-1/product/${ITEM_ID}`)}</PublicLayout>,
       client,
       SESSION,
     );
@@ -230,13 +226,11 @@ describe("SSR safety", () => {
     expect(html).toContain(ITEM_ADDRESS);
   });
 
-  it("renders the item page shell while its data is loading", () => {
+  it("renders the item page shell while its data is loading", async () => {
     const html = renderOnServer(
       "/ania/product/it-1",
       "/:slug/product/:id",
-      <OrganizerItemLayout>
-        <ItemDetailBody />
-      </OrganizerItemLayout>,
+      <OrganizerItemLayout>{await itemRouteElement("/ania/product/it-1")}</OrganizerItemLayout>,
     );
     expect(html.length).toBeGreaterThan(0);
   });

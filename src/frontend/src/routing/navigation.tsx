@@ -24,6 +24,8 @@ import { normalizeAppPath } from "./paths";
 
 export { useNavigationGuard, type NavigationBlocker, type NavigationTarget } from "./navigationGuard";
 export { useHasInAppHistory } from "./NavigationTracker";
+/** Renders the nearest `not-found.tsx` (callable while rendering a client page). */
+export { notFound } from "next/navigation";
 
 export interface NavigateOptions {
   replace?: boolean;

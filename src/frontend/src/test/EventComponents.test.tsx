@@ -69,8 +69,9 @@ describe("EventWhenCard", () => {
     expect(within(card).getByText("Termin wydarzenia")).toBeInTheDocument();
     expect(within(card).getByText("sobota, 14 listopada 2026")).toBeInTheDocument();
     expect(within(card).getByText("godz. 11:00–15:00")).toBeInTheDocument();
-    expect(within(card).getByText("Warszawa")).toBeInTheDocument();
-    expect(within(card).getByText("al. Jerzego Waszyngtona, Warszawa")).toBeInTheDocument();
+    const place = screen.getByRole("region", { name: "Miejsce" });
+    expect(within(place).getByText("Warszawa")).toBeInTheDocument();
+    expect(within(place).getByText("al. Jerzego Waszyngtona, Warszawa")).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: /Dodaj do kalendarza/ })).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "Kopiuj link" })).toBeInTheDocument();
 

@@ -1,6 +1,5 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ItemDetailBody } from "../features/items/product/ItemDetailPage";
 import { ItemEditView } from "../features/items/ItemEditView";
 import * as itemsApi from "../api/items";
 import * as inventoriesApi from "../api/inventories";
@@ -27,6 +26,7 @@ import type { ProductResponse } from "../api/products";
 import { Link } from "../routing/navigation";
 import { makeItemLocation, makeLocality, makeLocationResponse } from "./fixtures/locations";
 import { createQueryWrapper } from "./queryClient";
+import { itemRouteElement } from "./itemRoute";
 import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/items", () => ({
@@ -265,8 +265,8 @@ const categories: Category[] = [
   category(CAT_TOYS, "Zabawki", CAT_KIDS, 1),
 ];
 
-function renderPage(path: string) {
-  return renderWithRoute(<ItemDetailBody />, {
+async function renderPage(path: string) {
+  return renderWithRoute(await itemRouteElement(path), {
     url: path,
     pattern: "/:slug/product/:id",
     routes: { "/messages/:id": <p>Wątek rozmowy</p> },
@@ -301,7 +301,7 @@ describe("ItemDetailPage", () => {
   });
 
   it("view renders fields, gallery and status with an owner Edytuj link, and no history", async () => {
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" })).toBeInTheDocument();
     expect(screen.getByText("Wózki · Stan: Dobry")).toBeInTheDocument();
@@ -321,7 +321,7 @@ describe("ItemDetailPage", () => {
   });
 
   it("owner_noTextModerationBanner_descriptionVisible", async () => {
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByText("Lekki, składany, z daszkiem i koszem.")).toBeInTheDocument();
     expect(screen.queryByText(/Nazwa i opis są sprawdzane/)).not.toBeInTheDocument();
@@ -331,19 +331,19 @@ describe("ItemDetailPage", () => {
 
   it("not found for 404 and 400 (malformed id), error state retries", async () => {
     vi.mocked(itemsApi.getItemDetails).mockRejectedValue(new ApiError(404, "Not Found", null));
-    const first = renderPage(`/bartek/product/${ITEM_ID}`);
+    const first = await renderPage(`/bartek/product/${ITEM_ID}`);
     expect(await screen.findByText("Nie znaleziono tej rzeczy.")).toBeInTheDocument();
     first.unmount();
 
     vi.mocked(itemsApi.getItemDetails).mockRejectedValue(new ApiError(400, "Bad Request", null));
-    const second = renderPage("/bartek/product/not-a-uuid");
+    const second = await renderPage("/bartek/product/not-a-uuid");
     expect(await screen.findByText("Nie znaleziono tej rzeczy.")).toBeInTheDocument();
     second.unmount();
 
     vi.mocked(itemsApi.getItemDetails).mockRejectedValueOnce(
       new ApiError(500, "Server Error", { message: "Awaria serwera" }),
     );
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
     expect(await screen.findByText("Nie udało się wczytać rzeczy — spróbuj ponownie")).toBeInTheDocument();
     expect(screen.getByText("Awaria serwera")).toBeInTheDocument();
 
@@ -365,7 +365,7 @@ describe("ItemDetailPage", () => {
         },
       }),
     );
-    const { unmount } = renderPage(`/bartek/product/${ITEM_ID}`);
+    const { unmount } = await renderPage(`/bartek/product/${ITEM_ID}`);
 
     const banner = await screen.findByText("Rzecz usunięta");
     expect(banner.closest('[role="status"]')).not.toBeNull();
@@ -380,7 +380,7 @@ describe("ItemDetailPage", () => {
 
   it("a non-owner sees no Edytuj, and the edit page refuses to edit", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
-    const { unmount } = renderPage(`/bartek/product/${ITEM_ID}`);
+    const { unmount } = await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Edytuj/ })).not.toBeInTheDocument();
@@ -539,7 +539,7 @@ describe("ItemDetailPage", () => {
         },
       }),
     );
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByText("Zaproponowana do zamiany — czeka na decyzję")).toBeInTheDocument();
     expect(screen.getByText("Dla: Ty")).toBeInTheDocument();
@@ -604,7 +604,7 @@ describe("ItemDetailPage context actions", () => {
       }),
     );
     conversationHook.openConversation.mockResolvedValue("conv-9");
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByText("Chcę się zamienić")).toBeInTheDocument();
     const location = screen.getByRole("region", { name: "Lokalizacja przedmiotu" });
@@ -616,16 +616,29 @@ describe("ItemDetailPage context actions", () => {
     expect(location).toHaveTextContent("Odbiór osobisty dostępny.");
     expect(location).not.toHaveTextContent("Widoczne tylko dla Ciebie");
     const list = screen.getByRole("region", { name: "Gdzie jeszcze można odebrać" });
-    expect(list).toHaveTextContent("Terminy i wydarzenia, na których bywa Bartek K.");
-    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
-    expect(within(list).getByText("Jarmark sąsiedzki").closest("li")).toHaveTextContent("wydarzenie");
-    expect(within(list).getByText("📍 Park Dreszera · 16:00")).toBeInTheDocument();
+    const select = within(list).getByRole("combobox", { name: "Gdzie jeszcze można odebrać" });
+    expect(within(select).getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "sob 7 lis, 10:00 · Wymianka przedszkolna",
+      "śr 11 lis, 16:00 · Jarmark sąsiedzki (wydarzenie)",
+    ]);
+    expect(within(list).getByRole("link", { name: /Zobacz termin ›/ })).toHaveAttribute(
+      "href",
+      "/bartek/group/g-1/term/t-1",
+    );
+    fireEvent.change(select, { target: { value: "EVENT-ev-1" } });
+    expect(within(list).getByRole("link", { name: /Zobacz wydarzenie ›/ })).toHaveAttribute("href", "/bartek/event/ev-1");
     const actionsCard = screen.getByRole("region", { name: "Jak chcesz odebrać?" });
     expect(
       within(actionsCard)
         .getAllByRole("button")
         .map((b) => b.textContent),
-    ).toEqual(["Odbiorę osobiście", "Wybieram termin", CHAT]);
+    ).toEqual(["Odbiorę osobiście", "Wybieram termin"]);
+    const chatButton = screen.getByRole("button", { name: CHAT });
+    expect(actionsCard.compareDocumentPosition(chatButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      chatButton.compareDocumentPosition(screen.getByRole("region", { name: "Właściciel" })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(itemActionsApi.getItemActions).toHaveBeenCalledWith(ITEM_ID);
 
     fireEvent.click(screen.getByRole("button", { name: CHAT }));
@@ -635,7 +648,7 @@ describe("ItemDetailPage context actions", () => {
 
   it("without a location or eligible context both reserve actions are aria-disabled with hints and do nothing", async () => {
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions({ contexts: [NOT_ELIGIBLE_CONTEXT] }));
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     const personal = await screen.findByRole("button", { name: PERSONAL });
     expect(personal).toHaveAttribute("aria-disabled", "true");
@@ -659,7 +672,7 @@ describe("ItemDetailPage context actions", () => {
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
       itemActions({ location: LOCATION, personal_pickup_available: false, contexts: [TERM_CONTEXT] }),
     );
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     const personal = await screen.findByRole("button", { name: PERSONAL });
     expect(personal).toHaveAttribute("aria-disabled", "true");
@@ -681,7 +694,7 @@ describe("ItemDetailPage context actions", () => {
       product_name: "Wózek spacerowy Baby Jogger",
       context,
     });
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: CHOOSE }));
     const sheet = await screen.findByRole("dialog", { name: "Wybierz termin odbioru" });
@@ -705,7 +718,7 @@ describe("ItemDetailPage context actions", () => {
     vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([mySwapItem]);
     vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue(availableBalance);
     vi.mocked(itemReservationsApi.proposeItemSwap).mockResolvedValue(proposal);
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: CHOOSE }));
     const sheet = await screen.findByRole("dialog", { name: "Wybierz termin odbioru" });
@@ -738,7 +751,7 @@ describe("ItemDetailPage context actions", () => {
       context: null,
     });
     conversationHook.openConversation.mockResolvedValue("conv-9");
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: PERSONAL }));
     const sheet = await screen.findByRole("dialog", { name: "Odbiór osobisty" });
@@ -776,7 +789,7 @@ describe("ItemDetailPage context actions", () => {
       context: null,
     });
     conversationHook.openConversation.mockRejectedValue(new Error("Za dużo nowych rozmów — spróbuj później"));
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: PERSONAL }));
     const sheet = await screen.findByRole("dialog", { name: "Odbiór osobisty" });
@@ -796,7 +809,7 @@ describe("ItemDetailPage context actions", () => {
     vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue(availableBalance);
     vi.mocked(itemReservationsApi.proposeItemSwap).mockResolvedValue(proposal);
     conversationHook.openConversation.mockResolvedValue("conv-9");
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: PERSONAL }));
     const sheet = await screen.findByRole("dialog", { name: "Odbiór osobisty" });
@@ -821,12 +834,26 @@ describe("ItemDetailPage context actions", () => {
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
       itemActions({ viewer: "ANONYMOUS", location: LOCATION, contexts: [TERM_CONTEXT] }),
     );
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
+      details({
+        is_owner: false,
+        status: { code: "AVAILABLE", term_occurs_on: null, due_date: null, counterparty_label: null, personal_pickup: false },
+      }),
+    );
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     const card = await screen.findByRole("region", { name: "Jak chcesz odebrać?" });
+    expect(within(card).queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Status: Dostępna");
+    expect(screen.getByText("Chcę oddać").compareDocumentPosition(screen.getByRole("status")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getAllByText("Dostępna")).toHaveLength(1);
     expect(within(card).queryByRole("button", { name: "Zaloguj się" })).not.toBeInTheDocument();
-    for (const name of [PERSONAL, /^Wybieram termin$/, /Napisz o przedmiocie/]) {
-      fireEvent.click(within(card).getByRole("button", { name }));
+    for (const button of [
+      within(card).getByRole("button", { name: PERSONAL }),
+      within(card).getByRole("button", { name: /^Wybieram termin$/ }),
+      screen.getByRole("button", { name: /Napisz o przedmiocie/ }),
+    ]) {
+      fireEvent.click(button);
       const sheet = screen.getByRole("dialog", { name: "Potrzebne konto" });
       expect(within(sheet).getByRole("tab", { name: "Zaloguj się" })).toHaveAttribute("aria-selected", "true");
       fireEvent.click(within(sheet).getByRole("button", { name: "Zamknij" }));
@@ -849,7 +876,7 @@ describe("ItemDetailPage context actions", () => {
     vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "test-key");
     try {
       vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions({ location: OWN_LOCATION }));
-      const { unmount } = renderPage(`/bartek/product/${ITEM_ID}`);
+      const { unmount } = await renderPage(`/bartek/product/${ITEM_ID}`);
       const othersMap = new URL((await screen.findByTitle("Mapa: Nowa Wieś")).getAttribute("src")!);
       expect(othersMap.pathname).toBe("/maps/embed/v1/place");
       expect(othersMap.searchParams.get("q")).not.toContain("Polna");
@@ -859,7 +886,7 @@ describe("ItemDetailPage context actions", () => {
       vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
         itemActions({ viewer: "OWN", location: OWN_LOCATION }),
       );
-      renderPage(`/bartek/product/${ITEM_ID}`);
+      await renderPage(`/bartek/product/${ITEM_ID}`);
       const ownMap = new URL((await screen.findByTitle("Mapa: Nowa Wieś")).getAttribute("src")!);
       expect(ownMap.searchParams.get("q")).toMatch(/^ul\. Polna 12, 32-650 Nowa Wieś, Nowa Wieś/);
     } finally {
@@ -872,13 +899,13 @@ describe("ItemDetailPage context actions", () => {
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
       itemActions({ viewer: "OWN", location: OWN_LOCATION, contexts: [TERM_CONTEXT] }),
     );
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     const location = await screen.findByRole("region", { name: "Lokalizacja przedmiotu" });
     expect(location).toHaveTextContent(`Nowa Wieś${LOCALITY_DETAIL}`);
     expect(within(location).getByRole("link", { name: "Otwórz w Mapach (nowa karta)" })).toHaveAttribute(
       "href",
-      LOCALITY_MAPS_URL,
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("ul. Polna 12, 32-650 Nowa Wieś")}`,
     );
     expect(location).toHaveTextContent("Widoczne tylko dla Ciebieul. Polna 12, 32-650 Nowa Wieś");
     expect(within(location).getByRole("link", { name: "Zmień lokalizację" })).toHaveAttribute(
@@ -905,7 +932,7 @@ describe("ItemDetailPage context actions", () => {
     async (_name, place, heading) => {
       vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: true }));
       vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions({ viewer: "OWN", location: place }));
-      renderPage(`/bartek/product/${ITEM_ID}`);
+      await renderPage(`/bartek/product/${ITEM_ID}`);
 
       const location = await screen.findByRole("region", { name: "Lokalizacja przedmiotu" });
       expect(location).toHaveTextContent(
@@ -934,7 +961,7 @@ describe("ItemDetailPage context actions", () => {
       }),
     );
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions({ viewer: "OWN", mode: null }));
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     const hint = await screen.findByText(/^Ta rzecz nie jest wystawiona/);
     expect(hint).toHaveTextContent(
@@ -952,7 +979,7 @@ describe("ItemDetailPage context actions", () => {
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
       itemActions({ viewer: "OWN", mode: "SWAP", visibility: "PRIVATE" }),
     );
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByText("🔒 Prywatny")).toBeInTheDocument();
     expect(
@@ -965,7 +992,7 @@ describe("ItemDetailPage context actions", () => {
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
       itemActions({ viewer: "OWN", mode: "SWAP", visibility: "PUBLIC" }),
     );
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(
       await screen.findByText("To Twoja rzecz. Inni mogą ją zarezerwować osobiście albo na Twoich terminach."),
@@ -990,7 +1017,7 @@ describe("ItemDetailPage context actions", () => {
       status: "CANCELLED",
       already_resolved: false,
     });
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     const confirm = await screen.findByRole("button", { name: "Potwierdzam przekazanie" });
     const calls = vi.mocked(itemActionsApi.getItemActions).mock.calls.length;
@@ -1022,7 +1049,7 @@ describe("ItemDetailPage context actions", () => {
         detail: "Termin już minął",
       }),
     );
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Anuluj rezerwację" }));
     const ask = await screen.findByRole("alertdialog", { name: "Anulować rezerwację?" });
@@ -1062,7 +1089,7 @@ describe("ItemDetailPage context actions", () => {
     };
     vi.mocked(termItemListingsApi.acceptSwapProposal).mockResolvedValue(accepted);
     vi.mocked(termItemListingsApi.rejectSwapProposal).mockResolvedValue({ ...proposal, status: "REJECTED" });
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Przyjmij zamianę" }));
     expect(
@@ -1101,7 +1128,7 @@ describe("ItemDetailPage context actions", () => {
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
       itemActions({ available: false, party_reservation: partyReservation }),
     );
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByText(hint)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Potwierdzam przekazanie" })).not.toBeInTheDocument();
@@ -1128,7 +1155,7 @@ describe("ItemDetailPage context actions", () => {
       }),
     );
     conversationHook.openConversation.mockResolvedValue("conv-9");
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     const badge = await screen.findByText("Zarezerwowana · przez Anna");
     expect(badge).toHaveClass("bg-teal-soft");
@@ -1171,7 +1198,7 @@ describe("ItemDetailPage context actions", () => {
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
       itemActions({ mode: "SWAP", available: false, reservation: { by_name: "Tomek", by_me: false } }),
     );
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByText("Zarezerwowana · przez Tomek")).toBeInTheDocument();
     const status = screen.getByRole("region", { name: "Aktualny status" });
@@ -1186,7 +1213,7 @@ describe("ItemDetailPage context actions", () => {
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
       itemActions({ available: false, party_reservation: party(), reservation: { by_name: "Anna", by_me: true } }),
     );
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByText("Zarezerwowana · przez Ciebie")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Aktualny status" })).toHaveTextContent(
@@ -1197,7 +1224,7 @@ describe("ItemDetailPage context actions", () => {
 
   it("an actions failure shows a retry in the card while the rest of the page renders", async () => {
     vi.mocked(itemActionsApi.getItemActions).mockRejectedValueOnce(new ApiError(500, "Server Error", null));
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByText("Nie udało się wczytać akcji")).toBeInTheDocument();
     expect(screen.getByText("Lekki, składany, z daszkiem i koszem.")).toBeInTheDocument();
@@ -1217,7 +1244,7 @@ describe("ItemDetailPage fallbacks", () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
       details({ photos: [], product_photo_url: "https://img.example/catalog.jpg" }),
     );
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     const image = await screen.findByAltText("Wózek spacerowy Baby Jogger — zdjęcie 1");
     expect(image).toHaveAttribute("src", "https://img.example/catalog.jpg");
@@ -1226,7 +1253,7 @@ describe("ItemDetailPage fallbacks", () => {
 
   it("Wróć on a directly opened page falls back to the owner's page", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
-    renderWithRoute(<ItemDetailBody />, {
+    renderWithRoute(await itemRouteElement(`/bartek/product/${ITEM_ID}`), {
       url: `/bartek/product/${ITEM_ID}`,
       pattern: "/:slug/product/:id",
       routes: { "/:slug": <p>Strona właściciela</p> },
@@ -1244,7 +1271,13 @@ describe("ItemDetailPage fallbacks", () => {
     ["a stale slug", "stary-slug"],
   ])("a prefix that is %s is replaced by the owner's slug, keeping the query", async (_, prefix) => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
-    renderPage(`/${prefix}/product/${ITEM_ID}?x=1`);
+    // Next re-renders the page with the new params; the static test element needs the target route.
+    renderWithRoute(await itemRouteElement(`/${prefix}/product/${ITEM_ID}`), {
+      url: `/${prefix}/product/${ITEM_ID}?x=1`,
+      pattern: `/${prefix}/product/:id`,
+      routes: { "/bartek/product/:id": await itemRouteElement(`/bartek/product/${ITEM_ID}`) },
+      wrapper: createQueryWrapper(),
+    });
 
     await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" });
     expect(getTestLocation().pathname).toBe(`/bartek/product/${ITEM_ID}`);
@@ -1254,7 +1287,7 @@ describe("ItemDetailPage fallbacks", () => {
   it("an owner without an Organization keeps the party id prefix", async () => {
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions({ owner: { ...OWNER, slug: null } }));
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
-    renderPage(`/party-1/product/${ITEM_ID}`);
+    await renderPage(`/party-1/product/${ITEM_ID}`);
 
     await screen.findByRole("heading", { name: "Wózek spacerowy Baby Jogger" });
     expect(getTestLocation().pathname).toBe(`/party-1/product/${ITEM_ID}`);
@@ -1262,7 +1295,7 @@ describe("ItemDetailPage fallbacks", () => {
 
   it("a missing category renders a fallback instead of null", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ category_name: null }));
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByText("Bez kategorii · Stan: Dobry")).toBeInTheDocument();
     expect(screen.queryByText(/null/)).not.toBeInTheDocument();
@@ -1273,7 +1306,7 @@ describe("ItemDetailPage fallbacks", () => {
     renderWithRoute(<Link to={`/bartek/product/${ITEM_ID}`}>Otwórz rzecz</Link>, {
       url: "/items",
       pattern: "/items",
-      routes: { "/:slug/product/:id": <ItemDetailBody />, "/items/:id/edit": <ItemEditView /> },
+      routes: { "/:slug/product/:id": await itemRouteElement(`/bartek/product/${ITEM_ID}`), "/items/:id/edit": <ItemEditView /> },
       wrapper: createQueryWrapper(),
     });
 
@@ -1318,7 +1351,7 @@ describe("ItemDetailPage reservation party view", () => {
 
   it("party RESERVED shows hour and group, with the calendar trigger outside the status line", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ status: partyStatus("RESERVED") }));
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     const line = await screen.findByText("Zarezerwowana — odbiór w śr 14.10 o 16:30 · Muzyczne Maluchy");
     expect(line).toHaveAttribute("role", "status");
@@ -1330,7 +1363,7 @@ describe("ItemDetailPage reservation party view", () => {
 
   it("owner gets a Przekazanie title with the Term link in the details", async () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: true, status: partyStatus("RESERVED") }));
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     const url = await openCalendarMenu();
     expect(url.searchParams.get("text")).toBe("Przekazanie: Wózek spacerowy Baby Jogger");
@@ -1343,7 +1376,7 @@ describe("ItemDetailPage reservation party view", () => {
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(
       details({ is_owner: false, status: partyStatus("IN_TRANSIT") }),
     );
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByText("W drodze — odbiór w śr 14.10 o 16:30 · Muzyczne Maluchy")).toBeInTheDocument();
     const url = await openCalendarMenu();
@@ -1353,7 +1386,7 @@ describe("ItemDetailPage reservation party view", () => {
   it("party view hides the calendar trigger once the Term has passed but keeps the dated line", async () => {
     vi.setSystemTime(new Date(2026, 9, 14, 17, 0));
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ status: partyStatus("RESERVED") }));
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByText("Zarezerwowana — odbiór w śr 14.10 o 16:30 · Muzyczne Maluchy")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Dodaj do kalendarza/ })).not.toBeInTheDocument();
@@ -1366,7 +1399,7 @@ describe("ItemDetailPage reservation party view", () => {
         status: { ...partyStatus("RESERVED"), term_id: null, group_id: null, group_name: null },
       }),
     );
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByText("Zarezerwowana — odbiór na terminie 14.10")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Dodaj do kalendarza/ })).not.toBeInTheDocument();
@@ -1442,7 +1475,7 @@ describe("ItemDetailPage PRIVATE item with an open reservation", () => {
       status: "CANCELLED",
       already_resolved: false,
     });
-    renderPage(`/bartek/product/${ITEM_ID}`);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
 
     expect(await screen.findByText("🔒 Prywatny")).toBeInTheDocument();
     expect(screen.getByText("Przekazanie potwierdza Anna Kowalska, gdy odbierze rzecz.")).toBeInTheDocument();

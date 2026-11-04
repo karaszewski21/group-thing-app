@@ -113,6 +113,31 @@ afterEach(() => {
 });
 
 describe("EventPage", () => {
+  it("shows the shared place card under the date card: locality, address and a Maps link with the place id", async () => {
+    vi.mocked(eventsApi.getEvent).mockResolvedValue(
+      event({
+        location: {
+          id: "loc-1",
+          locality: { id: "0986283", name: "Kęty", kind: "TOWN", gmina: "Kęty", powiat: "oświęcimski", voivodeship: "małopolskie" },
+          label: "Kęty — ul. Sobieskiego 1",
+          formatted_address: "ul. Sobieskiego 1",
+          google_place_id: "ChIJ-kety",
+          deleted_at: null,
+        },
+      }),
+    );
+    renderPage();
+
+    const when = await screen.findByRole("region", { name: "Termin wydarzenia" });
+    const place = screen.getByRole("region", { name: "Miejsce" });
+    expectBefore(when, place);
+    expect(place).toHaveTextContent("Kętyul. Sobieskiego 1gm. Kęty, pow. oświęcimski, małopolskie");
+    expect(within(place).getByRole("link", { name: "Otwórz w Mapach (nowa karta)" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("query_place_id=ChIJ-kety"),
+    );
+  });
+
   it("shows an anonymous visitor the page in order, the empty copy and the sign-up footer, without chat", async () => {
     vi.mocked(eventsApi.getEvent).mockResolvedValue(event());
     renderPage();

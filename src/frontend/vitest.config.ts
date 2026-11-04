@@ -8,6 +8,8 @@ export default defineConfig({
     alias: {
       "next/navigation": fileURLToPath(new URL("./src/test/navigationMock.ts", import.meta.url)),
       "next/link": fileURLToPath(new URL("./src/test/nextLinkMock.tsx", import.meta.url)),
+      // Route files under test import `api/server.ts`; its guard is for the Next bundler.
+      "server-only": fileURLToPath(new URL("./node_modules/server-only/empty.js", import.meta.url)),
     },
   },
   test: {

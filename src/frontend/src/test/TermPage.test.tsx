@@ -287,13 +287,14 @@ describe("TermPage — header and content", () => {
 });
 
 describe("TermPage — place and capacity", () => {
-  it("shows the place label and a Google Maps link in the term card", async () => {
+  it("shows the place card under the term card: locality, address and a Google Maps link", async () => {
     renderPage();
 
-    const card = await screen.findByRole("region", { name: "Termin zajęć" });
-    expect(within(card).getByText("Miejsce")).toBeInTheDocument();
-    expect(within(card).getByText("Poznań — ul. Polna 12, 60-595 Poznań")).toBeInTheDocument();
-    const link = within(card).getByRole("link", { name: "Otwórz w Google Maps (nowa karta)" });
+    await screen.findByRole("region", { name: "Termin zajęć" });
+    const card = screen.getByRole("region", { name: "Miejsce" });
+    expect(within(card).getByText("Poznań")).toBeInTheDocument();
+    expect(within(card).getByText("ul. Polna 12, 60-595 Poznań")).toBeInTheDocument();
+    const link = within(card).getByRole("link", { name: "Otwórz w Mapach (nowa karta)" });
     expect(link).toHaveAttribute("href", expect.stringContaining("query_place_id=ChIJ-polna"));
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
@@ -306,7 +307,7 @@ describe("TermPage — place and capacity", () => {
     renderPage();
 
     const card = await screen.findByRole("region", { name: "Termin zajęć" });
-    expect(within(card).queryByText("Miejsce")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Miejsce" })).not.toBeInTheDocument();
     expect(within(card).queryByRole("link")).not.toBeInTheDocument();
     expect(within(card).queryByText(/Zapisanych/)).not.toBeInTheDocument();
   });

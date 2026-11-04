@@ -1,12 +1,15 @@
+"use client";
+
 import { Skeleton } from "../../../components/shared/Skeleton";
 import { ItemBackButton } from "./ItemBackButton";
 
-/** The item page while its details load: the photo area, then the sheet with
- * the name, chips, status card and description. Runs inside the organizer's
- * theme, so the photo area already takes their palette. */
+/** The item page while its details load (also the route's `loading.tsx`):
+ * the photo area, then the sheet with the name, chips, status card and
+ * description. Runs inside the organizer's theme, so the photo area already
+ * takes their palette. */
 export function ItemPageSkeleton() {
   return (
-    <div aria-busy="true" className="relative">
+    <div aria-busy="true" className="relative flex-1 overflow-y-auto pb-6">
       <span className="sr-only">Wczytywanie rzeczy…</span>
       <Skeleton tone="primary" className="aspect-4/3 w-full" />
       <div className="absolute top-4 left-4">

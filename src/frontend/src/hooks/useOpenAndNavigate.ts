@@ -3,7 +3,7 @@ import { useAppNavigate } from "../routing/navigation";
 import { threadPath } from "../routing/messagesPaths";
 import { useOpenConversation, type ChatTarget } from "./useOpenConversation";
 
-interface UseOpenAndNavigateResult {
+export interface UseOpenAndNavigateResult {
   open: (target: ChatTarget) => Promise<void>;
   /** True while a get-or-create request is in flight. */
   busy: boolean;

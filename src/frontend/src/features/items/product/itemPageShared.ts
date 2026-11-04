@@ -25,6 +25,13 @@ export interface ItemCreatedState {
 /** Shown where a product has no category (`category_name` is nullable). */
 export const NO_CATEGORY_LABEL = "Bez kategorii";
 
+export const ITEM_ACCOUNT_MESSAGE =
+  "Rezerwacja i czat wymagają konta. Zaloguj się albo załóż konto — zostaniesz przy tej rzeczy.";
+export const CARD_HINT = "mt-2 text-[13px] text-ink-soft";
+
+/** A titled section of the item page (`<section>` + an `<h3>` in `FIELD_LABEL`). */
+export const ITEM_SECTION = "mt-4 rounded-3xl border border-line bg-paper p-5";
+
 export const FIELD_LABEL = "text-[11.5px] font-extrabold uppercase tracking-wide text-ink-soft";
 export const PRIMARY_BTN =
   "flex-none rounded-[9px] bg-primary px-3 py-1.5 text-[11.5px] font-extrabold text-on-primary disabled:opacity-60";

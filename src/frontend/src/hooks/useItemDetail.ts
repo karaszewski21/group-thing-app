@@ -82,6 +82,13 @@ export function useItemPagePrefetch(itemId: string): void {
   usePrefetchQuery({ queryKey: [ITEM_DETAILS_KEY, itemId], queryFn: () => getItemDetails(itemId) });
 }
 
+/** Clears failed item details so the item page fetches them afresh when it
+ * mounts again (the retry of the route's `error.tsx`). */
+export function useResetItemDetails(): () => Promise<void> {
+  const queryClient = useQueryClient();
+  return useCallback(() => queryClient.resetQueries({ queryKey: [ITEM_DETAILS_KEY] }), [queryClient]);
+}
+
 /** What product-scoped edits need from the details query. */
 export interface ProductDetailsState {
   productId: string;

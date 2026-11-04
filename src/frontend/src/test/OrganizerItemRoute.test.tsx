@@ -6,8 +6,8 @@ import type { ItemActionsResponse } from "../api/itemActions";
 import * as organizationsApi from "../api/organizations";
 import { ApiError } from "../api/client";
 import type { ItemDetailsResponse } from "../api/items";
-import { ItemDetailBody } from "../features/items/product/ItemDetailPage";
 import { OrganizerItemLayout } from "../features/items/product/OrganizerItemLayout";
+import { itemRouteElement } from "./itemRoute";
 import { Navigate, useAppParams } from "../routing/navigation";
 import { createQueryWrapper } from "./queryClient";
 import { getTestLocation, renderWithRoute } from "./renderWithRoute";
@@ -94,11 +94,9 @@ function ToOrganizerPage() {
   return <Navigate to={`/${slug}`} replace />;
 }
 
-function renderAt(path: string) {
+async function renderAt(path: string) {
   return renderWithRoute(
-    <OrganizerItemLayout>
-      <ItemDetailBody />
-    </OrganizerItemLayout>,
+    <OrganizerItemLayout>{await itemRouteElement(path)}</OrganizerItemLayout>,
     {
       url: path,
       pattern: "/:slug/product/:id",
@@ -129,7 +127,7 @@ describe("Organizer product route", () => {
     mockAuth.token = null;
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details({ is_owner: false }));
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions({ viewer: "ANONYMOUS" }));
-    renderAt("/ania/product/9");
+    await renderAt("/ania/product/9");
 
     expect(await screen.findByRole("heading", { name: "Rowerek biegowy" })).toBeInTheDocument();
     expect(await screen.findByRole("region", { name: "Jak chcesz odebrać?" })).toBeInTheDocument();
@@ -140,7 +138,7 @@ describe("Organizer product route", () => {
   it("anonymous: a non-public item (404) offers login in place, staying on the item URL", async () => {
     mockAuth.token = null;
     vi.mocked(itemsApi.getItemDetails).mockRejectedValue(new ApiError(404, "Not Found", null));
-    renderAt("/ania/product/9?event=ev-1");
+    await renderAt("/ania/product/9?event=ev-1");
 
     expect(await screen.findByRole("heading", { name: "Zaloguj się, żeby zobaczyć tę rzecz" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Zaloguj się" }));
@@ -150,7 +148,7 @@ describe("Organizer product route", () => {
 
   it("shows a neutral loader while the organization is pending, item fetch already started", async () => {
     vi.mocked(organizationsApi.getPublicOrganization).mockReturnValue(new Promise(() => {}));
-    const { container } = renderAt("/ania/product/9");
+    const { container } = await renderAt("/ania/product/9");
 
     expect(screen.getByText("Wczytywanie rzeczy…")).toBeInTheDocument();
     expect(container.querySelector("[data-organizer-theme]")).toBeNull();
@@ -159,7 +157,7 @@ describe("Organizer product route", () => {
   });
 
   it("renders the item in the organizer palette", async () => {
-    renderAt("/ania/product/9");
+    await renderAt("/ania/product/9");
 
     const heading = await screen.findByRole("heading", { name: "Rowerek biegowy" });
     const scope = scopeOf(heading);
@@ -170,28 +168,28 @@ describe("Organizer product route", () => {
 
   it("falls back to the default palette when the organization is unknown", async () => {
     vi.mocked(organizationsApi.getPublicOrganization).mockRejectedValue(new ApiError(404, "Not Found", null));
-    renderAt("/ania/product/9");
+    await renderAt("/ania/product/9");
 
     const heading = await screen.findByRole("heading", { name: "Rowerek biegowy" });
     expect(scopeOf(heading)).toHaveAttribute("data-organizer-theme", "default");
   });
 
   it("Edytuj links the owner to the panel edit page", async () => {
-    renderAt("/ania/product/9");
+    await renderAt("/ania/product/9");
 
     expect(await screen.findByRole("link", { name: /Edytuj/ })).toHaveAttribute("href", "/items/9/edit");
   });
 
   it("Wróć on a direct entry goes to the organizer page", async () => {
-    renderAt("/ania/product/9");
+    await renderAt("/ania/product/9");
 
     await screen.findByRole("heading", { name: "Rowerek biegowy" });
     fireEvent.click(screen.getByRole("button", { name: /Wróć/ }));
     expect(currentUrl()).toBe("/ania");
   });
 
-  it("bare /:slug/product redirects to the organizer page without fetching an item", () => {
-    renderAt("/ania/product");
+  it("bare /:slug/product redirects to the organizer page without fetching an item", async () => {
+    await renderAt("/ania/product");
 
     expect(currentUrl()).toBe("/ania");
     expect(itemsApi.getItemDetails).not.toHaveBeenCalled();

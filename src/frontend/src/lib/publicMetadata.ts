@@ -5,9 +5,11 @@
 import type { Metadata } from "next";
 import type { EventDetailResponse } from "../api/events";
 import type { PublicCircleResponse } from "../api/groups";
+import type { ItemDetailsResponse } from "../api/items";
 import type { PublicOrganizationResponse } from "../api/organizations";
 import { isPartyId } from "../routing/paths";
 import { RESERVED_SLUGS } from "../routing/reservedSlugs";
+import { CONDITION_LABELS } from "../utils/productCategory";
 
 const WEEKDAYS = ["pon", "wt", "śr", "czw", "pt", "sob", "ndz"];
 
@@ -60,4 +62,13 @@ export function termMetadata(circle: PublicCircleResponse | null): Metadata {
     if (circle.term.description) description += ` ${circle.term.description}`;
   }
   return previewMetadata(circle.name, description, null);
+}
+
+/** A deleted item gets no preview; the image is its first photo, else the catalog photo. */
+export function itemMetadata(item: ItemDetailsResponse | null): Metadata {
+  if (item === null || item.deleted_at !== null) return {};
+  let description = `Stan: ${CONDITION_LABELS[item.condition]}.`;
+  if (item.category_name) description = `${item.category_name} · ${description}`;
+  if (item.description) description += ` ${item.description}`;
+  return previewMetadata(item.name, description, item.photos[0]?.url ?? item.product_photo_url);
 }

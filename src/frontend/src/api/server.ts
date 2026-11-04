@@ -6,6 +6,7 @@ import { cache } from "react";
 import { isOrganizationSlug } from "../lib/publicMetadata";
 import type { EventDetailResponse } from "./events";
 import type { PublicCircleResponse } from "./groups";
+import type { ItemDetailsResponse } from "./items";
 import type { PublicOrganizationResponse } from "./organizations";
 
 const BACKEND_URL = process.env.BACKEND_INTERNAL_URL ?? "http://localhost:8080";
@@ -35,4 +36,9 @@ export function getPublicCircleOnServer(groupId: string, termId: string): Promis
   return serverGet<PublicCircleResponse>(
     `/groups/public/${encodeURIComponent(groupId)}?term_id=${encodeURIComponent(termId)}`,
   );
+}
+
+/** A listed item as an anonymous visitor sees it; `null` for one that is not public. */
+export function getItemOnServer(itemId: string): Promise<ItemDetailsResponse | null> {
+  return serverGet<ItemDetailsResponse>(`/inventory-items/${encodeURIComponent(itemId)}/details`);
 }

@@ -2,11 +2,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EventDetailResponse } from "../api/events";
 import type { PublicCircleResponse } from "../api/groups";
+import type { ItemDetailsResponse } from "../api/items";
 import type { PublicOrganizationResponse } from "../api/organizations";
+import { generateMetadata as itemPageMetadata } from "../app/(site)/[slug]/product/[id]/page";
 import { generateMetadata as eventPageMetadata } from "../app/(site)/[slug]/event/[eventId]/page";
 import { generateMetadata as termPageMetadata } from "../app/(site)/[slug]/group/[groupId]/term/[termId]/page";
 import { generateMetadata as ownerPageMetadata } from "../app/(site)/[slug]/page";
-import { eventMetadata, organizationMetadata, termMetadata } from "../lib/publicMetadata";
+import { eventMetadata, itemMetadata, organizationMetadata, termMetadata } from "../lib/publicMetadata";
 
 vi.mock("server-only", () => ({}));
 
@@ -57,6 +59,23 @@ const CIRCLE: PublicCircleResponse = {
   organization: null,
 };
 
+const ITEM: ItemDetailsResponse = {
+  id: "it-1",
+  product_id: "p-1",
+  name: "Rowerek biegowy",
+  category_id: "c-1",
+  category_name: "Rowery",
+  condition: "GOOD",
+  listing_status: "ACTIVE",
+  description: "Mało używany.",
+  photos: [{ id: "ph-1", url: "https://cdn.example/rower.webp", thumb_url: "https://cdn.example/t.webp", status: "APPROVED", sort_order: 0 }],
+  product_photo_url: "https://cdn.example/catalog.webp",
+  is_owner: false,
+  location_id: null,
+  deleted_at: null,
+  status: { code: "AVAILABLE", term_occurs_on: null, due_date: null, counterparty_label: null, personal_pickup: false },
+};
+
 function stubFetch(response: () => Promise<Response>) {
   const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(() => response());
   vi.stubGlobal("fetch", fetchMock);
@@ -85,6 +104,13 @@ const PAGES = [
     dto: CIRCLE,
     expected: termMetadata(CIRCLE),
   },
+  {
+    kind: "item",
+    load: () => itemPageMetadata({ params: Promise.resolve({ slug: "muzyczne-skrzaty", id: "it-1" }) }),
+    path: "/api/inventory-items/it-1/details",
+    dto: ITEM,
+    expected: itemMetadata(ITEM),
+  },
 ];
 
 afterEach(() => {
@@ -112,6 +138,17 @@ describe("page generateMetadata", () => {
     stubFetch(response);
 
     await expect(load()).resolves.toEqual({});
+  });
+
+  it("an item previews its first photo, else the catalog photo, and a deleted item gets none", () => {
+    expect(itemMetadata(ITEM)).toMatchObject({
+      title: "Rowerek biegowy",
+      openGraph: { description: "Rowery · Stan: Dobry. Mało używany.", images: ["https://cdn.example/rower.webp"] },
+    });
+    expect(itemMetadata({ ...ITEM, photos: [] }).openGraph).toMatchObject({
+      images: ["https://cdn.example/catalog.webp"],
+    });
+    expect(itemMetadata({ ...ITEM, deleted_at: "2026-11-01T10:00:00" })).toEqual({});
   });
 
   it("does not fetch an Organization for a person profile slug", async () => {

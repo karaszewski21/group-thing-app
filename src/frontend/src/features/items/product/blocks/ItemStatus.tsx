@@ -1,11 +1,16 @@
-import { Link } from "../../../routing/navigation";
-import type { ItemStatusResponse } from "../../../api/items";
-import { AddToCalendarButton } from "../../../components/shared/AddToCalendarButton";
-import { useOrigin } from "../../../lib/useClientValue";
-import { calendarUid, type CalendarEvent } from "../../../utils/calendar";
-import { eventPath } from "../../../routing/paths";
-import dayjs from "../../../utils/dayjs";
-import { organizerTermPath } from "../../owner-page/organizerHelpers";
+"use client";
+
+import { Link } from "../../../../routing/navigation";
+import type { ItemStatusResponse } from "../../../../api/items";
+import { AddToCalendarButton } from "../../../../components/shared/AddToCalendarButton";
+import { useOrigin } from "../../../../lib/useClientValue";
+import { calendarUid, type CalendarEvent } from "../../../../utils/calendar";
+import { eventPath } from "../../../../routing/paths";
+import type { ItemActionsResponse } from "../../../../api/itemActions";
+import dayjs from "../../../../utils/dayjs";
+import type { ItemActionsView } from "../itemActionsViewState";
+import { useItemPage } from "../ItemPageContext";
+import { organizerTermPath } from "../../../owner-page/organizerHelpers";
 
 /** Where the hand-over happens: a Term or an event. `contextId` feeds the
  * calendar uid and `path` the link; `groupName` is the event name for an
@@ -133,6 +138,32 @@ function partyCalendarEvent(
   };
 }
 
+function ClockIcon({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+/** The status as a small pill for a card heading, when it is a bare title
+ * (no detail, link or calendar), e.g. "Dostępna" above the reserve buttons. */
+export function ItemStatusPill({ status }: { status: ItemStatusResponse }) {
+  const { title, pill } = statusLines(status, null, false);
+  return (
+    <p
+      role="status"
+      className={`inline-flex flex-none items-center gap-1 rounded-full px-2.5 py-1 text-xs font-extrabold ${pill}`}
+    >
+      <span aria-hidden="true" className="flex">
+        <ClockIcon size={13} />
+      </span>
+      <span className="sr-only">Status:</span> {title}
+    </p>
+  );
+}
+
 /** "Aktualny status": a card in the status tone with a clock badge. The
  * status is carried by its text, the colour only reinforces it. Labels come
  * from the server (privacy rule). A reservation party also gets the hour,
@@ -162,10 +193,7 @@ export function ItemStatusCard({
   return (
     <section className={`mt-5 flex items-start gap-3 rounded-[22px] p-4 ${pill}`} aria-labelledby="item-status-heading">
       <span aria-hidden="true" className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-paper/70">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 7v5l3 2" />
-        </svg>
+        <ClockIcon size={18} />
       </span>
       <div className="min-w-0">
         <h3 id="item-status-heading" className="sr-only">
@@ -196,5 +224,33 @@ export function ItemStatusCard({
         )}
       </div>
     </section>
+  );
+}
+
+/** How the status card relates the viewer to the item's reservation: the
+ * owner and a reservation party name both sides, anyone else is told it is
+ * taken. `null` while not reserved or until the actions load. */
+function statusReservation(view: ItemActionsView, actions: ItemActionsResponse | null): StatusReservation | null {
+  const reservation = actions?.reservation ?? null;
+  if (actions === null) return null;
+  const party = { party: true as const, ownerName: actions.owner.display_name, reserverName: reservation?.by_name ?? null };
+  if (view.kind === "own") return reservation ? party : null;
+  if (view.kind !== "reserved") return null;
+  return view.partyReservation ? party : { party: false };
+}
+
+/** "Aktualny status", unless it is a bare "Dostępna" shown as a pill beside the listing badges. */
+export function ItemStatus() {
+  const { item, actions, view, statusAsPill } = useItemPage();
+  if (statusAsPill) return null;
+  return (
+    <ItemStatusCard
+      status={item.status}
+      itemId={item.id}
+      itemName={item.name}
+      isOwner={item.is_owner}
+      reservation={statusReservation(view, actions.data)}
+      unlisted={view.kind === "own" && view.mode === null}
+    />
   );
 }

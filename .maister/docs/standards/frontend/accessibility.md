@@ -44,7 +44,7 @@ if (event.key === "Escape" && open) {
 ```
 
 ### Spacing Around Visually Hidden Text
-When an accessible name is composed with `sr-only` text (e.g. link "Otwórz w Google Maps" + "(nowa karta)"), put the separating space as `{" "}` outside the `<span className="sr-only">`, never as a leading space inside it. A leading space inside the hidden span is dropped from the computed name (jsdom/Testing Library and some screen readers), yielding "Maps(nowa karta)". Decorative glyphs such as "↗" go in `aria-hidden="true"` spans. Reference: `features/terms/components/TermCard.tsx`.
+When an accessible name is composed with `sr-only` text (e.g. link "Otwórz w Google Maps" + "(nowa karta)"), put the separating space as `{" "}` outside the `<span className="sr-only">`, never as a leading space inside it. A leading space inside the hidden span is dropped from the computed name (jsdom/Testing Library and some screen readers), yielding "Maps(nowa karta)". Decorative glyphs such as "↗" go in `aria-hidden="true"` spans. Reference: `components/shared/PlaceCard.tsx`.
 ```tsx
 Otwórz w Google Maps<span aria-hidden="true"> ↗</span>{" "}
 <span className="sr-only">(nowa karta)</span>
