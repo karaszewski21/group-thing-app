@@ -115,19 +115,10 @@ class EventDetailResponse(EventResponse):
     open_reservations: EventOpenReservationsResponse | None
 
 
-class EventAttendanceRequest(BaseModel):
-    """`guest_name` is needed only without an account and ignored otherwise."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    guest_name: str | None = None
-
-
 class EventAttendanceResponse(BaseModel):
     id: uuid.UUID
     event_id: uuid.UUID
     user_profile_id: uuid.UUID
-    attached_to_account: bool
 
 
 class EventBannerResponse(BaseModel):

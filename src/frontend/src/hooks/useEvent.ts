@@ -31,8 +31,7 @@ interface UseEventResult {
   refetch: () => Promise<void>;
   update: (request: CreateEventRequest) => Promise<void>;
   remove: () => Promise<void>;
-  /** `guestName` is sent for an anonymous caller; `null` when logged in. */
-  signUp: (guestName: string | null) => Promise<EventAttendanceResponse>;
+  signUp: () => Promise<EventAttendanceResponse>;
   withdraw: () => Promise<void>;
 }
 
@@ -96,10 +95,10 @@ export function useEvent(eventId: string): UseEventResult {
   }, [eventId, queryClient]);
 
   const signUp = useCallback(
-    async (guestName: string | null) => {
+    async () => {
       let attendance: EventAttendanceResponse;
       try {
-        attendance = await signUpForEvent(eventId, { guest_name: guestName });
+        attendance = await signUpForEvent(eventId);
       } catch (err) {
         throw new Error(extractProblemMessage(err));
       }

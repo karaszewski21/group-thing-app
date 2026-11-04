@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.core import clock
 from app.groups import service as groups_service
-from tests.conftest import count_queries, create_location, leaf_category_ids
+from tests.conftest import count_queries, create_location, leaf_category_ids, seed_legacy_guest
 
 INBOX_ROW_KEYS = {
     "id",
@@ -99,13 +99,11 @@ async def _create_term(client: AsyncClient, token: str, group_id: uuid.UUID) -> 
     return uuid.UUID(response.json()["id"])
 
 
-async def _rsvp(
-    client: AsyncClient, group_id: uuid.UUID, term_id: uuid.UUID, token: str | None = None
-) -> None:
+async def _rsvp(client: AsyncClient, group_id: uuid.UUID, term_id: uuid.UUID, token: str) -> None:
     response = await client.post(
         f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": str(term_id), "guardian_name": "Gość Ci", "child_count": 1},
-        headers=_auth(token) if token else {},
+        json={"term_id": str(term_id), "child_count": 1},
+        headers=_auth(token),
     )
     assert response.status_code == 201, response.text
 
@@ -230,14 +228,14 @@ async def test_inboxAndUnreadCount_threeVersusNineConversations_sameQueryCount(
 
 
 async def test_inboxRow_termWithGuestAttendee_exactShapeAndParticipantCount(
-    client: AsyncClient,
+    client: AsyncClient, db_session: AsyncSession
 ) -> None:
     org_token, _ = await _register(client, "ci.shape.org@example.com", "ORGANIZER")
     attendee_token, _ = await _register(client, "ci.shape.attendee@example.com")
     group_id = await _create_circle(client, org_token, "Ci kształt", "PUBLIC")
     term_id = await _create_term(client, org_token, group_id)
     await _rsvp(client, group_id, term_id, attendee_token)
-    await _rsvp(client, group_id, term_id)  # an account-less guest
+    await seed_legacy_guest(db_session, "Gość Ci", term_id=term_id)
     conversation_id = await _open(client, attendee_token, "term", term_id)
     empty_inbox = (await client.get("/api/conversations", headers=_auth(attendee_token))).json()
     await _send(client, org_token, conversation_id, "Do zobaczenia")

@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.families.members import create_lightweight_family_member
 from app.families.models import Family, FamilyRoleType
 from app.families.service import bootstrap_family_for_party
-from tests.conftest import create_location
+from tests.conftest import create_location, seed_legacy_guest
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -114,15 +114,11 @@ async def test_listAttendees_familyWithChildren_returnsChildBirthYearsOnly(
 
 
 async def test_listAttendees_attendeeWithoutFamilyOrChildren_returnsEmptyChildren(
-    client: AsyncClient,
+    client: AsyncClient, db_session: AsyncSession
 ) -> None:
     org_token, _ = await _register(client, "ORGANIZER", "att.empty.org@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "att2")
-    anonymous = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": term_id, "guardian_name": "Gość Anonimowy", "child_count": 0},
-    )
-    assert anonymous.status_code == 201
+    await seed_legacy_guest(db_session, "Gość Anonimowy", term_id=term_id)
 
     attendees = await _get_attendees(client, org_token, group_id, term_id)
 

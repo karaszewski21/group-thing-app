@@ -154,9 +154,14 @@ async def test_deleteGroup_upcomingTermWithActiveRsvp_returns409WithDate(
         headers=_auth_headers(token),
     )
     assert term.status_code == 201
+    attendee = await client.post(
+        "/api/auth/register",
+        json={"role": "GUEST", "email": "sd.rsvp.attendee@example.com", "password": "secret123"},
+    )
     rsvp = await client.post(
         f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": term.json()["id"], "guardian_name": "Ola", "child_count": 1},
+        json={"term_id": term.json()["id"], "child_count": 1},
+        headers=_auth_headers(attendee.json()["token"]),
     )
     assert rsvp.status_code == 201
 

@@ -816,24 +816,23 @@ describe("ItemDetailPage context actions", () => {
     });
   });
 
-  it("anonymous: the locality card, the context list and the login gate, with no reserve or chat buttons", async () => {
+  it("anonymous: the locality card, the context list and the reserve/chat buttons, each opening the login sheet", async () => {
     mockAuth.token = null;
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
       itemActions({ viewer: "ANONYMOUS", location: LOCATION, contexts: [TERM_CONTEXT] }),
     );
     renderPage(`/bartek/product/${ITEM_ID}`);
 
-    const gate = await screen.findByRole("region", { name: "Chcesz tę rzecz?" });
-    expect(gate).toHaveTextContent("Zaloguj się, żeby zarezerwować lub napisać do właściciela.");
-    const returnTo = encodeURIComponent(`/bartek/product/${ITEM_ID}`);
-    expect(within(gate).getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
-      "href",
-      `/login?returnTo=${returnTo}`,
-    );
-    expect(within(gate).getByRole("link", { name: "Załóż konto" })).toHaveAttribute(
-      "href",
-      `/login?mode=register&returnTo=${returnTo}`,
-    );
+    const card = await screen.findByRole("region", { name: "Jak chcesz odebrać?" });
+    expect(within(card).queryByRole("button", { name: "Zaloguj się" })).not.toBeInTheDocument();
+    for (const name of [PERSONAL, /^Wybieram termin$/, /Napisz o przedmiocie/]) {
+      fireEvent.click(within(card).getByRole("button", { name }));
+      const sheet = screen.getByRole("dialog", { name: "Potrzebne konto" });
+      expect(within(sheet).getByRole("tab", { name: "Zaloguj się" })).toHaveAttribute("aria-selected", "true");
+      fireEvent.click(within(sheet).getByRole("button", { name: "Zamknij" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    }
+    expect(itemReservationsApi.takeItem).not.toHaveBeenCalled();
     expect(screen.getByRole("region", { name: "Gdzie jeszcze można odebrać" })).toHaveTextContent(
       "Wymianka przedszkolna",
     );
@@ -844,8 +843,6 @@ describe("ItemDetailPage context actions", () => {
       LOCALITY_MAPS_URL,
     );
     expect(within(location).queryByRole("link", { name: "Zmień lokalizację" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: PERSONAL })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Napisz/ })).not.toBeInTheDocument();
   });
 
   it("with a Maps key, the location card maps the locality for others and the address for the owner", async () => {

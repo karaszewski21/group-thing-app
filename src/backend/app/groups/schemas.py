@@ -10,7 +10,6 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.circulation.models import ItemCondition, ItemListingStatus, ReservationType
-from app.users.schemas import EMAIL_PATTERN, normalize_email
 
 from .infrastructure.locations_acl import (
     LocalityResponse,
@@ -520,7 +519,6 @@ class PartyProfileResponse(BaseModel):
 
 class CreateRsvpRequest(BaseModel):
     term_id: uuid.UUID
-    guardian_name: str = Field(min_length=1, max_length=255)
     child_count: int = Field(ge=0, default=0)
 
 
@@ -530,7 +528,6 @@ class RsvpResponse(BaseModel):
     user_profile_id: uuid.UUID
     guardian_name: str
     child_count: int
-    attached_to_account: bool
 
 
 # --- A Term's attendee list for its organizer
@@ -627,28 +624,6 @@ class WithdrawAttendanceResponse(BaseModel):
     party_id: uuid.UUID
     child_count: int
     withdrawn_at: datetime | None
-
-
-# --- Account-merge (unauthenticated, `POST /api/groups/public/merge`) ----------
-
-
-class MergeAnonymousProfileRequest(BaseModel):
-    user_profile_id: uuid.UUID
-    email: str = Field(min_length=3, max_length=255)
-    password: str = Field(min_length=1)
-
-    @field_validator("email")
-    @classmethod
-    def _normalize_and_validate_email(cls, value: str) -> str:
-        normalized = normalize_email(value)
-        if not EMAIL_PATTERN.match(normalized):
-            raise ValueError("Invalid email format")
-        return normalized
-
-
-class MergeAnonymousProfileResponse(BaseModel):
-    token: str
-    party_id: uuid.UUID
 
 
 # --- ItemListingPreference (authenticated, `/api/item-listing-preferences`,

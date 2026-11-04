@@ -1,34 +1,28 @@
-import { useState } from "react";
-import { Link, useAppSearchParams } from "../../routing/navigation";
+import { useId, useState, type FormEvent } from "react";
 import { useAuth, type RegisterPayload } from "../../auth/AuthContext";
-import { authPath } from "../../auth/authPaths";
 import { AUTH_INPUT, AUTH_LABEL, AUTH_SUBMIT } from "./authStyles";
 
 const DUPLICATE_EMAIL_MESSAGE = "Ten email jest już zarejestrowany, zaloguj się";
 
-/** The "Załóż konto" tab of `/login` (LoginPage). */
-export function RegisterForm() {
+/** The "Załóż konto" tab of `/login` and of `AuthSheet`. A duplicate email
+ * offers `onSwitchToLogin`, the host's login tab. */
+export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void }) {
   const [role, setRole] = useState<RegisterPayload["role"]>("GUEST");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
-  const [searchParams] = useAppSearchParams();
-  // Carried onto the login tab link so a visitor who came from a term
-  // page's account gate lands back on it.
-  const returnTo = searchParams.get("returnTo");
+  const id = useId();
 
   const isOrganizer = role === "ORGANIZER";
   const canSubmit = Boolean(role && email && password && !loading);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      // The page's AuthGuard sees the new token and sends the user on: to
-      // `returnTo`, or to their role's home (`homePath`).
       await register({ role, email, password });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nie udało się zarejestrować");
@@ -43,7 +37,7 @@ export function RegisterForm() {
     }`;
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+    <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-3">
       <div>
         <span className={AUTH_LABEL}>Kim jesteś?</span>
         <div className="flex gap-2">
@@ -67,11 +61,11 @@ export function RegisterForm() {
       </div>
 
       <div>
-        <label htmlFor="email" className={AUTH_LABEL}>
+        <label htmlFor={`${id}-email`} className={AUTH_LABEL}>
           Email
         </label>
         <input
-          id="email"
+          id={`${id}-email`}
           type="email"
           required
           autoComplete="email"
@@ -83,11 +77,11 @@ export function RegisterForm() {
       </div>
 
       <div>
-        <label htmlFor="password" className={AUTH_LABEL}>
+        <label htmlFor={`${id}-password`} className={AUTH_LABEL}>
           Hasło
         </label>
         <input
-          id="password"
+          id={`${id}-password`}
           type="password"
           autoComplete="new-password"
           value={password}
@@ -103,9 +97,9 @@ export function RegisterForm() {
           {error === DUPLICATE_EMAIL_MESSAGE && (
             <>
               {" "}
-              <Link to={authPath("login", returnTo)} className="font-semibold underline">
+              <button type="button" onClick={onSwitchToLogin} className="font-semibold underline">
                 Zaloguj się
-              </Link>
+              </button>
             </>
           )}
         </div>

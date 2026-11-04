@@ -10,7 +10,6 @@ import uuid
 from datetime import datetime
 
 from httpx import AsyncClient
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.circulation import service as circulation_service
@@ -18,8 +17,7 @@ from app.circulation.models import InventoryItem
 from app.groups import service
 from app.groups.models import Group, GroupVisibility
 from app.users import service as users_service
-from app.users.models import UserProfile
-from tests.conftest import count_queries, create_location
+from tests.conftest import count_queries, create_location, seed_legacy_guest
 from tests.test_organizer_page import _circle, _in_days, _term
 from tests.test_term_item_listings import _auth, _register, _resolve_product, _rsvp
 
@@ -180,18 +178,7 @@ async def test_listChatProfilesByPartyIds_guestProfile_hasAccountFalse(
     org_token, account_party_id = await _register(client, "ORGANIZER", "mcc.profiles@example.com")
     group_id = await _circle(client, org_token, "Mcc profile")
     term_id = await _term(client, org_token, group_id, _in_days(2))
-    rsvp = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": str(term_id), "guardian_name": "Gość Mcc", "child_count": 1},
-    )
-    assert rsvp.status_code == 201, rsvp.text
-    guest_party_id = (
-        await db_session.execute(
-            select(UserProfile.party_id).where(
-                UserProfile.id == uuid.UUID(rsvp.json()["user_profile_id"])
-            )
-        )
-    ).scalar_one()
+    guest_party_id = await seed_legacy_guest(db_session, "Gość Mcc", term_id=term_id)
     account_profile = await users_service.get_profile_by_party(db_session, account_party_id)
 
     with count_queries(engine) as statements:

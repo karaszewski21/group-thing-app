@@ -92,8 +92,7 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("GET"), r"^/api/groups/public/parties/[^/]+(/items|/meetings)?$", "PUBLIC"),
     # Public circle/term page (`/krag/:groupId/publiczny`) — declared ahead of
     # row 26's blanket /api/groups READ requirement so an anonymous visitor
-    # can load it, RSVP, and merge into a real account. Mirrors row 48's
-    # placement.
+    # can load it. Mirrors row 48's placement.
     (_methods("GET"), r"^/api/groups/public/[^/]+$", "PUBLIC"),
     # The caller's resolved is_member/is_organizer/can_view_content/is_attending
     # for a Circle — unauthenticated-friendly like the row above (an
@@ -102,12 +101,6 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # reason. `/access` is an extra path segment so it never collides with
     # the row above's `$`-anchored match.
     (_methods("GET"), r"^/api/groups/public/[^/]+/access$", "PUBLIC"),
-    # Stays PUBLIC (no require_any, no reorder): the route optionally honours a
-    # valid session token via get_current_principal to attach the RSVP to the
-    # caller's account; a missing/invalid/expired token degrades silently to
-    # the anonymous path — never a 401.
-    (_methods("POST"), r"^/api/groups/public/[^/]+/rsvp$", "PUBLIC"),
-    (_methods("POST"), r"^/api/groups/public/merge$", "PUBLIC"),
     # Redeeming a PRIVATE Circle's join code needs only an account-backed
     # principal (`require_any()` on the route). Declared ahead of row 27's
     # blanket `POST ^/api/groups(/.*)?$` EDIT row, which would otherwise
@@ -210,11 +203,10 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # app.events — one-off events, their banner and sign-ups. Authorship (only
     # the author may upload the banner) lives in `app.events.service`.
     # `/mine` and `/attending` sit ahead of the public `/{event_id}` page row
-    # they would match. Sign-up is public (guests); withdraw needs an account.
+    # they would match. Signing up and withdrawing need an account.
     (_methods("GET"), r"^/api/events/(mine|attending)$", ("READ", "mcp:read")),
     (_methods("GET"), r"^/api/events/[^/]+$", "PUBLIC"),
-    (_methods("POST"), r"^/api/events/[^/]+/attendances$", "PUBLIC"),
-    (_methods("POST"), r"^/api/events/[^/]+/attendances/withdraw$", ("EDIT", "mcp:edit")),
+    (_methods("POST"), r"^/api/events/[^/]+/attendances(/withdraw)?$", ("EDIT", "mcp:edit")),
     (_methods("PATCH", "DELETE"), r"^/api/events/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("POST"), r"^/api/events$", ("EDIT", "mcp:edit")),
     (_methods("POST"), r"^/api/events/[^/]+/banner$", ("EDIT", "mcp:edit")),

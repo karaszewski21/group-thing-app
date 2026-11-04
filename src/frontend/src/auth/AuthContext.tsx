@@ -25,12 +25,6 @@ interface AuthContextValue {
   permissions: string[];
   login: (email: string, password: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
-  /** Stores `jwt` as the session (`auth/session.ts`), decodes its claims, and updates
-   * context state — identical body to the internal `applyToken`, just
-   * exposed publicly for a non-login/register auth event (spec.md §4's
-   * account-merge flow: the visitor is authenticated by a merge response,
-   * not a `/api/auth/login` or `/api/auth/register` call). */
-  applyExternalToken: (jwt: string) => void;
   logout: () => void;
   /** Clears an expired session without leaving the page (`AuthGuard`). */
   expireSession: () => void;
@@ -165,11 +159,10 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
       permissions,
       login,
       register,
-      applyExternalToken: applyToken,
       logout,
       expireSession: resetAuth,
     }),
-    [token, username, displayName, permissions, login, register, applyToken, logout, resetAuth],
+    [token, username, displayName, permissions, login, register, logout, resetAuth],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

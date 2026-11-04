@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { getMyFamilies } from "../../../api/families";
-import { createRsvp, type RsvpResponse } from "../../../api/groups";
+import { createRsvp } from "../../../api/groups";
 import { serverMessageOr } from "../../../api/problem";
 import { pluralPl } from "../../../utils/plural";
-import { useAccountGate, type TermActionDeps } from "./useAccountGate";
+import { useAccountGate, type TermActionDeps } from "../../auth/useAccountGate";
 
-/** Footer sign-up. Anonymous visitors first choose: log in / register, or
- * continue as a guest (`continueAsGuest`). A logged-in parent whose family
- * already has children is signed up straight away with that child count;
- * only a family with no children yet (or an unreadable one) gets the
- * logged-in dialog, which asks for the count. */
+/** Footer sign-up, which needs an account: an anonymous visitor gets the
+ * login/register sheet. A logged-in parent whose family already has
+ * children is signed up straight away with that child count; only a family
+ * with no children yet (or an unreadable one) gets the dialog, which asks
+ * for the count. */
 export function useTermSignUp({
   isLoggedIn,
   refetch,
@@ -21,19 +21,9 @@ export function useTermSignUp({
   const gate = useAccountGate(isLoggedIn);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [signingUp, setSigningUp] = useState(false);
-  // The RSVP just submitted this session — drives the post-guest-RSVP
-  // account suggestion (only when `attached_to_account === false`).
-  const [lastRsvp, setLastRsvp] = useState<RsvpResponse | null>(null);
-  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
 
-  function continueAsGuest() {
-    gate.close();
-    setDialogOpen(true);
-  }
-
-  function handleSubmitted(rsvp: RsvpResponse, toast = "Zapisano na zajęcia") {
+  function handleSubmitted(toast = "Zapisano na zajęcia") {
     setDialogOpen(false);
-    setLastRsvp(rsvp);
     showToast(toast);
     void refetch();
   }
@@ -60,13 +50,8 @@ export function useTermSignUp({
         setDialogOpen(true);
         return;
       }
-      const rsvp = await createRsvp(groupId, {
-        term_id: termId,
-        guardian_name: displayName,
-        child_count: childCount,
-      });
+      await createRsvp(groupId, { term_id: termId, child_count: childCount });
       handleSubmitted(
-        rsvp,
         `Zapisano na zajęcia z ${childCount} ${pluralPl(childCount, "dzieckiem", "dziećmi", "dziećmi")}`,
       );
     } catch (err) {
@@ -79,14 +64,10 @@ export function useTermSignUp({
   return {
     gateOpen: gate.isOpen,
     closeGate: gate.close,
-    continueAsGuest,
     dialogOpen,
     signingUp,
     openSignUp: gate.guard(signUpLoggedIn),
     closeDialog: () => setDialogOpen(false),
-    handleSubmitted: (rsvp: RsvpResponse) => handleSubmitted(rsvp),
-    /** The guest RSVP to offer turning into an account, if any. */
-    accountSuggestion: lastRsvp && !lastRsvp.attached_to_account && !suggestionDismissed ? lastRsvp : null,
-    dismissSuggestion: () => setSuggestionDismissed(true),
+    handleSubmitted: () => handleSubmitted(),
   };
 }

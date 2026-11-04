@@ -22,8 +22,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import clock
 from app.core.auth_deps import Principal
 from app.core.errors import AccessDeniedException, EntityNotFoundException
-from app.party.models import PartyType
-from app.party.service import create_party
 from app.storage.service import ObjectStorage
 from app.users.models import UserProfile
 from app.users.service import get_profile_by_party, get_profile_by_principal
@@ -407,111 +405,58 @@ async def create_rsvp(
     db: AsyncSession,
     group_id: uuid.UUID,
     term_id: uuid.UUID,
-    guardian_name: str,
     child_count: int,
-    principal: Principal | None = None,
+    principal: Principal,
 ) -> RsvpResponse:
-    """Public RSVP. Anonymous (no / invalid / expired token, `principal`
-    unresolvable): mirrors `create_lightweight_family_member`'s four-step
-    Party->UserProfile->attendance-row shape exactly, `attached_to_account`
-    False. Logged-in (`principal` resolves to a real account-backed
-    `UserProfile`): attaches a `TermAttendance` to that profile's existing
-    party — no new Party/UserProfile — idempotent per `(party, term.id)`
-    (an existing row's `child_count` is refreshed in place), the request
-    `guardian_name` is ignored in favour of the profile `display_name`,
-    `attached_to_account` True. The ownership check
-    (`term.circle_group_id == group_id`) guards both paths. This route
-    never 401s and never 500s on a bad token."""
+    """Attaches a `TermAttendance` to the caller's own party, idempotent per
+    `(party, term.id)` (an existing row's `child_count` is refreshed in
+    place). An account is required; a PRIVATE group also requires standing
+    membership or the organizer role. The ownership check
+    (`term.circle_group_id == group_id`) runs first."""
     term = await get_term(db, term_id)
     if term.circle_group_id != group_id:
         raise EntityNotFoundException("Term", term_id)
     group = await get_group(db, group_id)
 
-    profile: UserProfile | None = None
-    if principal is not None:
-        try:
-            profile = await get_profile_by_principal(db, principal)
-        except EntityNotFoundException:
-            profile = None
+    try:
+        profile = await get_profile_by_principal(db, principal)
+    except EntityNotFoundException:
+        raise AccessDeniedException from None
+    if profile.account_user_id is None:
+        raise AccessDeniedException
 
-    if group.visibility == GroupVisibility.PRIVATE:
-        # PRIVATE groups only accept RSVP from an already-standing member or
-        # the organizer — membership itself is only ever granted through the
-        # organizer's access code, never by this route.
-        if profile is None or profile.account_user_id is None:
-            raise AccessDeniedException
-        if not (
-            await is_active_group_organizer(db, group_id, profile.party_id)
-            or await _is_active_member(db, group_id, profile.party_id)
-        ):
-            raise AccessDeniedException
+    if group.visibility == GroupVisibility.PRIVATE and not (
+        await is_active_group_organizer(db, group_id, profile.party_id)
+        or await _is_active_member(db, group_id, profile.party_id)
+    ):
+        # Membership itself is only ever granted through the organizer's
+        # access code, never by this route.
+        raise AccessDeniedException
 
-    # A principal that resolves only to an unmerged anonymous profile
-    # (`account_user_id is None`) deliberately falls through to the anonymous
-    # branch below rather than attaching here — the attach path requires a real
-    # account-backed profile.
-    if profile is not None and profile.account_user_id is not None:
-        existing = (
-            await db.execute(
-                select(TermAttendance).where(
-                    TermAttendance.term_id == term.id,
-                    TermAttendance.party_id == profile.party_id,
-                )
+    existing = (
+        await db.execute(
+            select(TermAttendance).where(
+                TermAttendance.term_id == term.id,
+                TermAttendance.party_id == profile.party_id,
             )
-        ).scalar_one_or_none()
-        if existing is not None:
-            existing.child_count = child_count
-            attendance = existing
-        else:
-            attendance = TermAttendance(
-                term_id=cast(uuid.UUID, term.id),
-                party_id=profile.party_id,
-                child_count=child_count,
-            )
-            db.add(attendance)
-        await db.commit()
-        await db.refresh(attendance)
-        return RsvpResponse(
-            id=cast(uuid.UUID, attendance.id),
-            term_id=cast(uuid.UUID, term.id),
-            user_profile_id=cast(uuid.UUID, profile.id),
-            guardian_name=profile.display_name,
-            child_count=child_count,
-            attached_to_account=True,
         )
-
-    party = await create_party(db, PartyType.PERSON)
-    profile = UserProfile(
-        party_id=cast(uuid.UUID, party.id),
-        account_user_id=None,
-        display_name=guardian_name,
-        email=None,
-    )
-    db.add(profile)
-    await db.flush()
-
-    # Deferred import: app.families.bootstrap imports from app.users.service,
-    # and this module's own import chain reaches app.groups.service — a
-    # top-level import of app.families.service here would risk a circular
-    # import depending on that chain's current ordering.
-    from app.families.service import create_solo_family_for_party
-
-    await create_solo_family_for_party(db, cast(uuid.UUID, party.id), guardian_name)
-
-    attendance = TermAttendance(
-        term_id=cast(uuid.UUID, term.id),
-        party_id=cast(uuid.UUID, party.id),
-        child_count=child_count,
-    )
-    db.add(attendance)
+    ).scalar_one_or_none()
+    if existing is not None:
+        existing.child_count = child_count
+        attendance = existing
+    else:
+        attendance = TermAttendance(
+            term_id=cast(uuid.UUID, term.id),
+            party_id=profile.party_id,
+            child_count=child_count,
+        )
+        db.add(attendance)
     await db.commit()
     await db.refresh(attendance)
-
     return RsvpResponse(
         id=cast(uuid.UUID, attendance.id),
         term_id=cast(uuid.UUID, term.id),
         user_profile_id=cast(uuid.UUID, profile.id),
-        guardian_name=guardian_name,
+        guardian_name=profile.display_name,
         child_count=child_count,
-        attached_to_account=False,
     )

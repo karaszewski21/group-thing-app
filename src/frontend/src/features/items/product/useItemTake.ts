@@ -6,7 +6,7 @@ import { serverMessageOr } from "../../../api/problem";
 import type { ListingMode } from "../../../api/itemListingPreferences";
 import { RESERVATION_STATE_KEYS } from "../../../hooks/useReservationSettlement";
 import type { AvailableItem } from "./SwapProposeDialog";
-import { useAccountGate, type TermActionDeps } from "../../terms/hooks/useAccountGate";
+import { useAccountGate, type TermActionDeps } from "../../auth/useAccountGate";
 
 /** The term or event a take happens in: `name` is the circle's or event's
  * name, `starts_at` naive Warsaw wall clock, `path` the context's page. */

@@ -22,7 +22,7 @@ from app.groups.models import ItemListingPreference
 from app.moderation.status import ModerationStatus
 from app.outbox.models import OutboxEntry
 from app.storage.outbox_listener import OBJECTS_DELETE
-from tests.conftest import count_queries, create_location
+from tests.conftest import count_queries, create_location, seed_legacy_guest
 from tests.fake_storage import FakeStorage
 from tests.test_organizer_bridges import _item, _photo, _set_balance, _uploader_id
 from tests.test_organizer_page import _listed_items
@@ -121,14 +121,13 @@ def _png() -> bytes:
 async def _sign_up(
     client: AsyncClient, db_session: AsyncSession, event_id: str, *, withdrawn: bool
 ) -> None:
-    """A guest sign-up, marked withdrawn over SQL when asked (guests cannot
-    withdraw over HTTP)."""
-    response = await client.post(f"/api/events/{event_id}/attendances", json={"guest_name": "Gość"})
-    assert response.status_code == 201, response.text
+    """A legacy guest sign-up, marked withdrawn over SQL when asked (guests
+    cannot withdraw over HTTP)."""
+    party_id = await seed_legacy_guest(db_session, "Gość", event_id=event_id)
     if withdrawn:
         await db_session.execute(
             update(EventAttendance)
-            .where(EventAttendance.id == uuid.UUID(response.json()["id"]))
+            .where(EventAttendance.party_id == party_id)
             .values(withdrawn_at=NOW)
         )
         await db_session.commit()
@@ -297,7 +296,7 @@ async def test_deleteEvent_nonAuthor_returns403(client: AsyncClient) -> None:
 
 
 async def test_getEvent_withAttendees_authorFirstThenSignUpOrder_isMeAndIsAuthorFlags(
-    client: AsyncClient,
+    client: AsyncClient, db_session: AsyncSession
 ) -> None:
     author, author_party = await _register_with_party(
         client, "page.flags.author@example.com", "ORGANIZER"
@@ -310,8 +309,7 @@ async def test_getEvent_withAttendees_authorFirstThenSignUpOrder_isMeAndIsAuthor
     second, second_party = await _register_with_party(client, "page.flags.second@example.com")
     event_id = await _create_event(client, author)
     await _attend(client, event_id, first)
-    guest = await client.post(f"/api/events/{event_id}/attendances", json={"guest_name": "Ania"})
-    assert guest.status_code == 201, guest.text
+    await seed_legacy_guest(db_session, "Ania", event_id=event_id)
     await _attend(client, event_id, second)
 
     as_first = await _page(client, event_id, first)

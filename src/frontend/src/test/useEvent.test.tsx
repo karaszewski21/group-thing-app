@@ -47,7 +47,6 @@ const ATTENDANCE: EventAttendanceResponse = {
   id: "att-1",
   event_id: EVENT_ID,
   user_profile_id: "prof-1",
-  attached_to_account: false,
 };
 
 function deferred<T>() {
@@ -101,7 +100,7 @@ describe("useEvent", () => {
     expect(result.current.notFound).toBe(false);
   });
 
-  it("signUp_postsGuestNameAndAwaitsEventListInvalidation", async () => {
+  it("signUp_postsAndAwaitsEventListInvalidation", async () => {
     const client = createTestQueryClient();
     const invalidate = vi.spyOn(client, "invalidateQueries");
     const { result } = await renderReady(event(), client);
@@ -110,10 +109,10 @@ describe("useEvent", () => {
 
     let returned: EventAttendanceResponse | undefined;
     await act(async () => {
-      returned = await result.current.signUp("Ala");
+      returned = await result.current.signUp();
     });
 
-    expect(eventsApi.signUpForEvent).toHaveBeenCalledWith(EVENT_ID, { guest_name: "Ala" });
+    expect(eventsApi.signUpForEvent).toHaveBeenCalledWith(EVENT_ID);
     expect(returned).toEqual(ATTENDANCE);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["event"] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["myEvents"] });

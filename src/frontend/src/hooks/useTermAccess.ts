@@ -35,7 +35,7 @@ function errorMessage(err: unknown): string {
 
 /** The term page's single data source: the Circle's public view plus the
  * caller's resolved access, from `getGroupAccess`. Re-fetches whenever the
- * auth token changes, so an in-page login (e.g. `AccountMergeForm`)
+ * auth token changes, so an in-page login (`AuthSheet`)
  * re-renders the page as that user. The token is deliberately NOT part of
  * the query key: a new key would drop the current data, while the page must
  * keep showing it (flagged `isStale`) until the new response arrives — and

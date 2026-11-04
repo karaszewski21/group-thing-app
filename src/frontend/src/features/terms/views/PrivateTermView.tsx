@@ -3,7 +3,7 @@ import { useAppNavigate } from "../../../routing/navigation";
 import { BTN_PRIMARY, CARD, ERROR_TEXT, PAGE_SHELL } from "../../../components/shared/uiStyles";
 import { GroupHeader } from "../components/GroupHeader";
 import type { CodeSheet } from "../hooks/useJoinCodeLink";
-import { AuthGateLinks } from "../modals/AuthGateSheet";
+import { AuthPromptButtons } from "../../auth/AuthSheet";
 import { JoinByCodeSheet } from "../modals/JoinByCodeSheet";
 import type { PrivateViewState } from "../termViewState";
 
@@ -82,8 +82,8 @@ function LoginRequiredStep({ hasPendingCode }: { hasPendingCode: boolean }) {
         {MEMBERS_ONLY}{" "}
         {hasPendingCode ? "Masz kod? Zaloguj się, żeby go użyć." : "Zaloguj się, aby wpisać kod dostępu."}
       </p>
-      <div className="mt-3">
-        <AuthGateLinks />
+      <div className="mt-1">
+        <AuthPromptButtons sheetMessage="Zaloguj się albo załóż konto, a potem wpisz kod dostępu od organizatora." />
       </div>
     </>
   );

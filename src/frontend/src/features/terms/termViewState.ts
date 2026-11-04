@@ -10,9 +10,8 @@ import type { TermAccessState } from "../../hooks/useTermAccess";
  * - `enterCode`: PRIVATE group, logged-in non-member.
  * - `refreshFailed`: the gate was resolved for another token and the fetch
  *   for the current one failed, so only a retry is offered.
- * The `content` flags come from the server only (never from the guest RSVP
- * in local storage): `isAttending` drives the sign-up footer, the others gate
- * the chat buttons. */
+ * The `content` flags come from the server: `isAttending` drives the sign-up
+ * footer, the others gate the chat buttons. */
 export type TermViewState =
   | { kind: "loading" }
   | { kind: "notFound" }

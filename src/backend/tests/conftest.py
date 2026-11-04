@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import uuid
 from collections.abc import AsyncGenerator, Callable, Generator, Iterator
 from contextlib import contextmanager
 from datetime import datetime
@@ -184,6 +185,41 @@ async def create_location(
     response = await client.post("/api/locations", json=body, headers=headers)
     assert response.status_code == 201, response.text
     return str(response.json()["id"])
+
+
+async def seed_legacy_guest(
+    db_session: AsyncSession,
+    name: str,
+    *,
+    term_id: str | uuid.UUID | None = None,
+    event_id: str | uuid.UUID | None = None,
+    child_count: int = 0,
+) -> uuid.UUID:
+    """An account-less party + profile signed up for a term or an event, as the
+    removed guest sign-up left them: no endpoint creates these any more, but
+    the rows remain and every reader must still handle them. Commits and
+    returns the party id."""
+    from app.events.models import EventAttendance
+    from app.groups.models import TermAttendance
+    from app.party.models import PartyType
+    from app.party.service import create_party
+    from app.users.models import UserProfile
+
+    party = await create_party(db_session, PartyType.PERSON)
+    party_id = uuid.UUID(str(party.id))
+    db_session.add(
+        UserProfile(party_id=party_id, account_user_id=None, display_name=name, email=None)
+    )
+    if term_id is not None:
+        db_session.add(
+            TermAttendance(
+                term_id=uuid.UUID(str(term_id)), party_id=party_id, child_count=child_count
+            )
+        )
+    if event_id is not None:
+        db_session.add(EventAttendance(event_id=uuid.UUID(str(event_id)), party_id=party_id))
+    await db_session.commit()
+    return party_id
 
 
 @pytest.fixture

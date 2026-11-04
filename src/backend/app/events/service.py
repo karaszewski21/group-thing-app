@@ -57,9 +57,6 @@ EVENT_HAS_OPEN_RESERVATIONS_MESSAGE = (
 )
 EVENT_ENDED_MESSAGE = "Wydarzenie się zakończyło."
 AUTHOR_SIGN_UP_MESSAGE = "Organizator nie zapisuje się na własne wydarzenie."
-GUEST_NAME_BLANK_MESSAGE = "Podaj swoje imię."
-GUEST_NAME_LENGTH_MESSAGE = "Imię może mieć najwyżej 255 znaków."
-GUEST_NAME_MAX_LENGTH = 255
 
 logger = logging.getLogger(__name__)
 
@@ -375,15 +372,6 @@ async def list_chat_event_refs(
     return {event_id: (name, author) for event_id, name, author in rows.tuples()}
 
 
-def _validate_guest_name(name: str | None) -> str:
-    trimmed = (name or "").strip()
-    if not trimmed:
-        raise ValueError(GUEST_NAME_BLANK_MESSAGE)
-    if len(trimmed) > GUEST_NAME_MAX_LENGTH:
-        raise ValueError(GUEST_NAME_LENGTH_MESSAGE)
-    return trimmed
-
-
 def _require_open(event: Event | None, event_id: uuid.UUID) -> Event:
     if event is None:
         raise EventNotFound(event_id)
@@ -393,53 +381,33 @@ def _require_open(event: Event | None, event_id: uuid.UUID) -> Event:
 
 
 async def sign_up(
-    db: AsyncSession, principal: Principal | None, event_id: uuid.UUID, guest_name: str | None
+    db: AsyncSession, principal: Principal, event_id: uuid.UUID
 ) -> EventAttendanceResponse:
-    """A caller with an account attaches their own party, idempotently (the
-    author is refused). Anyone else, including an invalid or expired token,
-    signs up as a new guest named `guest_name`, validated and moderated
-    before the event is locked. The event is then held `FOR SHARE` so a
-    concurrent delete cannot remove it before this commits."""
-    profile = await users_acl.find_caller_profile(db, principal)
-    attached = profile is not None and profile.account_user_id is not None
-    name: str | None = None
-    if not attached:
-        _require_open(await db.get(Event, event_id), event_id)
-        name = _validate_guest_name(guest_name)
-        await check_text(TextField.PROFILE_NAME, name)
+    """Attaches the caller's own party, idempotently (the author is refused).
+    The event is held `FOR SHARE` so a concurrent delete cannot remove it
+    before this commits."""
+    profile = await users_acl.get_caller_profile(db, principal)
     event = _require_open(
         await db.get(Event, event_id, with_for_update={"read": True}, populate_existing=True),
         event_id,
     )
-
-    if profile is not None and attached:
-        party_id = profile.party_id
-        if party_id == event.author_party_id:
-            raise AuthorSignUp()
-        attendance = await _find_active_attendance(db, event_id, party_id)
-        if attendance is None:
-            attendance = EventAttendance(event_id=event_id, party_id=party_id)
-            try:
-                async with db.begin_nested():
-                    db.add(attendance)
-                    await db.flush()
-            except IntegrityError:
-                # A concurrent double submit won the partial unique index.
-                attendance = await _find_active_attendance(db, event_id, party_id)
-                if attendance is None:
-                    raise
-    else:
-        assert name is not None
-        profile = await users_acl.create_guest_profile(db, name)
-        attendance = EventAttendance(event_id=event_id, party_id=profile.party_id)
-        db.add(attendance)
+    party_id = profile.party_id
+    if party_id == event.author_party_id:
+        raise AuthorSignUp()
+    attendance = await _find_active_attendance(db, event_id, party_id)
+    if attendance is None:
+        attendance = EventAttendance(event_id=event_id, party_id=party_id)
+        try:
+            async with db.begin_nested():
+                db.add(attendance)
+                await db.flush()
+        except IntegrityError:
+            # A concurrent double submit won the partial unique index.
+            attendance = await _find_active_attendance(db, event_id, party_id)
+            if attendance is None:
+                raise
     await db.commit()
-    return EventAttendanceResponse(
-        id=attendance.id,
-        event_id=event_id,
-        user_profile_id=profile.id,
-        attached_to_account=attached,
-    )
+    return EventAttendanceResponse(id=attendance.id, event_id=event_id, user_profile_id=profile.id)
 
 
 async def withdraw(db: AsyncSession, principal: Principal, event_id: uuid.UUID) -> None:

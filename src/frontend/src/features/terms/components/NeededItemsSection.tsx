@@ -28,7 +28,6 @@ function NeededItemRow({ row }: { row: NeededItemRowVM }) {
           ))}
         </div>
       )}
-      {row.extra}
     </div>
   );
 }

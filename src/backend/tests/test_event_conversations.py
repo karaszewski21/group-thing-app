@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
 from app.groups import service as groups_service
-from tests.conftest import create_location
+from tests.conftest import create_location, seed_legacy_guest
 
 CONVERSATION_KEYS = {
     "id",
@@ -58,12 +58,8 @@ async def _create_event(client: AsyncClient, token: str, name: str) -> str:
     return str(response.json()["id"])
 
 
-async def _sign_up(client: AsyncClient, event_id: str, token: str | None = None) -> None:
-    response = await client.post(
-        f"/api/events/{event_id}/attendances",
-        json={} if token else {"guest_name": "Gość Wydarzenia"},
-        headers=_auth(token) if token else {},
-    )
+async def _sign_up(client: AsyncClient, event_id: str, token: str) -> None:
+    response = await client.post(f"/api/events/{event_id}/attendances", headers=_auth(token))
     assert response.status_code == 201, response.text
 
 
@@ -92,13 +88,13 @@ async def _send(client: AsyncClient, token: str, conversation_id: str, body: str
 
 
 async def test_openEventConversation_firstThenSecond_returns201Then200(
-    client: AsyncClient,
+    client: AsyncClient, db_session: AsyncSession
 ) -> None:
     author, _ = await _register(client, "evc.open.author@example.com")
     attendee, _ = await _register(client, "evc.open.attendee@example.com")
     event_id = await _create_event(client, author, "Wymiana zabawek")
     await _sign_up(client, event_id, attendee)
-    await _sign_up(client, event_id)  # an account-less guest is not counted
+    await seed_legacy_guest(db_session, "Gość Wydarzenia", event_id=event_id)  # not counted
 
     created_status, created = await _open(client, author, event_id)
     reopened_status, reopened = await _open(client, attendee, event_id)

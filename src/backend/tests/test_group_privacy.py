@@ -67,7 +67,7 @@ async def _rsvp_with_family(
     return guardian_token, party_id
 
 
-async def test_createRsvp_privateGroupAnonymous_returns403(client: AsyncClient) -> None:
+async def test_createRsvp_privateGroupAnonymous_returns401(client: AsyncClient) -> None:
     org_token, _ = await _register(client, "ORGANIZER", "priv.rsvp.org1@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "priv1")
     patch = await client.patch(
@@ -83,7 +83,7 @@ async def test_createRsvp_privateGroupAnonymous_returns403(client: AsyncClient) 
         json={"term_id": term_id, "guardian_name": "Anonim", "child_count": 0},
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 async def test_createRsvp_privateGroupOutsider_returns403(client: AsyncClient) -> None:
@@ -105,20 +105,21 @@ async def test_createRsvp_privateGroupOutsider_returns403(client: AsyncClient) -
     assert response.status_code == 403
 
 
-async def test_createRsvp_publicGroupAnonymous_stillWorks(client: AsyncClient) -> None:
+async def test_createRsvp_publicGroupNonMember_returns201(client: AsyncClient) -> None:
     org_token, _ = await _register(client, "ORGANIZER", "priv.rsvp.org3@example.com")
     group_id, term_id = await _create_circle_and_term(client, org_token, "priv3")
+    visitor_token, _ = await _register(client, "GUEST", "priv.rsvp.visitor3@example.com")
 
     response = await client.post(
         f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": term_id, "guardian_name": "Gość", "child_count": 2},
+        json={"term_id": term_id, "child_count": 2},
+        headers=_auth(visitor_token),
     )
 
     assert response.status_code == 201
-    assert response.json()["attached_to_account"] is False
 
 
-async def test_createRsvp_publicGroupWithExistingMembers_stillAcceptsAnonymousRsvp(
+async def test_createRsvp_publicGroupWithExistingMembers_stillAcceptsNonMemberRsvp(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     org_token, _ = await _register(client, "ORGANIZER", "priv.members.org4c@example.com")
@@ -130,9 +131,11 @@ async def test_createRsvp_publicGroupWithExistingMembers_stillAcceptsAnonymousRs
     await service.add_active_membership(db_session, group_id, uuid.UUID(party_id))
     await db_session.commit()
 
+    newcomer_token, _ = await _register(client, "GUEST", "priv.members.newcomer4c@example.com")
     response = await client.post(
         f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": term_id, "guardian_name": "Nowy Gość", "child_count": 0},
+        json={"term_id": term_id, "child_count": 0},
+        headers=_auth(newcomer_token),
     )
 
     assert response.status_code == 201

@@ -1,30 +1,20 @@
 import { useState } from "react";
-import { eventGuestProfileKey, type EventAttendanceResponse } from "../../../api/events";
-import { readValidGuestProfile, writeGuestProfile } from "../../../api/groups";
-import { useClientValue } from "../../../lib/useClientValue";
-
-const SIGNED_UP_TOAST = "Zapisano na wydarzenie";
+import type { EventAttendanceResponse } from "../../../api/events";
+import { useAccountGate } from "../../auth/useAccountGate";
 
 interface UseEventSignUpDeps {
-  eventId: string;
   isLoggedIn: boolean;
   /** `useEvent`'s writes; both reject with an `Error` carrying Polish copy. */
-  signUp: (guestName: string | null) => Promise<EventAttendanceResponse>;
+  signUp: () => Promise<EventAttendanceResponse>;
   withdraw: () => Promise<void>;
   showToast: (message: string) => void;
 }
 
-/** Sign-up and withdraw on the event page: one click for a logged-in viewer,
- * the guest sheet for an anonymous one (whose sign-up is remembered under the
- * event's guest key), and the withdraw confirmation. */
-export function useEventSignUp({ eventId, isLoggedIn, signUp, withdraw, showToast }: UseEventSignUpDeps) {
-  const storedGuestProfileId = useClientValue(
-    () => (isLoggedIn ? null : readValidGuestProfile(eventGuestProfileKey(eventId))),
-    null,
-  );
-  const [signedUpGuestProfileId, setGuestProfileId] = useState<string | null>(null);
-  const guestProfileId = signedUpGuestProfileId ?? storedGuestProfileId;
-  const [sheetOpen, setSheetOpen] = useState(false);
+/** Sign-up and withdraw on the event page. Signing up needs an account: one
+ * click for a logged-in viewer, the login/register sheet for an anonymous
+ * one. Withdrawing goes through a confirmation. */
+export function useEventSignUp({ isLoggedIn, signUp, withdraw, showToast }: UseEventSignUpDeps) {
+  const gate = useAccountGate(isLoggedIn);
   const [signingUp, setSigningUp] = useState(false);
   const [confirmingWithdraw, setConfirmingWithdraw] = useState(false);
 
@@ -32,24 +22,13 @@ export function useEventSignUp({ eventId, isLoggedIn, signUp, withdraw, showToas
     if (signingUp) return;
     setSigningUp(true);
     try {
-      await signUp(null);
-      showToast(SIGNED_UP_TOAST);
+      await signUp();
+      showToast("Zapisano na wydarzenie");
     } catch (err) {
       showToast((err as Error).message);
     } finally {
       setSigningUp(false);
     }
-  }
-
-  /** Rejects with the message the sheet shows inline. */
-  async function submitGuest(name: string) {
-    const guestName = name.trim();
-    if (!guestName) throw new Error("Podaj swoje imię.");
-    const attendance = await signUp(guestName);
-    writeGuestProfile(eventGuestProfileKey(eventId), attendance.user_profile_id);
-    setGuestProfileId(attendance.user_profile_id);
-    setSheetOpen(false);
-    showToast(SIGNED_UP_TOAST);
   }
 
   /** Rejects with the message the confirm dialog shows. */
@@ -60,12 +39,10 @@ export function useEventSignUp({ eventId, isLoggedIn, signUp, withdraw, showToas
   }
 
   return {
-    guestProfileId,
     signingUp,
-    openSignUp: () => (isLoggedIn ? void signUpLoggedIn() : setSheetOpen(true)),
-    sheetOpen,
-    closeSheet: () => setSheetOpen(false),
-    submitGuest,
+    openSignUp: gate.guard(signUpLoggedIn),
+    gateOpen: gate.isOpen,
+    closeGate: gate.close,
     confirmingWithdraw,
     openWithdraw: () => setConfirmingWithdraw(true),
     closeWithdraw: () => setConfirmingWithdraw(false),

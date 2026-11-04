@@ -72,11 +72,10 @@ function event(overrides: Partial<EventDetailResponse> = {}): EventDetailRespons
   };
 }
 
-const GUEST_ATTENDANCE: EventAttendanceResponse = {
+const ATTENDANCE: EventAttendanceResponse = {
   id: "att-1",
   event_id: EVENT_ID,
   user_profile_id: "prof-9",
-  attached_to_account: false,
 };
 
 function page() {
@@ -171,35 +170,21 @@ describe("EventPage", () => {
     expect(within(list).queryByRole("button", { name: /Pokaż wszystkie/ })).not.toBeInTheDocument();
   });
 
-  it("a guest signs up in the sheet, the key is stored and the merge card replaces the footer", async () => {
+  it("an anonymous visitor gets the login/register sheet instead of signing up, and stays on the page", async () => {
     vi.mocked(eventsApi.getEvent).mockResolvedValue(event());
-    vi.mocked(eventsApi.signUpForEvent).mockResolvedValue(GUEST_ATTENDANCE);
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na wydarzenie" }));
     const sheet = screen.getByRole("dialog", { name: "Zapisz się na wydarzenie" });
-    expect(within(sheet).getByText("Piknik w parku · pon. 2 listopada, 14:00")).toBeInTheDocument();
-    expect(within(sheet).getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
-      "href",
-      `/login?returnTo=${encodeURIComponent(PAGE_PATH)}`,
-    );
+    expect(within(sheet).getByText(/Zapisy na wydarzenie wymagają konta/)).toBeInTheDocument();
+    expect(within(sheet).getByRole("tab", { name: "Zaloguj się" })).toHaveAttribute("aria-selected", "true");
+    expect(within(sheet).getByLabelText("Hasło")).toBeInTheDocument();
+    expect(within(sheet).queryByRole("link", { name: /Zaloguj/ })).not.toBeInTheDocument();
+    expect(within(sheet).queryByLabelText("Twoje imię")).not.toBeInTheDocument();
 
-    const name = within(sheet).getByLabelText("Twoje imię");
-    expect(name).toHaveAttribute("maxlength", "255");
-    fireEvent.click(within(sheet).getByRole("button", { name: "Zapisz się" }));
-    expect(await within(sheet).findByRole("alert")).toHaveTextContent("Podaj swoje imię.");
-    expect(name).toHaveAttribute("aria-invalid", "true");
+    fireEvent.click(within(sheet).getByRole("tab", { name: "Załóż konto" }));
+    expect(within(sheet).getByRole("button", { name: "Organizator" })).toBeInTheDocument();
     expect(eventsApi.signUpForEvent).not.toHaveBeenCalled();
-
-    fireEvent.change(name, { target: { value: " Ola " } });
-    fireEvent.submit(name);
-
-    expect(await screen.findByText("Zapisano Cię jako gościa ✓")).toBeInTheDocument();
-    expect(eventsApi.signUpForEvent).toHaveBeenCalledWith(EVENT_ID, { guest_name: "Ola" });
-    expect(localStorage.getItem(`guest_profile_id:event:${EVENT_ID}`)).toContain('"userProfileId":"prof-9"');
-    expect(screen.getByText("Załóż konto, żeby pisać na czacie wydarzenia i móc się wypisać.")).toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "＋ Zapisz się na wydarzenie" })).not.toBeInTheDocument();
   });
 
   it("shows the toast handed over in router state once and clears the state", async () => {
@@ -279,16 +264,16 @@ describe("EventPage", () => {
     expect(screen.getByText(NEUTRAL_EMPTY_COPY)).toBeInTheDocument();
   });
 
-  it("a logged-in visitor signs up with one click, without the guest sheet, and gets a toast", async () => {
+  it("a logged-in visitor signs up with one click, without the account sheet, and gets a toast", async () => {
     mockAuth = { token: "t" };
     vi.mocked(eventsApi.getEvent).mockResolvedValue(event());
-    vi.mocked(eventsApi.signUpForEvent).mockResolvedValue({ ...GUEST_ATTENDANCE, attached_to_account: true });
+    vi.mocked(eventsApi.signUpForEvent).mockResolvedValue(ATTENDANCE);
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na wydarzenie" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Zapisano na wydarzenie");
-    expect(eventsApi.signUpForEvent).toHaveBeenCalledWith(EVENT_ID, { guest_name: null });
+    expect(eventsApi.signUpForEvent).toHaveBeenCalledWith(EVENT_ID);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -392,22 +377,19 @@ describe("EventPage", () => {
     expect(eventsApi.getEvent).toHaveBeenCalledTimes(2);
   });
 
-  it("navigating to another event drops the previous event's guest sign-up and sheet state", async () => {
+  it("navigating to another event drops the previous event's sheet state", async () => {
     vi.mocked(eventsApi.getEvent).mockImplementation(async (id) =>
       id === OTHER_EVENT_ID ? event({ id: OTHER_EVENT_ID, name: "Bazar zimowy" }) : event(),
     );
-    vi.mocked(eventsApi.signUpForEvent).mockResolvedValue(GUEST_ATTENDANCE);
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na wydarzenie" }));
-    fireEvent.change(screen.getByLabelText("Twoje imię"), { target: { value: "Ola" } });
-    fireEvent.submit(screen.getByLabelText("Twoje imię"));
-    expect(await screen.findByText("Zapisano Cię jako gościa ✓")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Zapisz się na wydarzenie" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("link", { name: "Inne wydarzenie" }));
 
     expect(await screen.findByRole("heading", { name: "Bazar zimowy", level: 1 })).toBeInTheDocument();
-    expect(screen.queryByText("Zapisano Cię jako gościa ✓")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "＋ Zapisz się na wydarzenie" })).toBeInTheDocument();
   });
 

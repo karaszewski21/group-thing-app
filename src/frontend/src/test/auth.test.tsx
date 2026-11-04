@@ -208,8 +208,9 @@ describe("RegisterForm", () => {
       logout: vi.fn(),
     });
 
+    const onSwitchToLogin = vi.fn();
     const { RegisterForm } = await import("../features/auth/RegisterForm");
-    renderWithProviders(<RegisterForm />);
+    renderWithProviders(<RegisterForm onSwitchToLogin={onSwitchToLogin} />);
 
     fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "new@example.com" } });
     fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "pass123" } });
@@ -241,8 +242,9 @@ describe("RegisterForm", () => {
       logout: vi.fn(),
     });
 
+    const onSwitchToLogin = vi.fn();
     const { RegisterForm } = await import("../features/auth/RegisterForm");
-    renderWithProviders(<RegisterForm />);
+    renderWithProviders(<RegisterForm onSwitchToLogin={onSwitchToLogin} />);
 
     fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "dup@example.com" } });
     fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "pass123" } });
@@ -251,8 +253,8 @@ describe("RegisterForm", () => {
     await waitFor(() => {
       expect(screen.getByText(/Ten email jest już zarejestrowany, zaloguj się/i)).toBeInTheDocument();
     });
-    const loginLinks = screen.getAllByRole("link", { name: /zaloguj się/i });
-    expect(loginLinks.some((link) => link.getAttribute("href") === "/login")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: /^zaloguj się$/i }));
+    expect(onSwitchToLogin).toHaveBeenCalledTimes(1);
   });
 
   it("registers with the chosen role and leaves the redirect to the page's AuthGuard", async () => {
@@ -267,8 +269,9 @@ describe("RegisterForm", () => {
       logout: vi.fn(),
     });
 
+    const onSwitchToLogin = vi.fn();
     const { RegisterForm } = await import("../features/auth/RegisterForm");
-    renderWithProviders(<RegisterForm />);
+    renderWithProviders(<RegisterForm onSwitchToLogin={onSwitchToLogin} />);
 
     fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "new@example.com" } });
     fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "pass123" } });

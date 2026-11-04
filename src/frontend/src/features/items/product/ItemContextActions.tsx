@@ -1,7 +1,6 @@
 import { useId, useState, type ReactNode } from "react";
-import { Link, useAppPathname, useAppSearch } from "../../../routing/navigation";
+import { Link } from "../../../routing/navigation";
 import type { ItemActionsResponse, ItemContextOptionResponse, ItemLocationResponse } from "../../../api/itemActions";
-import { authPath } from "../../../auth/authPaths";
 import { Avatar } from "../../../components/shared/Avatar";
 import { PlaceMapEmbed } from "../../../components/shared/PlaceMapEmbed";
 import { ToastPill } from "../../../components/shared/ToastPill";
@@ -12,8 +11,8 @@ import { buildMapsUrl } from "../../../lib/googleMaps";
 import { ownerPagePath, viewPath } from "../../../routing/paths";
 import dayjs from "../../../utils/dayjs";
 import { localityDetail, localityMapsQuery } from "../../../utils/locationLabel";
-import { useAccountGate } from "../../terms/hooks/useAccountGate";
-import { AuthGateSheet } from "../../terms/modals/AuthGateSheet";
+import { useAccountGate } from "../../auth/useAccountGate";
+import { AuthSheet } from "../../auth/AuthSheet";
 import { ChooseContextSheet, ContextPlaceLine } from "./ChooseContextSheet";
 import type { ItemActionsView } from "./itemActionsViewState";
 import { PartyReservationActions } from "./PartyReservationActions";
@@ -33,6 +32,7 @@ const PRIMARY_ACTION = `${BTN_PRIMARY} ${BTN_LG} ${BLOCKABLE} mt-2.5 block w-ful
 const OUTLINE_ACTION = `${BTN_GHOST} ${BTN_LG} ${BLOCKABLE} mt-2.5 block w-full border-primary text-center text-primary-fg no-underline`;
 const GHOST_ACTION = `${BTN_GHOST} ${BTN_LG} mt-2.5 block w-full text-center text-ink no-underline`;
 const CHAT_LABEL = "💬 Napisz o przedmiocie";
+const ITEM_ACCOUNT_MESSAGE = "Rezerwacja i czat wymagają konta. Zaloguj się albo załóż konto — zostaniesz przy tej rzeczy.";
 
 function ownerItemsPath(owner: Owner): string {
   return `/${owner.slug ?? owner.party_id}/items`;
@@ -71,7 +71,7 @@ export function ItemContextActions({
       if (target.kind === "PERSONAL") void chat.open({ kind: "ITEM", id: itemId });
     },
   });
-  const chatGate = useAccountGate(isLoggedIn);
+  const accountGate = useAccountGate(isLoggedIn);
   const [sheet, setSheet] = useState<"personal" | "context" | null>(null);
   const busy = take.busyItemId === itemId;
   const { takeSuccess } = take;
@@ -81,7 +81,7 @@ export function ItemContextActions({
       <button
         type="button"
         disabled={chat.busy}
-        onClick={chatGate.guard(() => chat.open({ kind: "ITEM", id: itemId }))}
+        onClick={accountGate.guard(() => chat.open({ kind: "ITEM", id: itemId }))}
         className={GHOST_ACTION}
       >
         {CHAT_LABEL}
@@ -161,8 +161,15 @@ export function ItemContextActions({
             contexts={view.contexts}
             subtitle={`Terminy i wydarzenia, na których bywa ${view.owner.display_name}`}
           />
-          <AnonymousGate />
-          <OwnerRow owner={view.owner} />
+          <ActionCard owner={view.owner} title="Jak chcesz odebrać?">
+            <button type="button" onClick={() => accountGate.open()} className={PRIMARY_ACTION}>
+              Odbiorę osobiście
+            </button>
+            <button type="button" onClick={() => accountGate.open()} className={OUTLINE_ACTION}>
+              Wybieram termin
+            </button>
+            {chatButton}
+          </ActionCard>
         </>
       );
       break;
@@ -250,13 +257,12 @@ export function ItemContextActions({
           }}
         />
       )}
-      {(take.gateOpen || chatGate.isOpen) && (
-        <AuthGateSheet
-          title="Załóż konto, żeby napisać"
-          message="Rezerwacje i czat wymagają konta. Wrócisz do tej rzeczy po zalogowaniu."
+      {(take.gateOpen || accountGate.isOpen) && (
+        <AuthSheet
+          message={ITEM_ACCOUNT_MESSAGE}
           onClose={() => {
             take.closeGate();
-            chatGate.close();
+            accountGate.close();
           }}
         />
       )}
@@ -504,29 +510,6 @@ function ContextList({ contexts, subtitle }: { contexts: ItemContextOptionRespon
           </li>
         ))}
       </ul>
-    </section>
-  );
-}
-
-/** The anonymous visitor's way in: both links come back to this item. */
-function AnonymousGate() {
-  const headingId = useId();
-  const pathname = useAppPathname();
-
-  const search = useAppSearch();
-  const returnTo = pathname + search;
-  return (
-    <section className={`mt-3 ${CARD}`} aria-labelledby={headingId}>
-      <h3 id={headingId} className={HEADING}>
-        Chcesz tę rzecz?
-      </h3>
-      <p className="mt-1 text-[13px] text-ink-soft">Zaloguj się, żeby zarezerwować lub napisać do właściciela.</p>
-      <Link to={authPath("login", returnTo)} className={PRIMARY_ACTION}>
-        Zaloguj się
-      </Link>
-      <Link to={authPath("register", returnTo)} className={OUTLINE_ACTION}>
-        Załóż konto
-      </Link>
     </section>
   );
 }

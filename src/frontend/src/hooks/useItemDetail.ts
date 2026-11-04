@@ -1,5 +1,5 @@
 import { usePrefetchQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { updateInventoryItem, type ItemCondition } from "../api/inventories";
 import {
   getItemDetails,
@@ -13,6 +13,7 @@ import {
   resolveProduct,
   updateProductDescription,
 } from "../api/products";
+import { useAuth } from "../auth/AuthContext";
 import { ITEM_ACTIONS_KEY } from "./useItemActions";
 
 export const ITEM_DETAILS_KEY = "itemDetails";
@@ -39,8 +40,11 @@ interface UseItemDetailResult {
  * reports validation errors as 400) reads as "not found", like a 404.
  * While the owner has a PENDING photo it re-reads every 10 s so the
  * moderation badges update by themselves; polling stops once no photo is
- * PENDING, and (TanStack default) pauses in a background tab. */
+ * PENDING, and (TanStack default) pauses in a background tab. A token
+ * change (in-page login through `AuthSheet`, or logout) re-reads them, as
+ * what the viewer may see depends on who they are. */
 export function useItemDetail(itemId: string): UseItemDetailResult {
+  const { token } = useAuth();
   const query = useQuery({
     queryKey: [ITEM_DETAILS_KEY, itemId],
     queryFn: () => getItemDetails(itemId),
@@ -53,6 +57,13 @@ export function useItemDetail(itemId: string): UseItemDetailResult {
   const refetch = useCallback(async () => {
     await refetchQuery();
   }, [refetchQuery]);
+
+  const lastToken = useRef(token);
+  useEffect(() => {
+    if (lastToken.current === token) return;
+    lastToken.current = token;
+    void refetchQuery();
+  }, [token, refetchQuery]);
 
   const notFound = hasStatus(query.error, 404) || hasStatus(query.error, 400);
   return {

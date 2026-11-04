@@ -13,6 +13,9 @@ vi.mock("../api/items", () => ({
   getItemDetails: vi.fn(),
 }));
 
+let mockAuth: { token: string | null } = { token: null };
+vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
+
 vi.mock("../api/inventories", () => ({
   updateInventoryItem: vi.fn(),
 }));
@@ -81,6 +84,21 @@ function renderPageHooks() {
 describe("useItemDetail", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockAuth = { token: null };
+  });
+
+  it("re-reads the details when the token changes, so an in-page login reveals a hidden item", async () => {
+    vi.mocked(itemsApi.getItemDetails)
+      .mockRejectedValueOnce(new ApiError(404, "Err", { message: "Nie znaleziono" }))
+      .mockResolvedValueOnce(item);
+    const hook = renderHook(() => useItemDetail(ITEM_ID), { wrapper: createQueryWrapper() });
+    await waitFor(() => expect(hook.result.current.notFound).toBe(true));
+
+    mockAuth = { token: "tok" };
+    hook.rerender();
+
+    await waitFor(() => expect(hook.result.current.item).toEqual(item));
+    expect(itemsApi.getItemDetails).toHaveBeenCalledTimes(2);
   });
 
   it("returns the item, and reports notFound for 404 and for 400 (malformed id)", async () => {

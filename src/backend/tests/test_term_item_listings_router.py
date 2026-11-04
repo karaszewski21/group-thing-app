@@ -90,7 +90,6 @@ async def _rsvp(client: AsyncClient, token: str, group_id: int, term_id: int) ->
         headers=_auth(token),
     )
     assert r.status_code == 201
-    assert r.json()["attached_to_account"] is True
     return r.json()["id"]
 
 

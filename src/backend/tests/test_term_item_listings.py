@@ -8,10 +8,9 @@ directly against `db_session`; setup (users, circle, term, products,
 inventory items, `TermAttendance` rows) goes through the real HTTP API,
 as in the router tests.
 
-`TermAttendance` rows are created via the existing, optional-auth
-`POST /api/groups/public/{group_id}/rsvp` endpoint with an `Authorization`
-header — it attaches the RSVP to the caller's own account party
-(`attached_to_account: True`) rather than minting an anonymous profile.
+`TermAttendance` rows are created via
+`POST /api/groups/public/{group_id}/rsvp` with an `Authorization` header —
+it attaches the RSVP to the caller's own account party.
 """
 
 from __future__ import annotations
@@ -167,7 +166,6 @@ async def _rsvp(
         headers=_auth(token),
     )
     assert r.status_code == 201
-    assert r.json()["attached_to_account"] is True
     return uuid.UUID(r.json()["id"])
 
 

@@ -16,7 +16,6 @@ may withdraw their own Pledge, ...) live in `application/`, raising
 
 from __future__ import annotations
 
-from app.groups.application.account_merge import merge_anonymous_profile
 from app.groups.application.attendance import withdraw_attendance
 from app.groups.application.chat_audience import (
     ChatAudience,
@@ -196,7 +195,6 @@ __all__ = [
     "list_terms_for_moderation",
     "list_terms_with_counts",
     "location_ref_response",
-    "merge_anonymous_profile",
     "propose_item_swap",
     "redeem_join_code",
     "regenerate_join_code",

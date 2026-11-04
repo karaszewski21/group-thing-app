@@ -76,16 +76,10 @@ export interface EventDetailResponse extends EventResponse {
   open_reservations: EventOpenReservations | null;
 }
 
-/** `guest_name` is required for an anonymous caller, ignored otherwise. */
-export interface EventAttendanceRequest {
-  guest_name: string | null;
-}
-
 export interface EventAttendanceResponse {
   id: string;
   event_id: string;
   user_profile_id: string;
-  attached_to_account: boolean;
 }
 
 export interface EventBannerResponse {
@@ -122,18 +116,13 @@ export function getAttendingEvents(): Promise<EventResponse[]> {
 }
 
 /** Idempotent for a logged-in caller; refused (409) for the author or once the event has ended. */
-export function signUpForEvent(eventId: string, request: EventAttendanceRequest): Promise<EventAttendanceResponse> {
-  return api.post(`/events/${eventId}/attendances`, request);
+export function signUpForEvent(eventId: string): Promise<EventAttendanceResponse> {
+  return api.post(`/events/${eventId}/attendances`, undefined);
 }
 
 /** Idempotent: succeeds even when the caller isn't signed up. */
 export function withdrawFromEvent(eventId: string): Promise<void> {
   return api.post(`/events/${eventId}/attendances/withdraw`, undefined);
-}
-
-/** localStorage key for an anonymous visitor's guest sign-up, scoped per event. */
-export function eventGuestProfileKey(eventId: string): string {
-  return `guest_profile_id:event:${eventId}`;
 }
 
 /** Replaces any banner already stored for the event. */

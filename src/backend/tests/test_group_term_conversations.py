@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import clock
 from app.groups import service as groups_service
 from app.groups.models import Group, GroupVisibility, Term
-from tests.conftest import create_location
+from tests.conftest import create_location, seed_legacy_guest
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -56,12 +56,12 @@ async def _create_term(
 
 
 async def _rsvp(
-    client: AsyncClient, group_id: uuid.UUID, term_id: uuid.UUID, token: str | None = None
+    client: AsyncClient, group_id: uuid.UUID, term_id: uuid.UUID, token: str
 ) -> uuid.UUID:
     response = await client.post(
         f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": str(term_id), "guardian_name": "Gość Gtc", "child_count": 1},
-        headers=_auth(token) if token else {},
+        json={"term_id": str(term_id), "child_count": 1},
+        headers=_auth(token),
     )
     assert response.status_code == 201, response.text
     return uuid.UUID(response.json()["id"])
@@ -144,7 +144,7 @@ async def test_openTermConversation_attendeesAndOrganizer_withdrawnDeniedPastTer
     occurs_on = (clock.local_now() + timedelta(days=3)).replace(microsecond=0)
     term_id = await _create_term(client, org_token, group_id, occurs_on)
     await _rsvp(client, group_id, term_id, attendee_token)
-    await _rsvp(client, group_id, term_id)  # an account-less guest
+    await seed_legacy_guest(db_session, "Gość Gtc", term_id=term_id)
     withdrawn = await _rsvp(client, group_id, term_id, withdrawn_token)
     response = await client.post(
         f"/api/groups/mine/attendances/{withdrawn}/withdraw", headers=_auth(withdrawn_token)

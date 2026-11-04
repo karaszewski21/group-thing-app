@@ -67,7 +67,7 @@ describe("in-scope public pages use theme tokens, not literal colors", () => {
     "features/terms/views/PublicTermView.tsx",
     "features/terms/views/PrivateTermView.tsx",
     "features/terms/components/GroupVisualization.tsx",
-    "features/terms/modals/AccountMergeForm.tsx",
+    "features/auth/AuthSheet.tsx",
     "features/terms/modals/JoinByCodeSheet.tsx",
     "features/terms/components/CodeDigitsInput.tsx",
     "components/shared/ModalSheet.tsx",

@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import clock
 from app.groups.models import ItemListingPreference, Leadership, NeededItem, Term
 from app.organizations.models import Organization
-from tests.conftest import create_location, leaf_category_ids
+from tests.conftest import create_location, leaf_category_ids, seed_legacy_guest
 
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
@@ -101,7 +101,7 @@ async def _create_needed_item(
 
 
 async def test_getPublicCircle_withTermIdParam_returnsThatTermsItemsAndGuardians(
-    client: AsyncClient,
+    client: AsyncClient, db_session: AsyncSession
 ) -> None:
     token = await _register_organizer(client, "pt.owner1@example.com")
     group_id = await _create_circle(client, token, "Nutki dla starszaków")
@@ -115,11 +115,7 @@ async def test_getPublicCircle_withTermIdParam_returnsThatTermsItemsAndGuardians
     await _create_needed_item(client, token, far_term_id, "Grzechotka", "5 grzechotek")
     await _create_needed_item(client, token, nearest_term_id, "Kredki", "kredki")
 
-    rsvp = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": far_term_id, "guardian_name": "Marek Nowak", "child_count": 1},
-    )
-    assert rsvp.status_code == 201
+    await seed_legacy_guest(db_session, "Marek Nowak", term_id=far_term_id, child_count=1)
 
     response = await client.get(f"/api/groups/public/{group_id}?term_id={far_term_id}")
 
@@ -234,7 +230,6 @@ async def test_getPublicCircle_afterLoggedInRsvp_stillExposesOnlyGuardianDisplay
         headers=_auth_headers(guest_token),
     )
     assert rsvp.status_code == 201
-    assert rsvp.json()["attached_to_account"] is True
 
     response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
 

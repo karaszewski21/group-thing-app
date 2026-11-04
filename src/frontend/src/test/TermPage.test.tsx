@@ -31,7 +31,7 @@ vi.mock("../hooks/useOpenConversation", () => ({ useOpenConversation: () => conv
 let mockAuth: { token: string | null; displayName: string | null };
 
 vi.mock("../auth/AuthContext", () => ({
-  useAuth: () => ({ ...mockAuth, applyExternalToken: vi.fn() }),
+  useAuth: () => mockAuth,
 }));
 
 // Term/Group ids are UUID strings end to end (spec R29) — route params are never coerced.
@@ -105,9 +105,6 @@ const circle: PublicCircleResponse = {
     { party_id: "22", display_name: "Piotr Zieliński" },
   ],
 };
-
-// The page keys the guest RSVP off the public payload's ids (still typed as numbers there).
-const GUEST_KEY = groupsApi.guestProfileIdKey(`${circle.id}`, `${circle.term!.id}`);
 
 function access(
   overrides: { group?: Partial<PublicCircleResponse>; access?: Partial<GroupAccessResponse["access"]> } = {},
@@ -370,18 +367,17 @@ describe("TermPage — organizer theme", () => {
 });
 
 describe("TermPage — sign-up footer", () => {
-  it("anonymous: 'Zaloguj się, żeby się zapisać' opens the login / guest choice", async () => {
+  it("anonymous: 'Zaloguj się, żeby się zapisać' opens the login/register sheet, with no guest path", async () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "Zaloguj się, żeby się zapisać" }));
 
     const sheet = screen.getByRole("dialog", { name: "Zapisz się na zajęcia" });
-    expect(within(sheet).getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
-      "href",
-      `/login?returnTo=${encodeURIComponent(PATH)}`,
-    );
-    fireEvent.click(within(sheet).getByRole("button", { name: "Zapisz się jako gość" }));
-    expect(await screen.findByLabelText("Imię")).toBeInTheDocument();
+    expect(within(sheet).getByRole("tab", { name: "Zaloguj się" })).toHaveAttribute("aria-selected", "true");
+    expect(within(sheet).getByLabelText("Hasło")).toBeInTheDocument();
+    expect(within(sheet).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(sheet).queryByRole("button", { name: /jako gość/ })).not.toBeInTheDocument();
+    expect(groupsApi.createRsvp).not.toHaveBeenCalled();
   });
 
   it("logged in, not attending: 'Zapisz się na zajęcia' opens the logged-in RSVP dialog", async () => {
@@ -420,17 +416,13 @@ describe("TermPage — sign-up footer", () => {
     expect(screen.queryByRole("button", { name: /Zapisz się/ })).not.toBeInTheDocument();
   });
 
-  it("a guest who already RSVP'd sees no sign-up button and gets the account form instead of the gate", async () => {
-    groupsApi.writeGuestProfile(GUEST_KEY, "55");
+  it("anonymous: 'Ja to przyniosę' opens the same login/register sheet", async () => {
     renderPage();
 
-    await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" });
-    expect(screen.queryByRole("button", { name: /Zapisz się|żeby się zapisać/ })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Ja to przyniosę: Bębenek" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Ja to przyniosę: Bębenek" }));
-
-    expect(screen.getByRole("form", { name: /Załóż konto/ })).toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const sheet = screen.getByRole("dialog", { name: "Potrzebne konto" });
+    expect(within(sheet).getByRole("tablist", { name: "Konto" })).toBeInTheDocument();
   });
 });
 
@@ -443,10 +435,9 @@ describe("TermPage — chat entry points", () => {
     ["a PUBLIC attendee sees only the term chat", "tok", "PUBLIC", { is_active_attendee: true }, [TERM_CHAT]],
     ["a withdrawn non-member attendee sees neither", "tok", "PUBLIC", { is_attending: true }, []],
     ["the organizer of a PRIVATE group sees both", "tok", "PRIVATE", { is_organizer: true }, [TERM_CHAT, GROUP_CHAT]],
-    ["an anonymous guest who RSVP'd sees none", null, "PUBLIC", { is_attending: true }, []],
+    ["an anonymous visitor sees none", null, "PUBLIC", {}, []],
   ] as const)("%s", async (_label, token, visibility, flags, expected) => {
     mockAuth = { token, displayName: token ? "Ala" : null };
-    if (token === null) groupsApi.writeGuestProfile(GUEST_KEY, "55");
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access({ group: { visibility }, access: flags }));
     renderPage();
 
@@ -484,12 +475,12 @@ describe("TermPage — chat entry points", () => {
 });
 
 describe("TermPage — item actions", () => {
-  it("anonymous 'Ja to przyniosę' opens the account gate and never pledges", async () => {
+  it("anonymous 'Ja to przyniosę' opens the account sheet and never pledges", async () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "Ja to przyniosę: Bębenek" }));
 
-    expect(screen.getByRole("dialog", { name: "Załóż konto, aby przynieść rzecz" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Potrzebne konto" })).toBeInTheDocument();
     expect(pledgesApi.createPledge).not.toHaveBeenCalled();
   });
 
@@ -515,16 +506,16 @@ function privateAccess(
 }
 
 describe("TermPage — access", () => {
-  it("anonymous on a PRIVATE group sees only the gate with login links, no term content", async () => {
+  it("anonymous on a PRIVATE group sees only the gate with in-page login, no term content", async () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(privateAccess());
     renderPage();
 
     expect(await screen.findByRole("heading", { level: 2, name: /Ta grupa jest prywatna/ })).toBeInTheDocument();
     expect(screen.getByText(/Zaloguj się, aby wpisać kod dostępu\./)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
-      "href",
-      `/login?returnTo=${encodeURIComponent(PATH)}`,
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Załóż konto" }));
+    const sheet = screen.getByRole("dialog", { name: "Potrzebne konto" });
+    expect(within(sheet).getByRole("tab", { name: "Załóż konto" })).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(within(sheet).getByRole("button", { name: "Zamknij" }));
     expect(screen.queryByRole("region", { name: "Zapisani na zajęcia" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mam kod dostępu" })).not.toBeInTheDocument();
   });
@@ -831,17 +822,11 @@ describe("TermPage — join a private group by code", () => {
 
     expect(await screen.findByText(/Masz kod\? Zaloguj się, żeby go użyć\./)).toBeInTheDocument();
     expect(screen.getByTestId("hash")).toHaveTextContent("#code=482913");
-    expect(screen.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
-      "href",
-      `/login?returnTo=${encodeURIComponent(PATH)}`,
-    );
-    expect(screen.getByRole("link", { name: "Zarejestruj się" })).toHaveAttribute(
-      "href",
-      `/login?mode=register&returnTo=${encodeURIComponent(PATH)}`,
-    );
+    expect(screen.getByRole("button", { name: "Zaloguj się" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Załóż konto" })).toBeInTheDocument();
     anonymous.unmount();
 
-    // LoginPage navigates back to `returnTo`, which carries no fragment.
+    // A fresh page load as a logged-in user, without the fragment.
     mockAuth = { token: "tok", displayName: "Ala" };
     renderPage(PATH);
 
@@ -963,14 +948,14 @@ describe("TermPage — join a private group by code", () => {
       .mockRejectedValueOnce(new Error("500"))
       .mockResolvedValueOnce(privateAccess());
     const view = renderPage();
-    await screen.findByRole("link", { name: "Zaloguj się" });
+    await screen.findByRole("button", { name: "Zaloguj się" });
 
     mockAuth = { token: "tok", displayName: "Ala" };
     view.rerender(page());
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Nie udało się odświeżyć strony — spróbuj ponownie.");
     expect(screen.queryByText("Wczytywanie...")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Zaloguj się" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Zaloguj się" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mam kod dostępu" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
@@ -981,7 +966,7 @@ describe("TermPage — join a private group by code", () => {
 });
 
 describe("TermPage — view fixes", () => {
-  it("logged in with no display name yet: sign-up opens the logged-in RSVP dialog, not the guest one", async () => {
+  it("logged in with no display name yet: sign-up opens the RSVP dialog, which asks no name", async () => {
     mockAuth = { token: "tok", displayName: null };
     renderPage();
 
@@ -1011,7 +996,7 @@ describe("TermPage — view fixes", () => {
 
     await waitFor(() => expect(groupsApi.createRsvp).toHaveBeenCalledTimes(1));
     const [, body] = vi.mocked(groupsApi.createRsvp).mock.calls[0];
-    expect(body.guardian_name).toBe("Ala");
+    expect(body).toEqual({ term_id: "101", child_count: 0 });
   });
 
   it("logged in with a display name: the RSVP dialog names the user", async () => {
@@ -1054,13 +1039,13 @@ describe("TermPage — direct sign-up and server error messages", () => {
     vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([
       { id: "3", party_id: "4", name: "Kowalscy", child_count: 2, created_at: "", updated_at: "" },
     ]);
-    vi.mocked(groupsApi.createRsvp).mockResolvedValue({ attached_to_account: true } as never);
+    vi.mocked(groupsApi.createRsvp).mockResolvedValue({} as never);
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
 
     await waitFor(() =>
-      expect(groupsApi.createRsvp).toHaveBeenCalledWith("7", { term_id: "101", guardian_name: "Ala", child_count: 2 }),
+      expect(groupsApi.createRsvp).toHaveBeenCalledWith("7", { term_id: "101", child_count: 2 }),
     );
     expect(await screen.findByRole("status")).toHaveTextContent("Zapisano na zajęcia z 2 dziećmi");
     expect(screen.queryByRole("dialog", { name: "Zapisz się na zajęcia" })).not.toBeInTheDocument();

@@ -1,22 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link, useAppPathname } from "../../../routing/navigation";
 import { getMyFamilies, type FamilyOut } from "../../../api/families";
-import { createRsvp, type RsvpResponse } from "../../../api/groups";
+import { createRsvp } from "../../../api/groups";
 import { Field } from "../../../components/shared/appComponents";
 import { ModalSheet } from "../../../components/shared/ModalSheet";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SM, ERROR_TEXT, FIELD, SUB_FORM } from "../../../components/shared/uiStyles";
 
 /**
- * Logged-in variant of `RsvpDialog` (Thread 3 / R7). Separate component per
- * variant per `frontend/components.md` — this one never asks for a name
- * (the profile `display_name` is authoritative) and never writes the
- * `guest_profile_id` localStorage key (the logged-in "already signed up"
- * state is server-derived — D5). `ModalSheet`/`Field` (Tailwind) shared with
- * `RsvpDialog`; `uiStyles` classes for form
- * controls to match the rest of the term page.
- * Submit stays disabled until `displayName` has loaded: the RSVP endpoint
- * falls back to an anonymous signup when the token doesn't resolve, so a
- * placeholder name could create a junk attendee.
+ * The term sign-up dialog for a logged-in parent: asks only for the child
+ * count (the profile `display_name` is the attendee's name), prefilled from
+ * their family. Submit stays disabled until `displayName` has loaded, so
+ * the "Zapisujesz się jako" line is never blank.
  */
 export function RsvpDialogLoggedIn({
   groupId,
@@ -29,7 +23,7 @@ export function RsvpDialogLoggedIn({
   termId: string;
   displayName: string | null;
   onClose: () => void;
-  onSubmitted: (rsvp: RsvpResponse) => void;
+  onSubmitted: () => void;
 }) {
   const pathname = useAppPathname();
   const [family, setFamily] = useState<FamilyOut | null>(null);
@@ -71,12 +65,8 @@ export function RsvpDialogLoggedIn({
     setBusy(true);
     setFormError(null);
     try {
-      const rsvp = await createRsvp(groupId, {
-        term_id: termId,
-        guardian_name: displayName,
-        child_count: childCount,
-      });
-      onSubmitted(rsvp);
+      await createRsvp(groupId, { term_id: termId, child_count: childCount });
+      onSubmitted();
     } catch {
       setFormError("Nie udało się zapisać — spróbuj ponownie");
     } finally {

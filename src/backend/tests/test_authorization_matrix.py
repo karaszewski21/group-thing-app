@@ -260,7 +260,7 @@ def test_resolveRequirement_publicOrganizationSlug_staysPublic() -> None:
         ("GET", "/api/groups/x", READ),
         ("GET", "/api/groups/mine/attendances", READ),
         ("GET", "/api/groups/public/x", "PUBLIC"),
-        ("POST", "/api/groups/public/x/rsvp", "PUBLIC"),
+        ("POST", "/api/groups/public/x/rsvp", EDIT),
     ],
 )
 def test_resolveRequirement_groupSoftDeleteAndLeadershipRows_resolveToExpectedRow(
@@ -284,7 +284,7 @@ def test_resolveRequirement_groupSoftDeleteAndLeadershipRows_resolveToExpectedRo
         ("DELETE", "/api/events/x", EDIT),
         ("POST", "/api/events", EDIT),
         ("POST", "/api/events/x/banner", EDIT),
-        ("POST", "/api/events/x/attendances", "PUBLIC"),
+        ("POST", "/api/events/x/attendances", EDIT),
         ("POST", "/api/events/x/attendances/withdraw", EDIT),
     ],
 )
@@ -370,7 +370,7 @@ def test_matrix_removedReservationRows_absent() -> None:
     assert resolve_requirement("POST", "/api/swap-proposals/x/reject") == EDIT
     assert resolve_requirement("POST", "/api/reservations/x/confirm-transaction") == EDIT
     assert resolve_requirement("POST", "/api/reservations/x/cancel-transaction") == EDIT
-    assert resolve_requirement("POST", f"/api/events/{uuid.uuid4()}/attendances") == "PUBLIC"
+    assert resolve_requirement("POST", f"/api/events/{uuid.uuid4()}/attendances") == EDIT
 
 
 @pytest.mark.parametrize(

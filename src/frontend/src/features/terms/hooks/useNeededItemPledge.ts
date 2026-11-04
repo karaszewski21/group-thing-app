@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ApiError } from "../../../api/client";
 import { createPledge } from "../../../api/pledges";
 import { serverMessageOr } from "../../../api/problem";
-import { useAccountGate, type TermActionDeps } from "./useAccountGate";
+import { useAccountGate, type TermActionDeps } from "../../auth/useAccountGate";
 
 /** "Ja to przyniosę" on a needed item. A 409 (its server message is shown)
  * means someone else pledged it first, so the page refetches to show who. */

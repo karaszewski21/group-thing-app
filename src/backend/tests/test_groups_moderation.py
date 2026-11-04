@@ -141,7 +141,8 @@ async def test_listTermsForModeration_adminPrincipal_returnsGroupNameAndSignupCo
     )
     rsvp = await client.post(
         f"/api/groups/public/{circle_id}/rsvp",
-        json={"term_id": later.json()["id"], "guardian_name": "Ola", "child_count": 2},
+        json={"term_id": later.json()["id"], "child_count": 2},
+        headers=await _authed_headers(client, "modterms.attendee@example.com"),
     )
     assert rsvp.status_code == 201
     admin_headers = await _authed_headers(client, "modtermsadmin@example.com")

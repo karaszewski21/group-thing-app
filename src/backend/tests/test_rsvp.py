@@ -1,8 +1,8 @@
-"""Anonymous RSVP tests: `POST /api/groups/public/{group_id}/rsvp` (no auth
-header) creates a Party+UserProfile(account_user_id=None)+TermAttendance;
-the new guardian's `display_name` then appears in a subsequent public GET's
-`guardians` list; `child_count` round-trips; a mismatched group_id/term_id
-pair is rejected."""
+"""RSVP tests: `POST /api/groups/public/{group_id}/rsvp` needs an account —
+no token (or an invalid one) is a 401 that creates nothing; a logged-in
+caller's own party is attached idempotently, its display name then appears
+in the public GET's `guardians` list; a mismatched group_id/term_id pair is
+rejected."""
 
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.families.models import FamilyRole
 from app.groups.models import GroupRole, TermAttendance
-from app.party.models import Party
 from app.users.models import UserProfile
 from tests.conftest import create_location
 
@@ -61,31 +60,21 @@ async def _create_circle_with_term(client: AsyncClient, email: str) -> tuple[int
     return group_id, term.json()["id"]
 
 
-async def test_createRsvp_anonymousNoAuthHeader_createsPartyProfileAndAttendance(
+async def test_createRsvp_withoutOrInvalidToken_returns401AndCreatesNothing(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     group_id, term_id = await _create_circle_with_term(client, "rsvp.owner1@example.com")
+    profiles_before = (
+        await db_session.execute(select(func.count()).select_from(UserProfile))
+    ).scalar_one()
 
-    response = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": term_id, "guardian_name": "Kasia Nowak", "child_count": 2},
-    )
-
-    assert response.status_code == 201
-    body = response.json()
-    assert body["term_id"] == term_id
-    assert body["guardian_name"] == "Kasia Nowak"
-    assert body["child_count"] == 2
-
-    assert body["attached_to_account"] is False
-
-    profile = await db_session.get(UserProfile, body["user_profile_id"])
-    assert profile is not None
-    assert profile.account_user_id is None
-    assert profile.display_name == "Kasia Nowak"
-
-    party = await db_session.get(Party, profile.party_id)
-    assert party is not None
+    for headers in ({}, {"Authorization": "Bearer not-a-real-token"}):
+        response = await client.post(
+            f"/api/groups/public/{group_id}/rsvp",
+            json={"term_id": term_id, "guardian_name": "Kasia Nowak", "child_count": 2},
+            headers=headers,
+        )
+        assert response.status_code == 401
 
     attendance_count = (
         await db_session.execute(
@@ -94,35 +83,41 @@ async def test_createRsvp_anonymousNoAuthHeader_createsPartyProfileAndAttendance
             .where(TermAttendance.term_id == term_id)
         )
     ).scalar_one()
-    assert attendance_count == 1
+    assert attendance_count == 0
+    profiles_after = (
+        await db_session.execute(select(func.count()).select_from(UserProfile))
+    ).scalar_one()
+    assert profiles_after == profiles_before
 
 
-async def test_createRsvp_thenPublicGet_guardianNameAndChildCountRoundTrip(
+async def test_createRsvp_thenPublicGet_displayNameAndShapeRoundTrip(
     client: AsyncClient,
 ) -> None:
     group_id, term_id = await _create_circle_with_term(client, "rsvp.owner2@example.com")
+    guest_token, _ = await _register_guest(client, "piotr.zielinski@example.com")
 
-    await client.post(
+    response = await client.post(
         f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": term_id, "guardian_name": "Piotr Zielinski", "child_count": 1},
+        json={"term_id": term_id, "child_count": 1},
+        headers=_auth_headers(guest_token),
     )
 
+    assert response.status_code == 201
+    body = response.json()
+    assert set(body) == {"id", "term_id", "user_profile_id", "guardian_name", "child_count"}
+    assert body["child_count"] == 1
     public_view = await client.get(f"/api/groups/public/{group_id}")
 
     assert public_view.status_code == 200
     guardians = public_view.json()["guardians"]
-    assert "Piotr Zielinski" in {guardian["display_name"] for guardian in guardians}
+    assert body["guardian_name"] in {guardian["display_name"] for guardian in guardians}
 
 
 async def test_createRsvp_loggedInUser_attachesToExistingAccountNotNewAnonymousProfile(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """Regression (TDD red gate): a logged-in user who RSVPs via the public
-    endpoint must have the `TermAttendance` attached to their EXISTING
-    account/Party — not get a fresh detached anonymous `UserProfile`
-    (`account_user_id=None`) minted. The public RSVP endpoint currently
-    ignores the `Authorization: Bearer` header entirely; the fix makes it
-    honour an optional valid token."""
+    """The `TermAttendance` is attached to the caller's EXISTING account/Party
+    — no detached `UserProfile` (`account_user_id=None`) is minted."""
     group_id, term_id = await _create_circle_with_term(client, "rsvp.loggedin.owner@example.com")
     guest_token, guest_party_id = await _register_guest(client, "rsvp.loggedin.guest@example.com")
 
@@ -160,8 +155,6 @@ async def test_createRsvp_loggedInUser_attachesToExistingAccountNotNewAnonymousP
     assert str(profile.party_id) == guest_party_id
     assert profile.account_user_id is not None
 
-    assert body["attached_to_account"] is True
-
 
 async def test_createRsvp_loggedInUserRepeat_updatesChildCountNoDuplicateRow(
     client: AsyncClient, db_session: AsyncSession
@@ -182,8 +175,6 @@ async def test_createRsvp_loggedInUserRepeat_updatesChildCountNoDuplicateRow(
 
     assert first.status_code == 201
     assert second.status_code == 201
-    assert first.json()["attached_to_account"] is True
-    assert second.json()["attached_to_account"] is True
 
     attendance = (
         (await db_session.execute(select(TermAttendance).where(TermAttendance.term_id == term_id)))
@@ -224,7 +215,6 @@ async def test_createRsvp_loggedInUserNotCircleMember_attachesAttendanceWithoutM
     )
 
     assert response.status_code == 201
-    assert response.json()["attached_to_account"] is True
 
     attendances = (
         (await db_session.execute(select(TermAttendance).where(TermAttendance.term_id == term_id)))
@@ -250,34 +240,15 @@ async def test_createRsvp_loggedInUserNotCircleMember_attachesAttendanceWithoutM
     assert family_roles == family_roles_before
 
 
-async def test_createRsvp_expiredToken_fallsBackToAnonymousNot401(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    group_id, term_id = await _create_circle_with_term(client, "rsvp.badtoken.owner@example.com")
-
-    response = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
-        json={"term_id": term_id, "guardian_name": "Anon Mimo Tokena", "child_count": 2},
-        headers={"Authorization": "Bearer not-a-real-token"},
-    )
-
-    assert response.status_code == 201
-    body = response.json()
-    assert body["attached_to_account"] is False
-
-    profile = await db_session.get(UserProfile, body["user_profile_id"])
-    assert profile is not None
-    assert profile.account_user_id is None
-    assert profile.display_name == "Anon Mimo Tokena"
-
-
 async def test_createRsvp_mismatchedGroupAndTerm_raises404(client: AsyncClient) -> None:
     group_id_a, _term_id_a = await _create_circle_with_term(client, "rsvp.owner3@example.com")
     _group_id_b, term_id_b = await _create_circle_with_term(client, "rsvp.owner4@example.com")
+    guest_token, _ = await _register_guest(client, "rsvp.mismatch.guest@example.com")
 
     response = await client.post(
         f"/api/groups/public/{group_id_a}/rsvp",
-        json={"term_id": term_id_b, "guardian_name": "Ala Kowalska", "child_count": 0},
+        json={"term_id": term_id_b, "child_count": 0},
+        headers=_auth_headers(guest_token),
     )
 
     assert response.status_code == 404

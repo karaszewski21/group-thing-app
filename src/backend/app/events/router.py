@@ -19,7 +19,6 @@ from .infrastructure import locations_acl
 from .models import Event
 from .schemas import (
     CreateEventRequest,
-    EventAttendanceRequest,
     EventAttendanceResponse,
     EventBannerResponse,
     EventDetailResponse,
@@ -119,13 +118,10 @@ async def delete_event(event_id: uuid.UUID, db: DbSession, principal: EditPrinci
     status_code=status.HTTP_201_CREATED,
 )
 async def sign_up(
-    event_id: uuid.UUID,
-    body: EventAttendanceRequest,
-    db: DbSession,
-    principal: OptionalPrincipal = None,
+    event_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> EventAttendanceResponse:
-    """Public sign-up; 201 also when the caller is already signed up."""
-    return await service.sign_up(db, principal, event_id, body.guest_name)
+    """201 also when the caller is already signed up."""
+    return await service.sign_up(db, principal, event_id)
 
 
 @router.post("/api/events/{event_id}/attendances/withdraw", status_code=status.HTTP_204_NO_CONTENT)

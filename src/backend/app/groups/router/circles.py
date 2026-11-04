@@ -1,10 +1,10 @@
-"""`/api/groups` routes — circles, their public-page views, RSVP, anonymous
-profile merge, the caller's own attendances, and per-circle leadership /
+"""`/api/groups` routes — circles, their public-page views, RSVP, the
+caller's own attendances, and per-circle leadership /
 membership listings.
 
 Handler declaration order is load-bearing: `/api/groups/mine/attendances`,
-`/api/groups/public/{group_id}`, `POST .../public/{group_id}/rsvp`,
-`POST .../public/merge` and `PATCH /api/groups/{group_id}` are declared
+`/api/groups/public/{group_id}`, `POST .../public/{group_id}/rsvp`
+and `PATCH /api/groups/{group_id}` are declared
 BEFORE `GET /api/groups/{group_id}` so FastAPI (which matches in
 registration order) does not swallow the literal segments into
 `{group_id}: int`.
@@ -18,12 +18,10 @@ from typing import Annotated, cast
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.core.auth_deps import OptionalPrincipal, Principal, require_any
 from app.core.cache_headers import set_personalised_cache_headers
 from app.core.errors import EntityNotFoundException
 from app.core.pagination import Page, Pagination
-from app.core.security import encode_login_token
 from app.db import get_db
 from app.groups import service
 from app.groups.models import Group
@@ -38,8 +36,6 @@ from app.groups.schemas import (
     GroupResponse,
     LeadershipResponse,
     MembershipResponse,
-    MergeAnonymousProfileRequest,
-    MergeAnonymousProfileResponse,
     ModerationGroupResponse,
     MyAttendanceResponse,
     PublicCircleResponse,
@@ -181,18 +177,11 @@ async def get_group_access(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_rsvp(
-    group_id: uuid.UUID, body: CreateRsvpRequest, db: DbSession, principal: OptionalPrincipal = None
+    group_id: uuid.UUID, body: CreateRsvpRequest, db: DbSession, principal: EditPrincipal
 ) -> RsvpResponse:
-    """Unauthenticated — anyone with the public circle-page link may RSVP
-    without an account (no `Depends(require_any(...))`; stays PUBLIC in
-    `AUTHORIZATION_MATRIX`). A valid session token is optionally honoured
-    via `get_current_principal`: it attaches the `TermAttendance` to the
-    caller's existing party (idempotent per `(party, term)`) instead of
-    minting a new anonymous profile. A missing / malformed / expired token
-    degrades silently to the anonymous path — never a 401."""
-    return await service.create_rsvp(
-        db, group_id, body.term_id, body.guardian_name, body.child_count, principal
-    )
+    """Signs the caller's own party up for a term — an account is required.
+    Idempotent per `(party, term)`; a repeat refreshes `child_count`."""
+    return await service.create_rsvp(db, group_id, body.term_id, body.child_count, principal)
 
 
 @router.get(
@@ -216,23 +205,6 @@ async def list_group_members(
     blanket `GET ^/api/groups(/.*)?$` READ row, no new matrix row needed.
     Organizer-or-member check happens inside `service.list_group_members`."""
     return await service.list_group_members(db, principal, group_id)
-
-
-@router.post("/api/groups/public/merge", response_model=MergeAnonymousProfileResponse)
-async def merge_anonymous_profile(
-    body: MergeAnonymousProfileRequest, db: DbSession
-) -> MergeAnonymousProfileResponse:
-    """Unauthenticated — merges an anonymous RSVP's `UserProfile` into a
-    newly-created account. Builds the response the same way
-    `register()`'s router does (`app/users/router.py`); ownership/identity
-    conflict checks live in `service.merge_anonymous_profile`, not here."""
-    user, profile = await service.merge_anonymous_profile(
-        db, body.user_profile_id, body.email, body.password
-    )
-    token = encode_login_token(
-        user.username, ["READ", "EDIT"], settings.jwt_secret, settings.jwt_expiration_ms
-    )
-    return MergeAnonymousProfileResponse(token=token, party_id=profile.party_id)
 
 
 @router.get("/api/groups/mine/attendances", response_model=list[MyAttendanceResponse])

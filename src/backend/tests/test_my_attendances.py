@@ -76,7 +76,6 @@ async def _rsvp(
         headers=_auth_headers(token),
     )
     assert response.status_code == 201
-    assert response.json()["attached_to_account"] is True
     return response.json()
 
 

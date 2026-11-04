@@ -11,6 +11,7 @@ import { PAGE_SHELL } from "../../components/shared/uiStyles";
 import { useEvent } from "../../hooks/useEvent";
 import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
 import { useOrigin } from "../../lib/useClientValue";
+import { AuthSheet } from "../auth/AuthSheet";
 import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
 import { eventPath, viewPath } from "../../routing/paths";
 import { GroupHeader } from "../terms/components/GroupHeader";
@@ -19,8 +20,6 @@ import { EventAttendeeList } from "./components/EventAttendeeList";
 import { EventAuthorCard } from "./components/EventAuthorCard";
 import { EventChatRow } from "./components/EventChatRow";
 import { EventFooter } from "./components/EventFooter";
-import { EventGuestMergeCard } from "./components/EventGuestMergeCard";
-import { EventGuestSignUpSheet } from "./components/EventGuestSignUpSheet";
 import { EventWhenCard } from "./components/EventWhenCard";
 import { resolveEventView } from "./eventViewState";
 import { useEventSignUp } from "./hooks/useEventSignUp";
@@ -54,7 +53,6 @@ function EventPageContent({ eventId }: { eventId: string }) {
   const { toast, showToast } = useToast();
   const chat = useOpenAndNavigate();
   const signUp = useEventSignUp({
-    eventId,
     isLoggedIn,
     signUp: event.signUp,
     withdraw: event.withdraw,
@@ -67,7 +65,6 @@ function EventPageContent({ eventId }: { eventId: string }) {
     error: event.error,
     isStale: event.isStale,
     isLoggedIn,
-    guestProfileId: signUp.guestProfileId,
   });
 
   // Shown once: the handed-over state is read once, so a refresh or a back
@@ -149,8 +146,6 @@ function EventPageContent({ eventId }: { eventId: string }) {
             />
           ),
         });
-      case "guestAttendee":
-        return page(view.event, { card: <EventGuestMergeCard guestProfileId={view.guestProfileId} /> });
       case "visitor":
         return page(view.event, {
           canSignUp: !view.ended,
@@ -159,8 +154,12 @@ function EventPageContent({ eventId }: { eventId: string }) {
           ) : (
             <EventFooter variant="signUp" busy={signUp.signingUp} onSignUp={signUp.openSignUp} />
           ),
-          overlay: signUp.sheetOpen && (
-            <EventGuestSignUpSheet event={view.event} onSubmit={signUp.submitGuest} onClose={signUp.closeSheet} />
+          overlay: signUp.gateOpen && (
+            <AuthSheet
+              title="Zapisz się na wydarzenie"
+              message="Zapisy na wydarzenie wymagają konta. Zaloguj się albo załóż konto — zostaniesz na tej stronie."
+              onClose={signUp.closeGate}
+            />
           ),
         });
     }

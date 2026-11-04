@@ -46,17 +46,6 @@ class DuplicateEmailException(BusinessConflictException):
         super().__init__("Ten email jest już zarejestrowany, zaloguj się")
 
 
-class AlreadyMergedException(BusinessConflictException):
-    """Raised when `app.groups.service.merge_anonymous_profile` is called
-    for a `UserProfile` that already has a non-null `account_user_id` — a
-    retry after a successful merge, or a stale/tampered `guest_profile_id`.
-    Co-located next to `DuplicateEmailException` since both are
-    `UserProfile`-identity conflicts (409)."""
-
-    def __init__(self) -> None:
-        super().__init__("Ten profil ma już powiązane konto — zaloguj się")
-
-
 async def create_account(db: AsyncSession, username: str, password: str) -> User:
     user = User(username=username, password_hash=hash_password(password))
     db.add(user)
@@ -311,10 +300,7 @@ async def is_active_organizer(db: AsyncSession, party_id: uuid.UUID) -> bool:
 async def derive_username_from_email(db: AsyncSession, email: str) -> str:
     """Email local-part, lowercased and sanitized to fit `String(50)`,
     collision-checked against `User.username` with numeric suffixes
-    (`jan.kowalski`, `jan.kowalski2`, `jan.kowalski3`, ...). Public (renamed
-    from `_derive_username`) so both `register()` and
-    `app.groups.service.merge_anonymous_profile` share this logic rather
-    than duplicating it."""
+    (`jan.kowalski`, `jan.kowalski2`, `jan.kowalski3`, ...)."""
     local_part = email.split("@", 1)[0].lower()
     base = _USERNAME_SANITIZE_PATTERN.sub("", local_part)[:_USERNAME_MAX_LENGTH] or "user"
 

@@ -15,8 +15,7 @@ from app.circulation.models import BalanceStatus, InventoryBalance, Reservation
 from app.core import clock
 from app.events.models import Event
 from app.groups.infrastructure import events_acl
-from app.users.models import UserProfile
-from tests.conftest import create_location
+from tests.conftest import create_location, seed_legacy_guest
 from tests.test_term_item_listings import _auth, _item_link, _register, _resolve_product
 
 EVENT_NAME = "Piknik wymiany"
@@ -176,15 +175,7 @@ async def test_takeEventItem_ineligibleTakerOwnerOrGuest_returns403(
     ineligible_taker, _ = await _take(client, event_id, owner_item, stranger)
     ineligible_owner, _ = await _take(client, event_id, stranger_item, taker)
 
-    guest = await client.post(f"/api/events/{event_id}/attendances", json={"guest_name": "Ania"})
-    assert guest.status_code == 201, guest.text
-    guest_party_id = (
-        await db_session.execute(
-            select(UserProfile.party_id).where(
-                UserProfile.id == uuid.UUID(guest.json()["user_profile_id"])
-            )
-        )
-    ).scalar_one()
+    guest_party_id = await seed_legacy_guest(db_session, "Ania", event_id=event_id)
     event = await db_session.get(Event, event_id)
     assert event is not None
 

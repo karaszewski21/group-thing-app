@@ -132,17 +132,20 @@ describe("Organizer product route", () => {
     renderAt("/ania/product/9");
 
     expect(await screen.findByRole("heading", { name: "Rowerek biegowy" })).toBeInTheDocument();
-    expect(await screen.findByRole("region", { name: "Chcesz tę rzecz?" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Jak chcesz odebrać?" })).toBeInTheDocument();
     expect(currentUrl()).toBe("/ania/product/9");
     expect(itemActionsApi.getItemActions).toHaveBeenCalledWith("9");
   });
 
-  it("anonymous: a non-public item (404) sends the visitor to login with returnTo, query kept", async () => {
+  it("anonymous: a non-public item (404) offers login in place, staying on the item URL", async () => {
     mockAuth.token = null;
     vi.mocked(itemsApi.getItemDetails).mockRejectedValue(new ApiError(404, "Not Found", null));
     renderAt("/ania/product/9?event=ev-1");
 
-    await waitFor(() => expect(currentUrl()).toBe("/login?returnTo=%2Fania%2Fproduct%2F9%3Fevent%3Dev-1"));
+    expect(await screen.findByRole("heading", { name: "Zaloguj się, żeby zobaczyć tę rzecz" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Zaloguj się" }));
+    expect(screen.getByRole("dialog", { name: "Potrzebne konto" })).toBeInTheDocument();
+    expect(currentUrl()).toBe("/ania/product/9?event=ev-1");
   });
 
   it("shows a neutral loader while the organization is pending, item fetch already started", async () => {

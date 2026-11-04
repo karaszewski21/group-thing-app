@@ -2,11 +2,9 @@ import { useState } from "react";
 import { useAppNavigate } from "../../../routing/navigation";
 import { useAuth } from "../../../auth/AuthContext";
 import type { PublicCircleResponse } from "../../../api/groups";
-import { RsvpDialog } from "../modals/RsvpDialog";
 import { RsvpDialogLoggedIn } from "../modals/RsvpDialogLoggedIn";
-import { AuthGateSheet } from "../modals/AuthGateSheet";
-import { AccountMergeForm } from "../modals/AccountMergeForm";
-import { BTN_GHOST, BTN_SM, CARD, PAGE_SHELL } from "../../../components/shared/uiStyles";
+import { AuthSheet } from "../../auth/AuthSheet";
+import { PAGE_SHELL } from "../../../components/shared/uiStyles";
 import { ToastPill } from "../../../components/shared/ToastPill";
 import { GroupVisualization } from "../components/GroupVisualization";
 import { GroupHeader } from "../components/GroupHeader";
@@ -17,7 +15,6 @@ import { TermFooter } from "../components/TermFooter";
 import { attendeeElementId, type NeededItemRowVM } from "../components/termSectionTypes";
 import { buildAttendees, buildVisualizationFamilies } from "../termViewModel";
 import { useToast } from "../../../components/shared/useToast";
-import { useGuestMerge } from "../hooks/useGuestMerge";
 import { useTermSignUp } from "../hooks/useTermSignUp";
 import { useNeededItemPledge } from "../hooks/useNeededItemPledge";
 import { useOpenAndNavigate } from "../../../hooks/useOpenAndNavigate";
@@ -58,7 +55,6 @@ export function PublicTermView({
   const [activePartyId, setActivePartyId] = useState<string | null>(null);
   const { toast, showToast } = useToast();
   const deps = { isLoggedIn, refetch, showToast };
-  const guest = useGuestMerge({ groupId, termId, isLoggedIn, isAttendingOnServer });
   const signUp = useTermSignUp({ ...deps, groupId, termId, displayName });
   const pledge = useNeededItemPledge(deps);
 
@@ -70,7 +66,6 @@ export function PublicTermView({
   }
 
   const neededItemRows: NeededItemRowVM[] = (term?.needed_items ?? []).map((item) => {
-    const mergeKey = `needed-${item.id}`;
     const pledgedHere = pledge.isPledgedHere(item.id);
     const claimed = item.claimed || pledgedHere;
     const claimedByMe = pledgedHere || (displayName !== null && item.claimed_by_name === displayName);
@@ -83,19 +78,17 @@ export function PublicTermView({
         </strong>
       ),
       subtitle: claimed ? `Przynosi: ${claimedByMe ? "Ty" : (item.claimed_by_name ?? "inna rodzina")}` : null,
-      inlineActions:
-        !claimed && !guest.isMerging(mergeKey)
-          ? [
-              {
-                key: "pledge",
-                label: "Ja to przyniosę",
-                ariaLabel: `Ja to przyniosę: ${item.name}`,
-                disabled: pledge.pledgingItemId === item.id,
-                onClick: guest.orMerge(mergeKey, () => pledge.pledge(item.id)),
-              },
-            ]
-          : [],
-      extra: guest.mergeForm(mergeKey),
+      inlineActions: !claimed
+        ? [
+            {
+              key: "pledge",
+              label: "Ja to przyniosę",
+              ariaLabel: `Ja to przyniosę: ${item.name}`,
+              disabled: pledge.pledgingItemId === item.id,
+              onClick: () => pledge.pledge(item.id),
+            },
+          ]
+        : [],
     };
   });
 
@@ -141,57 +134,35 @@ export function PublicTermView({
         {term && <NeededItemsSection rows={neededItemRows} />}
 
         {term && <AttendeeList attendees={buildAttendees(group)} activePartyId={activePartyId} />}
-
-        {signUp.accountSuggestion && (
-          <div className={`${CARD} mx-5 mt-6`}>
-            <h3 className="text-[15px] font-bold">Załóż konto, aby zachować dostęp</h3>
-            <AccountMergeForm userProfileId={signUp.accountSuggestion.user_profile_id} />
-            <button type="button" className={`${BTN_GHOST} ${BTN_SM} mt-2`} onClick={signUp.dismissSuggestion}>
-              Może później
-            </button>
-          </div>
-        )}
       </main>
 
       {term && (
         <TermFooter
           isLoggedIn={isLoggedIn}
-          isAttending={guest.isAttending}
+          isAttending={isAttendingOnServer}
           busy={signUp.signingUp}
           onSignUp={signUp.openSignUp}
         />
       )}
       {signUp.gateOpen && (
-        <AuthGateSheet
+        <AuthSheet
           title="Zapisz się na zajęcia"
-          message="Zaloguj się, żeby zapis trafił na Twoje konto — albo zapisz się jako gość."
-          onGuest={signUp.continueAsGuest}
+          message="Zapisy na zajęcia wymagają konta. Zaloguj się albo załóż konto — zostaniesz na tej stronie."
           onClose={signUp.closeGate}
         />
       )}
-      {signUp.dialogOpen &&
-        term &&
-        (isLoggedIn ? (
-          <RsvpDialogLoggedIn
-            groupId={groupId}
-            termId={term.id}
-            displayName={displayName}
-            onClose={signUp.closeDialog}
-            onSubmitted={signUp.handleSubmitted}
-          />
-        ) : (
-          <RsvpDialog
-            groupId={groupId}
-            termId={term.id}
-            onClose={signUp.closeDialog}
-            onSubmitted={signUp.handleSubmitted}
-          />
-        ))}
+      {signUp.dialogOpen && term && isLoggedIn && (
+        <RsvpDialogLoggedIn
+          groupId={groupId}
+          termId={term.id}
+          displayName={displayName}
+          onClose={signUp.closeDialog}
+          onSubmitted={signUp.handleSubmitted}
+        />
+      )}
       {pledge.gateOpen && (
-        <AuthGateSheet
-          title="Potrzebne konto"
+        <AuthSheet
           message="Żeby zgłosić, że przyniesiesz coś na zajęcia, musisz mieć konto — dzięki temu organizator wie, kto co przynosi, a rzecz trafia do Twoich zbiorów."
-          ariaLabel="Załóż konto, aby przynieść rzecz"
           onClose={pledge.closeGate}
         />
       )}

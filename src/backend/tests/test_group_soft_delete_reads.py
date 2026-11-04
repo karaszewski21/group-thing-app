@@ -237,7 +237,8 @@ async def test_mutationsOnDeletedGroup_return404(client: AsyncClient) -> None:
         ),
         "rsvp": await client.post(
             f"/api/groups/public/{group_id}/rsvp",
-            json={"term_id": str(term_id), "guardian_name": "Ola", "child_count": 1},
+            json={"term_id": str(term_id), "child_count": 1},
+            headers=_auth(guest_token),
         ),
         "redeem join code": await client.post(
             f"/api/groups/public/{group_id}/join-code",

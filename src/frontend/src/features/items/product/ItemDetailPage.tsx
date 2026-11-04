@@ -2,13 +2,13 @@ import {
   Link,
   Navigate,
   useAppParams,
-  useAppPathname,
   useAppSearch,
   useNavigationState,
 } from "../../../routing/navigation";
 import type { ItemDetailsResponse } from "../../../api/items";
 import { useAuth } from "../../../auth/AuthContext";
-import { authPath } from "../../../auth/authPaths";
+import { CARD } from "../../../components/shared/uiStyles";
+import { AuthPromptButtons } from "../../auth/AuthSheet";
 import { useItemActions, type UseItemActionsResult } from "../../../hooks/useItemActions";
 import { useItemDetail } from "../../../hooks/useItemDetail";
 import dayjs from "../../../utils/dayjs";
@@ -42,7 +42,6 @@ import type { PublicOrganizationResponse } from "../../../api/organizations";
  * in the panel (`/items/:id/edit`). */
 export function ItemDetailBody() {
   const { id = "", slug } = useAppParams();
-  const pathname = useAppPathname();
   const search = useAppSearch();
   const isLoggedIn = useAuth().token !== null;
   const { item, notFound, error, loading, refetch } = useItemDetail(id);
@@ -61,7 +60,16 @@ export function ItemDetailBody() {
     );
   }
   if (notFound && !isLoggedIn) {
-    return <Navigate to={authPath("login", pathname + search)} replace />;
+    return (
+      <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
+        <ItemBackButton />
+        <section className={`mt-3 ${CARD}`}>
+          <h2 className="text-[15px] font-extrabold text-ink">Zaloguj się, żeby zobaczyć tę rzecz</h2>
+          <p className="mt-1 text-[13px] text-ink-soft">Ta rzecz nie jest publiczna albo już jej nie ma.</p>
+          <AuthPromptButtons sheetMessage="Niektóre rzeczy widzą tylko zalogowani. Zaloguj się albo załóż konto — zostaniesz na tej stronie." />
+        </section>
+      </div>
+    );
   }
   if (loading && !notFound && !error) {
     return (
@@ -72,7 +80,7 @@ export function ItemDetailBody() {
   }
   return (
     <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
-      <ItemBackButton />
+      {/* <ItemBackButton /> */}
       <FailedPhotosNotice />
       <ItemLoadStates notFound={notFound} error={error} loading={loading} onRetry={() => void refetch()} />
     </div>

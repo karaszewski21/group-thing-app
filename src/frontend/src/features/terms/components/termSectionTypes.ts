@@ -9,14 +9,12 @@ export interface TermActionVM {
   disabled?: boolean;
 }
 
-/** A "Potrzebne rzeczy" row. `inlineActions` render directly in the row;
- * `extra` is arbitrary content below it (the account-merge mini-form). */
+/** A "Potrzebne rzeczy" row; `inlineActions` render directly in the row. */
 export interface NeededItemRowVM {
   key: string | number;
   title: ReactNode;
   subtitle?: ReactNode | null;
   inlineActions: TermActionVM[];
-  extra?: ReactNode;
 }
 
 /** DOM id of an attendee's list entry — the scroll/focus target when their

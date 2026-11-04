@@ -237,7 +237,6 @@ export interface PublicCircleResponse {
 
 export interface CreateRsvpRequest {
   term_id: string;
-  guardian_name: string;
   child_count?: number;
 }
 
@@ -247,7 +246,6 @@ export interface RsvpResponse {
   user_profile_id: string;
   guardian_name: string;
   child_count: number;
-  attached_to_account: boolean;
 }
 
 export function getPublicCircle(
@@ -284,54 +282,6 @@ export interface GroupAccessResponse {
 export function getGroupAccess(groupId: string, termId: string): Promise<GroupAccessResponse> {
   const query = termId !== undefined ? `?term_id=${termId}` : "";
   return api.get(`/groups/public/${groupId}/access${query}`);
-}
-
-/**
- * localStorage key for an anonymous visitor's RSVP identity — scoped per
- * circle+term so a visitor who RSVPs on one Circle's public page doesn't
- * get misread as "already RSVP'd" when they later visit an unrelated
- * Circle's public page (a flat, unscoped key was a real cross-page
- * state-leak bug found during verification).
- */
-export function guestProfileIdKey(groupId: string, termId: string): string {
-  return `guest_profile_id:${groupId}:${termId}`;
-}
-
-/** How long an anonymous guest's identity stays valid in `localStorage`
- * before it's treated as expired — 1 hour, per the approved plan (a guest
- * who RSVPs, closes the tab, and comes back a week later shouldn't be
- * silently treated as "still that guest"). */
-const GUEST_PROFILE_TTL_MS = 60 * 60 * 1000;
-
-interface StoredGuestProfile {
-  userProfileId: string;
-  createdAt: number;
-}
-
-/** Writes an anonymous guest's `userProfileId` under `key`, stamped with
- * the current time so `readValidGuestProfile` can later expire it. */
-export function writeGuestProfile(key: string, userProfileId: string): void {
-  const stored: StoredGuestProfile = { userProfileId, createdAt: Date.now() };
-  localStorage.setItem(key, JSON.stringify(stored));
-}
-
-/** Reads back a guest profile written by `writeGuestProfile`, returning
- * `null` if it's missing, malformed, or older than `GUEST_PROFILE_TTL_MS`.
- * Also tolerates the old bare-string shape (pre-TTL) by treating it as
- * expired rather than throwing. */
-export function readValidGuestProfile(key: string): string | null {
-  const raw = localStorage.getItem(key);
-  if (raw === null) return null;
-  try {
-    const parsed = JSON.parse(raw) as Partial<StoredGuestProfile>;
-    if (typeof parsed.userProfileId !== "string" || typeof parsed.createdAt !== "number") {
-      return null;
-    }
-    if (Date.now() - parsed.createdAt > GUEST_PROFILE_TTL_MS) return null;
-    return parsed.userProfileId;
-  } catch {
-    return null;
-  }
 }
 
 export function createRsvp(groupId: string, request: CreateRsvpRequest): Promise<RsvpResponse> {
@@ -540,27 +490,6 @@ export interface WithdrawAttendanceResponse {
 
 export function withdrawMyAttendance(attendanceId: string): Promise<WithdrawAttendanceResponse> {
   return api.post(`/groups/mine/attendances/${attendanceId}/withdraw`, undefined);
-}
-
-/* ------------------------------------------------------------------ */
-/*  Account-merge (anonymous UserProfile -> real account, spec.md §4)   */
-/* ------------------------------------------------------------------ */
-
-export interface MergeAnonymousProfileRequest {
-  user_profile_id: string;
-  email: string;
-  password: string;
-}
-
-export interface MergeAnonymousProfileResponse {
-  token: string;
-  party_id: string;
-}
-
-export function mergeAnonymousProfile(
-  request: MergeAnonymousProfileRequest,
-): Promise<MergeAnonymousProfileResponse> {
-  return api.post("/groups/public/merge", request);
 }
 
 /* ------------------------------------------------------------------ */

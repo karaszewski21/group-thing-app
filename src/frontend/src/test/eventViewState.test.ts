@@ -40,7 +40,6 @@ const BASE: Input = {
   error: null,
   isStale: false,
   isLoggedIn: false,
-  guestProfileId: null,
 };
 
 describe("resolveEventView", () => {
@@ -55,13 +54,8 @@ describe("resolveEventView", () => {
       { kind: "attendee", event: attendeeEvent, ended: false },
     ],
     [
-      "an anonymous guest with a valid key",
-      { data: visitorEvent, guestProfileId: "prof-9" },
-      { kind: "guestAttendee", event: visitorEvent, guestProfileId: "prof-9" },
-    ],
-    [
-      "a logged-in visitor ignores a leftover guest key",
-      { data: visitorEvent, isLoggedIn: true, guestProfileId: "prof-9" },
+      "a logged-in visitor",
+      { data: visitorEvent, isLoggedIn: true },
       { kind: "visitor", event: visitorEvent, ended: false, isLoggedIn: true },
     ],
     [
