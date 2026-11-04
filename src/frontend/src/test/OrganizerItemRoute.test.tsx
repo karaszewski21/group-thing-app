@@ -6,7 +6,7 @@ import type { ItemActionsResponse } from "../api/itemActions";
 import * as organizationsApi from "../api/organizations";
 import { ApiError } from "../api/client";
 import type { ItemDetailsResponse } from "../api/items";
-import { OrganizerItemLayout } from "../features/items/product/OrganizerItemLayout";
+import { OrganizerItemLayout } from "../features/product/OrganizerItemLayout";
 import { itemRouteElement } from "./itemRoute";
 import { Navigate, useAppParams } from "../routing/navigation";
 import { createQueryWrapper } from "./queryClient";

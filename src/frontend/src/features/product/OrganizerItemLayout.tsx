@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import { useAppParams } from "../../../routing/navigation";
-import { PhoneFrame } from "../../../components/shared/PhoneFrame";
-import { useItemPagePrefetch } from "../../../hooks/useItemDetail";
-import { usePublicOrganization } from "../../../hooks/usePublicOrganization";
-import { OrganizerThemeScope } from "../../../theme/OrganizerThemeScope";
+import { useAppParams } from "../../routing/navigation";
+import { PhoneFrame } from "../../components/shared/PhoneFrame";
+import { useItemPagePrefetch } from "../../hooks/useItemDetail";
+import { usePublicOrganization } from "../../hooks/usePublicOrganization";
+import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
 import { ItemBackButton } from "./ItemBackButton";
 import { ItemLoadStates } from "./ItemLoadStates";
 import { OrganizerItemContext } from "./OrganizerItemContext";

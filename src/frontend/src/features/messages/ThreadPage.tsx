@@ -5,7 +5,7 @@ import { Avatar } from "../../components/shared/Avatar";
 import { useConversation } from "../../hooks/useConversation";
 import { useThread } from "../../hooks/useThread";
 import { INBOX_PATH } from "../../routing/messagesPaths";
-import { itemPagePath } from "../items/product/useItemRoutes";
+import { itemPagePath } from "../product/useItemRoutes";
 import { pluralPl } from "../../utils/plural";
 import { BackIcon } from "../../components/shared/appIcons";
 import { MessageBubble } from "./MessageBubble";

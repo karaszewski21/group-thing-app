@@ -1,8 +1,8 @@
 "use client";
 
-import { BTN_GHOST, BTN_LG } from "../../../../components/shared/uiStyles";
-import { AuthSheet } from "../../../auth/AuthSheet";
-import { useAccountGate } from "../../../auth/useAccountGate";
+import { BTN_GHOST, BTN_LG } from "../../../components/shared/uiStyles";
+import { AuthSheet } from "../../auth/AuthSheet";
+import { useAccountGate } from "../../auth/useAccountGate";
 import { useItemPage } from "../ItemPageContext";
 import { ITEM_ACCOUNT_MESSAGE } from "../itemPageShared";
 

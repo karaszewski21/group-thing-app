@@ -189,7 +189,6 @@ interface EventShellProps {
 /** The event page in the author's theme: header, banner, date and place,
  * description, chat, the attendee list, the view's card and footer. */
 function EventShell({ event, onCopyLink, canSignUp = false, chat, card, footer, overlay }: EventShellProps) {
-  const navigate = useAppNavigate();
   const origin = useOrigin();
 
   return (
@@ -198,7 +197,6 @@ function EventShell({ event, onCopyLink, canSignUp = false, chat, card, footer, 
         <GroupHeader
           title={event.name}
           eyebrow="Wydarzenie"
-          onBack={() => navigate(-1)}
           organizerName={event.author_display_name}
           // A `k-…` fallback slug has no organizer page: an author without an
           // Organization links to their person profile instead.

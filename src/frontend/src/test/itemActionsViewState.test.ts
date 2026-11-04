@@ -6,7 +6,7 @@ import type {
   ItemPartyReservationResponse,
 } from "../api/itemActions";
 import type { ReservedByResponse } from "../api/groups";
-import { resolveItemActionsView, type ItemActionsView } from "../features/items/product/itemActionsViewState";
+import { resolveItemActionsView, type ItemActionsView } from "../features/product/itemActionsViewState";
 import { makeItemLocation } from "./fixtures/locations";
 
 const OWNER: ItemActionsResponse["owner"] = {

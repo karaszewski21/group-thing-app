@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { PublicOrganizationResponse } from "../../../api/organizations";
+import type { PublicOrganizationResponse } from "../../api/organizations";
 
 /** The organizer whose palette frames an item page: set by
  * `OrganizerItemLayout` (`null` for a party id prefix, an unknown

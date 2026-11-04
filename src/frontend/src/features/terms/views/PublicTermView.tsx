@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useAppNavigate } from "../../../routing/navigation";
 import { useAuth } from "../../../auth/AuthContext";
 import type { PublicCircleResponse } from "../../../api/groups";
 import { RsvpDialogLoggedIn } from "../modals/RsvpDialogLoggedIn";
@@ -45,7 +44,6 @@ export function PublicTermView({
   chatAccess: ChatAccess;
   refetch: () => Promise<void>;
 }) {
-  const navigate = useAppNavigate();
   const { token, displayName } = useAuth();
   const isLoggedIn = Boolean(token);
   const groupId = group.id;
@@ -97,7 +95,6 @@ export function PublicTermView({
       <GroupHeader
         title={group.name}
         subtitle={term?.description ?? null}
-        onBack={() => navigate(-1)}
         organizerName={group.organizer_display_name}
         organizerSlug={organizerPageSegment(group)}
       />

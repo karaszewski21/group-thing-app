@@ -1,10 +1,10 @@
-import { Link, useAppParams } from "../../../routing/navigation";
-import { ModalSheet } from "../../../components/shared/ModalSheet";
-import { BTN_LG, BTN_PRIMARY } from "../../../components/shared/uiStyles";
-import { AddToCalendarButton } from "../../../components/shared/AddToCalendarButton";
-import { useOrigin } from "../../../lib/useClientValue";
-import { calendarUid } from "../../../utils/calendar";
-import dayjs from "../../../utils/dayjs";
+import { Link, useAppParams } from "../../routing/navigation";
+import { ModalSheet } from "../../components/shared/ModalSheet";
+import { BTN_LG, BTN_PRIMARY } from "../../components/shared/uiStyles";
+import { AddToCalendarButton } from "../../components/shared/AddToCalendarButton";
+import { useOrigin } from "../../lib/useClientValue";
+import { calendarUid } from "../../utils/calendar";
+import dayjs from "../../utils/dayjs";
 import type { TakeTarget } from "./useItemTake";
 import { itemPagePath } from "./useItemRoutes";
 

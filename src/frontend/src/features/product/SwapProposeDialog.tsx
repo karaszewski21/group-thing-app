@@ -1,7 +1,7 @@
-import { ModalSheet } from "../../../components/shared/ModalSheet";
-import { BTN_GHOST, BTN_PRIMARY, BTN_SM } from "../../../components/shared/uiStyles";
-import type { ItemCondition } from "../../../api/inventories";
-import { CONDITION_LABELS } from "../../../utils/productCategory";
+import { ModalSheet } from "../../components/shared/ModalSheet";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SM } from "../../components/shared/uiStyles";
+import type { ItemCondition } from "../../api/inventories";
+import { CONDITION_LABELS } from "../../utils/productCategory";
 
 /** One of the viewer's own items that can be offered in a swap. */
 export interface AvailableItem {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Skeleton } from "../../../components/shared/Skeleton";
+import { Skeleton } from "../../components/shared/Skeleton";
 import { ItemBackButton } from "./ItemBackButton";
 
 /** The item page while its details load (also the route's `loading.tsx`):

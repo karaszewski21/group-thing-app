@@ -2,7 +2,7 @@ import { Activity } from "react";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ItemCreateView } from "../features/items/ItemCreateView";
-import { FailedPhotosNotice } from "../features/items/product/blocks/ItemHeader";
+import { FailedPhotosNotice } from "../features/product/blocks/ItemHeader";
 import * as inventoriesApi from "../api/inventories";
 import * as peopleApi from "../api/people";
 import * as productsApi from "../api/products";

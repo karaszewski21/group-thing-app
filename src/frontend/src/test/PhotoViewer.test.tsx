@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getOpenSheetCount } from "../components/shared/openSheets";
 import { PhotoViewer } from "../components/shared/PhotoViewer";
-import { ItemGallery } from "../features/items/product/ItemGallery";
+import { ItemGallery } from "../features/product/ItemGallery";
 import type { ProductPhotoResponse } from "../api/products";
 
 const URLS = ["https://cdn.test/1.webp", "https://cdn.test/2.webp", "https://cdn.test/3.webp"];

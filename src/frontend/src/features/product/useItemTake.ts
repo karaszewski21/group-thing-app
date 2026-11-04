@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getInventoryItemBalance, getMyInventoryItems } from "../../../api/inventories";
-import { proposeItemSwap, takeItem, type ReservationContextRef } from "../../../api/itemReservations";
-import { serverMessageOr } from "../../../api/problem";
-import type { ListingMode } from "../../../api/itemListingPreferences";
-import { RESERVATION_STATE_KEYS } from "../../../hooks/useReservationSettlement";
+import { getInventoryItemBalance, getMyInventoryItems } from "../../api/inventories";
+import { proposeItemSwap, takeItem, type ReservationContextRef } from "../../api/itemReservations";
+import { serverMessageOr } from "../../api/problem";
+import type { ListingMode } from "../../api/itemListingPreferences";
+import { RESERVATION_STATE_KEYS } from "../../hooks/useReservationSettlement";
 import type { AvailableItem } from "./SwapProposeDialog";
-import { useAccountGate, type TermActionDeps } from "../../auth/useAccountGate";
+import { useAccountGate, type TermActionDeps } from "../auth/useAccountGate";
 
 /** The term or event a take happens in: `name` is the circle's or event's
  * name, `starts_at` naive Warsaw wall clock, `path` the context's page. */

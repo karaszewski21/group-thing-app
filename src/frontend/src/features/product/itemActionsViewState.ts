@@ -1,10 +1,10 @@
-import type { ExchangeMode } from "../../../api/groups";
+import type { ExchangeMode } from "../../api/groups";
 import type {
   ItemActionsResponse,
   ItemContextOptionResponse,
   ItemLocationResponse,
   ItemPartyReservationResponse,
-} from "../../../api/itemActions";
+} from "../../api/itemActions";
 
 type Owner = ItemActionsResponse["owner"];
 

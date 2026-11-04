@@ -13,7 +13,7 @@ import { AuthProvider } from "../auth/AuthContext";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { LoginPage } from "../features/auth/LoginPage";
 import { EventPage } from "../features/events/EventPage";
-import { OrganizerItemLayout } from "../features/items/product/OrganizerItemLayout";
+import { OrganizerItemLayout } from "../features/product/OrganizerItemLayout";
 import { itemRouteElement } from "./itemRoute";
 import { LandingPage } from "../features/landing/LandingPage";
 import { OwnerPage } from "../features/owner-page/OwnerPage";

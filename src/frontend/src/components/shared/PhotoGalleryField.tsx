@@ -1,7 +1,7 @@
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { ModerationStatus } from "../../api/products";
-import { ACCEPTED_PHOTO_TYPES } from "../../features/items/product/itemPageShared";
+import { ACCEPTED_PHOTO_TYPES } from "../../features/product/itemPageShared";
 import { TrashIcon } from "./appIcons";
 import { PhotoPlaceholder } from "./Icons";
 

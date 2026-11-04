@@ -1,14 +1,14 @@
 import { useEffect, useId, useRef, useState } from "react";
-import type { ItemCondition, ListingStatus } from "../../../api/inventories";
-import type { ItemDetailsResponse } from "../../../api/items";
-import { CategoryTreePicker } from "../../../components/shared/CategoryTreePicker";
-import { LocationPicker } from "../../../components/shared/LocationPicker";
-import type { useItemEditing } from "../../../hooks/useItemDetail";
-import { useMyLocations } from "../../../hooks/useMyLocations";
-import { useNavigationState } from "../../../routing/navigation";
-import type { PickedLocationState } from "../../../utils/appHelpers";
-import { ITEM_LOCATION_HELPER, liveLocationId, type ItemEditDraft } from "../../../utils/itemQuickAdd";
-import { CONDITION_LABELS } from "../../../utils/productCategory";
+import type { ItemCondition, ListingStatus } from "../../api/inventories";
+import type { ItemDetailsResponse } from "../../api/items";
+import { CategoryTreePicker } from "../../components/shared/CategoryTreePicker";
+import { LocationPicker } from "../../components/shared/LocationPicker";
+import type { useItemEditing } from "../../hooks/useItemDetail";
+import { useMyLocations } from "../../hooks/useMyLocations";
+import { useNavigationState } from "../../routing/navigation";
+import type { PickedLocationState } from "../../utils/appHelpers";
+import { ITEM_LOCATION_HELPER, liveLocationId, type ItemEditDraft } from "../../utils/itemQuickAdd";
+import { CONDITION_LABELS } from "../../utils/productCategory";
 import { FIELD_LABEL, PRODUCT_DESCRIPTION_MAX } from "./itemPageShared";
 
 const INPUT = "rounded-xl border-[1.5px] border-line bg-paper px-3 py-2 text-ink disabled:opacity-60";

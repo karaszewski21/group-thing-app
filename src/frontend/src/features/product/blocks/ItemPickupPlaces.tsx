@@ -1,6 +1,6 @@
 "use client";
 
-import { PickupPlacesBox } from "../../../../components/shared/PickupPlacesBox";
+import { PickupPlacesBox } from "../../../components/shared/PickupPlacesBox";
 import { useItemPage } from "../ItemPageContext";
 
 /** "Gdzie jeszcze można odebrać": the owner's upcoming terms and events (the

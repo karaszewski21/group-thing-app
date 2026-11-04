@@ -1,4 +1,4 @@
-import type { ItemDetailsResponse } from "../../../api/items";
+import type { ItemDetailsResponse } from "../../api/items";
 import { itemPagePath } from "./useItemRoutes";
 
 /** The one screen `/:slug/product/:id` shows. `notFound` and `error` are

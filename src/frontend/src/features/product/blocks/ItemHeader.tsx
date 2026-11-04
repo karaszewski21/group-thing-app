@@ -1,10 +1,10 @@
 "use client";
 
-import { ItemTileBadges } from "../../../../components/shared/ItemTileBadges";
-import { PencilIcon, TrashIcon } from "../../../../components/shared/appIcons";
-import { Link, useNavigationState } from "../../../../routing/navigation";
-import dayjs from "../../../../utils/dayjs";
-import { CONDITION_LABELS } from "../../../../utils/productCategory";
+import { ItemTileBadges } from "../../../components/shared/ItemTileBadges";
+import { PencilIcon, TrashIcon } from "../../../components/shared/appIcons";
+import { Link, useNavigationState } from "../../../routing/navigation";
+import dayjs from "../../../utils/dayjs";
+import { CONDITION_LABELS } from "../../../utils/productCategory";
 import { useItemPage } from "../ItemPageContext";
 import { MAX_PRODUCT_PHOTOS, NO_CATEGORY_LABEL, type ItemCreatedState } from "../itemPageShared";
 import { itemEditPath } from "../useItemRoutes";

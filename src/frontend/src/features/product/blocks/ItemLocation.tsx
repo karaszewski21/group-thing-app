@@ -1,8 +1,8 @@
 "use client";
 
-import type { ItemLocationResponse } from "../../../../api/itemActions";
-import { PLACE_LINK, PlaceDetails } from "../../../../components/shared/PlaceCard";
-import { Link } from "../../../../routing/navigation";
+import type { ItemLocationResponse } from "../../../api/itemActions";
+import { PLACE_LINK, PlaceDetails } from "../../../components/shared/PlaceCard";
+import { Link } from "../../../routing/navigation";
 import { useItemPage } from "../ItemPageContext";
 import { CARD_HINT, FIELD_LABEL, ITEM_SECTION } from "../itemPageShared";
 import { itemEditPath } from "../useItemRoutes";

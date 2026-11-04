@@ -1,9 +1,9 @@
 "use client";
 
-import { Avatar } from "../../../../components/shared/Avatar";
-import { CARD } from "../../../../components/shared/uiStyles";
-import { Link } from "../../../../routing/navigation";
-import { ownerPagePath } from "../../../../routing/paths";
+import { Avatar } from "../../../components/shared/Avatar";
+import { CARD } from "../../../components/shared/uiStyles";
+import { Link } from "../../../routing/navigation";
+import { ownerPagePath } from "../../../routing/paths";
 import { useItemPage } from "../ItemPageContext";
 
 /** The owner with a link to all their listed items; not on the owner's own view. */

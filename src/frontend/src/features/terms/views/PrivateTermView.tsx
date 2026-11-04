@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useAppNavigate } from "../../../routing/navigation";
 import { BTN_PRIMARY, CARD, ERROR_TEXT, PAGE_SHELL } from "../../../components/shared/uiStyles";
 import { GroupHeader } from "../components/GroupHeader";
 import type { CodeSheet } from "../hooks/useJoinCodeLink";
@@ -36,7 +35,6 @@ export function PrivateTermView({
   onCloseSheet: () => void;
   onJoin: (code: string) => Promise<void>;
 }) {
-  const navigate = useAppNavigate();
   const { group } = view;
 
   return (
@@ -44,7 +42,6 @@ export function PrivateTermView({
       <GroupHeader
         eyebrow="Krąg"
         title={group.name}
-        onBack={() => navigate(-1)}
         subtitle={group.organizer_display_name ? `Prowadzi: ${group.organizer_display_name}` : "Brak organizatora"}
       />
 

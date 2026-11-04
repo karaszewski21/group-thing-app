@@ -1,4 +1,4 @@
-import { ItemPageSkeleton } from "../../../../../features/items/product/ItemPageSkeleton";
+import { ItemPageSkeleton } from "../../../../../features/product/ItemPageSkeleton";
 
 export default function Loading() {
   return <ItemPageSkeleton />;

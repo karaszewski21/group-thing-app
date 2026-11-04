@@ -1,9 +1,9 @@
 import { useState } from "react";
-import type { ExchangeMode } from "../../../api/groups";
-import type { ItemContextOptionResponse } from "../../../api/itemActions";
-import { ModalSheet } from "../../../components/shared/ModalSheet";
-import { BTN_LG, BTN_PRIMARY } from "../../../components/shared/uiStyles";
-import dayjs from "../../../utils/dayjs";
+import type { ExchangeMode } from "../../api/groups";
+import type { ItemContextOptionResponse } from "../../api/itemActions";
+import { ModalSheet } from "../../components/shared/ModalSheet";
+import { BTN_LG, BTN_PRIMARY } from "../../components/shared/uiStyles";
+import dayjs from "../../utils/dayjs";
 
 /** "📍 <place> · HH:mm", or just the time when the context has no place. */
 export function ContextPlaceLine({ context, className }: { context: ItemContextOptionResponse; className: string }) {

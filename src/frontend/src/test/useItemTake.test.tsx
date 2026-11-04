@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useItemTake, type TakeContext } from "../features/items/product/useItemTake";
+import { useItemTake, type TakeContext } from "../features/product/useItemTake";
 import * as itemReservationsApi from "../api/itemReservations";
 import * as inventoriesApi from "../api/inventories";
 import type { InventoryBalanceResponse, MyInventoryItemResponse } from "../api/inventories";

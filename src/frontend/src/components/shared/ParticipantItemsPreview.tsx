@@ -1,8 +1,8 @@
 import { Link } from "../../routing/navigation";
 import type { ReservedByResponse } from "../../api/groups";
 import type { ListingMode } from "../../api/itemListingPreferences";
-import { SafeImage } from "../../features/items/product/ItemGallery";
-import { itemPagePath } from "../../features/items/product/useItemRoutes";
+import { SafeImage } from "../../features/product/ItemGallery";
+import { itemPagePath } from "../../features/product/useItemRoutes";
 import dayjs from "../../utils/dayjs";
 import { PhotoPlaceholder } from "./Icons";
 import { ItemTileBadges } from "./ItemTileBadges";

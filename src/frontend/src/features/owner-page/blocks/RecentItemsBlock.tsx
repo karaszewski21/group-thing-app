@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { Link } from "../../../routing/navigation";
-import { itemPagePath } from "../../items/product/useItemRoutes";
+import { itemPagePath } from "../../product/useItemRoutes";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
 import { ItemCard } from "./ExchangeItemCard";
 

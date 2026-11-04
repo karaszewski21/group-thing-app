@@ -1,13 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useAuth } from "../../../auth/AuthContext";
-import { CARD } from "../../../components/shared/uiStyles";
-import { useItemActions } from "../../../hooks/useItemActions";
-import { useItemDetail } from "../../../hooks/useItemDetail";
-import { useOpenAndNavigate } from "../../../hooks/useOpenAndNavigate";
-import { Navigate, notFound, useAppSearch } from "../../../routing/navigation";
-import { AuthPromptButtons } from "../../auth/AuthSheet";
+import { useAuth } from "../../auth/AuthContext";
+import { CARD } from "../../components/shared/uiStyles";
+import { useItemActions } from "../../hooks/useItemActions";
+import { useItemDetail } from "../../hooks/useItemDetail";
+import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
+import { Navigate, notFound, useAppSearch } from "../../routing/navigation";
+import { AuthPromptButtons } from "../auth/AuthSheet";
 import { resolveItemActionsView } from "./itemActionsViewState";
 import { ItemBackButton } from "./ItemBackButton";
 import { ItemLoadError, ItemPageContext, type ItemPageValue } from "./ItemPageContext";

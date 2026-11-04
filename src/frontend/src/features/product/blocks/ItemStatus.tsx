@@ -1,16 +1,16 @@
 "use client";
 
-import { Link } from "../../../../routing/navigation";
-import type { ItemStatusResponse } from "../../../../api/items";
-import { AddToCalendarButton } from "../../../../components/shared/AddToCalendarButton";
-import { useOrigin } from "../../../../lib/useClientValue";
-import { calendarUid, type CalendarEvent } from "../../../../utils/calendar";
-import { eventPath } from "../../../../routing/paths";
-import type { ItemActionsResponse } from "../../../../api/itemActions";
-import dayjs from "../../../../utils/dayjs";
+import { Link } from "../../../routing/navigation";
+import type { ItemStatusResponse } from "../../../api/items";
+import { AddToCalendarButton } from "../../../components/shared/AddToCalendarButton";
+import { useOrigin } from "../../../lib/useClientValue";
+import { calendarUid, type CalendarEvent } from "../../../utils/calendar";
+import { eventPath } from "../../../routing/paths";
+import type { ItemActionsResponse } from "../../../api/itemActions";
+import dayjs from "../../../utils/dayjs";
 import type { ItemActionsView } from "../itemActionsViewState";
 import { useItemPage } from "../ItemPageContext";
-import { organizerTermPath } from "../../../owner-page/organizerHelpers";
+import { organizerTermPath } from "../../owner-page/organizerHelpers";
 
 /** Where the hand-over happens: a Term or an event. `contextId` feeds the
  * calendar uid and `path` the link; `groupName` is the event name for an

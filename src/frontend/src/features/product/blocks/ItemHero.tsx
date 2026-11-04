@@ -1,8 +1,8 @@
 "use client";
 
-import type { PublicOrganizationResponse } from "../../../../api/organizations";
-import { familyInitials } from "../../../../components/shared/Avatar";
-import { Link } from "../../../../routing/navigation";
+import type { PublicOrganizationResponse } from "../../../api/organizations";
+import { familyInitials } from "../../../components/shared/Avatar";
+import { Link } from "../../../routing/navigation";
 import { ItemBackButton } from "../ItemBackButton";
 import { ItemGallery } from "../ItemGallery";
 import { useItemPage } from "../ItemPageContext";

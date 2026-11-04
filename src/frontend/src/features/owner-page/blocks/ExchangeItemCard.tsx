@@ -4,8 +4,8 @@ import type { ItemCondition } from "../../../api/inventories";
 import { PhotoPlaceholder } from "../../../components/shared/Icons";
 import { ItemTileBadges } from "../../../components/shared/ItemTileBadges";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
-import { SafeImage } from "../../items/product/ItemGallery";
-import { itemPagePath } from "../../items/product/useItemRoutes";
+import { SafeImage } from "../../product/ItemGallery";
+import { itemPagePath } from "../../product/useItemRoutes";
 
 interface ItemCardProps {
   /** The item page, opened by the whole tile (a stretched link on the name). */

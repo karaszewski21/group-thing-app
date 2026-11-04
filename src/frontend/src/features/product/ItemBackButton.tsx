@@ -1,5 +1,5 @@
-import { useAppNavigate, useHasInAppHistory } from "../../../routing/navigation";
-import { BackIcon } from "../../../components/shared/appIcons";
+import { useAppNavigate, useHasInAppHistory } from "../../routing/navigation";
+import { BackIcon } from "../../components/shared/appIcons";
 import { BACK_LINK } from "./itemPageShared";
 import { useItemBackFallback } from "./useItemRoutes";
 

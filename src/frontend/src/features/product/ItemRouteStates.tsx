@@ -1,6 +1,6 @@
 "use client";
 
-import { useResetItemDetails } from "../../../hooks/useItemDetail";
+import { useResetItemDetails } from "../../hooks/useItemDetail";
 import { ItemLoadStates } from "./ItemLoadStates";
 import { ItemLoadError } from "./ItemPageContext";
 

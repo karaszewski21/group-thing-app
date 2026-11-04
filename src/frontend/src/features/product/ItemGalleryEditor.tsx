@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { ProductPhotoResponse } from "../../../api/products";
-import { PhotoGalleryField } from "../../../components/shared/PhotoGalleryField";
+import type { ProductPhotoResponse } from "../../api/products";
+import { PhotoGalleryField } from "../../components/shared/PhotoGalleryField";
 import { MAX_PRODUCT_PHOTOS, photoFileError } from "./itemPageShared";
 
 interface ItemGalleryEditorProps {

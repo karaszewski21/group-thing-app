@@ -5,10 +5,10 @@ import { Link, useAppNavigate, useAppParams, useHasInAppHistory } from "../../ro
 import { viewPath } from "../../routing/paths";
 import { itemEditDraftFrom } from "../../utils/itemQuickAdd";
 import { useAppData } from "../panel/appDataStore";
-import { ItemEditForm } from "./product/ItemEditForm";
-import { ItemGalleryEditor } from "./product/ItemGalleryEditor";
-import { ItemLoadStates } from "./product/ItemLoadStates";
-import { itemPagePath } from "./product/useItemRoutes";
+import { ItemEditForm } from "../product/ItemEditForm";
+import { ItemGalleryEditor } from "../product/ItemGalleryEditor";
+import { ItemLoadStates } from "../product/ItemLoadStates";
+import { itemPagePath } from "../product/useItemRoutes";
 
 const TITLE = "Edytuj rzecz";
 

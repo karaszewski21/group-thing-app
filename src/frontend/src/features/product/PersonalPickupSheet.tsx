@@ -1,6 +1,6 @@
-import type { ExchangeMode } from "../../../api/groups";
-import { ModalSheet } from "../../../components/shared/ModalSheet";
-import { BTN_GHOST, BTN_LG, BTN_PRIMARY } from "../../../components/shared/uiStyles";
+import type { ExchangeMode } from "../../api/groups";
+import { ModalSheet } from "../../components/shared/ModalSheet";
+import { BTN_GHOST, BTN_LG, BTN_PRIMARY } from "../../components/shared/uiStyles";
 
 interface PersonalPickupSheetProps {
   ownerName: string;

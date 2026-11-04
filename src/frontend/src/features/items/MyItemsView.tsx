@@ -19,8 +19,8 @@ import { CONDITION_LABELS } from "../../utils/productCategory";
 import { BoxIcon, PencilIcon, TrashIcon } from "../../components/shared/appIcons";
 import { capitalize, GIFT_LIMIT_MESSAGE, ITEM_MODES, MAX_GIFT_ITEMS, type ItemMode } from "../../utils/appHelpers";
 import { useAppData } from "../panel/appDataStore";
-import { SafeImage } from "./product/ItemGallery";
-import { itemEditPath, itemPagePath } from "./product/useItemRoutes";
+import { SafeImage } from "../product/ItemGallery";
+import { itemEditPath, itemPagePath } from "../product/useItemRoutes";
 import { SwapAcceptSuccessSheet, type AcceptedSwap } from "./SwapAcceptSuccessSheet";
 import { VisibilityToggle } from "./VisibilityToggle";
 

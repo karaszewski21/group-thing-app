@@ -1,4 +1,4 @@
-import { useAppParams } from "../../../routing/navigation";
+import { useAppParams } from "../../routing/navigation";
 
 /** An item's page under its owner's prefix: their Organization slug, else
  * their party id (`ownerSlug` of `ownerPagePath`). The page replaces a stale

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ItemDetailsResponse } from "../api/items";
-import { resolveItemPageView } from "../features/items/product/itemPageViewState";
+import { resolveItemPageView } from "../features/product/itemPageViewState";
 
 const ITEM: ItemDetailsResponse = {
   id: "it-1",

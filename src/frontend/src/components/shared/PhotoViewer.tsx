@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type TouchEvent } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { SafeImage } from "../../features/items/product/ItemGallery";
+import { SafeImage } from "../../features/product/ItemGallery";
 import { trapFocus } from "./trapFocus";
 import { useRegisterOpenSheet } from "./openSheets";
 

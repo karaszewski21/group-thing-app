@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PhotoViewer } from "../../../components/shared/PhotoViewer";
-import { SafeImage } from "../../items/product/ItemGallery";
+import { SafeImage } from "../../product/ItemGallery";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
 
 const COLUMNS: Record<number, string> = { 1: "grid-cols-1", 2: "grid-cols-2" };

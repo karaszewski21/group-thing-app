@@ -72,7 +72,7 @@ describe("in-scope public pages use theme tokens, not literal colors", () => {
     "features/terms/components/CodeDigitsInput.tsx",
     "components/shared/ModalSheet.tsx",
     "components/shared/PhoneFrame.tsx",
-    "features/items/product/blocks/ItemStatus.tsx",
+    "features/product/blocks/ItemStatus.tsx",
     "features/owner-page/PublicOrganizationPage.tsx",
     "features/owner-page/layouts/types.ts",
     "features/owner-page/layouts/registry.ts",

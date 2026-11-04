@@ -1,11 +1,12 @@
 import { fireEvent, renderHook, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "../api/client";
 import type { PublicOrganizationResponse } from "../api/organizations";
 import * as organizationsApi from "../api/organizations";
 import type { OwnerItemCard, OwnerItemsPageResponse, OwnerNearestDate } from "../api/ownerItems";
 import * as ownerItemsApi from "../api/ownerItems";
 import { useOwnerItems } from "../hooks/useOwnerItems";
-import { OwnerItemsPage } from "../features/owner-page/OwnerItemsPage";
+import { ownerItemsRouteElement } from "./itemRoute";
 import { createQueryWrapper } from "./queryClient";
 import { getTestLocation, getTestRouter, renderWithRoute } from "./renderWithRoute";
 
@@ -87,8 +88,8 @@ function ownerPage(overrides: Partial<OwnerItemsPageResponse> = {}): OwnerItemsP
   };
 }
 
-function renderAt(path: string) {
-  renderWithRoute(<OwnerItemsPage />, {
+async function renderAt(path: string) {
+  renderWithRoute(await ownerItemsRouteElement(path), {
     url: path,
     pattern: "/:slug/items",
     wrapper: createQueryWrapper(),
@@ -109,11 +110,11 @@ describe("OwnerItemsPage", () => {
   it("keeps the nearest date card and shows intent pills on tiles linking to the plain product page", async () => {
     vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(ownerPage());
 
-    renderAt(`/${SLUG}/items`);
+    await renderAt(`/${SLUG}/items`);
 
     const heading = await screen.findByRole("heading", { level: 1, name: "Rzeczy: Akademia Orlik" });
     expect(heading.closest("[data-organizer-theme]")).toHaveAttribute("data-organizer-theme", "custom");
-    expect(screen.getByText("3 rzeczy do oddania lub zamiany")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Akademia Orlik" })).toHaveAttribute("href", `/${SLUG}`);
     const nearest = screen.getByRole("region", { name: "Najbliższa okazja do odbioru" });
     const nearestLink = within(nearest).getByRole("link", { name: /Zobacz wydarzenie ›/ });
     expect(nearestLink).toHaveTextContent("Wydarzenie");
@@ -138,7 +139,7 @@ describe("OwnerItemsPage", () => {
       meetings: [NEAREST_EVENT, LATER_TERM],
     });
 
-    renderAt(`/${SLUG}/items`);
+    await renderAt(`/${SLUG}/items`);
 
     const nearest = await screen.findByRole("region", { name: "Najbliższa okazja do odbioru" });
     const select = await within(nearest).findByRole("combobox", { name: "Najbliższa okazja do odbioru" });
@@ -164,7 +165,7 @@ describe("OwnerItemsPage", () => {
       }),
     );
 
-    renderAt(`/${PARTY_ID}/items`);
+    await renderAt(`/${PARTY_ID}/items`);
 
     expect(await screen.findByText("Ania W. nie ma teraz zaplanowanych spotkań")).toBeInTheDocument();
     expect(screen.getByText("Napisz w sprawie konkretnej rzeczy — umówicie się na czacie.")).toBeInTheDocument();
@@ -182,7 +183,7 @@ describe("OwnerItemsPage", () => {
       mode === "GIFT" ? ownerPage({ items: [card("i1", "GIFT"), card("i3", "GIFT")], total: 2 }) : ownerPage(),
     );
 
-    renderAt(`/${SLUG}/items`);
+    await renderAt(`/${SLUG}/items`);
 
     const tablist = await screen.findByRole("tablist");
     const tabs = within(tablist).getAllByRole("tab");
@@ -205,7 +206,7 @@ describe("OwnerItemsPage", () => {
       }),
     );
 
-    renderAt(`/${SLUG}/items`);
+    await renderAt(`/${SLUG}/items`);
 
     await screen.findByRole("link", { name: "Rzecz i1" });
     const [reserved] = screen.getAllByRole("article");
@@ -237,7 +238,7 @@ describe("OwnerItemsPage", () => {
     vi.mocked(ownerItemsApi.getPartyOwnerItems).mockResolvedValue(ownerPage());
     vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(ownerPage());
 
-    renderAt(`/${PARTY_ID}/items?event=e9`);
+    await renderAt(`/${PARTY_ID}/items?event=e9`);
 
     await waitFor(() => {
       const { pathname, search } = getTestLocation();
@@ -249,7 +250,7 @@ describe("OwnerItemsPage", () => {
   it("ignores a ?term= on the page and links tiles to the plain product page", async () => {
     vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(ownerPage());
 
-    renderAt(`/${SLUG}/items?term=t9`);
+    await renderAt(`/${SLUG}/items?term=t9`);
 
     expect(await screen.findByRole("link", { name: "Rzecz i2" })).toHaveAttribute("href", `/${SLUG}/product/i2`);
   });
@@ -261,12 +262,34 @@ describe("OwnerItemsPage", () => {
         : ownerPage({ counts: { GIFT: 21, SWAP: 0 }, items: [card("i21", "GIFT")], total: 21, page: 2 }),
     );
 
-    renderAt(`/${SLUG}/items`);
+    await renderAt(`/${SLUG}/items`);
 
     fireEvent.click(await screen.findByRole("button", { name: "Pokaż więcej" }));
 
     expect(await screen.findByRole("link", { name: "Rzecz i21" })).toBeInTheDocument();
     expect(ownerItemsApi.getOrganizationOwnerItems).toHaveBeenCalledWith(SLUG, 2, undefined);
     expect(screen.getByRole("link", { name: "Rzecz i1" })).toBeInTheDocument();
+  });
+
+  it("shows the not-found page for an unknown owner", async () => {
+    vi.mocked(ownerItemsApi.getPartyOwnerItems).mockRejectedValue(new ApiError(404, "Not Found", null));
+
+    await renderAt(`/${PARTY_ID}/items`);
+
+    expect(await screen.findByRole("heading", { name: "Nie znaleziono strony" })).toBeInTheDocument();
+    expect(screen.getByText("Nie ma tu żadnych rzeczy.")).toBeInTheDocument();
+  });
+
+  it("shows the error page on a failed read and fetches again on retry", async () => {
+    vi.mocked(ownerItemsApi.getOrganizationOwnerItems)
+      .mockRejectedValueOnce(new ApiError(500, "Server Error", null))
+      .mockResolvedValue(ownerPage());
+
+    await renderAt(`/${SLUG}/items`);
+
+    expect(await screen.findByText(/Nie udało się wczytać rzeczy\./)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Rzeczy: Akademia Orlik" })).toBeInTheDocument();
   });
 });

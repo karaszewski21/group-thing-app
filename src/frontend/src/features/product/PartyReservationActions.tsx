@@ -1,8 +1,8 @@
 import { useState } from "react";
-import type { ItemPartyReservationResponse } from "../../../api/itemActions";
-import { ConfirmDeleteDialog } from "../../../components/shared/ConfirmDeleteDialog";
-import { BTN_GHOST, BTN_LG, BTN_PRIMARY } from "../../../components/shared/uiStyles";
-import { useReservationSettlement } from "../../../hooks/useReservationSettlement";
+import type { ItemPartyReservationResponse } from "../../api/itemActions";
+import { ConfirmDeleteDialog } from "../../components/shared/ConfirmDeleteDialog";
+import { BTN_GHOST, BTN_LG, BTN_PRIMARY } from "../../components/shared/uiStyles";
+import { useReservationSettlement } from "../../hooks/useReservationSettlement";
 
 const PRIMARY_ACTION = `${BTN_PRIMARY} ${BTN_LG} mt-2.5 block w-full text-center`;
 const GHOST_ACTION = `${BTN_GHOST} ${BTN_LG} mt-2.5 block w-full text-center text-ink`;

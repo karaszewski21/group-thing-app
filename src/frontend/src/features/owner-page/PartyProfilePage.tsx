@@ -8,8 +8,8 @@ import { BlockSkeleton } from "./blocks/BlockSkeleton";
 import { ItemCard } from "./blocks/ExchangeItemCard";
 import { FooterBlock } from "./blocks/FooterBlock";
 import { NotFoundFrame, PageFrame } from "./PageFrame";
-import { itemPagePath } from "../items/product/useItemRoutes";
-import { NearestSection } from "./OwnerItemsPage";
+import { itemPagePath } from "../product/useItemRoutes";
+import { NearestSection } from "./blocks/NearestSection";
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 const BACK_BUTTON = `inline-flex min-h-[44px] items-center gap-1.5 self-start text-[14px] font-bold text-primary-fg ${FOCUS_RING}`;

@@ -14,8 +14,8 @@ import {
 } from "../../utils/itemQuickAdd";
 import { EXCHANGE_MODE_LABELS } from "../terms/components/termLabels";
 import { PhotoGalleryField } from "../../components/shared/PhotoGalleryField";
-import { FIELD_LABEL, MAX_PRODUCT_PHOTOS, photoFileError, type ItemCreatedState } from "./product/itemPageShared";
-import { itemPagePath } from "./product/useItemRoutes";
+import { FIELD_LABEL, MAX_PRODUCT_PHOTOS, photoFileError, type ItemCreatedState } from "../product/itemPageShared";
+import { itemPagePath } from "../product/useItemRoutes";
 import { useAppData } from "../panel/appDataStore";
 
 const ACTION_CLASS =

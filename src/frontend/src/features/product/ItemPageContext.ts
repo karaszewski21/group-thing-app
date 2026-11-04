@@ -1,7 +1,7 @@
 import { createContext, useContext } from "react";
-import type { ItemDetailsResponse } from "../../../api/items";
-import type { UseItemActionsResult } from "../../../hooks/useItemActions";
-import type { UseOpenAndNavigateResult } from "../../../hooks/useOpenAndNavigate";
+import type { ItemDetailsResponse } from "../../api/items";
+import type { UseItemActionsResult } from "../../hooks/useItemActions";
+import type { UseOpenAndNavigateResult } from "../../hooks/useOpenAndNavigate";
 import type { ItemActionsView } from "./itemActionsViewState";
 
 /** What every block of a loaded item page reads: the details, the actions
