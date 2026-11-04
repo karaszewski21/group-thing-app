@@ -3,6 +3,8 @@ import { Link, useAppNavigate, useAppParams, useAppSearch, useHasInAppHistory } 
 import type { OwnerNearestDate } from "../../api/ownerItems";
 import { useOwnerItems, type OwnerRef } from "../../hooks/useOwnerItems";
 import { usePublicOrganization } from "../../hooks/usePublicOrganization";
+import { PickupPlacesBox } from "../../components/shared/PickupPlacesBox";
+import { useOwnerMeetings } from "../../hooks/useOwnerMeetings";
 import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
 import { isPartyId } from "../../routing/paths";
 import { pluralPl } from "../../utils/plural";
@@ -10,7 +12,6 @@ import { BlockSkeleton } from "./blocks/BlockSkeleton";
 import { ExchangeModeTabs, type ExchangeFilter } from "./blocks/ExchangeBoardBlock";
 import { ItemCard } from "./blocks/ExchangeItemCard";
 import { FooterBlock } from "./blocks/FooterBlock";
-import { NearestDateCard } from "./blocks/NearestDateCard";
 import { NotFoundFrame, PageFrame } from "./PageFrame";
 import { itemPagePath } from "../items/product/useItemRoutes";
 
@@ -22,17 +23,22 @@ const MORE_BUTTON = `flex min-h-11 w-full items-center justify-center rounded-fu
 
 const ALL_MEETINGS_LINK = `inline-flex min-h-11 items-center self-start text-[14px] font-extrabold text-primary-fg no-underline ${FOCUS_RING}`;
 
-/** The owner's nearest date (or a chat-only notice) and, with one, a link to
- * all their meetings at `meetingsHref`. */
+/** Where the owner's things can be picked up — their upcoming terms and
+ * events, nearest first, in the item page's box with a select — or a
+ * chat-only notice; with dates, a link to all meetings at `meetingsHref`.
+ * Until the meetings load, the box shows the owner's `nearest` date alone. */
 export function NearestSection({
+  ownerRef,
   nearest,
   name,
   meetingsHref,
 }: {
+  ownerRef: OwnerRef;
   nearest: OwnerNearestDate | null;
   name: string;
   meetingsHref: string;
 }) {
+  const { meetings } = useOwnerMeetings(ownerRef);
   if (!nearest) {
     return (
       <div className="rounded-3xl border border-line bg-paper p-4">
@@ -41,17 +47,12 @@ export function NearestSection({
       </div>
     );
   }
-  const attendees = `${nearest.attendee_count} ${pluralPl(nearest.attendee_count, "zapisany", "zapisanych", "zapisanych")}`;
   return (
     <div className="flex flex-col gap-1">
-      <NearestDateCard
-        variant="card"
-        kicker="Najbliższa okazja do odbioru"
-        name={nearest.name}
-        startsAt={nearest.starts_at}
-        details={nearest.location_name ? `${nearest.location_name} · ${attendees}` : attendees}
-        ctaHref={nearest.path}
-        ctaLabel={nearest.kind === "EVENT" ? "Zobacz wydarzenie i zapisz się" : "Zobacz termin i zapisz się"}
+      <PickupPlacesBox
+        heading="Najbliższa okazja do odbioru"
+        headingLevel="h2"
+        options={meetings.length > 0 ? meetings : [nearest]}
       />
       <Link to={meetingsHref} className={ALL_MEETINGS_LINK}>
         Wszystkie spotkania
@@ -136,6 +137,7 @@ function OwnerItemsContent({ ownerRef, back }: { ownerRef: OwnerRef; back: React
           </div>
         </div>
         <NearestSection
+          ownerRef={ownerRef}
           nearest={nearest}
           name={owner.display_name}
           meetingsHref={`/${owner.slug ?? owner.party_id}/meetings`}

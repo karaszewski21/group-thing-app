@@ -10,7 +10,7 @@ import dayjs from "../../utils/dayjs";
 import { pluralPl } from "../../utils/plural";
 import { BlockSkeleton } from "./blocks/BlockSkeleton";
 import { FooterBlock } from "./blocks/FooterBlock";
-import { DateTile } from "./blocks/NearestDateCard";
+import { DateTile } from "./blocks/DateTile";
 import { NotFoundFrame, PageFrame } from "./PageFrame";
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";

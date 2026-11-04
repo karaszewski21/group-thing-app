@@ -19,6 +19,8 @@ vi.mock("../api/organizations", () => ({
 vi.mock("../api/ownerItems", () => ({
   getOrganizationOwnerItems: vi.fn(),
   getPartyOwnerItems: vi.fn(),
+  getOrganizationOwnerMeetings: vi.fn(),
+  getPartyOwnerMeetings: vi.fn(),
 }));
 
 const SLUG = "akademia-orlik";
@@ -61,6 +63,17 @@ const NEAREST_EVENT: OwnerNearestDate = {
   path: `/${SLUG}/event/e1`,
 };
 
+// 2026-11-11 is a Wednesday ("śr 11 lis").
+const LATER_TERM: OwnerNearestDate = {
+  kind: "TERM",
+  id: "t2",
+  name: "Wymianka przedszkolna",
+  starts_at: "2026-11-11T16:00:00",
+  location_name: null,
+  attendee_count: 3,
+  path: `/${SLUG}/group/g-1/term/t2`,
+};
+
 function ownerPage(overrides: Partial<OwnerItemsPageResponse> = {}): OwnerItemsPageResponse {
   return {
     owner: { party_id: PARTY_ID, display_name: "Akademia Orlik", slug: SLUG },
@@ -87,6 +100,9 @@ beforeEach(() => {
   mockAuth.token = null;
   mockAuth.username = null;
   vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
+  const owner = { party_id: PARTY_ID, display_name: "Akademia Orlik", slug: SLUG };
+  vi.mocked(ownerItemsApi.getOrganizationOwnerMeetings).mockResolvedValue({ owner, meetings: [] });
+  vi.mocked(ownerItemsApi.getPartyOwnerMeetings).mockResolvedValue({ owner: { ...owner, slug: null }, meetings: [] });
 });
 
 describe("OwnerItemsPage", () => {
@@ -98,13 +114,14 @@ describe("OwnerItemsPage", () => {
     const heading = await screen.findByRole("heading", { level: 1, name: "Rzeczy: Akademia Orlik" });
     expect(heading.closest("[data-organizer-theme]")).toHaveAttribute("data-organizer-theme", "custom");
     expect(screen.getByText("3 rzeczy do oddania lub zamiany")).toBeInTheDocument();
-    expect(screen.getByText("Najbliższa okazja do odbioru")).toBeInTheDocument();
-    expect(screen.getByText("sobota, 7 listopada · 10:00")).toBeInTheDocument();
-    expect(screen.getByText("Park Jordana, Kraków · 14 zapisanych")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Zobacz wydarzenie i zapisz się" })).toHaveAttribute(
-      "href",
-      `/${SLUG}/event/e1`,
-    );
+    const nearest = screen.getByRole("region", { name: "Najbliższa okazja do odbioru" });
+    const nearestLink = within(nearest).getByRole("link", { name: /Zobacz wydarzenie ›/ });
+    expect(nearestLink).toHaveTextContent("Wydarzenie");
+    expect(nearestLink).toHaveTextContent("sobota 7 listopada, godz. 10:00");
+    expect(nearestLink).toHaveTextContent("Wymianka sąsiedzka");
+    expect(nearestLink).toHaveTextContent("📍 Park Jordana, Kraków");
+    expect(nearestLink).toHaveAttribute("href", `/${SLUG}/event/e1`);
+    expect(within(nearest).queryByRole("combobox")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Rzecz i1" })).toHaveAttribute("href", `/${SLUG}/product/i1`);
     const [gift, swap] = screen.getAllByRole("article");
     expect(within(gift).getByText("Chcę oddać")).toHaveClass("bg-primary-soft", "text-primary-fg");
@@ -112,6 +129,28 @@ describe("OwnerItemsPage", () => {
     expect(gift).not.toHaveTextContent("sob 7 lis");
     expect(within(gift).queryByRole("button")).not.toBeInTheDocument();
     expect(ownerItemsApi.getOrganizationOwnerItems).toHaveBeenCalledWith(SLUG, 1, undefined);
+  });
+
+  it("lists the owner's upcoming meetings in the pickup box select and switches the highlighted card", async () => {
+    vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(ownerPage());
+    vi.mocked(ownerItemsApi.getOrganizationOwnerMeetings).mockResolvedValue({
+      owner: { party_id: PARTY_ID, display_name: "Akademia Orlik", slug: SLUG },
+      meetings: [NEAREST_EVENT, LATER_TERM],
+    });
+
+    renderAt(`/${SLUG}/items`);
+
+    const nearest = await screen.findByRole("region", { name: "Najbliższa okazja do odbioru" });
+    const select = await within(nearest).findByRole("combobox", { name: "Najbliższa okazja do odbioru" });
+    expect(within(select).getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "sob 7 lis, 10:00 · Wymianka sąsiedzka (wydarzenie)",
+      "śr 11 lis, 16:00 · Wymianka przedszkolna",
+    ]);
+    fireEvent.change(select, { target: { value: "TERM-t2" } });
+    const link = within(nearest).getByRole("link", { name: /Zobacz termin ›/ });
+    expect(link).toHaveTextContent("środa 11 listopada, godz. 16:00");
+    expect(link).toHaveAttribute("href", `/${SLUG}/group/g-1/term/t2`);
+    expect(ownerItemsApi.getOrganizationOwnerMeetings).toHaveBeenCalledWith(SLUG);
   });
 
   it("shows the chat-only notice and intent pills without a nearest date", async () => {

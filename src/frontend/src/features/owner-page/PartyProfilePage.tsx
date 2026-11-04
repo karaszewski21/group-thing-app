@@ -103,6 +103,7 @@ function ProfileContent({ profile }: { profile: PartyProfileResponse }) {
         )}
       </div>
       <NearestSection
+        ownerRef={{ kind: "party", partyId: owner.party_id }}
         nearest={profile.nearest}
         name={owner.display_name}
         meetingsHref={`/${owner.party_id}/meetings`}

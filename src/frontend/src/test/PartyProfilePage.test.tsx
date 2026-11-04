@@ -12,6 +12,7 @@ vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
 
 vi.mock("../api/ownerItems", () => ({
   getPartyProfile: vi.fn(),
+  getPartyOwnerMeetings: vi.fn(),
 }));
 
 const PARTY_ID = "0b6f3c1e-9a7d-4c2e-8f1a-2d3e4f5a6b7c";
@@ -51,6 +52,10 @@ function renderAt(path: string) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(ownerItemsApi.getPartyOwnerMeetings).mockResolvedValue({
+    owner: { party_id: PARTY_ID, display_name: "Ania Kowalska", slug: null },
+    meetings: [],
+  });
 });
 
 describe("PartyProfilePage", () => {

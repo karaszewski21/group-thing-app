@@ -2,7 +2,7 @@ import { Link } from "../../../routing/navigation";
 import dayjs from "../../../utils/dayjs";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
 import { organizerTermPath } from "../organizerHelpers";
-import { DateTile } from "./NearestDateCard";
+import { DateTile } from "./DateTile";
 import { nearestTerm } from "./nearestTerm";
 
 const COMPACT_LIMIT = 3;
