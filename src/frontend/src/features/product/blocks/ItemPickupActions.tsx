@@ -4,8 +4,6 @@ import { useId, useState } from "react";
 import { ToastPill } from "../../../components/shared/ToastPill";
 import { BTN_GHOST, BTN_LG, BTN_PRIMARY } from "../../../components/shared/uiStyles";
 import { useToast } from "../../../components/shared/useToast";
-import { Link } from "../../../routing/navigation";
-import { viewPath } from "../../../routing/paths";
 import { AuthSheet } from "../../auth/AuthSheet";
 import { useAccountGate } from "../../auth/useAccountGate";
 import { ChooseContextSheet } from "../ChooseContextSheet";
@@ -26,13 +24,14 @@ const PRIMARY_ACTION = `${BTN_PRIMARY} ${BTN_LG} ${BLOCKABLE} mt-2.5 block w-ful
 const OUTLINE_ACTION = `${BTN_GHOST} ${BTN_LG} ${BLOCKABLE} mt-2.5 block w-full border-primary text-center text-primary-fg no-underline`;
 const GHOST_ACTION = `${BTN_GHOST} ${BTN_LG} mt-2.5 block w-full text-center text-ink no-underline`;
 
-const TITLES: Partial<Record<ItemActionsView["kind"], string>> = { own: "Twoja rzecz", reserved: "Rezerwacja" };
+const TITLES: Partial<Record<ItemActionsView["kind"], string>> = { own: "Rezerwacja", reserved: "Rezerwacja" };
 
 /** "Jak chcesz odebrać?": one body per actions view. The reservation flow
  * (`useItemTake`) lives here, not in the "choose" body, because its swap
  * dialog, success sheet and toast must outlive the switch to "reserved"
  * that a successful reservation causes. A personal reservation opens the
- * ITEM chat; a chat failure shows under "Napisz o przedmiocie". */
+ * ITEM chat; a chat failure shows under "Napisz o przedmiocie". The owner
+ * sees the section only for a reservation they take part in. */
 export function ItemPickupActions() {
   const { item, view, isLoggedIn, actions, chat } = useItemPage();
   const { toast, showToast } = useToast();
@@ -45,6 +44,7 @@ export function ItemPickupActions() {
     },
   });
   if (view.kind === "hidden" || view.kind === "unavailable") return null;
+  if (view.kind === "own" && !view.partyReservation) return null;
 
   return (
     <>
@@ -105,17 +105,14 @@ function PickupBody({ view, take }: { view: ItemActionsView; take: ItemTake }) {
       );
     case "own":
       return (
-        <>
-          <OwnNote view={view} />
-          {view.partyReservation && (
-            <PartyReservationActions
-              party={view.partyReservation}
-              ownerName="Ty"
-              counterpartyName={counterpartyName}
-              refetch={actions.refetch}
-            />
-          )}
-        </>
+        view.partyReservation && (
+          <PartyReservationActions
+            party={view.partyReservation}
+            ownerName="Ty"
+            counterpartyName={counterpartyName}
+            refetch={actions.refetch}
+          />
+        )
       );
     case "reserved":
       return view.partyReservation ? (
@@ -133,30 +130,6 @@ function PickupBody({ view, take }: { view: ItemActionsView; take: ItemTake }) {
     case "choose":
       return <ChooseActions view={view} take={take} />;
   }
-}
-
-function OwnNote({ view }: { view: Extract<ItemActionsView, { kind: "own" }> }) {
-  return (
-    <p className="mt-2.5 rounded-2xl bg-accent-soft p-3 text-[13px] text-ink">
-      {view.mode === null ? (
-        <>
-          Ta rzecz nie jest wystawiona — ustaw „Oddam” albo „Zamienię” w{" "}
-          <Link
-            to={viewPath("items")}
-            className="font-bold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-          >
-            „Moje rzeczy”
-          </Link>
-          , żeby inni mogli ją zarezerwować.
-        </>
-      ) : (
-        <>
-          To Twoja rzecz. Inni mogą ją zarezerwować osobiście albo na Twoich terminach.
-          {view.visibility === "PRIVATE" && " Prywatna — widzą ją tylko osoby z Twoich prywatnych grup."}
-        </>
-      )}
-    </p>
-  );
 }
 
 /** Both reserve buttons open the login sheet. */

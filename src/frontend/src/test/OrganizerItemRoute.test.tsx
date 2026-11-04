@@ -163,7 +163,6 @@ describe("Organizer product route", () => {
     const scope = scopeOf(heading);
     expect(scope).toHaveAttribute("data-organizer-theme", "custom");
     expect(scope.style.getPropertyValue("--color-primary")).toBe("#7a2a4f");
-    expect(screen.getByRole("link", { name: /Edytuj/ })).toBeInTheDocument();
   });
 
   it("falls back to the default palette when the organization is unknown", async () => {
@@ -172,12 +171,6 @@ describe("Organizer product route", () => {
 
     const heading = await screen.findByRole("heading", { name: "Rowerek biegowy" });
     expect(scopeOf(heading)).toHaveAttribute("data-organizer-theme", "default");
-  });
-
-  it("Edytuj links the owner to the panel edit page", async () => {
-    await renderAt("/ania/product/9");
-
-    expect(await screen.findByRole("link", { name: /Edytuj/ })).toHaveAttribute("href", "/items/9/edit");
   });
 
   it("Wróć on a direct entry goes to the organizer page", async () => {

@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from "react";
+import { Fragment, type ComponentType, type ReactNode } from "react";
 import { AboutBlock, isAboutEmpty } from "./blocks/AboutBlock";
 import { AgendaBlock, isAgendaEmpty } from "./blocks/AgendaBlock";
 import { BlockSkeleton } from "./blocks/BlockSkeleton";
@@ -6,7 +6,6 @@ import { CirclesGridBlock, isCirclesGridEmpty } from "./blocks/CirclesGridBlock"
 import { EmptyStateBlock } from "./blocks/EmptyStateBlock";
 import { ExchangeBoardBlock, isExchangeBoardEmpty } from "./blocks/ExchangeBoardBlock";
 import { ExchangeCountsBlock, isExchangeCountsEmpty } from "./blocks/ExchangeCountsBlock";
-import { FooterBlock } from "./blocks/FooterBlock";
 import { GalleryBlock, isGalleryEmpty } from "./blocks/GalleryBlock";
 import { GhostBlock } from "./blocks/GhostBlock";
 import { HeroBlock } from "./blocks/HeroBlock";
@@ -43,7 +42,7 @@ const BLOCKS: Record<BlockId, BlockDefinition> = {
   about: { Component: AboutBlock, isEmpty: isAboutEmpty },
   gallery: { Component: GalleryBlock, isEmpty: isGalleryEmpty },
   "link-stack": { Component: LinkStackBlock },
-  footer: { Component: FooterBlock },
+  footer: { Component: null },
   stats: { Component: StatsBlock, directory: true, isEmpty: isStatsEmpty },
   "upcoming-terms": { Component: UpcomingTermsBlock, directory: true, isEmpty: isUpcomingTermsEmpty },
   "next-term-cta": { Component: NextTermCtaBlock, directory: true, isEmpty: isNextTermCtaEmpty },

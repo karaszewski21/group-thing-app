@@ -239,18 +239,21 @@ function statusReservation(view: ItemActionsView, actions: ItemActionsResponse |
   return view.partyReservation ? party : { party: false };
 }
 
-/** "Aktualny status", unless it is a bare "Dostępna" shown as a pill beside the listing badges. */
+/** "Aktualny status", unless it is a bare "Dostępna": that shows only as a
+ * pill beside the listing badges on a reservable view, and not at all otherwise. */
 export function ItemStatus() {
-  const { item, actions, view, statusAsPill } = useItemPage();
-  if (statusAsPill) return null;
+  const { item, actions, view } = useItemPage();
+  const reservation = statusReservation(view, actions.data);
+  const unlisted = view.kind === "own" && view.mode === null;
+  if (item.status.code === "AVAILABLE" && reservation === null && !unlisted) return null;
   return (
     <ItemStatusCard
       status={item.status}
       itemId={item.id}
       itemName={item.name}
       isOwner={item.is_owner}
-      reservation={statusReservation(view, actions.data)}
-      unlisted={view.kind === "own" && view.mode === null}
+      reservation={reservation}
+      unlisted={unlisted}
     />
   );
 }

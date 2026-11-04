@@ -1,22 +1,20 @@
 "use client";
 
 import { ItemTileBadges } from "../../../components/shared/ItemTileBadges";
-import { PencilIcon, TrashIcon } from "../../../components/shared/appIcons";
-import { Link, useNavigationState } from "../../../routing/navigation";
+import { TrashIcon } from "../../../components/shared/appIcons";
+import { useNavigationState } from "../../../routing/navigation";
 import dayjs from "../../../utils/dayjs";
 import { CONDITION_LABELS } from "../../../utils/productCategory";
 import { useItemPage } from "../ItemPageContext";
 import { MAX_PRODUCT_PHOTOS, NO_CATEGORY_LABEL, type ItemCreatedState } from "../itemPageShared";
-import { itemEditPath } from "../useItemRoutes";
 import { ItemStatusPill } from "./ItemStatus";
 
 /** The top of the sheet: the create-page notice, the deleted banner, the
  * listing badges ("Chcę oddać" / "Chcę się zamienić", the reservation, the
- * owner's "Prywatny", a bare "Dostępna" status), the category with the condition, and the name with
- * "Edytuj" for the owner of a live item. */
+ * owner's "Prywatny", a bare "Dostępna" status), the category with the
+ * condition, and the name. */
 export function ItemHeader() {
   const { item, actions, view, statusAsPill } = useItemPage();
-  const deleted = item.deleted_at !== null;
   const mode = view.kind === "hidden" ? null : (actions.data?.mode ?? null);
   const reservation = view.kind === "loading" || view.kind === "hidden" ? null : (actions.data?.reservation ?? null);
   const isPrivate = view.kind === "own" && view.visibility === "PRIVATE";
@@ -46,19 +44,9 @@ export function ItemHeader() {
       <p className="text-sm text-ink-soft">
         {`${item.category_name ?? NO_CATEGORY_LABEL} · Stan: ${CONDITION_LABELS[item.condition]}`}
       </p>
-      <div className="mt-1 flex items-start justify-between gap-3">
-        <h2 className="min-w-0 font-serif text-[30px] leading-tight font-extrabold tracking-tight wrap-break-word text-ink">
-          {item.name}
-        </h2>
-        {item.is_owner && !deleted && (
-          <Link
-            to={itemEditPath(item.id)}
-            className="mt-1 inline-flex min-h-10 flex-none items-center gap-1.5 rounded-full border-[1.5px] border-line bg-paper px-3.5 text-[13px] font-extrabold text-ink hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-          >
-            <PencilIcon /> Edytuj
-          </Link>
-        )}
-      </div>
+      <h2 className="mt-1 font-serif text-[30px] leading-tight font-extrabold tracking-tight wrap-break-word text-ink">
+        {item.name}
+      </h2>
     </>
   );
 }

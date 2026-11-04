@@ -6,7 +6,6 @@ import { usePartyProfile } from "../../hooks/usePartyProfile";
 import { pluralPl } from "../../utils/plural";
 import { BlockSkeleton } from "./blocks/BlockSkeleton";
 import { ItemCard } from "./blocks/ExchangeItemCard";
-import { FooterBlock } from "./blocks/FooterBlock";
 import { NotFoundFrame, PageFrame } from "./PageFrame";
 import { itemPagePath } from "../product/useItemRoutes";
 import { NearestSection } from "./blocks/NearestSection";
@@ -160,8 +159,6 @@ export function PartyProfilePage() {
           <BackButton />
           {body}
         </div>
-        <div className="flex-1" />
-        <FooterBlock />
       </div>
     </PageFrame>
   );

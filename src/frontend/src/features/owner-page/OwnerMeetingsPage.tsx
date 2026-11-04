@@ -9,7 +9,6 @@ import { isPartyId } from "../../routing/paths";
 import dayjs from "../../utils/dayjs";
 import { pluralPl } from "../../utils/plural";
 import { BlockSkeleton } from "./blocks/BlockSkeleton";
-import { FooterBlock } from "./blocks/FooterBlock";
 import { DateTile } from "./blocks/DateTile";
 import { NotFoundFrame, PageFrame } from "./PageFrame";
 
@@ -144,8 +143,6 @@ function OrganizationOwnerMeetings({ slug }: { slug: string }) {
       <PageFrame>
         <div className="mx-auto flex w-full max-w-[430px] flex-1 flex-col">
           <OwnerMeetingsContent ownerRef={{ kind: "organization", slug }} back={back} />
-          <div className="flex-1" />
-          <FooterBlock />
         </div>
       </PageFrame>
     </OrganizerThemeScope>
@@ -164,7 +161,6 @@ function PartyOwnerMeetings({ partyId }: { partyId: string }) {
       <div className="mx-auto flex w-full max-w-[430px] flex-1 flex-col">
         <OwnerMeetingsContent ownerRef={{ kind: "party", partyId }} back={back} />
         <div className="flex-1" />
-        <FooterBlock />
       </div>
     </PageFrame>
   );

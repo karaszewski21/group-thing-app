@@ -196,10 +196,7 @@ function EventShell({ event, onCopyLink, canSignUp = false, chat, card, footer, 
       <div className={PAGE_SHELL}>
         <GroupHeader
           title={event.name}
-          eyebrow="Wydarzenie"
           organizerName={event.author_display_name}
-          // A `k-…` fallback slug has no organizer page: an author without an
-          // Organization links to their person profile instead.
           organizerSlug={
             event.organization !== null
               ? event.author_slug
