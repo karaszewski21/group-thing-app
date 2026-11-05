@@ -1,12 +1,12 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as itemsApi from "../api/items";
 import * as itemActionsApi from "../api/itemActions";
 import type { ItemActionsResponse } from "../api/itemActions";
-import * as organizationsApi from "../api/organizations";
 import { ApiError } from "../api/client";
+import * as serverApi from "../api/server";
 import type { ItemDetailsResponse } from "../api/items";
-import { OrganizerItemLayout } from "../features/product/OrganizerItemLayout";
+import OwnerLayout from "../app/(site)/[slug]/layout";
 import { itemRouteElement } from "./itemRoute";
 import { Navigate, useAppParams } from "../routing/navigation";
 import { createQueryWrapper } from "./queryClient";
@@ -26,8 +26,9 @@ vi.mock("../api/itemActions", () => ({
   getItemActions: vi.fn(),
 }));
 
-vi.mock("../api/organizations", () => ({
-  getPublicOrganization: vi.fn(),
+vi.mock("../api/server", () => ({
+  getItemOnServer: vi.fn(),
+  getPublicOrganizationOnServer: vi.fn(),
 }));
 
 vi.mock("../api/categories", () => ({
@@ -95,23 +96,20 @@ function ToOrganizerPage() {
 }
 
 async function renderAt(path: string) {
-  return renderWithRoute(
-    <OrganizerItemLayout>{await itemRouteElement(path)}</OrganizerItemLayout>,
-    {
-      url: path,
-      pattern: "/:slug/product/:id",
-      routes: {
-        "/:slug/product": <ToOrganizerPage />,
-      },
-      wrapper: createQueryWrapper(),
+  const [, slug = ""] = new URL(path, "http://localhost").pathname.split("/");
+  const page = await OwnerLayout({ children: await itemRouteElement(path), params: Promise.resolve({ slug }) });
+  return renderWithRoute(<>{page}</>, {
+    url: path,
+    pattern: "/:slug/product/:id",
+    routes: {
+      "/:slug/product": <ToOrganizerPage />,
     },
-  );
+    wrapper: createQueryWrapper(),
+  });
 }
 
-function scopeOf(element: HTMLElement): HTMLElement {
-  const scope = element.closest<HTMLElement>("[data-organizer-theme]");
-  if (!scope) throw new Error("no theme scope");
-  return scope;
+function paletteOf(element: HTMLElement): HTMLElement | null {
+  return element.closest<HTMLElement>('[style*="--color-primary"]');
 }
 
 describe("Organizer product route", () => {
@@ -119,7 +117,7 @@ describe("Organizer product route", () => {
     vi.clearAllMocks();
     mockAuth.token = "valid.jwt.token";
     vi.mocked(itemsApi.getItemDetails).mockResolvedValue(details());
-    vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
+    vi.mocked(serverApi.getPublicOrganizationOnServer).mockResolvedValue(ORGANIZATION);
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions());
   });
 
@@ -146,31 +144,19 @@ describe("Organizer product route", () => {
     expect(currentUrl()).toBe("/ania/product/9?event=ev-1");
   });
 
-  it("shows a neutral loader while the organization is pending, item fetch already started", async () => {
-    vi.mocked(organizationsApi.getPublicOrganization).mockReturnValue(new Promise(() => {}));
-    const { container } = await renderAt("/ania/product/9");
-
-    expect(screen.getByText("Wczytywanie rzeczy…")).toBeInTheDocument();
-    expect(container.querySelector("[data-organizer-theme]")).toBeNull();
-    await waitFor(() => expect(itemsApi.getItemDetails).toHaveBeenCalledWith("9"));
-    expect(screen.queryByText("Rowerek biegowy")).not.toBeInTheDocument();
-  });
-
   it("renders the item in the organizer palette", async () => {
     await renderAt("/ania/product/9");
 
     const heading = await screen.findByRole("heading", { name: "Rowerek biegowy" });
-    const scope = scopeOf(heading);
-    expect(scope).toHaveAttribute("data-organizer-theme", "custom");
-    expect(scope.style.getPropertyValue("--color-primary")).toBe("#7a2a4f");
+    expect(paletteOf(heading)?.style.getPropertyValue("--color-primary")).toBe("#7a2a4f");
   });
 
   it("falls back to the default palette when the organization is unknown", async () => {
-    vi.mocked(organizationsApi.getPublicOrganization).mockRejectedValue(new ApiError(404, "Not Found", null));
+    vi.mocked(serverApi.getPublicOrganizationOnServer).mockResolvedValue(null);
     await renderAt("/ania/product/9");
 
     const heading = await screen.findByRole("heading", { name: "Rowerek biegowy" });
-    expect(scopeOf(heading)).toHaveAttribute("data-organizer-theme", "default");
+    expect(paletteOf(heading)).toBeNull();
   });
 
   it("Wróć on a direct entry goes to the organizer page", async () => {

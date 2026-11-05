@@ -13,7 +13,6 @@ import { AuthProvider } from "../auth/AuthContext";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { LoginPage } from "../features/auth/LoginPage";
 import { EventPage } from "../features/events/EventPage";
-import { OrganizerItemLayout } from "../features/product/OrganizerItemLayout";
 import { itemRouteElement } from "./itemRoute";
 import { LandingPage } from "../features/landing/LandingPage";
 import { OwnerPage } from "../features/owner-page/OwnerPage";
@@ -181,7 +180,7 @@ describe("SSR safety", () => {
       page: "organizer item page",
       url: "/zielony-krag/product/it-1",
       pattern: "/:slug/product/:id",
-      element: <OrganizerItemLayout>{ORGANIZER_ITEM_ROUTE}</OrganizerItemLayout>,
+      element: ORGANIZER_ITEM_ROUTE,
       text: null,
     },
     {
@@ -230,7 +229,7 @@ describe("SSR safety", () => {
     const html = renderOnServer(
       "/ania/product/it-1",
       "/:slug/product/:id",
-      <OrganizerItemLayout>{await itemRouteElement("/ania/product/it-1")}</OrganizerItemLayout>,
+      await itemRouteElement("/ania/product/it-1"),
     );
     expect(html.length).toBeGreaterThan(0);
   });

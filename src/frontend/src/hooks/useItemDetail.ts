@@ -1,4 +1,4 @@
-import { usePrefetchQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { updateInventoryItem, type ItemCondition } from "../api/inventories";
 import {
@@ -74,12 +74,6 @@ export function useItemDetail(itemId: string): UseItemDetailResult {
     fetching: query.isFetching,
     refetch,
   };
-}
-
-/** Starts the details read before the item page body mounts, so it runs
- * in parallel with whatever the page waits on first. */
-export function useItemPagePrefetch(itemId: string): void {
-  usePrefetchQuery({ queryKey: [ITEM_DETAILS_KEY, itemId], queryFn: () => getItemDetails(itemId) });
 }
 
 /** Clears failed item details so the item page fetches them afresh when it

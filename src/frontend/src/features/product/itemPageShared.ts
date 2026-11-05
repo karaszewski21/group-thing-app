@@ -33,6 +33,4 @@ export const CARD_HINT = "mt-2 text-[13px] text-ink-soft";
 export const ITEM_SECTION = "mt-4 rounded-3xl border border-line bg-paper p-5";
 
 export const FIELD_LABEL = "text-[11.5px] font-extrabold uppercase tracking-wide text-ink-soft";
-export const PRIMARY_BTN =
-  "flex-none rounded-[9px] bg-primary px-3 py-1.5 text-[11.5px] font-extrabold text-on-primary disabled:opacity-60";
 export const BACK_LINK = "mb-4 inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft";

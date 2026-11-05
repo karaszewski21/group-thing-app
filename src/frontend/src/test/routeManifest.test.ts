@@ -155,7 +155,7 @@ describe("App Router route manifest", () => {
   it("never puts a server redirect() page under a layout that withholds its children", () => {
     // Such a layout renders nothing (or something else) on the server, so the
     // redirect would only run in the browser and the response would be a 200.
-    const withholding = /\b(ClientOnly|AuthGuard|PanelGate|OrganizerItemLayout)\b/;
+    const withholding = /\b(ClientOnly|AuthGuard|PanelGate)\b/;
     const redirectPages = appPages().filter((page) =>
       readFileSync(resolve(APP_DIR, page.dir, "page.tsx"), "utf8").includes("redirect("),
     );
