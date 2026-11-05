@@ -17,7 +17,7 @@ import { ATTENDING_EVENTS_KEY } from "./useAttendingEvents";
 import { CONVERSATIONS_KEY } from "./useConversations";
 import { MY_EVENTS_KEY } from "./useMyEvents";
 
-interface UseEventResult {
+export interface UseEventResult {
   data: EventDetailResponse | null;
   loading: boolean;
   /** `data` was fetched for a different token than the current one (e.g.

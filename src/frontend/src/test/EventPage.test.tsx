@@ -1,15 +1,16 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "../api/client";
 import * as eventsApi from "../api/events";
 import type { EventAttendanceResponse, EventDetailResponse, EventParticipant } from "../api/events";
 import { EventAuthorCard } from "../features/events/components/EventAuthorCard";
-import { EventPage } from "../features/events/EventPage";
-import { Link } from "../routing/navigation";
 import { peekNavigationState } from "../routing/navigationState";
 import { pageFor } from "./appRoutes";
+import { eventRouteElement } from "./eventRoute";
 import { createQueryWrapper } from "./queryClient";
 import { renderWithRoute } from "./renderWithRoute";
 
+vi.mock("../api/server", () => ({ getEventOnServer: async () => null }));
 vi.mock("../api/events", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api/events")>()),
   getEvent: vi.fn(),
@@ -78,17 +79,10 @@ const ATTENDANCE: EventAttendanceResponse = {
   user_profile_id: "prof-9",
 };
 
-function page() {
-  return (
-    <>
-      <EventPage />
-      <Link to={`/zielony-krag/event/${OTHER_EVENT_ID}`}>Inne wydarzenie</Link>
-    </>
-  );
-}
+const EVENT_PAGE = await eventRouteElement(PAGE_PATH);
 
 function renderPage(state?: { toast: string }) {
-  return renderWithRoute(page(), {
+  return renderWithRoute(EVENT_PAGE, {
     url: PAGE_PATH,
     pattern: "/:slug/event/:eventId",
     routes: { "/meetings": <p>Strona spotkań</p> },
@@ -159,6 +153,39 @@ describe("EventPage", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Czat wydarzenia/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Edytuj/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the description in the Opis section, and neither Opis nor Miejsce without them", async () => {
+    vi.mocked(eventsApi.getEvent).mockResolvedValueOnce(event());
+    const { unmount } = renderPage();
+    const opis = await screen.findByRole("region", { name: "Opis" });
+    expect(within(opis).getByText("Kocyki i lemoniada")).toBeInTheDocument();
+    unmount();
+
+    vi.mocked(eventsApi.getEvent).mockResolvedValueOnce(event({ description: null, location: null }));
+    renderPage();
+    await screen.findByRole("heading", { name: "Piknik w parku", level: 1 });
+    expect(screen.queryByRole("region", { name: "Opis" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Miejsce" })).not.toBeInTheDocument();
+  });
+
+  it("a 404 shows the route's not-found page", async () => {
+    vi.mocked(eventsApi.getEvent).mockRejectedValue(new ApiError(404, "Not Found", null));
+    renderPage();
+
+    expect(await screen.findByText("Nie znaleziono wydarzenia.")).toBeInTheDocument();
+  });
+
+  it("a failed first load shows the route's error, whose retry reads the event again", async () => {
+    vi.mocked(eventsApi.getEvent)
+      .mockRejectedValueOnce(new ApiError(500, "Server Error", null))
+      .mockResolvedValueOnce(event());
+    renderPage();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Nie udało się wczytać wydarzenia");
+    fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
+
+    expect(await screen.findByRole("heading", { name: "Piknik w parku", level: 1 })).toBeInTheDocument();
   });
 
   it("shows each participant's newest items with plain product links and Pokaż więcej to their items page", async () => {
@@ -391,7 +418,7 @@ describe("EventPage", () => {
 
     vi.mocked(eventsApi.getEvent).mockReturnValueOnce(new Promise<EventDetailResponse>(() => {}));
     mockAuth = { token: null };
-    rerender(page());
+    rerender(await eventRouteElement(PAGE_PATH));
 
     await waitFor(() => expect(screen.queryByRole("link", { name: /Edytuj/ })).not.toBeInTheDocument());
     expect(screen.getByRole("heading", { name: "Piknik w parku", level: 1 })).toBeInTheDocument();
@@ -406,12 +433,12 @@ describe("EventPage", () => {
     vi.mocked(eventsApi.getEvent).mockImplementation(async (id) =>
       id === OTHER_EVENT_ID ? event({ id: OTHER_EVENT_ID, name: "Bazar zimowy" }) : event(),
     );
-    renderPage();
+    const { rerender } = renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na wydarzenie" }));
     expect(screen.getByRole("dialog", { name: "Zapisz się na wydarzenie" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("link", { name: "Inne wydarzenie" }));
+    rerender(await eventRouteElement(`/zielony-krag/event/${OTHER_EVENT_ID}`));
 
     expect(await screen.findByRole("heading", { name: "Bazar zimowy", level: 1 })).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

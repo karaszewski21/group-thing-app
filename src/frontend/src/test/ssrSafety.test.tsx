@@ -12,8 +12,8 @@ import type { ItemDetailsResponse } from "../api/items";
 import { AuthProvider } from "../auth/AuthContext";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { LoginPage } from "../features/auth/LoginPage";
-import { EventPage } from "../features/events/EventPage";
 import { itemRouteElement } from "./itemRoute";
+import { eventRouteElement } from "./eventRoute";
 import { termRouteElement } from "./termRoute";
 import { LandingPage } from "../features/landing/LandingPage";
 import { OwnerPage } from "../features/owner-page/OwnerPage";
@@ -26,7 +26,10 @@ import { makeItemLocation } from "./fixtures/locations";
 import { createTestQueryClient } from "./queryClient";
 import { routeElement } from "./renderWithRoute";
 
-vi.mock("../api/server", () => ({ getPublicCircleOnServer: async () => null }));
+vi.mock("../api/server", () => ({
+  getEventOnServer: async () => null,
+  getPublicCircleOnServer: async () => null,
+}));
 
 const EVENT_ID = "ev-1";
 const GROUP_ID = "5f0c2a7e-3b1d-4e6a-9c8f-0000000000a5";
@@ -146,6 +149,7 @@ afterEach(() => {
 });
 
 const ORGANIZER_ITEM_ROUTE = await itemRouteElement("/zielony-krag/product/it-1");
+const EVENT_ROUTE = await eventRouteElement(`/zielony-krag/event/${EVENT_ID}`);
 const TERM_ROUTE = await termRouteElement(`/ania/group/${GROUP_ID}/term/${TERM_ID}`);
 
 describe("SSR safety", () => {
@@ -190,7 +194,7 @@ describe("SSR safety", () => {
       page: "event page",
       url: `/zielony-krag/event/${EVENT_ID}`,
       pattern: "/:slug/event/:eventId",
-      element: <EventPage />,
+      element: EVENT_ROUTE,
       text: "Piknik w parku",
     },
     {
@@ -243,7 +247,7 @@ describe("SSR safety", () => {
     const html = renderOnServer(
       `/zielony-krag/event/${EVENT_ID}`,
       "/:slug/event/:eventId",
-      <EventPage />,
+      EVENT_ROUTE,
       client,
     );
     expect(html).toContain("Piknik w parku");

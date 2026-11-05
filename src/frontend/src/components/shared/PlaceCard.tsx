@@ -1,9 +1,7 @@
-import { useId, type ReactNode } from "react";
 import type { Locality } from "../../api/locations";
 import { buildMapsUrl } from "../../lib/googleMaps";
 import { localityDetail, localityMapsQuery } from "../../utils/locationLabel";
 import { PlaceMapEmbed } from "./PlaceMapEmbed";
-import { CARD } from "./uiStyles";
 
 /** The fields a place card reads: items, terms and events all carry them. */
 export interface PlaceCardLocation {
@@ -16,45 +14,12 @@ export const PLACE_LINK = "text-[13px] font-bold text-primary-fg underline under
 const LOCALITY_MAP_ZOOM = 12;
 const ADDRESS_MAP_ZOOM = 16;
 
-interface PlaceCardProps {
-  heading: string;
-  /** `null` renders only the heading and `children` (e.g. "set a place"). */
-  location: PlaceCardLocation | null;
-  /** A removed place: "(usunięte)", no Maps link and no map. */
-  deleted?: boolean;
-  /** `false` when the address is private and `children` show it instead;
-   * the map and the Maps link still use it. */
-  showAddress?: boolean;
-  /** Outer spacing of the card. */
-  className?: string;
-  children?: ReactNode;
-}
-
-/** The one place card of items, terms and events: 📍 the locality with its
- * gmina/powiat/voivodeship line and the address when there is one, a Google
- * Maps link and a map pinning the address (or the locality without one). */
-export function PlaceCard({
-  heading,
-  location,
-  deleted = false,
-  showAddress = true,
-  className = "mt-3",
-  children,
-}: PlaceCardProps) {
-  const headingId = useId();
-  return (
-    <section className={`${className} ${CARD}`} aria-labelledby={headingId}>
-      <h3 id={headingId} className="text-xs font-bold text-ink-soft">
-        {heading}
-      </h3>
-      {location && <PlaceDetails location={location} deleted={deleted} showAddress={showAddress} />}
-      {children}
-    </section>
-  );
-}
-
-/** The card's body without its section and heading, for a page that frames
- * the place in its own section. */
+/** The one place body of items, terms and events, framed by the page's own
+ * section: 📍 the locality with its gmina/powiat/voivodeship line and the
+ * address when there is one, a Google Maps link and a map pinning the address
+ * (or the locality without one). A `deleted` place shows "(usunięte)", no Maps
+ * link and no map; `showAddress={false}` hides an address the caller shows
+ * itself, while the map and the Maps link still use it. */
 export function PlaceDetails({
   location,
   deleted = false,
