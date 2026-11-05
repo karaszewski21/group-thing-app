@@ -1,14 +1,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 import { getGroupAccess, redeemJoinCode, type GroupAccessResponse } from "../api/groups";
-import { serverMessageOr } from "../api/problem";
+import { hasStatus, serverMessageOr } from "../api/problem";
 import { useAuth } from "../auth/AuthContext";
 
 export const GROUP_ACCESS_KEY = "groupAccess";
 
 export type TermAccessState =
   | { status: "loading" }
-  | { status: "error"; message: string }
+  | { status: "error"; notFound: boolean }
   | {
       status: "ready";
       data: GroupAccessResponse;
@@ -41,8 +41,9 @@ function errorMessage(err: unknown): string {
  * keep showing it (flagged `isStale`) until the new response arrives — and
  * keep it, with `refreshError`, if that fetch fails. Another (groupId,
  * termId) is a new key, so it behaves like a first load: `loading` until its
- * response, `error` if that fails. React Query cancels an in-flight fetch
- * when a new one starts, so the latest request always wins. */
+ * response, `error` if that fails, flagged `notFound` for a 404 or a 400
+ * (malformed id in the URL). React Query cancels an in-flight fetch when a
+ * new one starts, so the latest request always wins. */
 export function useTermAccess(groupId: string, termId: string): UseTermAccessResult {
   const { token } = useAuth();
   const queryClient = useQueryClient();
@@ -84,7 +85,7 @@ export function useTermAccess(groupId: string, termId: string): UseTermAccessRes
       refreshError: query.error ? errorMessage(query.error) : null,
     };
   } else if (query.error) {
-    state = { status: "error", message: errorMessage(query.error) };
+    state = { status: "error", notFound: hasStatus(query.error, 404) || hasStatus(query.error, 400) };
   } else {
     state = { status: "loading" };
   }

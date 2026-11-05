@@ -45,7 +45,8 @@ function ready(
 describe("resolveTermView", () => {
   it.each([
     ["first load", { status: "loading" } as TermAccessState, false, { kind: "loading" }],
-    ["404", { status: "error", message: "x" } as TermAccessState, false, { kind: "notFound" }],
+    ["404", { status: "error", notFound: true } as TermAccessState, false, { kind: "notFound" }],
+    ["first load failed otherwise", { status: "error", notFound: false } as TermAccessState, false, { kind: "error" }],
     ["PUBLIC group, anonymous", ready({ can_view_content: true }, { forToken: null, visibility: "PUBLIC" }), false, { kind: "content", isAttending: false }],
     [
       "PRIVATE member",

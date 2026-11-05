@@ -14,9 +14,9 @@ import { PublicLayout } from "../components/layout/PublicLayout";
 import { LoginPage } from "../features/auth/LoginPage";
 import { EventPage } from "../features/events/EventPage";
 import { itemRouteElement } from "./itemRoute";
+import { termRouteElement } from "./termRoute";
 import { LandingPage } from "../features/landing/LandingPage";
 import { OwnerPage } from "../features/owner-page/OwnerPage";
-import { TermPage } from "../features/terms/TermPage";
 import { EVENT_KEY } from "../hooks/useEvent";
 import { ITEM_ACTIONS_KEY } from "../hooks/useItemActions";
 import { ITEM_DETAILS_KEY } from "../hooks/useItemDetail";
@@ -25,6 +25,8 @@ import { system } from "../theme/system";
 import { makeItemLocation } from "./fixtures/locations";
 import { createTestQueryClient } from "./queryClient";
 import { routeElement } from "./renderWithRoute";
+
+vi.mock("../api/server", () => ({ getPublicCircleOnServer: async () => null }));
 
 const EVENT_ID = "ev-1";
 const GROUP_ID = "5f0c2a7e-3b1d-4e6a-9c8f-0000000000a5";
@@ -144,6 +146,7 @@ afterEach(() => {
 });
 
 const ORGANIZER_ITEM_ROUTE = await itemRouteElement("/zielony-krag/product/it-1");
+const TERM_ROUTE = await termRouteElement(`/ania/group/${GROUP_ID}/term/${TERM_ID}`);
 
 describe("SSR safety", () => {
   it("renders the landing page inside PublicLayout and the login page without browser globals", () => {
@@ -194,7 +197,7 @@ describe("SSR safety", () => {
       page: "term page",
       url: `/ania/group/${GROUP_ID}/term/${TERM_ID}`,
       pattern: "/:slug/group/:groupId/term/:termId",
-      element: <TermPage />,
+      element: TERM_ROUTE,
       text: "Muzyczne Skrzaty",
     },
   ])("renders the $page in the logged-in chrome for a cookie session", ({ url, pattern, element, text }) => {
@@ -252,7 +255,7 @@ describe("SSR safety", () => {
     const html = renderOnServer(
       `/ania/group/${GROUP_ID}/term/${TERM_ID}`,
       "/:slug/group/:groupId/term/:termId",
-      <TermPage />,
+      TERM_ROUTE,
       client,
     );
     expect(html).toContain("Muzyczne Skrzaty");

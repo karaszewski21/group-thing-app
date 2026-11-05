@@ -1,6 +1,6 @@
 import type { PublicCircleResponse, PublicItemListingResponse } from "../../api/groups";
 import { PREVIEW_ITEM_LIMIT } from "../../components/shared/ParticipantItemsPreview";
-import type { VisualizationFamily } from "./components/GroupVisualization";
+import type { VisualizationFamily } from "./components/visualization/visualizationTypes";
 import type { AttendeeVM } from "./components/AttendeeList";
 
 /** Newest listing first; `added_at` is naive UTC ISO, so strings sort as dates. */

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GroupVisualization } from "../features/terms/components/GroupVisualization";
+import { GroupVisualization } from "../features/terms/components/visualization/GroupVisualization";
 import { JoinByCodeSheet } from "../features/terms/modals/JoinByCodeSheet";
 
 const SRC = resolve(process.cwd(), "src");
@@ -74,9 +74,19 @@ describe("organizer-themed files use role tokens", () => {
   ];
 
   const NO_LEGACY_UTILITY_FILES = [
-    "features/terms/components/GroupVisualization.tsx",
+    "features/terms/components/visualization/GroupVisualization.tsx",
+    "features/terms/components/visualization/CircleLayout.tsx",
+    "features/terms/components/visualization/PitchLayout.tsx",
+    "features/terms/components/visualization/TableLayout.tsx",
+    "features/terms/components/visualization/FamilySlot.tsx",
+    "features/terms/components/visualization/GhostSeat.tsx",
+    "features/terms/components/visualization/OrganizerAvatar.tsx",
     "features/terms/views/PrivateTermView.tsx",
-    "features/terms/views/PublicTermView.tsx",
+    "features/terms/blocks/TermChats.tsx",
+    "features/terms/blocks/TermDescription.tsx",
+    "features/terms/blocks/TermLocation.tsx",
+    "features/terms/blocks/TermVisualization.tsx",
+    "features/terms/TermPage.tsx",
     "features/terms/components/TermFooter.tsx",
     "features/terms/components/termLabels.ts",
     "features/terms/modals/JoinByCodeSheet.tsx",
@@ -128,7 +138,6 @@ describe("GroupVisualization exchange colors", () => {
           { familyId: "1", name: "Rodzina Wiśniewskich" },
           { familyId: "2", name: "Rodzina Kowalskich" },
         ]}
-        neededItemRows={[]}
         activeFamilyId="1"
         onSelectFamily={vi.fn()}
         groupId="1"

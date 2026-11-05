@@ -1,4 +1,4 @@
-/** Action-gate wrapper for `PublicTermView`'s account-requiring actions
+/** Action-gate wrapper for the term page's account-requiring actions
  * (take, propose swap, pledge): when `isLoggedIn` is false, calling the
  * wrapped function opens the caller's login/register gate instead of
  * running `fn` — no API call happens. */

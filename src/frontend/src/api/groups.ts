@@ -6,7 +6,7 @@ import { pageParams, type Page } from "./pagination";
 /** The participant-visualization layout an organizer picks for their
  * Circle's `/krag/{id}` screen — mirrors `app.groups.models.GroupLayoutMode`.
  * Kept as its own literal union here (rather than importing
- * `GroupVisualization.tsx`'s `GroupLayoutMode`) so the API layer doesn't
+ * `visualizationTypes.ts`'s `GroupLayoutMode`) so the API layer doesn't
  * depend on a UI component module — see that file's `VisualizationFamily`
  * docstring for the same decoupling rationale. */
 export type GroupLayoutMode = "CIRCLE" | "PITCH" | "TABLE";

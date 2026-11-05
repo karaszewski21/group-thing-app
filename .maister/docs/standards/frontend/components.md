@@ -30,7 +30,7 @@ Document usage, props, and examples to help team adoption.
 ### Feature Folders and Thin Route Files
 Feature code lives in `src/features/<domain>/` (pages, views, view states and feature hooks); shared UI lives in `src/components/{layout,shared}/`. `src/app/` holds route files only (`page.tsx`, `layout.tsx`, `not-found.tsx`): a page renders one feature entry and holds no feature logic.
 A page that needs server data for `generateMetadata` or the organizer palette is a server component that wraps a `"use client"` feature entry, and reads the backend only through `src/api/server.ts` (see `data-fetching.md`). Example: `src/frontend/src/app/(site)/[slug]/event/[eventId]/page.tsx` around `features/events/EventPage.tsx`.
-A page made of independent sections may compose them in the route file: the server `page.tsx` reads `params`, passes them as props to one `"use client"` entry that loads the data, resolves the view and provides it through a context, and lists the section blocks as that entry's children, with no logic of its own. Each block reads the context, renders its part of the one resolved view (never re-deriving it) and returns `null` when it has nothing to show. Blocks are coarse, one per page section and one file each in `features/<domain>/<page>/blocks/`; a helper used by only one block lives in that block's file instead of becoming another block. The route's `loading.tsx` reuses the entry's skeleton, the entry calls `notFound()` (from the facade) for the route's `not-found.tsx` and throws a typed error (`ItemLoadError`) for its `error.tsx`, whose retry resets the failed query before `reset()`. Tests render the real route file with `src/test/itemRoute.tsx`. Example: `app/(site)/[slug]/product/[id]/` around `features/product/ItemPage.tsx` and `features/product/blocks/`.
+A page made of independent sections may compose them in the route file: the server `page.tsx` reads `params`, passes them as props to one `"use client"` entry that loads the data, resolves the view and provides it through a context, and lists the section blocks as that entry's children, with no logic of its own. Each block reads the context, renders its part of the one resolved view (never re-deriving it) and returns `null` when it has nothing to show. Blocks are coarse, one per page section and one file each in `features/<domain>/<page>/blocks/`; a helper used by only one block lives in that block's file instead of becoming another block. The route's `loading.tsx` reuses the entry's skeleton, the entry calls `notFound()` (from the facade) for the route's `not-found.tsx` and throws a typed error (`ItemLoadError`) for its `error.tsx`, whose retry resets the failed query before `reset()`. Tests render the real route file with `src/test/itemRoute.tsx`. Examples: `app/(site)/[slug]/product/[id]/` around `features/product/ItemPage.tsx` and `features/product/blocks/`; `app/(site)/[slug]/group/[groupId]/term/[termId]/` around `features/terms/TermPage.tsx` and `features/terms/blocks/`, where only the `content` view renders the blocks (`src/test/termRoute.tsx`).
 A page that only calls server `redirect()` (a legacy URL) never sits under a layout that withholds `children` during server rendering (`ClientOnly`, a loading gate): there the redirect becomes a client redirect with status 200. Put such pages in a route group outside that layout, as `admin/(shell)/` and `product/[id]/(item)/` do.
 
 ### Router Access Only Through the Facade
@@ -62,6 +62,7 @@ Examples: `src/frontend/src/features/terms/termViewState.ts`, `features/terms/Te
 export type TermViewState =
   | { kind: "loading" }
   | { kind: "notFound" }
+  | { kind: "error" }
   | { kind: "content"; group: PublicCircleResponse; isAttending: boolean }
   | { kind: "loginRequired"; group: PublicCircleResponse; refreshError: string | null }
   | { kind: "enterCode"; group: PublicCircleResponse; refreshError: string | null }
@@ -70,7 +71,9 @@ export type TermViewState =
 const view = resolveTermView(state, isStale);
 switch (view.kind) {
   case "loading": return <TermPageSkeleton />;
-  case "content": return <PublicTermView ... />;
+  case "notFound": return notFound();
+  case "error": throw new TermLoadError(TERM_LOAD_ERROR);
+  case "content": return <TermContent view={view} ...>{children}</TermContent>;
   default: return <PrivateTermView view={view} ... />;
 }
 ```

@@ -8,7 +8,6 @@ import { pluralPl } from "../../utils/plural";
 import { AgendaResults } from "./blocks/AgendaResults";
 import { BlockSkeleton } from "./blocks/BlockSkeleton";
 import { CircleFilterChips } from "./blocks/CircleFilterChips";
-import { FooterBlock } from "./blocks/FooterBlock";
 import { NotFoundFrame, PageFrame } from "./PageFrame";
 
 const GROUP_PARAM = "group_id";
@@ -111,8 +110,6 @@ export function OrganizerTermsPage() {
             dayHeadingLevel={2}
             onShowAll={groupId === undefined ? undefined : () => selectCircle(undefined)}
           />
-          <div className="flex-1" />
-          <FooterBlock />
         </div>
       </PageFrame>
     </OrganizerThemeScope>

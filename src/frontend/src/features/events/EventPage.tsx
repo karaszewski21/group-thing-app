@@ -203,7 +203,7 @@ function EventShell({ event, onCopyLink, canSignUp = false, chat, card, footer, 
               : (event.participants.find((p) => p.is_author)?.party_id ?? null)
           }
         />
-        <main tabIndex={-1} className="flex-1 pb-6 outline-none">
+        <div className="flex-1 pb-6">
           {event.banner_url && (
             <img
               src={event.banner_url}
@@ -227,7 +227,7 @@ function EventShell({ event, onCopyLink, canSignUp = false, chat, card, footer, 
             canSignUp={canSignUp}
           />
           {card}
-        </main>
+        </div>
         {footer}
         {overlay}
       </div>

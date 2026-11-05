@@ -67,7 +67,7 @@ export function useJoinCodeLink({
   const pendingCode = hashCode ?? storedCode;
   const [sheet, setSheet] = useState<CodeSheet | null>(null);
 
-  const settled = view !== "loading" && view !== "notFound" && !isStale;
+  const settled = view !== "loading" && view !== "notFound" && view !== "error" && !isStale;
 
   // A link's code opens the sheet once the view is settled as `enterCode`
   // (set during render, so no extra effect pass).

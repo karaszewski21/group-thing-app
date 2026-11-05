@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GroupVisualization, type GroupLayoutMode, type VisualizationFamily } from "../features/terms/components/GroupVisualization";
+import { GroupVisualization } from "../features/terms/components/visualization/GroupVisualization";
+import type { GroupLayoutMode, VisualizationFamily } from "../features/terms/components/visualization/visualizationTypes";
 
 const FAMILIES: VisualizationFamily[] = [
   { familyId: "1", name: "Rodzina Wiśniewskich" },
@@ -24,7 +25,6 @@ describe("GroupVisualization", () => {
         layoutMode="CIRCLE"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
-        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
         groupId="1"
@@ -39,7 +39,6 @@ describe("GroupVisualization", () => {
         layoutMode="PITCH"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
-        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
         groupId="1"
@@ -54,7 +53,6 @@ describe("GroupVisualization", () => {
         layoutMode="TABLE"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
-        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
         groupId="1"
@@ -70,7 +68,6 @@ describe("GroupVisualization", () => {
         layoutMode="CIRCLE"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
-        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={onSelectFamily}
         groupId="1"
@@ -86,7 +83,6 @@ describe("GroupVisualization", () => {
         layoutMode="PITCH"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
-        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
         groupId="1"
@@ -97,30 +93,6 @@ describe("GroupVisualization", () => {
     expect(screen.queryByText("prowadzi zajęcia")).not.toBeInTheDocument();
   });
 
-  it("TABLE mode renders the needed items as non-interactive chips that don't trigger onSelectFamily", () => {
-    const onSelectFamily = vi.fn();
-    render(
-      <GroupVisualization
-        layoutMode="TABLE"
-        organizerName="Kasia Wójcik"
-        families={FAMILIES}
-        neededItemRows={[
-          { key: 1, title: "Tamburyn", inlineActions: [] },
-          { key: 2, title: "2 koce", inlineActions: [] },
-        ]}
-        activeFamilyId={null}
-        onSelectFamily={onSelectFamily}
-        groupId="1"
-      />,
-    );
-    const chips = screen.getByTestId("table-chips");
-    expect(chips).toHaveTextContent("Tamburyn");
-    expect(chips).toHaveTextContent("2 koce");
-    expect(chips.querySelectorAll("button")).toHaveLength(0);
-    fireEvent.click(chips);
-    expect(onSelectFamily).not.toHaveBeenCalled();
-  });
-
   it("activeFamilyId highlights the correct family in all 3 modes", () => {
     const modes: GroupLayoutMode[] = ["CIRCLE", "PITCH", "TABLE"];
     for (const layoutMode of modes) {
@@ -129,7 +101,6 @@ describe("GroupVisualization", () => {
           layoutMode={layoutMode}
           organizerName="Kasia Wójcik"
           families={FAMILIES}
-          neededItemRows={[]}
           activeFamilyId="2"
           onSelectFamily={vi.fn()}
           groupId="1"
@@ -148,7 +119,6 @@ describe("GroupVisualization", () => {
         layoutMode="TABLE"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
-        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
         groupId="1"
@@ -169,7 +139,6 @@ describe("GroupVisualization", () => {
         layoutMode={layoutMode}
         organizerName="Kasia Wójcik"
         families={[]}
-        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
         groupId="1"
@@ -186,7 +155,6 @@ describe("GroupVisualization", () => {
         layoutMode="CIRCLE"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
-        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
         groupId="1"
@@ -202,16 +170,14 @@ describe("GroupVisualization", () => {
         layoutMode="TABLE"
         organizerName="Kasia Wójcik"
         families={FAMILIES}
-        neededItemRows={[]}
         activeFamilyId={null}
         onSelectFamily={vi.fn()}
         groupId="1"
       />,
     );
     const head = screen.getByText("Kasia Wójcik").parentElement!;
-    const scene = screen.getByTestId("table-chips").parentElement!;
+    const scene = screen.getByTestId("table-top").parentElement!;
     expect(scene).toContainElement(head);
     expect(head.style.left).toBe("50%");
-    expect(screen.getByTestId("table-chips")).toHaveTextContent("Tu pojawią się potrzebne rzeczy");
   });
 });

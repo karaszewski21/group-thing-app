@@ -51,12 +51,17 @@ describe("useTermAccess", () => {
     expect(state.refreshError).toBe("boom");
   });
 
-  it("firstLoad_error_givesErrorState", async () => {
-    vi.mocked(groupsApi.getGroupAccess).mockRejectedValueOnce(new Error("404 Not Found"));
+  it.each([
+    ["404", new ApiError(404, "Not Found", null), true],
+    ["400 malformed id", new ApiError(400, "Bad Request", null), true],
+    ["500", new ApiError(500, "Server Error", null), false],
+    ["network", new Error("offline"), false],
+  ])("firstLoad_error_givesErrorState: %s", async (_label, error, notFound) => {
+    vi.mocked(groupsApi.getGroupAccess).mockRejectedValueOnce(error);
 
     const { result } = renderHook(() => useTermAccess("1", "2"), { wrapper: createQueryWrapper() });
 
-    await waitFor(() => expect(result.current.state).toEqual({ status: "error", message: "404 Not Found" }));
+    await waitFor(() => expect(result.current.state).toEqual({ status: "error", notFound }));
   });
 
   it("overlappingRefetches_latestRequestWins", async () => {
@@ -146,11 +151,11 @@ describe("useTermAccess", () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(access("A"));
     const hook = renderHook(({ groupId }) => useTermAccess(groupId, "2"), { initialProps: { groupId: "1" }, wrapper: createQueryWrapper() });
     await waitFor(() => expect(hook.result.current.state.status).toBe("ready"));
-    vi.mocked(groupsApi.getGroupAccess).mockRejectedValueOnce(new Error("404 Not Found"));
+    vi.mocked(groupsApi.getGroupAccess).mockRejectedValueOnce(new ApiError(404, "Not Found", null));
 
     hook.rerender({ groupId: "9" });
 
-    await waitFor(() => expect(hook.result.current.state).toEqual({ status: "error", message: "404 Not Found" }));
+    await waitFor(() => expect(hook.result.current.state).toEqual({ status: "error", notFound: true }));
   });
 
   it("joinWithCode_redeemsAwaitsGroupAccessInvalidation_andRethrowsServerMessage", async () => {

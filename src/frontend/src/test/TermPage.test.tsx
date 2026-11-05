@@ -1,7 +1,6 @@
 import { StrictMode } from "react";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TermPage } from "../features/terms/TermPage";
 import { Link, useAppHash, useAppSearch } from "../routing/navigation";
 import * as groupsApi from "../api/groups";
 import * as familiesApi from "../api/families";
@@ -11,6 +10,7 @@ import type { GroupAccessResponse, PublicCircleResponse, PublicItemListingRespon
 import { makeLocality, makePublicLocation } from "./fixtures/locations";
 import { createQueryWrapper } from "./queryClient";
 import { renderWithRoute } from "./renderWithRoute";
+import { termRouteElement } from "./termRoute";
 
 vi.mock("../api/groups", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/groups")>();
@@ -22,6 +22,7 @@ vi.mock("../api/groups", async (importOriginal) => {
     redeemJoinCode: vi.fn(),
   };
 });
+vi.mock("../api/server", () => ({ getPublicCircleOnServer: async () => null }));
 vi.mock("../api/pledges", () => ({ createPledge: vi.fn() }));
 vi.mock("../api/families", () => ({ getMyFamilies: vi.fn() }));
 
@@ -135,10 +136,12 @@ function SearchProbe() {
 
 const TERM_ROUTE = "/:slug/group/:groupId/term/:termId";
 
-function page() {
+const TERM_PAGE = await termRouteElement(PATH);
+
+function page(route = TERM_PAGE) {
   return (
     <>
-      <TermPage />
+      {route}
       <SearchProbe />
     </>
   );
@@ -164,22 +167,23 @@ beforeEach(() => {
 });
 
 describe("TermPage — header and content", () => {
-  it("shows the group name with the term description as the header subtitle", async () => {
+  it("shows the group name in the header and the term description in the Opis section", async () => {
     renderPage();
 
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
-    expect(screen.getByText("Zajęcia w parku")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Opis" })).getByText("Zajęcia w parku")).toBeInTheDocument();
+    expect(screen.getAllByText("Zajęcia w parku")).toHaveLength(1);
     expect(groupsApi.getGroupAccess).toHaveBeenCalledWith(GROUP_ID, TERM_ID);
   });
 
-  it("renders no subtitle when the term has no description", async () => {
+  it("hides the Opis section when the term has no description", async () => {
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
       access({ group: { term: { ...circle.term!, description: null } } }),
     );
-    const { container } = renderPage();
+    renderPage();
 
     await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" });
-    expect(container.querySelector("header h1 + p")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Opis" })).not.toBeInTheDocument();
   });
 
   it("draws signed-up people in the group's layout, with the shares/brings markers", async () => {
@@ -196,7 +200,7 @@ describe("TermPage — header and content", () => {
     );
     renderPage();
 
-    expect(await screen.findByTestId("table-chips")).toBeInTheDocument();
+    expect(await screen.findByTestId("table-top")).toBeInTheDocument();
     const ola = screen.getByRole("button", { name: "Ola Nowak" });
     const piotr = screen.getByRole("button", { name: "Piotr Zieliński" });
     expect(within(ola).getByLabelText("Udostępnia rzecz")).toBeInTheDocument();
@@ -312,11 +316,11 @@ describe("TermPage — place and capacity", () => {
     expect(within(card).queryByText(/Zapisanych/)).not.toBeInTheDocument();
   });
 
-  it("shows how many places are taken without a full notice while places remain", async () => {
+  it("shows neither a places count nor a full notice while places remain", async () => {
     renderPage();
 
     const card = await screen.findByRole("region", { name: "Termin zajęć" });
-    expect(within(card).getByText("Zapisanych 3 z 12")).toBeInTheDocument();
+    expect(within(card).queryByText(/Zapisanych/)).not.toBeInTheDocument();
     expect(within(card).queryByText("Brak wolnych miejsc")).not.toBeInTheDocument();
   });
 
@@ -328,7 +332,6 @@ describe("TermPage — place and capacity", () => {
     renderPage();
 
     const card = await screen.findByRole("region", { name: "Termin zajęć" });
-    expect(within(card).getByText("Zapisanych 12 z 12")).toBeInTheDocument();
     expect(within(card).getByRole("status")).toHaveTextContent("Brak wolnych miejsc");
     expect(screen.getByRole("button", { name: "＋ Zapisz się na zajęcia" })).toBeEnabled();
   });
@@ -359,10 +362,10 @@ describe("TermPage — organizer theme", () => {
   });
 
   it("keeps the not-found state outside any organizer scope", async () => {
-    vi.mocked(groupsApi.getGroupAccess).mockRejectedValue(new Error("404"));
+    vi.mocked(groupsApi.getGroupAccess).mockRejectedValue(new ApiError(404, "Not Found", null));
     const { container } = renderPage();
 
-    expect(await screen.findByText("Nie znaleziono")).toBeInTheDocument();
+    expect(await screen.findByText("Nie znaleziono strony")).toBeInTheDocument();
     expect(container.querySelector("[data-organizer-theme]")).toBeNull();
   });
 });
@@ -521,27 +524,31 @@ describe("TermPage — access", () => {
     expect(screen.queryByRole("button", { name: "Mam kod dostępu" })).not.toBeInTheDocument();
   });
 
-  it("an unknown group or term shows 'Nie znaleziono'", async () => {
-    vi.mocked(groupsApi.getGroupAccess).mockRejectedValue(new Error("404"));
+  it("an unknown group or term shows 'Nie znaleziono strony'", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockRejectedValue(new ApiError(404, "Not Found", null));
     renderPage();
 
-    expect(await screen.findByText("Nie znaleziono")).toBeInTheDocument();
+    expect(await screen.findByText("Nie znaleziono strony")).toBeInTheDocument();
   });
 
-  it("navigating to another term whose fetch fails shows 'Nie znaleziono', not the previous term", async () => {
-    vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(access()).mockRejectedValueOnce(new Error("404"));
-    renderWithRoute(
-      <>
-        <Link to={`/zajecia/group/${GROUP_ID}/term/${OTHER_TERM_ID}`}>Następne zajęcia</Link>
-        <TermPage />
-      </>,
-      { url: PATH, pattern: TERM_ROUTE, wrapper: createQueryWrapper() },
-    );
+  it("a failed first load shows the route's error, whose retry reads the term again", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockRejectedValueOnce(new Error("500")).mockResolvedValueOnce(access());
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Spróbuj ponownie" }));
+
+    expect(await screen.findByText("Zajęcia w parku")).toBeInTheDocument();
+    expect(screen.queryByText("Nie udało się wczytać zajęć.")).not.toBeInTheDocument();
+  });
+
+  it("navigating to another term whose fetch fails shows 'Nie znaleziono strony', not the previous term", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValueOnce(access()).mockRejectedValueOnce(new ApiError(404, "Not Found", null));
+    const view = renderPage();
     expect(await screen.findByText("Zajęcia w parku")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("link", { name: "Następne zajęcia" }));
+    view.rerender(await termRouteElement(`/zajecia/group/${GROUP_ID}/term/${OTHER_TERM_ID}`));
 
-    expect(await screen.findByText("Nie znaleziono")).toBeInTheDocument();
+    expect(await screen.findByText("Nie znaleziono strony")).toBeInTheDocument();
     expect(screen.queryByText("Zajęcia w parku")).not.toBeInTheDocument();
     expect(groupsApi.getGroupAccess).toHaveBeenLastCalledWith(GROUP_ID, OTHER_TERM_ID);
   });
@@ -784,7 +791,7 @@ describe("TermPage — join a private group by code", () => {
     renderWithRoute(
       <>
         <Link to={`${PATH}#code=582913`}>Drugi link</Link>
-        <TermPage />
+        {TERM_PAGE}
         <SearchProbe />
       </>,
       { url: `${PATH}#code=482910`, pattern: TERM_ROUTE, wrapper: createQueryWrapper() },
@@ -855,7 +862,7 @@ describe("TermPage — join a private group by code", () => {
     expect(await screen.findByText(/Masz kod\? Zaloguj się, żeby go użyć\./)).toBeInTheDocument();
 
     mockAuth = { token: "tok", displayName: "Ala" };
-    view.rerender(page());
+    view.rerender(page(await termRouteElement(PATH)));
     await waitFor(() => expect(groupsApi.getGroupAccess).toHaveBeenCalledTimes(2));
     expect(groupsApi.redeemJoinCode).not.toHaveBeenCalled();
     expect(screen.getByTestId("hash")).toHaveTextContent("#code=482913");
@@ -952,7 +959,7 @@ describe("TermPage — join a private group by code", () => {
     await screen.findByRole("button", { name: "Zaloguj się" });
 
     mockAuth = { token: "tok", displayName: "Ala" };
-    view.rerender(page());
+    view.rerender(page(await termRouteElement(PATH)));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Nie udało się odświeżyć strony — spróbuj ponownie.");
     expect(screen.queryByText("Wczytywanie...")).not.toBeInTheDocument();
@@ -988,7 +995,7 @@ describe("TermPage — view fixes", () => {
     expect(within(dialog).getByRole("button", { name: "Zapisz się" })).toBeDisabled();
 
     mockAuth = { token: "tok", displayName: "Ala" };
-    rerender(page());
+    rerender(page(await termRouteElement(PATH)));
     const submit = within(screen.getByRole("dialog", { name: "Zapisz się na zajęcia" })).getByRole("button", {
       name: "Zapisz się",
     });
@@ -1031,6 +1038,18 @@ describe("TermPage — view fixes", () => {
     const needed = await screen.findByRole("region", { name: "Potrzebne rzeczy" });
     expect(within(needed).getByText("Bębenek")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Zapisani na zajęcia" })).toBeInTheDocument();
+  });
+});
+
+describe("TermPage — needed items", () => {
+  it("hides the section when the organizer asks for nothing", async () => {
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
+      access({ group: { term: { ...circle.term!, needed_items: [] } } }),
+    );
+    renderPage();
+
+    expect(await screen.findByRole("region", { name: "Zapisani na zajęcia" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Potrzebne rzeczy" })).not.toBeInTheDocument();
   });
 });
 

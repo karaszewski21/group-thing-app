@@ -1,6 +1,5 @@
 "use client";
 
-import { ItemBackButton } from "../ItemBackButton";
 import { ItemGallery } from "../ItemGallery";
 import { useItemPage } from "../ItemPageContext";
 
@@ -17,9 +16,6 @@ export function ItemHero() {
         faded={deleted}
         showOwnerHint={item.is_owner && !deleted}
       />
-      <div className="absolute top-3.5 left-4">
-        <ItemBackButton overlay />
-      </div>
     </div>
   );
 }
