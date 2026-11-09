@@ -7,7 +7,6 @@ import { BuildingIcon, LogoutIcon } from "../../components/shared/appIcons";
 import { viewPath } from "../../routing/paths";
 import { MOCK_WANTS } from "../../utils/mocks";
 import { useAppData } from "../panel/appDataStore";
-import { ProfileView } from "./ProfileView";
 
 const SECTION_LABEL = "mb-2.5 text-[13px] font-extrabold tracking-[.12em] text-ink-soft uppercase";
 
@@ -18,16 +17,35 @@ export function AccountView() {
 
   return (
     <>
-      <section aria-labelledby="konto-profil">
-        <ProfileView />
-        <div className="mt-2.5">
-          <ListCard
-            rows={[
-              { label: "Lokalizacja", meta: "Moje miejsca", to: viewPath("places") },
-              { label: "Mój dom", to: viewPath("family") },
-            ]}
-          />
-        </div>
+      <ListCard
+        rows={[
+          { label: "Dane profilowe", to: viewPath("profile") },
+          { label: "Moje lokalizacje", to: viewPath("places") },
+          { label: "Mój dom", to: viewPath("family") },
+          { label: "Moje grupy", meta: myGroups.length > 0 ? String(myGroups.length) : "brak", to: viewPath("groups") },
+          { label: "Moje terminy", to: viewPath("meetings") },
+        ]}
+      />
+
+      <section aria-labelledby="konto-rzeczy" className="mt-6">
+        <h2 id="konto-rzeczy" className={SECTION_LABEL}>
+          Rzeczy
+        </h2>
+        <ListCard
+          rows={[
+            { label: "Moje rzeczy", meta: items.length > 0 ? String(items.length) : "brak", to: viewPath("items") },
+            {
+              label: "Zarezerwowane",
+              meta: reservationsLoading ? undefined : reservations.length > 0 ? String(reservations.length) : "brak",
+              to: viewPath("items/reserved"),
+            },
+            {
+              label: "Szukam",
+              meta: `${MOCK_WANTS.length} ${pluralPl(MOCK_WANTS.length, "rzecz", "rzeczy", "rzeczy")}`,
+              to: viewPath("wanted"),
+            },
+          ]}
+        />
       </section>
 
       <section aria-labelledby="konto-organizacja" className="mt-6">
@@ -74,53 +92,24 @@ export function AccountView() {
               rows={[
                 { label: "Wygląd strony", to: viewPath("organization/appearance") },
                 { label: "Dane organizacji", to: "/organization" },
-                {
-                  label: "Moje grupy",
-                  meta: myGroups.length > 0 ? String(myGroups.length) : "brak",
-                  to: viewPath("groups"),
-                },
-                { label: "Terminy", to: viewPath("meetings") },
               ]}
             />
           </div>
         )}
       </section>
 
-      <section aria-labelledby="konto-rzeczy" className="mt-6">
-        <h2 id="konto-rzeczy" className={SECTION_LABEL}>
-          Moje rzeczy
-        </h2>
-        <ListCard
-          rows={[
-            { label: "Moje rzeczy", meta: items.length > 0 ? String(items.length) : "brak", to: viewPath("items") },
-            {
-              label: "Szukam",
-              meta: `${MOCK_WANTS.length} ${pluralPl(MOCK_WANTS.length, "rzecz", "rzeczy", "rzeczy")}`,
-              to: viewPath("wanted"),
-            },
-            {
-              label: "Zarezerwowane",
-              meta: reservationsLoading ? undefined : reservations.length > 0 ? String(reservations.length) : "brak",
-              to: viewPath("items/reserved"),
-            },
-          ]}
-        />
-      </section>
-
       <section aria-labelledby="konto-ustawienia" className="mt-6">
         <h2 id="konto-ustawienia" className={SECTION_LABEL}>
           Ustawienia
         </h2>
-        <ListCard rows={[{ label: "Prywatność", to: viewPath("settings") }]} />
+        <button
+          type="button"
+          onClick={logout}
+          className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full border-[1.5px] border-line bg-paper text-base font-extrabold text-danger hover:bg-danger-soft"
+        >
+          <LogoutIcon /> Wyloguj się
+        </button>
       </section>
-
-      <button
-        type="button"
-        onClick={logout}
-        className="mt-6 flex min-h-13 w-full items-center justify-center gap-2 rounded-full border-[1.5px] border-line bg-paper text-base font-extrabold text-danger hover:bg-danger-soft"
-      >
-        <LogoutIcon /> Wyloguj się
-      </button>
     </>
   );
 }

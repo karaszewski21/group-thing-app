@@ -2813,12 +2813,26 @@ describe("AppPage — redesigned navigation and pages", () => {
 
     expect(await screen.findByText("Nie masz jeszcze organizacji")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Załóż organizację" })).toHaveAttribute("href", "/organization");
-    expect(screen.getByRole("link", { name: /^Moje rzeczy/ })).toHaveAttribute("href", "/items");
-    expect(screen.getByRole("link", { name: /^Szukam/ })).toHaveAttribute("href", "/wanted");
     expect(await screen.findByRole("link", { name: /^Zarezerwowane\s*1/ })).toHaveAttribute("href", "/items/reserved");
+    const rows = screen
+      .getAllByRole("list")
+      .flatMap((list) => within(list).getAllByRole("link"))
+      .map((link) => [link.textContent, link.getAttribute("href")]);
+    expect(rows).toEqual([
+      ["Dane profilowe", "/profile"],
+      ["Moje lokalizacje", "/places"],
+      ["Mój dom", "/family"],
+      ["Moje grupybrak", "/groups"],
+      ["Moje terminy", "/meetings"],
+      [expect.stringMatching(/^Moje rzeczy/), "/items"],
+      ["Zarezerwowane1", "/items/reserved"],
+      [expect.stringMatching(/^Szukam/), "/wanted"],
+    ]);
+    expect(screen.queryByRole("link", { name: /Prywatność/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Wyloguj się" })).toBeInTheDocument();
   });
 
-  it("Konto with an organization links Moje grupy (with the count) and Terminy separately", async () => {
+  it("Konto with an organization keeps Moje grupy (with the count) and Moje terminy out of the organization section", async () => {
     mockOrganizerDefaults();
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({
       id: "1",
@@ -2838,8 +2852,13 @@ describe("AppPage — redesigned navigation and pages", () => {
 
     expect(await screen.findByRole("link", { name: /^Moje grupy/ })).toHaveAttribute("href", "/groups");
     expect(screen.getByRole("link", { name: /^Moje grupy/ })).toHaveTextContent("1");
-    expect(screen.getByRole("link", { name: /^Terminy/ })).toHaveAttribute("href", "/meetings");
-    expect(screen.queryByText("Grupy i terminy")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Moje terminy" })).toHaveAttribute("href", "/meetings");
+    const organization = screen.getByRole("region", { name: "Moja organizacja" });
+    expect(within(organization).getAllByRole("link").map((link) => link.textContent)).toEqual([
+      "Muzyczne SkrzatyZobacz stronę",
+      "Wygląd strony",
+      "Dane organizacji",
+    ]);
   });
 
   it("a Konto sub-page has no back link and keeps the tab bar on Konto", async () => {

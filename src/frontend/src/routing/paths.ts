@@ -8,7 +8,6 @@ export type View =
   | "items"
   | "items/reserved"
   | "profile"
-  | "settings"
   | "places"
   | "places/new"
   | "family"
@@ -117,7 +116,6 @@ export const PROTECTED_PREFIXES: readonly string[] = [
   "/groups",
   "/items",
   "/profile",
-  "/settings",
   "/places",
   "/family",
   "/account",

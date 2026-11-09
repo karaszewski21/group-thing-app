@@ -148,7 +148,6 @@ function useAppDataValue() {
   const [busy, setBusy] = useState(false);
 
   // --- lokalne, niepersystentne pola (patrz komentarz na górze pliku) ---
-  const [settings, setSettings] = useState({ publicProfile: true });
   const [itemModes, setItemModes] = useState<Record<string, ItemMode | null>>({});
 
   // --- formularz: dodaj grupę ---
@@ -734,7 +733,6 @@ function useAppDataValue() {
     modal,
     toast,
     busy,
-    settings,
     itemModes,
     groupForm,
     eventDraft,
@@ -759,7 +757,6 @@ function useAppDataValue() {
     setModal,
     /** The first-term stepper's trigger: opens it with a fresh draft. */
     openFirstTermStepper: firstTerm.openStepper,
-    setSettings,
     setGroupForm,
     setEventDraft,
     setEventBanner,

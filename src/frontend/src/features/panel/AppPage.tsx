@@ -13,8 +13,8 @@ import { AppModals } from "./AppModals";
 /*  pages/PanelGoscia.tsx, jeden ekran sterowany realną rolą:            */
 /*  obecność aktywnego Leadership = organizator, brak = gość).           */
 /*                                                                       */
-/*  Sekcje bez odpowiednika w modelu domenowym (widoczność profilu,      */
-/*  tryb rzeczy oddam/zamienię)                                         */
+/*  Sekcje bez odpowiednika w modelu domenowym (tryb rzeczy             */
+/*  oddam/zamienię)                                                     */
 /*  są — jak w mocku (pages/SPEC.md §0/§3.5) — czysto lokalnym stanem     */
 /*  (znikają po odświeżeniu, tak jak w prototypie).                      */
 /*                                                                       */
