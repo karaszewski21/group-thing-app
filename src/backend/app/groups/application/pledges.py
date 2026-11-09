@@ -1,10 +1,12 @@
 """`Pledge` use cases, with the pledging-party ownership gate co-located
 with the mutations it guards (per `standards/backend/security.md`).
 
-A needed item can be claimed by at most one active pledge — enforced here
-(fail-fast 409) and by the `uq_pledges_active_needed_item` partial unique
-index. Every state change emits an outbox event through the `outbox_bridge`
-ACL (a missing organizer degrades to no event, never a 500); `app.notifications`
+Only a party taking part in the need's Term — an active RSVP or a
+standing membership in its Circle — may pledge (409 otherwise). A needed
+item can be claimed by at most one active pledge — enforced here (fail-fast
+409) and by the `uq_pledges_active_needed_item` partial unique index. Every
+state change emits an outbox event through the `outbox_bridge` ACL (a
+missing organizer degrades to no event, never a 500); `app.notifications`
 consumes those events asynchronously (see `app.notifications.outbox_listener`)
 to build the Term organizer's notification — groups no longer knows
 `NotificationKind` or builds notification text itself."""
@@ -28,7 +30,10 @@ from ..infrastructure import outbox_bridge, repository
 from ..infrastructure.slug_resolver import resolve_organizer_slug
 from ..models import Pledge, PledgeStatus
 from .circles import _group_role_party_id, get_current_leadership
-from .terms import get_needed_item
+from .memberships import _is_active_member
+from .terms import get_needed_item, get_term
+
+NOT_ATTENDING_MESSAGE = "Zapisz się na te zajęcia, żeby zgłosić, że coś przyniesiesz"
 
 
 async def _emit_pledge_event(
@@ -62,9 +67,19 @@ async def _emit_pledge_event(
     )
 
 
+async def _takes_part(db: AsyncSession, term_id: uuid.UUID, party_id: uuid.UUID) -> bool:
+    """An active RSVP to the term, or a standing membership in its Circle."""
+    if await repository.has_active_attendance(db, term_id, party_id):
+        return True
+    term = await get_term(db, term_id)
+    return await _is_active_member(db, term.circle_group_id, party_id)
+
+
 async def create_pledge(db: AsyncSession, principal: Principal, needed_item_id: uuid.UUID) -> Pledge:
     profile = await get_profile_by_principal(db, principal)
-    await get_needed_item(db, needed_item_id)
+    needed_item = await get_needed_item(db, needed_item_id)
+    if not await _takes_part(db, needed_item.term_id, profile.party_id):
+        raise BusinessConflictException(NOT_ATTENDING_MESSAGE)
 
     existing = await repository.list_pledges_for_needed_item(db, needed_item_id)
     if any(pledge.status != PledgeStatus.WITHDRAWN for pledge in existing):

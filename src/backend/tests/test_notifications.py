@@ -28,6 +28,7 @@ from app.notifications.outbox_listener import register as register_outbox_handle
 from app.outbox import service as outbox_service
 from app.outbox.dispatcher import dispatch_pending
 from tests.conftest import create_location
+from tests.test_term_item_listings import _rsvp
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -74,6 +75,7 @@ async def _setup_pledge(
     assert needed.status_code == 201
 
     guest_token, _ = await _register(client, "GUEST", f"{prefix}.guest@example.com")
+    await _rsvp(client, guest_token, circle.json()["id"], term.json()["id"])
     pledge = await client.post(
         "/api/pledges", json={"needed_item_id": needed.json()["id"]}, headers=_auth(guest_token)
     )

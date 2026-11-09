@@ -488,8 +488,9 @@ describe("TermPage — item actions", () => {
     expect(pledgesApi.createPledge).not.toHaveBeenCalled();
   });
 
-  it("logged in 'Ja to przyniosę' pledges and shows 'Przynosi: Ty'", async () => {
+  it("a signed-up attendee's 'Ja to przyniosę' pledges and shows 'Przynosi: Ty'", async () => {
     mockAuth = { token: "tok", displayName: "Ala" };
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access({ access: { is_active_attendee: true } }));
     vi.mocked(pledgesApi.createPledge).mockResolvedValue({} as never);
     renderPage();
 
@@ -497,6 +498,45 @@ describe("TermPage — item actions", () => {
 
     await waitFor(() => expect(pledgesApi.createPledge).toHaveBeenCalledWith("11"));
     expect(await screen.findByText("Przynosi: Ty")).toBeInTheDocument();
+  });
+
+  it("a logged-in visitor who does not take part is asked to sign up first and never pledges", async () => {
+    mockAuth = { token: "tok", displayName: "Ala" };
+    vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([
+      { id: "3", party_id: "4", name: "Kowalscy", child_count: 2, created_at: "", updated_at: "" },
+    ]);
+    vi.mocked(groupsApi.createRsvp).mockResolvedValue({} as never);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Ja to przyniosę: Bębenek" }));
+
+    const sheet = await screen.findByRole("dialog", { name: "Najpierw zapisz się na zajęcia" });
+    expect(sheet).toHaveTextContent("„Bębenek”");
+    expect(pledgesApi.createPledge).not.toHaveBeenCalled();
+    fireEvent.click(within(sheet).getByRole("button", { name: "Zapisz się na zajęcia" }));
+
+    await waitFor(() => expect(groupsApi.createRsvp).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("dialog", { name: "Najpierw zapisz się na zajęcia" })).not.toBeInTheDocument();
+    expect(pledgesApi.createPledge).not.toHaveBeenCalled();
+  });
+
+  it("a standing member who has not signed up can still pledge", async () => {
+    mockAuth = { token: "tok", displayName: "Ala" };
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access({ access: { is_member: true } }));
+    renderPage();
+
+    expect(await screen.findByRole("button", { name: "Ja to przyniosę: Bębenek" })).toBeInTheDocument();
+  });
+
+  it("the organizer gets no pledge button", async () => {
+    mockAuth = { token: "tok", displayName: "Ala" };
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
+      access({ access: { is_organizer: true, is_member: true } }),
+    );
+    renderPage();
+
+    expect(await screen.findByRole("region", { name: "Potrzebne rzeczy" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ja to przyniosę/ })).not.toBeInTheDocument();
   });
 });
 
@@ -1087,6 +1127,7 @@ describe("TermPage — direct sign-up and server error messages", () => {
 
   it("a 403 on 'Ja to przyniosę' explains the missing permission instead of a generic failure", async () => {
     mockAuth = { token: "tok", displayName: "Ala" };
+    vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(access({ access: { is_active_attendee: true } }));
     vi.mocked(pledgesApi.createPledge).mockRejectedValue(
       new ApiError(403, "Forbidden", { message: "Access denied" }),
     );

@@ -430,6 +430,7 @@ async def test_getOrganizerPage_neededItems_claimedFlagLiveItemsOfNextTermsOnly(
     deleted = await client.delete(f"/api/needed-items/{deleted_id}", headers=_auth(owner_token))
     assert deleted.status_code == 204
     guest_token, _ = await _register(client, "GUEST", "op.need.guest@example.com")
+    await _rsvp(client, guest_token, group_id, next_term)
     pledge = await client.post(
         "/api/pledges", json={"needed_item_id": str(claimed_id)}, headers=_auth(guest_token)
     )

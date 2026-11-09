@@ -24,6 +24,7 @@ from app.core import clock
 from app.groups.models import ItemListingPreference, Leadership, NeededItem, Term
 from app.organizations.models import Organization
 from tests.conftest import create_location, leaf_category_ids, seed_legacy_guest
+from tests.test_term_item_listings import _rsvp
 
 
 async def _register_organizer(client: AsyncClient, email: str) -> str:
@@ -305,6 +306,7 @@ async def test_getPublicCircle_neededItem_reflectsPledgeClaim(client: AsyncClien
     assert item_before["claimed_by_name"] is None
 
     guest_token, _ = await _register_guest(client, "pt.claim.guest@example.com")
+    await _rsvp(client, guest_token, group_id, term_id)
     pledge = await client.post(
         "/api/pledges",
         json={"needed_item_id": needed_item_id},
@@ -650,6 +652,7 @@ async def test_getPublicCircle_pledgedNeededItem_exposesPledgerPartyId(client: A
     )
     needed_item_id = await _create_needed_item(client, token, term_id, "Bębenek", "bębenek")
     guest_token, guest_party_id = await _register_guest(client, "pt.pledger.guest@example.com")
+    await _rsvp(client, guest_token, group_id, term_id)
     pledge = await client.post(
         "/api/pledges",
         json={"needed_item_id": needed_item_id},

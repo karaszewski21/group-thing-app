@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.groups import service as groups_service
 from app.groups.domain import pledge_events
 from app.groups.models import (
     Group,
@@ -53,6 +54,18 @@ async def _register_guest(client: AsyncClient, email: str) -> tuple[str, int]:
 
 def _auth_headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+async def _attend(client: AsyncClient, token: str, circle_id: object, term_id: object) -> str:
+    """An active RSVP to the term, which a pledge requires (or a standing
+    membership in its Circle); returns the attendance id."""
+    response = await client.post(
+        f"/api/groups/public/{circle_id}/rsvp",
+        json={"term_id": str(term_id), "guardian_name": "ignored", "child_count": 0},
+        headers=_auth_headers(token),
+    )
+    assert response.status_code == 201, response.text
+    return str(response.json()["id"])
 
 
 async def _create_circle_with_term(
@@ -331,6 +344,7 @@ async def test_deleteNeededItem_claimedPledge_transitionsToWithdrawn(
     needed_item_id = await _create_needed_item(client, token, term_id)
 
     guest_token, _guest_party_id = await _register_guest(client, "del.ni1.guest@example.com")
+    await _attend(client, guest_token, _circle_id, term_id)
     claimed = await client.post(
         "/api/pledges",
         json={"needed_item_id": needed_item_id},
@@ -732,13 +746,72 @@ async def test_getNeededItemPledges_parentSoftDeleted_returns404(
     assert response.status_code == 404
 
 
+async def test_createPledge_callerNotTakingPart_returns409WithoutPledge(
+    client: AsyncClient,
+) -> None:
+    org_token = await _register_organizer(client, "pledge.outsider.org@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, org_token, "Krąg obcych")
+    needed_item_id = await _create_needed_item(client, org_token, term_id)
+    outsider, _ = await _register_guest(client, "pledge.outsider.guest@example.com")
+
+    pledge = await client.post(
+        "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(outsider)
+    )
+
+    assert pledge.status_code == 409
+    assert pledge.json()["message"] == "Zapisz się na te zajęcia, żeby zgłosić, że coś przyniesiesz"
+    listed = await client.get(
+        f"/api/needed-items?term_id={term_id}", headers=_auth_headers(org_token)
+    )
+    assert listed.json()[0]["claimed"] is False
+
+
+async def test_createPledge_withdrawnRsvp_returns409(client: AsyncClient) -> None:
+    org_token = await _register_organizer(client, "pledge.withdrawn.org@example.com")
+    _circle_id, term_id = await _create_circle_with_term(client, org_token, "Krąg rezygnacji")
+    needed_item_id = await _create_needed_item(client, org_token, term_id)
+    guest, _ = await _register_guest(client, "pledge.withdrawn.guest@example.com")
+    attendance_id = await _attend(client, guest, _circle_id, term_id)
+    withdrawn = await client.post(
+        f"/api/groups/mine/attendances/{attendance_id}/withdraw", headers=_auth_headers(guest)
+    )
+    assert withdrawn.status_code == 200
+
+    pledge = await client.post(
+        "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(guest)
+    )
+
+    assert pledge.status_code == 409
+
+
+async def test_createPledge_circleMemberWithoutRsvp_returns201(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    org_token = await _register_organizer(client, "pledge.member.org@example.com")
+    circle_id, term_id = await _create_circle_with_term(client, org_token, "Krąg członków")
+    needed_item_id = await _create_needed_item(client, org_token, term_id)
+    member, member_party_id = await _register_guest(client, "pledge.member.guest@example.com")
+    await groups_service.add_active_membership(
+        db_session, uuid.UUID(str(circle_id)), uuid.UUID(str(member_party_id))
+    )
+    await db_session.commit()
+
+    pledge = await client.post(
+        "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(member)
+    )
+
+    assert pledge.status_code == 201
+
+
 async def test_createPledge_secondActiveClaim_returns409(client: AsyncClient) -> None:
     org_token = await _register_organizer(client, "pledge.single.org@example.com")
     _circle_id, term_id = await _create_circle_with_term(client, org_token, "Krąg jednego")
     needed_item_id = await _create_needed_item(client, org_token, term_id)
 
     guest_a, _ = await _register_guest(client, "pledge.single.a@example.com")
+    await _attend(client, guest_a, _circle_id, term_id)
     guest_b, _ = await _register_guest(client, "pledge.single.b@example.com")
+    await _attend(client, guest_b, _circle_id, term_id)
 
     first = await client.post(
         "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(guest_a)
@@ -764,7 +837,9 @@ async def test_createPledge_afterWithdraw_allowsNewClaim(client: AsyncClient) ->
     needed_item_id = await _create_needed_item(client, org_token, term_id)
 
     guest_a, _ = await _register_guest(client, "pledge.rewithdraw.a@example.com")
+    await _attend(client, guest_a, _circle_id, term_id)
     guest_b, _ = await _register_guest(client, "pledge.rewithdraw.b@example.com")
+    await _attend(client, guest_b, _circle_id, term_id)
 
     pledge = await client.post(
         "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(guest_a)
@@ -787,6 +862,7 @@ async def test_getMyPledges_returnsCallersNonWithdrawnPledges(client: AsyncClien
     needed_item_id = await _create_needed_item(client, org_token, term_id)
 
     guest_token, _ = await _register_guest(client, "mypledges.guest@example.com")
+    await _attend(client, guest_token, _circle_id, term_id)
     pledge = await client.post(
         "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(guest_token)
     )
@@ -818,6 +894,7 @@ async def test_createPledge_outboxPayload_productNameKeyCarriesNeededItemName(
     _circle_id, term_id = await _create_circle_with_term(client, org_token, "Krąg zdarzeń")
     needed_item_id = await _create_needed_item(client, org_token, term_id, name="Ukulele")
     guest_token, _ = await _register_guest(client, "pledge.outbox.guest@example.com")
+    await _attend(client, guest_token, _circle_id, term_id)
 
     pledge = await client.post(
         "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(guest_token)
@@ -875,6 +952,7 @@ async def test_listNeededItems_claimedFlag_reflectsActivePledge(client: AsyncCli
     assert before.json()[0]["claimed"] is False
 
     guest_token, _ = await _register_guest(client, "ni.claimed.guest@example.com")
+    await _attend(client, guest_token, _circle_id, term_id)
     pledge = await client.post(
         "/api/pledges", json={"needed_item_id": needed_item_id}, headers=_auth_headers(guest_token)
     )
