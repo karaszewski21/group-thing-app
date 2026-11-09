@@ -940,6 +940,22 @@ async def list_pending_swap_proposals_for_listing_item(
     return list(result.scalars().all())
 
 
+async def list_pending_swap_proposals_by_proposer(
+    db: AsyncSession, proposer_party_id: uuid.UUID
+) -> list[Row[tuple[SwapProposal, uuid.UUID]]]:
+    """The proposer's still-`PROPOSED` offers, each with the target listing's
+    owner party, in one join."""
+    result = await db.execute(
+        select(SwapProposal, ItemListingPreference.owner_party_id)
+        .join(ItemListingPreference, ItemListingPreference.item_id == SwapProposal.listing_item_id)
+        .where(
+            SwapProposal.proposer_party_id == proposer_party_id,
+            SwapProposal.status == SwapProposalStatus.PROPOSED,
+        )
+    )
+    return list(result.all())
+
+
 async def list_other_pending_swap_proposals_for_listing_item(
     db: AsyncSession, listing_item_id: uuid.UUID, exclude_proposal_id: uuid.UUID
 ) -> list[SwapProposal]:

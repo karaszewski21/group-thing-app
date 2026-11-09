@@ -303,6 +303,21 @@ async def list_product_names_for_items(
     return {item_id: name for item_id, name in result.all()}
 
 
+async def list_item_products(
+    db: AsyncSession, item_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, tuple[uuid.UUID, str]]:
+    """`{item_id: (product_id, product_name)}`, soft-deleted items included,
+    in one join."""
+    if not item_ids:
+        return {}
+    result = await db.execute(
+        select(InventoryItem.id, Product.id, Product.name)
+        .join(Product, Product.id == InventoryItem.product_id)
+        .where(InventoryItem.id.in_(set(item_ids)))
+    )
+    return {item_id: (product_id, name) for item_id, product_id, name in result.all()}
+
+
 async def list_item_refs(
     db: AsyncSession, item_ids: Collection[uuid.UUID]
 ) -> dict[uuid.UUID, tuple[str, datetime | None]]:
@@ -367,6 +382,15 @@ async def find_transaction_with_entries(
 
 async def get_reservation(db: AsyncSession, reservation_id: uuid.UUID) -> Reservation | None:
     return await db.get(Reservation, reservation_id)
+
+
+async def list_reservations_by_ids(
+    db: AsyncSession, reservation_ids: Collection[uuid.UUID]
+) -> list[Reservation]:
+    if not reservation_ids:
+        return []
+    result = await db.execute(select(Reservation).where(Reservation.id.in_(set(reservation_ids))))
+    return list(result.scalars().all())
 
 
 async def list_reservations_for_item(db: AsyncSession, item_id: uuid.UUID) -> list[Reservation]:

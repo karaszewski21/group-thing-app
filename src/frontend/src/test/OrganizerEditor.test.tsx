@@ -2,6 +2,7 @@ import { act, fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import * as groupsApi from "../api/groups";
+import type { OwnerNearestDate } from "../api/ownerItems";
 import { ACCESS_DENIED_MESSAGE } from "../api/problem";
 import * as organizationsApi from "../api/organizations";
 import { diffDraft, paletteSelection, sameDraft, type Draft } from "../features/owner-page/editor/draft";
@@ -75,6 +76,7 @@ const DIRECTORY: groupsApi.OrganizerPageResponse = {
   upcoming_terms: [],
   exchange: { counts: { GIFT: 0, SWAP: 0, RESERVED: 0 }, items: [] },
   needed_items: [],
+  upcoming_dates: [],
   recent_items: [],
   owner_nearest: null,
   stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
@@ -84,21 +86,22 @@ function circle(id: string, name: string): groupsApi.OrganizerCircle {
   return { id, name, layout_mode: "CIRCLE", next_term: null, upcoming_term_count: 2 };
 }
 
-function termInDays(days: number, groupId: string): groupsApi.OrganizerTerm {
+function dateInDays(days: number, groupId: string): OwnerNearestDate {
   return {
-    term_id: `term-${groupId}-${days}`,
-    group_id: groupId,
-    group_name: groupId,
-    occurs_on: dayjs().add(days, "day").format("YYYY-MM-DD"),
-    description: null,
+    kind: "TERM",
+    id: `term-${groupId}-${days}`,
+    name: groupId,
+    starts_at: dayjs().add(days, "day").format("YYYY-MM-DDTHH:mm:ss"),
+    location_name: null,
     attendee_count: 0,
+    path: `/muzyczne-skrzaty/group/${groupId}/term/term-${groupId}-${days}`,
   };
 }
 
 const BUSY_DIRECTORY: groupsApi.OrganizerPageResponse = {
   ...DIRECTORY,
   circles: [circle("c-1", "Maluchy"), circle("c-2", "Starszaki")],
-  upcoming_terms: [termInDays(1, "c-1"), termInDays(3, "c-2"), termInDays(8, "c-1"), termInDays(10, "c-2")],
+  upcoming_dates: [dateInDays(1, "c-1"), dateInDays(3, "c-2"), dateInDays(8, "c-1"), dateInDays(10, "c-2")],
   stats: { circle_count: 2, upcoming_term_count: 4, family_count: null },
 };
 
@@ -268,15 +271,15 @@ describe("Wygląd strony page", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("marks both Plan zajęć and Grupy as Polecany for two circles with four terms within 14 days", async () => {
+  it("marks Spotkania as Polecany for four dates within 14 days", async () => {
     vi.mocked(groupsApi.getOrganizerPage).mockResolvedValue(BUSY_DIRECTORY);
     await openEditor();
 
-    await vi.waitFor(() => expect(recommendedLayouts()).toEqual(["Plan zajęć", "Grupy"]));
-    expect(within(screen.getByRole("radiogroup", { name: "Układ strony" })).getAllByRole("radio")).toHaveLength(5);
+    await vi.waitFor(() => expect(recommendedLayouts()).toEqual(["Spotkania"]));
+    expect(within(screen.getByRole("radiogroup", { name: "Układ strony" })).getAllByRole("radio")).toHaveLength(4);
   });
 
-  it("marks only the Wizytówka layout as Polecany for an organizer without circles", async () => {
+  it("marks only the Wizytówka layout as Polecany for an organizer without dates or items", async () => {
     await openEditor();
 
     await vi.waitFor(() => expect(recommendedLayouts()).toEqual(["Wizytówka"]));
@@ -320,7 +323,7 @@ describe("Wygląd strony colors", () => {
     return { ...opened, palettes: screen.getByRole("radiogroup", { name: "Paleta kolorów" }) };
   }
 
-  it("renders 10 palette tiles with Mięta first, no custom tile, and static preview cards", async () => {
+  it("renders 10 palette tiles with Mięta first and no custom tile, preview or reset link", async () => {
     const { palettes } = await openColors();
 
     const tiles = within(palettes).getAllByRole("radio");
@@ -330,11 +333,9 @@ describe("Wygląd strony colors", () => {
     expect(tiles[1]).toHaveAccessibleName("Ocean");
     expect(within(palettes).queryByRole("radio", { name: "Własny" })).not.toBeInTheDocument();
 
-    for (const name of ["Podgląd terminu w wybranych kolorach", "Podgląd produktu w wybranych kolorach"]) {
-      const card = screen.getByRole("img", { name });
-      expect(card.querySelectorAll("button, a, input, select, textarea, [tabindex]")).toHaveLength(0);
-    }
-    expect(screen.getByRole("button", { name: "Przywróć domyślne" })).toBeDisabled();
+    expect(screen.queryByText("Podgląd")).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /Podgląd/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Przywróć domyślne" })).not.toBeInTheDocument();
   });
 
   it("previews a chosen preset on the editor and saves its key with its base colors", async () => {
@@ -358,7 +359,7 @@ describe("Wygląd strony colors", () => {
     );
   });
 
-  it.each(["tile", "link"])("restores the default palette from a preset with three explicit nulls (%s)", async (via) => {
+  it("restores the default palette from a preset with three explicit nulls", async () => {
     const oceanTheme = {
       palette_preset: "OCEAN",
       primary_color: OCEAN.vars["--color-primary"],
@@ -370,8 +371,7 @@ describe("Wygląd strony colors", () => {
     const { palettes } = await openColors();
     expect(within(palettes).getByRole("radio", { name: "Ocean" })).toHaveAttribute("aria-checked", "true");
 
-    if (via === "tile") fireEvent.click(within(palettes).getByRole("radio", { name: "Mięta (domyślna)" }));
-    else fireEvent.click(screen.getByRole("button", { name: "Przywróć domyślne" }));
+    fireEvent.click(within(palettes).getByRole("radio", { name: "Mięta (domyślna)" }));
     fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 
     await vi.waitFor(() =>

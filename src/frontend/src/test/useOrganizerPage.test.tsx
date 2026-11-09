@@ -26,6 +26,7 @@ const DIRECTORY: OrganizerPageResponse = {
   upcoming_terms: [],
   exchange: { counts: { GIFT: 0, SWAP: 0, RESERVED: 0 }, items: [] },
   needed_items: [],
+  upcoming_dates: [],
   recent_items: [],
   owner_nearest: null,
   stats: { circle_count: 1, upcoming_term_count: 3, family_count: null },

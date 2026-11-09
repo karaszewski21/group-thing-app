@@ -1,21 +1,15 @@
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import { renderWithRoute } from "./renderWithRoute";
 import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as groupsApi from "../api/groups";
-import type { OrganizerCircle, OrganizerPageResponse, OrganizerTerm } from "../api/groups";
+import type { OrganizerPageResponse } from "../api/groups";
 import type { PublicOrganizationResponse } from "../api/organizations";
-import type { Page } from "../api/pagination";
-import { AgendaBlock } from "../features/owner-page/blocks/AgendaBlock";
-import { NextTermCtaBlock } from "../features/owner-page/blocks/NextTermCtaBlock";
+import type { OwnerNearestDate } from "../api/ownerItems";
+import { NextDateCtaBlock } from "../features/owner-page/blocks/NextDateCtaBlock";
 import { isStatsEmpty, StatsBlock } from "../features/owner-page/blocks/StatsBlock";
-import { UpcomingTermsBlock } from "../features/owner-page/blocks/UpcomingTermsBlock";
+import { isUpcomingDatesEmpty, UpcomingDatesBlock } from "../features/owner-page/blocks/UpcomingDatesBlock";
 import type { OrganizerPageData } from "../features/owner-page/layouts/types";
 import { createQueryWrapper } from "./queryClient";
-
-vi.mock("../api/groups", () => ({
-  getOrganizerTerms: vi.fn(),
-}));
 
 const SLUG = "akademia-orlik";
 
@@ -32,25 +26,16 @@ const organization: PublicOrganizationResponse = {
   gallery: [],
 };
 
-function term(id: string, occursOn: string, overrides: Partial<OrganizerTerm> = {}): OrganizerTerm {
+function meeting(id: string, startsAt: string, overrides: Partial<OwnerNearestDate> = {}): OwnerNearestDate {
   return {
-    term_id: id,
-    group_id: "g1",
-    group_name: "Orliki 2017",
-    occurs_on: occursOn,
-    description: null,
-    attendee_count: 12,
-    ...overrides,
-  };
-}
-
-function circle(id: string, name: string, nextOccursOn: string | null): OrganizerCircle {
-  return {
+    kind: "TERM",
     id,
-    name,
-    layout_mode: "CIRCLE",
-    next_term: nextOccursOn ? { id: `next-${id}`, occurs_on: nextOccursOn, attendee_count: 5 } : null,
-    upcoming_term_count: 1,
+    name: "Orliki 2017",
+    starts_at: startsAt,
+    location_name: null,
+    attendee_count: 12,
+    path: `/${SLUG}/group/g1/term/${id}`,
+    ...overrides,
   };
 }
 
@@ -63,6 +48,7 @@ function pageData(overrides: Partial<OrganizerPageResponse> = {}): OrganizerPage
       upcoming_terms: [],
       exchange: { counts: { GIFT: 0, SWAP: 0, RESERVED: 0 }, items: [] },
       needed_items: [],
+      upcoming_dates: [],
       recent_items: [],
       owner_nearest: null,
       stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
@@ -71,15 +57,17 @@ function pageData(overrides: Partial<OrganizerPageResponse> = {}): OrganizerPage
   };
 }
 
-function termsPage(items: OrganizerTerm[], page: number, total: number): Page<OrganizerTerm> {
-  return { items, total, page, size: 20 };
-}
-
 function renderWithProviders(ui: ReactElement) {
   return renderWithRoute(ui, { url: "/", wrapper: createQueryWrapper() });
 }
 
-const TWO_CIRCLES = [circle("g1", "Orliki 2017", "2026-10-13T17:00:00"), circle("g2", "Młodziki 2015", null)];
+const EVENT = meeting("e1", "2026-10-16T10:00:00", {
+  kind: "EVENT",
+  name: "Piknik rodzinny",
+  location_name: "Gdańsk, Parkowa 1",
+  attendee_count: 0,
+  path: `/${SLUG}/event/e1`,
+});
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -108,66 +96,57 @@ describe("StatsBlock", () => {
   });
 });
 
-describe("UpcomingTermsBlock", () => {
-  it("links rows to terms, counts the total link only when more exist, and falls back to the nearest term", () => {
-    const terms = [term("t1", "2026-10-14T16:30:00"), term("t2", "2026-10-16T10:00:00", { attendee_count: 0 })];
+describe("UpcomingDatesBlock", () => {
+  it("lists terms and events with their kind, place and sign-ups and links to all meetings", () => {
+    const dates = [meeting("t1", "2026-10-14T16:30:00"), EVENT];
+    renderWithProviders(<UpcomingDatesBlock data={pageData({ upcoming_dates: dates })} variant="list" mode="visitor" />);
+
+    expect(screen.getByRole("heading", { name: "Najbliższe spotkania" })).toBeInTheDocument();
+    const rows = screen.getAllByRole("link").filter((link) => link.getAttribute("href") !== `/${SLUG}/meetings`);
+    expect(rows.map((row) => row.getAttribute("href"))).toEqual([`/${SLUG}/group/g1/term/t1`, `/${SLUG}/event/e1`]);
+    expect(within(rows[0]).getByText("Termin · Śr 16:30 · zapisanych: 12")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("Piknik rodzinny")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("Wydarzenie · Pt 10:00 · Gdańsk, Parkowa 1")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Wszystkie spotkania →" })).toHaveAttribute("href", `/${SLUG}/meetings`);
+  });
+
+  it("after-next skips the first date and renders nothing when it was the only one", () => {
     const { unmount } = renderWithProviders(
-      <UpcomingTermsBlock
-        data={pageData({ upcoming_terms: terms, stats: { circle_count: 1, upcoming_term_count: 9, family_count: null } })}
-        variant="list"
+      <UpcomingDatesBlock
+        data={pageData({ upcoming_dates: [meeting("t1", "2026-10-14T16:30:00"), EVENT] })}
+        variant="after-next"
         mode="visitor"
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Najbliższe terminy" })).toBeInTheDocument();
-    const rows = screen.getAllByRole("link").filter((link) => link.getAttribute("href")?.includes("/term/"));
-    expect(rows.map((row) => row.getAttribute("href"))).toEqual([
-      `/${SLUG}/group/g1/term/t1`,
-      `/${SLUG}/group/g1/term/t2`,
-    ]);
-    expect(within(rows[0]).getByText("Śr · 16:30 · zapisanych: 12")).toBeInTheDocument();
-    expect(within(rows[1]).getByText("Pt · 10:00")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Wszystkie terminy (9) →" })).toHaveAttribute("href", `/${SLUG}/terms`);
+    expect(screen.getByRole("heading", { name: "Kolejne spotkania" })).toBeInTheDocument();
+    expect(screen.queryByText("Orliki 2017")).not.toBeInTheDocument();
+    expect(screen.getByText("Piknik rodzinny")).toBeInTheDocument();
     unmount();
 
-    renderWithProviders(
-      <UpcomingTermsBlock
-        data={pageData({ upcoming_terms: terms, stats: { circle_count: 1, upcoming_term_count: 2, family_count: null } })}
-        variant="list"
-        mode="visitor"
-      />,
+    const { container } = renderWithProviders(
+      <UpcomingDatesBlock data={pageData({ upcoming_dates: [EVENT] })} variant="after-next" mode="visitor" />,
     );
-    expect(screen.queryByText(/Wszystkie terminy/)).not.toBeInTheDocument();
-    cleanup();
-
-    renderWithProviders(
-      <UpcomingTermsBlock
-        data={pageData({ circles: [circle("g2", "Młodziki 2015", "2027-01-05T09:00:00")] })}
-        variant="list"
-        mode="visitor"
-      />,
-    );
-
-    expect(screen.getByRole("link", { name: /Młodziki 2015/ })).toHaveAttribute("href", `/${SLUG}/group/g2/term/next-g2`);
-    expect(screen.getByRole("link", { name: "Wszystkie terminy →" })).toHaveAttribute("href", `/${SLUG}/terms`);
+    expect(container).toBeEmptyDOMElement();
+    expect(isUpcomingDatesEmpty(pageData())).toBe(true);
+    expect(isUpcomingDatesEmpty(pageData({ upcoming_dates: [EVENT] }))).toBe(false);
   });
 
   it("compact renders at most 3 date chips", () => {
-    const terms = ["14", "16", "18", "21"].map((day) => term(`t${day}`, `2026-10-${day}T10:00:00`));
-    renderWithProviders(<UpcomingTermsBlock data={pageData({ upcoming_terms: terms })} variant="compact" mode="visitor" />);
+    const dates = ["14", "16", "18", "21"].map((day) => meeting(`t${day}`, `2026-10-${day}T10:00:00`));
+    renderWithProviders(<UpcomingDatesBlock data={pageData({ upcoming_dates: dates })} variant="compact" mode="visitor" />);
 
-    expect(screen.getByRole("heading", { name: "Najbliższe spotkania" })).toBeInTheDocument();
-    const chips = screen.getAllByRole("link");
+    const chips = screen.getAllByRole("link").filter((link) => link.getAttribute("href") !== `/${SLUG}/meetings`);
     expect(chips).toHaveLength(3);
     expect(chips[0]).toHaveTextContent("Śr 14 paź");
     expect(chips[0]).toHaveAttribute("href", `/${SLUG}/group/g1/term/t14`);
   });
 });
 
-describe("NextTermCtaBlock", () => {
+describe("NextDateCtaBlock", () => {
   it("renders the nearest term's date, count and sign-up link", () => {
     renderWithProviders(
-      <NextTermCtaBlock data={pageData({ upcoming_terms: [term("t1", "2026-10-14T17:00:00")] })} mode="visitor" />,
+      <NextDateCtaBlock data={pageData({ upcoming_dates: [meeting("t1", "2026-10-14T17:00:00"), EVENT] })} mode="visitor" />,
     );
 
     expect(screen.getByText("NAJBLIŻSZE ZAJĘCIA")).toBeInTheDocument();
@@ -178,88 +157,11 @@ describe("NextTermCtaBlock", () => {
       "href",
       `/${SLUG}/group/g1/term/t1`,
     );
-  });
-});
+    cleanup();
 
-describe("AgendaBlock", () => {
-  it("groups terms by day under uppercase headers and loads the next page on demand", async () => {
-    const first = [
-      term("t1", "2026-10-14T17:00:00"),
-      term("t2", "2026-10-14T18:15:00", { group_id: "g2", group_name: "Młodziki 2015", description: "Turniej" }),
-      term("t3", "2026-10-16T17:00:00", { attendee_count: 0 }),
-    ];
-    vi.mocked(groupsApi.getOrganizerTerms).mockImplementation(async (_slug, page) =>
-      page === 1 ? termsPage(first, 1, 21) : termsPage([term("t4", "2026-10-18T10:00:00")], 2, 21),
-    );
-
-    renderWithProviders(<AgendaBlock data={pageData({ circles: TWO_CIRCLES })} mode="visitor" />);
-
-    expect(screen.getByRole("heading", { name: "Plan zajęć" })).toBeInTheDocument();
-    const wednesday = await screen.findByRole("heading", { level: 3, name: "środa, 14 października" });
-    expect(wednesday).toHaveClass("uppercase");
-    expect(screen.getByRole("heading", { level: 3, name: "piątek, 16 października" })).toBeInTheDocument();
-    expect(screen.getByText("Turniej")).toBeInTheDocument();
-    const row = screen.getByRole("link", { name: /Młodziki 2015/ });
-    expect(row).toHaveAttribute("href", `/${SLUG}/group/g2/term/t2`);
-    expect(row).toHaveTextContent("18:15");
-    expect(row).toHaveTextContent("zapisanych 12");
-
-    fireEvent.click(screen.getByRole("button", { name: "Pokaż kolejne terminy" }));
-
-    expect(await screen.findByRole("heading", { level: 3, name: "niedziela, 18 października" })).toBeInTheDocument();
-    expect(groupsApi.getOrganizerTerms).toHaveBeenLastCalledWith(SLUG, 2, undefined);
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Pokaż kolejne terminy" })).not.toBeInTheDocument());
-    expect(screen.getByText("Wczytano 1 kolejny termin")).toBeInTheDocument();
-  });
-
-  it("filters by circle through a radiogroup with arrow-key focus", async () => {
-    vi.mocked(groupsApi.getOrganizerTerms).mockResolvedValue(termsPage([term("t1", "2026-10-14T17:00:00")], 1, 1));
-
-    renderWithProviders(<AgendaBlock data={pageData({ circles: TWO_CIRCLES })} mode="visitor" />);
-
-    const group = screen.getByRole("radiogroup");
-    const chips = within(group).getAllByRole("radio");
-    expect(chips.map((chip) => chip.textContent)).toEqual(["Wszystkie", "Orliki 2017", "Młodziki 2015"]);
-    expect(chips[0]).toHaveAttribute("aria-checked", "true");
-    expect(chips[1]).toHaveAttribute("tabindex", "-1");
-
-    chips[0].focus();
-    fireEvent.keyDown(chips[0], { key: "ArrowRight" });
-
-    expect(chips[1]).toHaveFocus();
-    expect(chips[1]).toHaveAttribute("aria-checked", "true");
-    expect(chips[1]).toHaveAttribute("tabindex", "0");
-    await waitFor(() => expect(groupsApi.getOrganizerTerms).toHaveBeenLastCalledWith(SLUG, 1, "g1"));
-  });
-
-  it("shows a first-page error with a retry that refetches", async () => {
-    vi.mocked(groupsApi.getOrganizerTerms)
-      .mockRejectedValueOnce(new Error("boom"))
-      .mockResolvedValue(termsPage([term("t1", "2026-10-14T17:00:00")], 1, 1));
-
-    renderWithProviders(<AgendaBlock data={pageData({ circles: TWO_CIRCLES })} mode="visitor" />);
-
-    expect(await screen.findByText("Nie udało się wczytać terminów.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
-
-    expect(await screen.findByRole("heading", { level: 3, name: "środa, 14 października" })).toBeInTheDocument();
-    expect(groupsApi.getOrganizerTerms).toHaveBeenCalledTimes(2);
-  });
-
-  it("offers to show every circle when a filter finds no terms", async () => {
-    vi.mocked(groupsApi.getOrganizerTerms).mockImplementation(async (_slug, _page, groupId) =>
-      groupId === "g2" ? termsPage([], 1, 0) : termsPage([term("t1", "2026-10-14T17:00:00")], 1, 1),
-    );
-
-    renderWithProviders(<AgendaBlock data={pageData({ circles: TWO_CIRCLES })} mode="visitor" />);
-    await screen.findByRole("heading", { level: 3, name: "środa, 14 października" });
-
-    fireEvent.click(screen.getByRole("radio", { name: "Młodziki 2015" }));
-
-    expect(await screen.findByText("Brak zaplanowanych zajęć")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Pokaż wszystkie grupy" }));
-
-    expect(await screen.findByRole("heading", { level: 3, name: "środa, 14 października" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Wszystkie" })).toHaveAttribute("aria-checked", "true");
+    renderWithProviders(<NextDateCtaBlock data={pageData({ upcoming_dates: [EVENT] })} mode="visitor" />);
+    expect(screen.getByText("NAJBLIŻSZE WYDARZENIE")).toBeInTheDocument();
+    expect(screen.getByText("Gdańsk, Parkowa 1")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Zobacz i zapisz się →" })).toHaveAttribute("href", `/${SLUG}/event/e1`);
   });
 });

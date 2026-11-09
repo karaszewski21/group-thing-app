@@ -157,6 +157,7 @@ async def test_getOrganizerPage_populatedDirectory_matchesContractWithoutIdentit
         "exchange",
         "needed_items",
         "stats",
+        "upcoming_dates",
         "recent_items",
         "owner_nearest",
     }
@@ -279,6 +280,7 @@ async def test_getOrganizerPage_unknownPseudoOwnerlessOrEmpty_returns404OrEmpty(
         "exchange": {"counts": {"GIFT": 0, "SWAP": 0, "RESERVED": 0}, "items": []},
         "needed_items": [],
         "stats": {"circle_count": 0, "upcoming_term_count": 0, "family_count": None},
+        "upcoming_dates": [],
         "recent_items": [],
         "owner_nearest": None,
     }
@@ -567,13 +569,13 @@ async def test_getOrganizerPage_manyItemsAndNeeds_itemsCappedAt12NeedsAt5InCodeP
     ]
 
 
-async def test_getOrganizerPage_noCircles_recentItemsFourNewestAndOwnerNearestEvent(
+async def test_getOrganizerPage_noCircles_recentItemsSixNewestAndOwnerNearestEvent(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner_token, _ = await _register(client, "ORGANIZER", "op.recent.owner@example.com")
     slug = await _organization_slug(client, owner_token, "Świeże Nutki")
     item_ids = await _listed_items(
-        client, owner_token, *((f"Op recent {index}", "GIFT") for index in range(5))
+        client, owner_token, *((f"Op recent {index}", "GIFT") for index in range(7))
     )
     added = datetime(2026, 10, 1, 12, 0)
     for index, item_id in enumerate(item_ids):
@@ -615,6 +617,7 @@ async def test_getOrganizerPage_noCircles_recentItemsFourNewestAndOwnerNearestEv
     assert nearest["kind"] == "EVENT" and nearest["id"] == event.json()["id"]
     assert nearest["path"] == f"/{slug}/event/{event.json()['id']}"
     assert nearest["starts_at"] == starts_at.isoformat()
+    assert body["upcoming_dates"] == [nearest]
     assert _keys(body) & FORBIDDEN_KEYS == set()
 
 
@@ -629,3 +632,5 @@ async def test_getOrganizerPage_noListedItems_ownerNearestNotComputed(
     body = await _page(client, slug)
 
     assert body["recent_items"] == [] and body["owner_nearest"] is None
+    [date] = body["upcoming_dates"]
+    assert date["kind"] == "TERM" and date["path"].startswith(f"/{slug}/group/{group_id}/term/")

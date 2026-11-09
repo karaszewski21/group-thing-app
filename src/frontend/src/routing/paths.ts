@@ -6,6 +6,7 @@ export type View =
   | "groups"
   | "groups/new"
   | "items"
+  | "items/reserved"
   | "profile"
   | "settings"
   | "places"

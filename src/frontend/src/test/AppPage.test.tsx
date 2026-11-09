@@ -168,6 +168,7 @@ vi.mock("../api/termItemListings", async (importOriginal) => ({
 vi.mock("../api/reservations", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api/reservations")>()),
   getReservation: vi.fn(),
+  getMyReservations: vi.fn(),
   confirmTransaction: vi.fn(),
   // Bug #4c: MyItemsView's "Anuluj wymianę" tile fallback button.
   cancelTransaction: vi.fn(),
@@ -2792,12 +2793,29 @@ describe("AppPage — redesigned navigation and pages", () => {
 
   it("Konto without an organization offers to create one and links the item sub-pages", async () => {
     mockGuestDefaults();
+    vi.mocked(reservationsApi.getMyReservations).mockResolvedValue([
+      {
+        item_id: "item-9",
+        product_name: "Sanki",
+        thumb_url: null,
+        item_path: "/ola/product/item-9",
+        owner_name: "Ola",
+        mode: "GIFT",
+        status: "PENDING",
+        reservation_id: "res-9",
+        context_kind: "PERSONAL",
+        context_name: null,
+        occurs_at: null,
+        reserved_at: "2026-11-08T10:00:00",
+      },
+    ]);
     renderPanel("/account");
 
     expect(await screen.findByText("Nie masz jeszcze organizacji")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Załóż organizację" })).toHaveAttribute("href", "/organization");
     expect(screen.getByRole("link", { name: /^Moje rzeczy/ })).toHaveAttribute("href", "/items");
     expect(screen.getByRole("link", { name: /^Szukam/ })).toHaveAttribute("href", "/wanted");
+    expect(await screen.findByRole("link", { name: /^Zarezerwowane\s*1/ })).toHaveAttribute("href", "/items/reserved");
   });
 
   it("Konto with an organization links Moje grupy (with the count) and Terminy separately", async () => {

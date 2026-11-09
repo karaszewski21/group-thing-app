@@ -1,37 +1,32 @@
 import dayjs from "../../../utils/dayjs";
-import { exchangeTotal } from "../organizerHelpers";
 import type { OrganizerPageData, PageLayoutDefinition } from "./types";
 
 // Served from `public/` at the site root.
 const classicThumbnail = "/assets/layouts/classic.svg";
 const linksThumbnail = "/assets/layouts/links.svg";
 const scheduleThumbnail = "/assets/layouts/schedule.svg";
-const circlesThumbnail = "/assets/layouts/circles.svg";
 const exchangeThumbnail = "/assets/layouts/exchange.svg";
 
-const SCHEDULE_MIN_TERMS = 4;
+const SCHEDULE_MIN_DATES = 3;
 const SCHEDULE_HORIZON_DAYS = 14;
-const CIRCLES_MIN_CIRCLES = 2;
 const EXCHANGE_MIN_ITEMS = 4;
+const EXCHANGE_MAX_DATES = 1;
 
-function termsWithinHorizon(data: OrganizerPageData): number {
+function datesWithinHorizon(data: OrganizerPageData): number {
   const horizon = dayjs().add(SCHEDULE_HORIZON_DAYS, "day");
-  return data.directory?.upcoming_terms.filter((term) => dayjs(term.occurs_on).isBefore(horizon)).length ?? 0;
+  return data.directory?.upcoming_dates.filter((date) => dayjs(date.starts_at).isBefore(horizon)).length ?? 0;
 }
 
-function exchangeItemCount(data: OrganizerPageData): number {
-  const counts = data.directory?.exchange.counts;
-  return counts ? exchangeTotal(counts) : 0;
-}
-
-/** Public organization page layouts. Keys must stay in sync with
+/** Public organization page layouts: a balanced default, a link card, one
+ * for organizers who mostly run terms and events, and one for organizers
+ * with many items and few meetings. Keys must stay in sync with
  * PAGE_LAYOUT_KEYS in src/backend/app/organizations/page_layouts.py
  * (enforced by organizerKeyParity.test.ts). */
 export const LAYOUT_REGISTRY: Record<string, PageLayoutDefinition> = {
   CLASSIC: {
     key: "CLASSIC",
     label: "Klasyczny",
-    description: "Profil z opisem i terminami.",
+    description: "Opis, najbliższe spotkania i rzeczy.",
     thumbnail: { src: classicThumbnail, alt: "Szkic układu Klasyczny" },
     frame: "column",
     blocks: [
@@ -40,63 +35,10 @@ export const LAYOUT_REGISTRY: Record<string, PageLayoutDefinition> = {
       { block: "stats" },
       { block: "about" },
       { block: "gallery", variant: "grid" },
-      { block: "upcoming-terms", variant: "list", primary: true },
+      { block: "upcoming-dates", variant: "list", primary: true },
       { block: "exchange-counts", variant: "tiles3" },
       { block: "footer" },
     ],
-  },
-  SCHEDULE: {
-    key: "SCHEDULE",
-    label: "Plan zajęć",
-    description: "Gdy masz wiele zajęć w tygodniu.",
-    thumbnail: { src: scheduleThumbnail, alt: "Szkic układu Plan zajęć" },
-    frame: "column",
-    blocks: [
-      { block: "hero", variant: "compact" },
-      { block: "next-term-cta", variant: "card" },
-      { block: "agenda", variant: "by-day", primary: true },
-      { block: "about" },
-      { block: "gallery", variant: "grid" },
-      { block: "exchange-counts", variant: "tiles3" },
-      { block: "footer" },
-    ],
-    recommendWhen: (data) => termsWithinHorizon(data) >= SCHEDULE_MIN_TERMS,
-  },
-  CIRCLES: {
-    key: "CIRCLES",
-    label: "Grupy",
-    description: "Twoje grupy na jednej stronie.",
-    thumbnail: { src: circlesThumbnail, alt: "Szkic układu Grupy" },
-    frame: "column",
-    blocks: [
-      { block: "hero", variant: "cover" },
-      { block: "share" },
-      { block: "circles-grid", variant: "cards", primary: true, when: { minCircles: 2 } },
-      { block: "circles-grid", variant: "featured", primary: true, when: { maxCircles: 1 } },
-      { block: "about" },
-      { block: "gallery", variant: "grid" },
-      { block: "exchange-counts", variant: "tiles3" },
-      { block: "footer" },
-    ],
-    recommendWhen: (data) => (data.directory?.circles.length ?? 0) >= CIRCLES_MIN_CIRCLES,
-  },
-  EXCHANGE: {
-    key: "EXCHANGE",
-    label: "Wymiana",
-    description: "Tablica rzeczy do oddania i wymiany.",
-    thumbnail: { src: exchangeThumbnail, alt: "Szkic układu Wymiana" },
-    frame: "column",
-    blocks: [
-      { block: "hero", variant: "compact" },
-      { block: "exchange-board", variant: "grid2", primary: true },
-      { block: "recent-items" },
-      { block: "needed-items", variant: "list" },
-      { block: "upcoming-terms", variant: "compact" },
-      { block: "about" },
-      { block: "gallery", variant: "grid" },
-      { block: "footer" },
-    ],
-    recommendWhen: (data) => exchangeItemCount(data) >= EXCHANGE_MIN_ITEMS,
   },
   LINKS: {
     key: "LINKS",
@@ -111,7 +53,48 @@ export const LAYOUT_REGISTRY: Record<string, PageLayoutDefinition> = {
       { block: "gallery", variant: "on-primary" },
       { block: "footer", variant: "on-primary" },
     ],
-    recommendWhen: (data) => data.directoryStatus === "unavailable" || data.directory?.circles.length === 0,
+    recommendWhen: (data) =>
+      data.directoryStatus === "unavailable" ||
+      (data.directory?.upcoming_dates.length === 0 && data.directory.recent_items.length === 0),
+  },
+  SCHEDULE: {
+    key: "SCHEDULE",
+    label: "Spotkania",
+    description: "Gdy często organizujesz zajęcia i wydarzenia.",
+    thumbnail: { src: scheduleThumbnail, alt: "Szkic układu Spotkania" },
+    frame: "column",
+    blocks: [
+      { block: "hero", variant: "compact" },
+      { block: "next-date-cta", variant: "card", primary: true },
+      { block: "upcoming-dates", variant: "after-next" },
+      { block: "circles-grid", variant: "cards", when: { minCircles: 2 } },
+      { block: "circles-grid", variant: "featured", when: { maxCircles: 1 } },
+      { block: "about" },
+      { block: "gallery", variant: "grid" },
+      { block: "exchange-counts", variant: "tiles3" },
+      { block: "footer" },
+    ],
+    recommendWhen: (data) => datesWithinHorizon(data) >= SCHEDULE_MIN_DATES,
+  },
+  EXCHANGE: {
+    key: "EXCHANGE",
+    label: "Rzeczy",
+    description: "Gdy masz dużo rzeczy, a spotkań mało.",
+    thumbnail: { src: exchangeThumbnail, alt: "Szkic układu Rzeczy" },
+    frame: "column",
+    blocks: [
+      { block: "hero", variant: "compact" },
+      { block: "recent-items", variant: "featured", primary: true },
+      { block: "exchange-board", variant: "grid2" },
+      { block: "needed-items", variant: "list" },
+      { block: "upcoming-dates", variant: "compact" },
+      { block: "about" },
+      { block: "gallery", variant: "grid" },
+      { block: "footer" },
+    ],
+    recommendWhen: (data) =>
+      (data.directory?.recent_items.length ?? 0) >= EXCHANGE_MIN_ITEMS &&
+      (data.directory?.upcoming_dates.length ?? 0) <= EXCHANGE_MAX_DATES,
   },
 };
 

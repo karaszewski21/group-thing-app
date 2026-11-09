@@ -2,7 +2,6 @@ import { Link } from "../../../routing/navigation";
 import dayjs from "../../../utils/dayjs";
 import type { BlockProps } from "../layouts/types";
 import { exchangeTotal, organizerTermPath } from "../organizerHelpers";
-import { nearestTerm } from "./nearestTerm";
 import { ShareButton } from "./ShareButton";
 
 // The stack sits on the primary-colored LINKS page: the first action is a
@@ -18,31 +17,32 @@ interface DirectoryLink {
   to: string;
 }
 
-/** LINKS button stack: the nearest term, the full agenda and the exchange,
- * then Share. It reads the directory itself, so it shows its own loading bars
- * and falls back to Share alone when the directory is unavailable. */
+/** LINKS button stack: the nearest term or event, all meetings, the owner's
+ * items (else the exchange of the next term), then Share. It reads the
+ * directory itself, so it shows its own loading bars and falls back to Share
+ * alone when the directory is unavailable. */
 export function LinkStackBlock({ data }: BlockProps) {
   const { slug, name } = data.organization;
   const directory = data.directory;
   const links: DirectoryLink[] = [];
 
   if (directory) {
-    const nearest = nearestTerm(directory);
+    const [nearest] = directory.upcoming_dates;
     if (nearest) {
       links.push({
-        label: `Najbliższe zajęcia · ${dayjs(nearest.occurs_on).format("dd D.MM HH:mm")}`,
-        to: organizerTermPath(slug, nearest.group_id, nearest.term_id),
+        label: `${nearest.kind === "EVENT" ? "Najbliższe wydarzenie" : "Najbliższe zajęcia"} · ${dayjs(nearest.starts_at).format("dd D.MM HH:mm")}`,
+        to: nearest.path,
       });
+      links.push({ label: "Wszystkie spotkania", to: `/${slug}/meetings` });
     }
-    const termCount = directory.stats.upcoming_term_count;
-    if (termCount > 0) links.push({ label: `Wszystkie terminy (${termCount})`, to: `/${slug}/terms` });
     const { counts, items } = directory.exchange;
     const itemCount = exchangeTotal(counts);
-    const exchangeTerm = items[0] ?? nearest;
-    if (itemCount > 0 && exchangeTerm) {
+    if (directory.recent_items.length > 0) {
+      links.push({ label: "Rzeczy do oddania i wymiany", to: `/${slug}/items` });
+    } else if (itemCount > 0 && items[0]) {
       links.push({
         label: `Wymiana rzeczy (${itemCount})`,
-        to: organizerTermPath(slug, exchangeTerm.group_id, exchangeTerm.term_id),
+        to: organizerTermPath(slug, items[0].group_id, items[0].term_id),
       });
     }
   }

@@ -32,6 +32,7 @@ __all__ = [
     "author_slugs",
     "eligible_event_ids",
     "get_event",
+    "get_events_by_ids",
     "has_authored_event",
     "is_event_eligible",
     "list_events_starting_between",
@@ -49,6 +50,15 @@ class UpcomingEvent:
 
 async def get_event(db: AsyncSession, event_id: uuid.UUID) -> Event | None:
     return await db.get(Event, event_id)
+
+
+async def get_events_by_ids(
+    db: AsyncSession, event_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, Event]:
+    if not event_ids:
+        return {}
+    result = await db.execute(select(Event).where(Event.id.in_(set(event_ids))))
+    return {cast(uuid.UUID, event.id): event for event in result.scalars().all()}
 
 
 async def lock_event_for_share(db: AsyncSession, event_id: uuid.UUID) -> Event | None:

@@ -11,7 +11,7 @@ import { viewPath, type View } from "../routing/paths";
 /* ------------------------------------------------------------------ */
 
 /** Sub-pages of "Konto": they show a back link to it. */
-export const ACCOUNT_SUBVIEWS: readonly View[] = ["profile", "settings", "places", "family", "wanted", "organization"];
+export const ACCOUNT_SUBVIEWS: readonly View[] = ["profile", "settings", "places", "family", "wanted", "items/reserved", "organization"];
 
 /** `/places/new` opened from a form's place picker: after saving it goes
  * back to `returnTo` and hands the new place to the picker named `picker`

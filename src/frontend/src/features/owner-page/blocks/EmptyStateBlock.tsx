@@ -3,12 +3,11 @@ import { TermsIcon } from "../../../components/shared/Icons";
 import { ShareButton } from "./ShareButton";
 
 const TITLES: Record<string, string> = {
-  CLASSIC: "Brak zaplanowanych zajęć",
-  SCHEDULE: "Brak zaplanowanych zajęć",
-  CIRCLES: "Brak grup do pokazania",
+  CLASSIC: "Brak zaplanowanych spotkań",
+  SCHEDULE: "Brak zaplanowanych spotkań",
   EXCHANGE: "Na razie nic tu nie ma",
 };
-const FALLBACK_TITLE = "Brak zaplanowanych zajęć";
+const FALLBACK_TITLE = "Brak zaplanowanych spotkań";
 const UNAVAILABLE_TITLE = "Brak informacji do pokazania";
 
 interface EmptyStateBlockProps {
@@ -36,8 +35,8 @@ export function EmptyStateBlock({ layoutKey, organization, unavailable = false }
               Jak to działa?
             </summary>
             <p className="mt-1">
-              Rodzice z grup organizatora wystawiają tu rzeczy do oddania lub zamiany na najbliższe
-              zajęcia. Zapisz się na termin, a rzeczy zarezerwujesz na jego stronie.
+              Organizator wystawia tu rzeczy do oddania lub zamiany. Otwórz rzecz, by ją
+              zarezerwować i umówić się na odbiór.
             </p>
           </details>
         )}

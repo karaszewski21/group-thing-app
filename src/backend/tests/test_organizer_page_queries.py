@@ -22,9 +22,11 @@ from tests.test_organizer_page import (
 )
 from tests.test_term_item_listings import _auth, _register, _rsvp
 
-# 10 directory statements plus the owner's recent items select. The owner's
-# thumbnails and nearest date run only when that select returns items.
-MAIN_ENDPOINT_BUDGET = 11
+# 10 directory statements, the owner's recent items select and the 6 of the
+# owner's upcoming dates (`list_owner_dates`: terms, events, their places and
+# the organizer slug lookups). The owner's thumbnails run only when the recent
+# items select returns items.
+MAIN_ENDPOINT_BUDGET = 17
 # A logged-in viewer adds the viewer's profile lookup and the reserver names
 # (one lookup per id kind) of the exchange items.
 LOGGED_IN_MAIN_ENDPOINT_BUDGET = MAIN_ENDPOINT_BUDGET + 3

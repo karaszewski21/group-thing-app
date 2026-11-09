@@ -42,6 +42,29 @@ export function getReservation(id: string): Promise<ReservationDetailResponse> {
   return api.get(`/reservations/${id}`);
 }
 
+/** One row of `GET /reservations/mine`: an item the caller is about to
+ * receive. `PROPOSED` is their swap offer still awaiting the owner
+ * (`reservation_id` null). `occurs_at` is the term's or event's naive
+ * Warsaw time, null for a personal pickup. */
+export interface MyReservationResponse {
+  item_id: string;
+  product_name: string;
+  thumb_url: string | null;
+  item_path: string;
+  owner_name: string;
+  mode: "GIFT" | "SWAP";
+  status: "PROPOSED" | "PENDING" | "CONFIRMED";
+  reservation_id: string | null;
+  context_kind: "TERM" | "EVENT" | "PERSONAL";
+  context_name: string | null;
+  occurs_at: string | null;
+  reserved_at: string;
+}
+
+export function getMyReservations(): Promise<MyReservationResponse[]> {
+  return api.get("/reservations/mine");
+}
+
 /** `already_resolved` is the explicit discriminator the global pending-
  * actions modal uses to render "the other party already resolved this"
  * distinctly from a generic error — it is only ever `true` when this

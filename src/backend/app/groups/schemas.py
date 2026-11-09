@@ -443,6 +443,29 @@ class OwnerItemCardResponse(BaseModel):
     reservation: ReservedByResponse | None
 
 
+class MyReservationResponse(BaseModel):
+    """One row of `GET /api/reservations/mine`: an item the caller is about
+    to receive. `PROPOSED` is the caller's swap offer still awaiting the
+    owner (`reservation_id` `None`); `PENDING`/`CONFIRMED` is their open
+    reservation."""
+
+    item_id: uuid.UUID
+    product_name: str
+    thumb_url: str | None
+    item_path: str
+    owner_name: str
+    mode: ExchangeMode
+    status: Literal["PROPOSED", "PENDING", "CONFIRMED"]
+    reservation_id: uuid.UUID | None
+    context_kind: Literal["TERM", "EVENT", "PERSONAL"]
+    # The term's circle name or the event's name; `None` for a personal pickup.
+    context_name: str | None
+    # Naive Warsaw wall clock (`Term.occurs_on` / `Event.starts_at`).
+    occurs_at: datetime | None
+    # Naive UTC, when the reservation or the proposal was made.
+    reserved_at: datetime
+
+
 class OwnerNearestDateResponse(BaseModel):
     kind: Literal["TERM", "EVENT"]
     id: uuid.UUID
@@ -460,8 +483,10 @@ class OrganizerPageResponse(BaseModel):
     exchange: OrganizerExchangeResponse
     needed_items: list[OrganizerNeededItemResponse]
     stats: OrganizerStatsResponse
+    # Upcoming terms and events of the owner, earliest first (`list_owner_dates`).
+    upcoming_dates: list[OwnerNearestDateResponse]
     recent_items: list[OwnerItemCardResponse]
-    # Computed only when `recent_items` is non-empty.
+    # The first of `upcoming_dates`, only when `recent_items` is non-empty.
     owner_nearest: OwnerNearestDateResponse | None
 
 

@@ -1,7 +1,8 @@
 """The public organizer directory behind `/:slug`: the owner's PUBLIC
 circles, their upcoming terms, the exchange items and needed items of each
-circle's next term, aggregate stats, and the owner's newest listed items
-with their nearest public date (`owner_items`), shown even with no circles.
+circle's next term, aggregate stats, the owner's upcoming public dates
+(terms and events, `upcoming_dates`) and newest listed items with their
+nearest public date (`owner_items`), the last two shown even with no circles.
 Reserved items stay listed with their badge, whose reserver name only a
 logged-in viewer gets, so the router never lets a shared cache keep a
 personalised response.
@@ -50,7 +51,8 @@ from .reserved_by import load_reserved_by_names, resolve_viewer_party_id
 UPCOMING_WINDOW = timedelta(days=60)
 EXCHANGE_ITEMS_LIMIT = 12
 NEEDED_ITEMS_LIMIT = 5
-RECENT_ITEMS_LIMIT = 4
+RECENT_ITEMS_LIMIT = 6
+UPCOMING_DATES_LIMIT = 6
 # Below this, a family count could single out the families in a small group.
 MIN_REPORTED_FAMILY_COUNT = 3
 
@@ -67,7 +69,9 @@ def _empty_exchange() -> OrganizerExchangeResponse:
 
 
 def _empty_page(
-    recent_items: list[OwnerItemCardResponse], owner_nearest: OwnerNearestDateResponse | None
+    upcoming_dates: list[OwnerNearestDateResponse],
+    recent_items: list[OwnerItemCardResponse],
+    owner_nearest: OwnerNearestDateResponse | None,
 ) -> OrganizerPageResponse:
     return OrganizerPageResponse(
         circles=[],
@@ -75,6 +79,7 @@ def _empty_page(
         exchange=_empty_exchange(),
         needed_items=[],
         stats=OrganizerStatsResponse(circle_count=0, upcoming_term_count=0, family_count=None),
+        upcoming_dates=upcoming_dates,
         recent_items=recent_items,
         owner_nearest=owner_nearest,
     )
@@ -95,13 +100,12 @@ async def get_organizer_page(
     recent_items = await owner_items.list_owner_recent_items(
         db, owner_party_id, RECENT_ITEMS_LIMIT, storage, viewer_party_id
     )
-    owner_nearest = (
-        await owner_items.get_owner_nearest(db, owner_party_id) if recent_items else None
-    )
+    upcoming_dates = await owner_items.list_owner_dates(db, owner_party_id, UPCOMING_DATES_LIMIT)
+    owner_nearest = upcoming_dates[0] if recent_items and upcoming_dates else None
 
     circle_rows = await repository.list_owner_public_circles(db, owner_party_id, now, window_end)
     if not circle_rows:
-        return _empty_page(recent_items, owner_nearest)
+        return _empty_page(upcoming_dates, recent_items, owner_nearest)
     group_ids = [row[0] for row in circle_rows]
     next_term_ids = [row[3] for row in circle_rows if row[3] is not None]
 
@@ -171,6 +175,7 @@ async def get_organizer_page(
             upcoming_term_count=sum(circle.upcoming_term_count for circle in circles),
             family_count=family_count if family_count >= MIN_REPORTED_FAMILY_COUNT else None,
         ),
+        upcoming_dates=upcoming_dates,
         recent_items=recent_items,
         owner_nearest=owner_nearest,
     )

@@ -11,8 +11,9 @@ export function isRecentItemsEmpty(data: OrganizerPageData): boolean {
   return (data.directory?.recent_items.length ?? 0) === 0;
 }
 
-/** The owner's newest listed items, each tile opening its product page. */
-export function RecentItemsBlock({ data }: BlockProps) {
+/** The owner's newest listed items, each tile opening its product page.
+ * `featured`: headed as the page's main offer, for a layout built around items. */
+export function RecentItemsBlock({ data, variant }: BlockProps) {
   const headingId = useId();
   const directory = data.directory;
   if (!directory || directory.recent_items.length === 0) return null;
@@ -21,7 +22,7 @@ export function RecentItemsBlock({ data }: BlockProps) {
   return (
     <section aria-labelledby={headingId} className="px-6 pt-6">
       <h2 id={headingId} className="mb-3 font-serif text-lg font-semibold text-ink">
-        Ostatnio dodane rzeczy
+        {variant === "featured" ? "Rzeczy do oddania i wymiany" : "Ostatnio dodane rzeczy"}
       </h2>
       <ul className="grid grid-cols-2 gap-2.5">
         {directory.recent_items.map((item) => (
@@ -41,7 +42,7 @@ export function RecentItemsBlock({ data }: BlockProps) {
         to={`/${slug}/items`}
         className={`mt-1 flex min-h-[44px] items-center justify-center text-[13px] font-bold text-primary-fg ${FOCUS_RING}`}
       >
-        Zobacz więcej →
+        {variant === "featured" ? "Zobacz wszystkie rzeczy →" : "Zobacz więcej →"}
       </Link>
     </section>
   );

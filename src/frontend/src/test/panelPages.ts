@@ -18,6 +18,7 @@ import GroupsNewPage from "../app/(site)/(panel)/groups/new/page";
 import HomePage from "../app/(site)/(panel)/home/page";
 import ItemsPage from "../app/(site)/(panel)/items/page";
 import ItemsIdEditPage from "../app/(site)/(panel)/items/[id]/edit/page";
+import ItemsReservedPage from "../app/(site)/(panel)/items/reserved/page";
 import MeetingsPage from "../app/(site)/(panel)/meetings/page";
 import MessagesPage from "../app/(site)/(panel)/messages/page";
 import MessagesConversationIdPage from "../app/(site)/(panel)/messages/[conversationId]/page";
@@ -57,6 +58,7 @@ export const PANEL_PAGES: Record<string, ComponentType> = {
   "/home": HomePage,
   "/items": ItemsPage,
   "/items/:id/edit": ItemsIdEditPage,
+  "/items/reserved": ItemsReservedPage,
   "/meetings": MeetingsPage,
   "/messages": MessagesPage,
   "/messages/:conversationId": MessagesConversationIdPage,

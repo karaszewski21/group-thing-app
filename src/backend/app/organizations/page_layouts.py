@@ -1,16 +1,14 @@
 """Allowlist of public organization page layouts (`Organization.page_layout`).
 
 Keep `PAGE_LAYOUT_KEYS` in sync with
-`src/frontend/src/pages/organizer/layouts/registry.ts`; parity is enforced by
+`src/frontend/src/features/owner-page/layouts/registry.ts`; parity is enforced by
 `organizerKeyParity.test.ts`, which parses the literal below by regex — keep
 it a single `frozenset({...})` expression with double-quoted keys.
 """
 
 from __future__ import annotations
 
-PAGE_LAYOUT_KEYS: frozenset[str] = frozenset(
-    {"CLASSIC", "CIRCLES", "EXCHANGE", "LINKS", "SCHEDULE"}
-)
+PAGE_LAYOUT_KEYS: frozenset[str] = frozenset({"CLASSIC", "EXCHANGE", "LINKS", "SCHEDULE"})
 
 FALLBACK_PAGE_LAYOUT = "CLASSIC"
 

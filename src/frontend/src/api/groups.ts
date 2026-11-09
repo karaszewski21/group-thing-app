@@ -360,9 +360,11 @@ export interface OrganizerPageResponse {
   };
   needed_items: OrganizerNeededItem[];
   stats: OrganizerStats;
-  /** The Organization owner's newest listed items (up to 4). */
+  /** The owner's upcoming public terms and events, earliest first (up to 6). */
+  upcoming_dates: OwnerNearestDate[];
+  /** The Organization owner's newest listed items (up to 6). */
   recent_items: OwnerItemCard[];
-  /** The owner's next public term or event; computed only when `recent_items` is non-empty. */
+  /** The first of `upcoming_dates`, only when `recent_items` is non-empty. */
   owner_nearest: OwnerNearestDate | null;
 }
 

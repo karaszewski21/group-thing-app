@@ -1,7 +1,6 @@
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { renderWithRoute } from "./renderWithRoute";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as groupsApi from "../api/groups";
 import type { OrganizerCircle, OrganizerPageResponse, OrganizerTerm } from "../api/groups";
 import type { OwnerItemCard, OwnerNearestDate } from "../api/ownerItems";
 import type { PublicOrganizationResponse } from "../api/organizations";
@@ -10,11 +9,6 @@ import { FALLBACK_LAYOUT, isRecommended, LAYOUT_REGISTRY, resolveLayout } from "
 import type { BlockSlot, OrganizerPageData, RenderMode } from "../features/owner-page/layouts/types";
 import dayjs from "../utils/dayjs";
 import { createQueryWrapper } from "./queryClient";
-
-vi.mock("../api/groups", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../api/groups")>()),
-  getOrganizerTerms: vi.fn(),
-}));
 
 const SLUG = "rodzinny-grajdolek";
 
@@ -41,6 +35,7 @@ function pageData(overrides: Partial<OrganizerPageResponse> = {}): OrganizerPage
       exchange: { counts: { GIFT: 0, SWAP: 0, RESERVED: 0 }, items: [] },
       needed_items: [],
       stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
+      upcoming_dates: [],
       recent_items: [],
       owner_nearest: null,
       ...overrides,
@@ -70,6 +65,19 @@ function term(id: string, occursOn: string): OrganizerTerm {
     occurs_on: occursOn,
     description: null,
     attendee_count: 8,
+  };
+}
+
+function meeting(id: string, startsAt: string, overrides: Partial<OwnerNearestDate> = {}): OwnerNearestDate {
+  return {
+    kind: "TERM",
+    id,
+    name: "Orliki 2017",
+    starts_at: startsAt,
+    location_name: null,
+    attendee_count: 8,
+    path: `/${SLUG}/group/g1/term/${id}`,
+    ...overrides,
   };
 }
 
@@ -107,7 +115,6 @@ function slotMatches(slot: BlockSlot, circles: number): boolean {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(groupsApi.getOrganizerTerms).mockReturnValue(new Promise(() => {}));
 });
 
 afterEach(() => {
@@ -165,20 +172,14 @@ describe("LayoutRenderer", () => {
     expect(resolveLayout("SCHEDULE").key).toBe("SCHEDULE");
   });
 
-  it("registers five layouts with their labels, thumbnail alts and compositions", () => {
+  it("registers four layouts with their labels, thumbnail alts and compositions", () => {
     const layouts = Object.entries(LAYOUT_REGISTRY);
-    expect(layouts.map(([key]) => key)).toEqual(["CLASSIC", "SCHEDULE", "CIRCLES", "EXCHANGE", "LINKS"]);
+    expect(layouts.map(([key]) => key)).toEqual(["CLASSIC", "LINKS", "SCHEDULE", "EXCHANGE"]);
     for (const [key, layout] of layouts) {
       expect(layout.key).toBe(key);
       expect(layout.thumbnail.alt).toBe(`Szkic układu ${layout.label}`);
     }
-    expect(layouts.map(([, layout]) => layout.label)).toEqual([
-      "Klasyczny",
-      "Plan zajęć",
-      "Grupy",
-      "Wymiana",
-      "Wizytówka",
-    ]);
+    expect(layouts.map(([, layout]) => layout.label)).toEqual(["Klasyczny", "Wizytówka", "Spotkania", "Rzeczy"]);
 
     const composition = (key: string) =>
       LAYOUT_REGISTRY[key].blocks.map(
@@ -190,37 +191,8 @@ describe("LayoutRenderer", () => {
       "stats",
       "about",
       "gallery:grid",
-      "upcoming-terms:list*",
+      "upcoming-dates:list*",
       "exchange-counts:tiles3",
-      "footer",
-    ]);
-    expect(composition("SCHEDULE")).toEqual([
-      "hero:compact",
-      "next-term-cta:card",
-      "agenda:by-day*",
-      "about",
-      "gallery:grid",
-      "exchange-counts:tiles3",
-      "footer",
-    ]);
-    expect(composition("CIRCLES")).toEqual([
-      "hero:cover",
-      "share",
-      "circles-grid:cards*",
-      "circles-grid:featured*",
-      "about",
-      "gallery:grid",
-      "exchange-counts:tiles3",
-      "footer",
-    ]);
-    expect(composition("EXCHANGE")).toEqual([
-      "hero:compact",
-      "exchange-board:grid2*",
-      "recent-items",
-      "needed-items:list",
-      "upcoming-terms:compact",
-      "about",
-      "gallery:grid",
       "footer",
     ]);
     expect(composition("LINKS")).toEqual([
@@ -230,9 +202,30 @@ describe("LayoutRenderer", () => {
       "gallery:on-primary",
       "footer:on-primary",
     ]);
+    expect(composition("SCHEDULE")).toEqual([
+      "hero:compact",
+      "next-date-cta:card*",
+      "upcoming-dates:after-next",
+      "circles-grid:cards",
+      "circles-grid:featured",
+      "about",
+      "gallery:grid",
+      "exchange-counts:tiles3",
+      "footer",
+    ]);
+    expect(composition("EXCHANGE")).toEqual([
+      "hero:compact",
+      "recent-items:featured*",
+      "exchange-board:grid2",
+      "needed-items:list",
+      "upcoming-dates:compact",
+      "about",
+      "gallery:grid",
+      "footer",
+    ]);
   });
 
-  it("keeps exactly one active primary slot for 0, 1 and 2 circles, with CIRCLES featured at 1 and cards at 2", () => {
+  it("keeps exactly one active primary slot for 0, 1 and 2 circles, with SCHEDULE groups featured at 1 and cards at 2", () => {
     for (const circles of [0, 1, 2]) {
       for (const layout of Object.values(LAYOUT_REGISTRY)) {
         const primaries = layout.blocks.filter((slot) => slot.primary && slotMatches(slot, circles));
@@ -240,21 +233,21 @@ describe("LayoutRenderer", () => {
       }
     }
 
-    renderLayout("CIRCLES", pageData({ circles: [circle("g1", "Orliki 2017")] }));
+    renderLayout("SCHEDULE", pageData({ circles: [circle("g1", "Orliki 2017")] }));
     expect(screen.getByRole("heading", { name: "Nasza grupa" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Nasze grupy" })).not.toBeInTheDocument();
     cleanup();
 
-    renderLayout("CIRCLES", pageData({ circles: [circle("g1", "Orliki 2017"), circle("g2", "Młodziki 2015")] }));
+    renderLayout("SCHEDULE", pageData({ circles: [circle("g1", "Orliki 2017"), circle("g2", "Młodziki 2015")] }));
     expect(screen.getByRole("heading", { name: "Nasze grupy" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Nasza grupa" })).not.toBeInTheDocument();
   });
 
   it("renders one skeleton per directory block id while the directory loads", () => {
-    const { container } = renderLayout("CIRCLES", loading);
+    const { container } = renderLayout("SCHEDULE", loading);
 
-    // circles-grid (one for both `when` variants) and exchange-counts.
-    expect(container.querySelectorAll('[aria-busy="true"]')).toHaveLength(2);
+    // next-date-cta, upcoming-dates, circles-grid (one for both `when` variants) and exchange-counts.
+    expect(container.querySelectorAll('[aria-busy="true"]')).toHaveLength(4);
     expect(screen.getByRole("heading", { level: 1, name: "Rodzinny Grajdołek" })).toBeInTheDocument();
     expect(screen.getByText("Strona utworzona w Krąg grupy")).toBeInTheDocument();
   });
@@ -274,10 +267,10 @@ describe("LayoutRenderer", () => {
     const ghosts = Array.from(owner.container.querySelectorAll("[data-ghost]"), (ghost) =>
       ghost.getAttribute("data-ghost"),
     );
-    expect(ghosts).toEqual(["next-term-cta", "agenda", "about", "gallery", "exchange-counts"]);
+    expect(ghosts).toEqual(["next-date-cta", "upcoming-dates", "circles-grid", "about", "gallery", "exchange-counts"]);
     expect(
       screen.getAllByText("Nie udało się wczytać danych. Odwiedzający nie widzą tej sekcji."),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
     // Only the about and gallery ghosts, which do not depend on the directory, keep their CTAs.
     expect(screen.getAllByRole("link", { name: /Dodaj/ }).map((link) => link.textContent)).toEqual(["Dodaj opis →", "Dodaj zdjęcia →"]);
     expect(screen.queryByText("Brak informacji do pokazania")).not.toBeInTheDocument();
@@ -286,9 +279,9 @@ describe("LayoutRenderer", () => {
 
   it("gives an empty primary the layout's empty state for visitors and the CTA ghost for the owner", () => {
     const cases = [
-      { key: "SCHEDULE", title: "Brak zaplanowanych zajęć", block: "agenda", cta: "Dodaj termin →" },
-      { key: "CIRCLES", title: "Brak grup do pokazania", block: "circles-grid", cta: "Dodaj grupę →" },
-      { key: "EXCHANGE", title: "Na razie nic tu nie ma", block: "exchange-board", cta: "Dodaj rzecz do wymiany →" },
+      { key: "CLASSIC", title: "Brak zaplanowanych spotkań", block: "upcoming-dates", cta: "Dodaj wydarzenie →" },
+      { key: "SCHEDULE", title: "Brak zaplanowanych spotkań", block: "next-date-cta", cta: "Dodaj termin →" },
+      { key: "EXCHANGE", title: "Na razie nic tu nie ma", block: "recent-items", cta: "Dodaj rzecz do wymiany →" },
     ];
     for (const { key, title, block, cta } of cases) {
       renderLayout(key, data);
@@ -310,33 +303,25 @@ describe("LayoutRenderer", () => {
       Object.values(LAYOUT_REGISTRY)
         .filter((layout) => isRecommended(layout, pageState))
         .map((layout) => layout.key);
-    const soon = [1, 3, 6, 13].map((days, index) => term(`t${index}`, inDays(days)));
-    const busy = pageData({
-      circles: [circle("g1", "Orliki 2017"), circle("g2", "Młodziki 2015")],
-      upcoming_terms: soon,
-      exchange: { counts: { GIFT: 2, SWAP: 2, RESERVED: 0 }, items: [] },
-    });
+    const soon = [1, 3, 6].map((days, index) => meeting(`t${index}`, inDays(days)));
+    const items = ["i1", "i2", "i3", "i4"].map((id) => recentItem(id, `Rzecz ${id}`, "GIFT"));
 
     expect(recommended(data)).toEqual(["LINKS"]);
     expect(recommended(unavailable)).toEqual(["LINKS"]);
     expect(recommended(loading)).toEqual([]);
-    expect(recommended(busy)).toEqual(["SCHEDULE", "CIRCLES", "EXCHANGE"]);
+    expect(recommended(pageData({ upcoming_dates: soon }))).toEqual(["SCHEDULE"]);
+    expect(recommended(pageData({ recent_items: items, upcoming_dates: soon.slice(0, 1) }))).toEqual(["EXCHANGE"]);
     expect(
-      recommended(
-        pageData({
-          circles: [circle("g1", "Orliki 2017")],
-          upcoming_terms: [...soon.slice(0, 3), term("late", inDays(20))],
-          exchange: { counts: { GIFT: 2, SWAP: 1, RESERVED: 0 }, items: [] },
-        }),
-      ),
+      recommended(pageData({ upcoming_dates: [...soon.slice(0, 2), meeting("late", inDays(20))], recent_items: RECENT })),
     ).toEqual([]);
   });
 
   it("renders the LINKS directory buttons per state and the SCHEDULE compact hero", () => {
-    const nearest = term("t1", "2026-10-14T17:00:00");
+    const nearest = meeting("t1", "2026-10-14T17:00:00");
     const ready = pageData({
       circles: [circle("g1", "Orliki 2017")],
-      upcoming_terms: [nearest],
+      upcoming_terms: [term("t1", "2026-10-14T17:00:00")],
+      upcoming_dates: [nearest, NEAREST_EVENT],
       exchange: {
         counts: { GIFT: 4, SWAP: 4, RESERVED: 0 },
         items: [
@@ -359,16 +344,27 @@ describe("LayoutRenderer", () => {
     const { container } = renderLayout("LINKS", ready);
     const actions = Array.from(container.querySelectorAll("a, button"));
     expect(actions.map((action) => action.textContent)).toEqual([
-      `Najbliższe zajęcia · ${dayjs(nearest.occurs_on).format("dd D.MM HH:mm")}`,
-      "Wszystkie terminy (9)",
+      `Najbliższe zajęcia · ${dayjs(nearest.starts_at).format("dd D.MM HH:mm")}`,
+      "Wszystkie spotkania",
       "Wymiana rzeczy (8)",
       "Udostępnij stronę",
     ]);
     expect(actions[0]).toHaveAttribute("href", `/${SLUG}/group/g1/term/t1`);
     expect(actions[0]).toHaveClass("bg-paper");
-    expect(actions[1]).toHaveAttribute("href", `/${SLUG}/terms`);
+    expect(actions[1]).toHaveAttribute("href", `/${SLUG}/meetings`);
     expect(actions[2]).toHaveAttribute("href", `/${SLUG}/group/g2/term/t9`);
     expect(actions[3]).not.toHaveClass("bg-paper");
+    cleanup();
+
+    const withItems = renderLayout("LINKS", pageData({ upcoming_dates: [NEAREST_EVENT], recent_items: RECENT }));
+    const itemActions = Array.from(withItems.container.querySelectorAll("a"));
+    expect(itemActions.map((action) => action.textContent)).toEqual([
+      `Najbliższe wydarzenie · ${dayjs(NEAREST_EVENT.starts_at).format("dd D.MM HH:mm")}`,
+      "Wszystkie spotkania",
+      "Rzeczy do oddania i wymiany",
+    ]);
+    expect(itemActions[0]).toHaveAttribute("href", `/${SLUG}/event/e1`);
+    expect(itemActions[2]).toHaveAttribute("href", `/${SLUG}/items`);
     cleanup();
 
     const whileLoading = renderLayout("LINKS", loading);
@@ -389,37 +385,38 @@ describe("LayoutRenderer", () => {
     expect(within(hero).getByRole("button", { name: "Udostępnij" })).toHaveClass("min-h-[44px]");
   });
 
-  it("places recent items right after the exchange board in EXCHANGE only", () => {
+  it("features recent items first in EXCHANGE only", () => {
     for (const layout of Object.values(LAYOUT_REGISTRY)) {
       const blocks = layout.blocks.map((slot) => slot.block);
       if (layout.key !== "EXCHANGE") {
         expect(blocks, layout.key).not.toContain("recent-items");
         continue;
       }
-      const index = blocks.indexOf("recent-items");
-      expect(blocks[index - 1]).toBe("exchange-board");
-      expect(blocks[index + 1]).toBe("needed-items");
+      expect(blocks.slice(0, 3)).toEqual(["hero", "recent-items", "exchange-board"]);
     }
 
     renderLayout("CLASSIC", pageData({ recent_items: RECENT }));
-    expect(screen.queryByRole("heading", { name: "Ostatnio dodane rzeczy" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Rzeczy do oddania i wymiany" })).not.toBeInTheDocument();
   });
 
   it("shows recent item tiles with intent pills linking to the plain product page, even with a nearest date", () => {
     renderLayout("EXCHANGE", pageData({ recent_items: RECENT, owner_nearest: NEAREST_EVENT }));
 
-    const block = screen.getByRole("region", { name: "Ostatnio dodane rzeczy" });
+    const block = screen.getByRole("region", { name: "Rzeczy do oddania i wymiany" });
     expect(within(block).getAllByRole("listitem")).toHaveLength(2);
     expect(within(block).getByRole("link", { name: "Kurtka" })).toHaveAttribute("href", `/${SLUG}/product/i1`);
     expect(within(block).getByText("Chcę oddać")).toHaveClass("bg-primary-soft");
     expect(within(block).getByText("Chcę się zamienić")).toHaveClass("bg-accent-soft");
     expect(block).not.toHaveTextContent(dayjs(NEAREST_EVENT.starts_at).format("ddd D MMM"));
-    expect(within(block).getByRole("link", { name: "Zobacz więcej →" })).toHaveAttribute("href", `/${SLUG}/items`);
+    expect(within(block).getByRole("link", { name: "Zobacz wszystkie rzeczy →" })).toHaveAttribute(
+      "href",
+      `/${SLUG}/items`,
+    );
   });
 
-  it("hides empty recent items from visitors and shows the owner a ghost", () => {
+  it("shows visitors the empty state for missing items and the owner a ghost", () => {
     renderLayout("EXCHANGE", data);
-    expect(screen.queryByRole("heading", { name: "Ostatnio dodane rzeczy" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Na razie nic tu nie ma" })).toBeInTheDocument();
     cleanup();
 
     const owner = renderLayout("EXCHANGE", data, "owner-edit");
@@ -429,15 +426,11 @@ describe("LayoutRenderer", () => {
     expect(within(ghost).getByRole("link", { name: "Dodaj rzecz do wymiany →" })).toHaveAttribute("href", "/items");
   });
 
-  it("recommends nothing while loading, even with a directory that would recommend SCHEDULE and CIRCLES", () => {
-    const busy = pageData({
-      circles: [circle("g1", "Orliki 2017"), circle("g2", "Młodziki 2015")],
-      upcoming_terms: [1, 2, 3, 4].map((days, index) => term(`t${index}`, inDays(days))),
-    });
+  it("recommends nothing while loading, even with a directory that would recommend SCHEDULE", () => {
+    const busy = pageData({ upcoming_dates: [1, 2, 3, 4].map((days, index) => meeting(`t${index}`, inDays(days))) });
     const stillLoading: OrganizerPageData = { ...busy, directoryStatus: "loading" };
 
     expect(isRecommended(LAYOUT_REGISTRY.SCHEDULE, busy)).toBe(true);
-    expect(isRecommended(LAYOUT_REGISTRY.CIRCLES, busy)).toBe(true);
     expect(Object.values(LAYOUT_REGISTRY).filter((layout) => isRecommended(layout, stillLoading))).toEqual([]);
   });
 
@@ -446,6 +439,7 @@ describe("LayoutRenderer", () => {
     const full = pageData({
       circles: [circle("g1", "Orliki 2017"), circle("g2", "Młodziki 2015")],
       upcoming_terms: [{ ...term("t1", inDays(2)), ...identity } as OrganizerTerm],
+      upcoming_dates: [{ ...meeting("t1", inDays(2)), ...identity } as OwnerNearestDate],
       exchange: {
         counts: { GIFT: 1, SWAP: 0, RESERVED: 0 },
         items: [
@@ -472,24 +466,6 @@ describe("LayoutRenderer", () => {
     expect(screen.getByRole("link", { name: /1\s*Chcę oddać/ })).toHaveAttribute("href", `/${SLUG}/group/g1/term/t1`);
     expect(container.textContent).not.toMatch(/Kasia|Wójcik|party-secret/);
     expect(container.innerHTML).not.toMatch(/party-secret|avatar\.png/);
-  });
-
-  it("loads the next agenda page for the organizer slug through the SCHEDULE layout", async () => {
-    vi.mocked(groupsApi.getOrganizerTerms).mockImplementation(async (_slug, page) =>
-      page === 1
-        ? { items: [term("t1", "2026-10-14T17:00:00")], total: 21, page: 1, size: 20 }
-        : { items: [term("t2", "2026-10-16T17:00:00")], total: 21, page: 2, size: 20 },
-    );
-
-    renderLayout(
-      "SCHEDULE",
-      pageData({ circles: [circle("g1", "Orliki 2017")], upcoming_terms: [term("t1", "2026-10-14T17:00:00")] }),
-    );
-
-    fireEvent.click(await screen.findByRole("button", { name: "Pokaż kolejne terminy" }));
-
-    expect(await screen.findByRole("heading", { level: 3, name: "piątek, 16 października" })).toBeInTheDocument();
-    expect(groupsApi.getOrganizerTerms).toHaveBeenLastCalledWith(SLUG, 2, undefined);
   });
 
   it("copies origin/slug without the query string when navigator.share is missing", async () => {

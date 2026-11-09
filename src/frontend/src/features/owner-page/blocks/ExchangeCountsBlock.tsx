@@ -53,15 +53,23 @@ export function ExchangeCountTiles({ exchange, slug }: { exchange: OrganizerPage
   );
 }
 
-/** `tiles3`: the count tiles under a "Wymiana rzeczy" heading. */
+/** `tiles3`: the count tiles under a "Wymiana rzeczy" heading, with a link
+ * to all of the owner's items. */
 export function ExchangeCountsBlock({ data }: BlockProps) {
   const exchange = data.directory?.exchange;
   if (!exchange) return null;
+  const slug = data.organization.slug;
 
   return (
     <section className="px-6 pt-6">
       <h2 className="mb-3 font-serif text-xl font-semibold text-ink">Wymiana rzeczy</h2>
-      <ExchangeCountTiles exchange={exchange} slug={data.organization.slug} />
+      <ExchangeCountTiles exchange={exchange} slug={slug} />
+      <Link
+        to={`/${slug}/items`}
+        className="mt-1 flex min-h-[44px] items-center justify-center text-[13px] font-bold text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+      >
+        Wszystkie rzeczy →
+      </Link>
     </section>
   );
 }

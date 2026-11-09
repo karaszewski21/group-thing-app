@@ -1,6 +1,5 @@
-import { Fragment, type ComponentType, type ReactNode } from "react";
+import { type ComponentType, type ReactNode } from "react";
 import { AboutBlock, isAboutEmpty } from "./blocks/AboutBlock";
-import { AgendaBlock, isAgendaEmpty } from "./blocks/AgendaBlock";
 import { BlockSkeleton } from "./blocks/BlockSkeleton";
 import { CirclesGridBlock, isCirclesGridEmpty } from "./blocks/CirclesGridBlock";
 import { EmptyStateBlock } from "./blocks/EmptyStateBlock";
@@ -11,11 +10,11 @@ import { GhostBlock } from "./blocks/GhostBlock";
 import { HeroBlock } from "./blocks/HeroBlock";
 import { LinkStackBlock } from "./blocks/LinkStackBlock";
 import { isNeededItemsEmpty, NeededItemsBlock } from "./blocks/NeededItemsBlock";
-import { isNextTermCtaEmpty, NextTermCtaBlock } from "./blocks/NextTermCtaBlock";
+import { isNextDateCtaEmpty, NextDateCtaBlock } from "./blocks/NextDateCtaBlock";
 import { isRecentItemsEmpty, RecentItemsBlock } from "./blocks/RecentItemsBlock";
 import { ShareBlock } from "./blocks/ShareBlock";
 import { isStatsEmpty, StatsBlock } from "./blocks/StatsBlock";
-import { isUpcomingTermsEmpty, UpcomingTermsBlock } from "./blocks/UpcomingTermsBlock";
+import { isUpcomingDatesEmpty, UpcomingDatesBlock } from "./blocks/UpcomingDatesBlock";
 import type {
   BlockId,
   BlockProps,
@@ -44,9 +43,8 @@ const BLOCKS: Record<BlockId, BlockDefinition> = {
   "link-stack": { Component: LinkStackBlock },
   footer: { Component: null },
   stats: { Component: StatsBlock, directory: true, isEmpty: isStatsEmpty },
-  "upcoming-terms": { Component: UpcomingTermsBlock, directory: true, isEmpty: isUpcomingTermsEmpty },
-  "next-term-cta": { Component: NextTermCtaBlock, directory: true, isEmpty: isNextTermCtaEmpty },
-  agenda: { Component: AgendaBlock, directory: true, isEmpty: isAgendaEmpty },
+  "upcoming-dates": { Component: UpcomingDatesBlock, directory: true, isEmpty: isUpcomingDatesEmpty },
+  "next-date-cta": { Component: NextDateCtaBlock, directory: true, isEmpty: isNextDateCtaEmpty },
   "circles-grid": { Component: CirclesGridBlock, directory: true, isEmpty: isCirclesGridEmpty },
   "exchange-counts": { Component: ExchangeCountsBlock, directory: true, isEmpty: isExchangeCountsEmpty },
   "exchange-board": { Component: ExchangeBoardBlock, directory: true, isEmpty: isExchangeBoardEmpty },

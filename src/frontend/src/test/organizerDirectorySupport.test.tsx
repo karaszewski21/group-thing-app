@@ -1,15 +1,16 @@
 import { render, screen, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { describe, expect, it } from "vitest";
-import type { OrganizerCircle, OrganizerPageResponse, OrganizerTerm } from "../api/groups";
+import type { OrganizerPageResponse } from "../api/groups";
 import type { PublicOrganizationResponse } from "../api/organizations";
+import type { OwnerItemCard, OwnerNearestDate } from "../api/ownerItems";
 import { BlockSkeleton } from "../features/owner-page/blocks/BlockSkeleton";
 import { EmptyStateBlock } from "../features/owner-page/blocks/EmptyStateBlock";
 import { GhostBlock } from "../features/owner-page/blocks/GhostBlock";
-import { nearestTerm } from "../features/owner-page/blocks/nearestTerm";
 import { LayoutRenderer } from "../features/owner-page/LayoutRenderer";
 import { isRecommended, LAYOUT_REGISTRY } from "../features/owner-page/layouts/registry";
 import type { OrganizerPageData, PageLayoutDefinition } from "../features/owner-page/layouts/types";
+import dayjs from "../utils/dayjs";
 import { renderWithRoute } from "./renderWithRoute";
 
 const organization: PublicOrganizationResponse = {
@@ -25,24 +26,29 @@ const organization: PublicOrganizationResponse = {
   gallery: [],
 };
 
-function circle(id: string, nextOccursOn: string | null): OrganizerCircle {
+function meeting(id: string, startsAt: string): OwnerNearestDate {
   return {
+    kind: "TERM",
     id,
-    name: `Grupa ${id}`,
-    layout_mode: "CIRCLE",
-    next_term: nextOccursOn ? { id: `term-${id}`, occurs_on: nextOccursOn, attendee_count: 4 } : null,
-    upcoming_term_count: 0,
+    name: "Orliki 2017",
+    starts_at: startsAt,
+    location_name: null,
+    attendee_count: 12,
+    path: `/akademia-orlik/group/g1/term/${id}`,
   };
 }
 
-const TERM: OrganizerTerm = {
-  term_id: "t1",
-  group_id: "g1",
-  group_name: "Orliki 2017",
-  occurs_on: "2026-10-14T17:00:00",
-  description: "Boisko",
-  attendee_count: 12,
-};
+function item(id: string): OwnerItemCard {
+  return {
+    item_id: id,
+    product_name: `Rzecz ${id}`,
+    condition: "GOOD",
+    mode: "GIFT",
+    thumb_url: null,
+    added_at: "2026-10-01T10:00:00",
+    reservation: null,
+  };
+}
 
 function directory(overrides: Partial<OrganizerPageResponse> = {}): OrganizerPageResponse {
   return {
@@ -50,6 +56,7 @@ function directory(overrides: Partial<OrganizerPageResponse> = {}): OrganizerPag
     upcoming_terms: [],
     exchange: { counts: { GIFT: 0, SWAP: 0, RESERVED: 0 }, items: [] },
     needed_items: [],
+    upcoming_dates: [],
     recent_items: [],
     owner_nearest: null,
     stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
@@ -61,49 +68,14 @@ function renderWithRouter(ui: ReactElement) {
   return renderWithRoute(ui, { url: "/" });
 }
 
-describe("nearestTerm", () => {
-  it("returns the first upcoming term when the 60-day window is not empty", () => {
-    expect(nearestTerm(directory({ upcoming_terms: [TERM], circles: [circle("a", "2026-10-01T10:00:00")] }))).toBe(
-      TERM,
-    );
-  });
-
-  it("falls back to the earliest circle next_term, ties broken by circle id", () => {
-    const result = nearestTerm(
-      directory({
-        circles: [
-          circle("c", "2027-02-01T10:00:00"),
-          circle("b", "2027-01-05T09:00:00"),
-          circle("a", "2027-01-05T09:00:00"),
-          circle("d", null),
-        ],
-      }),
-    );
-
-    expect(result).toEqual({
-      term_id: "term-a",
-      group_id: "a",
-      group_name: "Grupa a",
-      occurs_on: "2027-01-05T09:00:00",
-      description: null,
-      attendee_count: 4,
-    });
-  });
-
-  it("returns null when no circle has a next term", () => {
-    expect(nearestTerm(directory({ circles: [circle("a", null)] }))).toBeNull();
-    expect(nearestTerm(null)).toBeNull();
-  });
-});
-
 describe("GhostBlock", () => {
   it("renders a directory ghost with its panel CTA, and the unavailable variant without one", () => {
-    const { unmount } = renderWithRouter(<GhostBlock block="upcoming-terms" />);
+    const { unmount } = renderWithRouter(<GhostBlock block="upcoming-dates" />);
 
-    expect(screen.getByText("Najbliższe terminy")).toBeInTheDocument();
-    expect(screen.getByText("Tu pokażemy Twoje najbliższe zajęcia. Widzisz to tylko Ty.")).toBeInTheDocument();
-    const cta = screen.getByRole("link", { name: "Dodaj termin →" });
-    expect(cta).toHaveAttribute("href", "/meetings");
+    expect(screen.getByText("Najbliższe spotkania")).toBeInTheDocument();
+    expect(screen.getByText("Tu pokażemy Twoje najbliższe terminy i wydarzenia. Widzisz to tylko Ty.")).toBeInTheDocument();
+    const cta = screen.getByRole("link", { name: "Dodaj wydarzenie →" });
+    expect(cta).toHaveAttribute("href", "/add/event");
     expect(cta).toHaveClass("min-h-[44px]");
     unmount();
 
@@ -119,13 +91,10 @@ describe("EmptyStateBlock", () => {
   it("shows per-layout copy, the EXCHANGE explainer, the unavailable copy and the share button", () => {
     const body = "Zajrzyj tu wkrótce albo udostępnij stronę znajomym.";
     const { rerender } = render(<EmptyStateBlock layoutKey="SCHEDULE" organization={organization} />);
-    expect(screen.getByRole("heading", { name: "Brak zaplanowanych zajęć" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Brak zaplanowanych spotkań" })).toBeInTheDocument();
     expect(screen.getByText(body)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Udostępnij stronę" })).toBeInTheDocument();
     expect(screen.queryByText("Jak to działa?")).not.toBeInTheDocument();
-
-    rerender(<EmptyStateBlock layoutKey="CIRCLES" organization={organization} />);
-    expect(screen.getByRole("heading", { name: "Brak grup do pokazania" })).toBeInTheDocument();
 
     rerender(<EmptyStateBlock layoutKey="EXCHANGE" organization={organization} />);
     expect(screen.getByRole("heading", { name: "Na razie nic tu nie ma" })).toBeInTheDocument();
@@ -159,19 +128,34 @@ describe("isRecommended", () => {
   const recommendedKeys = (data: OrganizerPageData) =>
     layouts.filter((layout) => isRecommended(layout, data)).map((layout) => layout.key);
 
-  it("shows no badge while loading and recommends LINKS when unavailable or without circles", () => {
+  it("shows no badge while loading and recommends LINKS when unavailable or with no dates and no items", () => {
     expect(recommendedKeys({ organization, directory: null, directoryStatus: "loading" })).toEqual([]);
     expect(recommendedKeys({ organization, directory: null, directoryStatus: "unavailable" })).toEqual(["LINKS"]);
     expect(recommendedKeys({ organization, directory: directory(), directoryStatus: "ready" })).toEqual(["LINKS"]);
     expect(
-      recommendedKeys({ organization, directory: directory({ circles: [circle("a", null)] }), directoryStatus: "ready" }),
-    ).not.toContain("LINKS");
+      recommendedKeys({ organization, directory: directory({ recent_items: [item("i1")] }), directoryStatus: "ready" }),
+    ).toEqual([]);
+  });
+
+  it("recommends SCHEDULE for 3 dates within 14 days and EXCHANGE for many items with at most one date", () => {
+    const soon = (days: number) => dayjs().add(days, "day").format("YYYY-MM-DDTHH:mm:ss");
+    const busy = directory({ upcoming_dates: [meeting("t1", soon(1)), meeting("t2", soon(3)), meeting("t3", soon(5))] });
+    expect(recommendedKeys({ organization, directory: busy, directoryStatus: "ready" })).toEqual(["SCHEDULE"]);
+    const sparse = directory({ upcoming_dates: [meeting("t1", soon(1)), meeting("t2", soon(20)), meeting("t3", soon(30))] });
+    expect(recommendedKeys({ organization, directory: sparse, directoryStatus: "ready" })).toEqual([]);
+
+    const items = ["i1", "i2", "i3", "i4"].map(item);
+    const stocked = directory({ recent_items: items, upcoming_dates: [meeting("t1", soon(1))] });
+    expect(recommendedKeys({ organization, directory: stocked, directoryStatus: "ready" })).toEqual(["EXCHANGE"]);
+    expect(
+      recommendedKeys({ organization, directory: { ...busy, recent_items: items }, directoryStatus: "ready" }),
+    ).toEqual(["SCHEDULE"]);
   });
 });
 
 describe("LayoutRenderer directory rules", () => {
   const layout: PageLayoutDefinition = {
-    key: "CIRCLES",
+    key: "SCHEDULE",
     label: "Test",
     description: "",
     thumbnail: { src: "", alt: "" },

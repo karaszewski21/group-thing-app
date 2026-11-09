@@ -1,5 +1,6 @@
 import { Link } from "../../routing/navigation";
 import { useMyOrganization } from "../../hooks/useMyOrganization";
+import { useMyReservations } from "../../hooks/useMyReservations";
 import { pluralPl } from "../../utils/plural";
 import { ListCard } from "../../components/shared/appComponents";
 import { BuildingIcon, LogoutIcon } from "../../components/shared/appIcons";
@@ -13,6 +14,7 @@ const SECTION_LABEL = "mb-2.5 text-[13px] font-extrabold tracking-[.12em] text-i
 export function AccountView() {
   const { organizationSlug, items, myGroups, logout } = useAppData();
   const { data: organization } = useMyOrganization();
+  const { data: reservations, loading: reservationsLoading } = useMyReservations();
 
   return (
     <>
@@ -95,6 +97,11 @@ export function AccountView() {
               label: "Szukam",
               meta: `${MOCK_WANTS.length} ${pluralPl(MOCK_WANTS.length, "rzecz", "rzeczy", "rzeczy")}`,
               to: viewPath("wanted"),
+            },
+            {
+              label: "Zarezerwowane",
+              meta: reservationsLoading ? undefined : reservations.length > 0 ? String(reservations.length) : "brak",
+              to: viewPath("items/reserved"),
             },
           ]}
         />

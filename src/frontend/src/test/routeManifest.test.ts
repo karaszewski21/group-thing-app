@@ -25,6 +25,7 @@ const PANEL = [
   "/groups/new",
   "/items",
   "/items/:id/edit",
+  "/items/reserved",
   "/profile",
   "/settings",
   "/places",

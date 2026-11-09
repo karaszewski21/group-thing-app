@@ -3,7 +3,6 @@ import type { OrganizerTheme } from "../../../api/groups";
 import { DEFAULT_THEME_VARS, type ThemeVars } from "../../../theme/orgPalette";
 import { PALETTE_PRESETS } from "../../../theme/palettes";
 import { DEFAULT_THEME, paletteSelection } from "./draft";
-import { PreviewCards } from "./PreviewCards";
 import { nextIndex } from "./rovingIndex";
 
 interface Tile {
@@ -24,8 +23,8 @@ interface ColorsTabProps {
   onChange: (theme: OrganizerTheme) => void;
 }
 
-/** The palette tiles, sample previews and the reset link. A theme saved with
- * custom colors earlier checks no tile until a preset is picked. */
+/** The palette tiles; "Mięta (domyślna)" restores the default theme. A theme
+ * saved with custom colors earlier checks no tile until a preset is picked. */
 export function ColorsTab({ theme, onChange }: ColorsTabProps) {
   const tileRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const selection = paletteSelection(theme);
@@ -91,18 +90,6 @@ export function ColorsTab({ theme, onChange }: ColorsTabProps) {
           );
         })}
       </div>
-
-      <h3 className={`${SECTION_LABEL} mb-2 mt-4`}>Podgląd</h3>
-      <PreviewCards />
-
-      <button
-        type="button"
-        onClick={() => onChange(DEFAULT_THEME)}
-        disabled={selection === "DEFAULT"}
-        className="mt-3 min-h-[44px] self-start text-sm font-bold text-primary-fg underline disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        Przywróć domyślne
-      </button>
     </div>
   );
 }

@@ -23,7 +23,7 @@ const organization: PublicOrganizationResponse = {
   name: "Akademia Orlik",
   primary_color: null,
   accent_color: null,
-  page_layout: "CIRCLES",
+  page_layout: "SCHEDULE",
   palette_preset: null,
   description: null,
   logo: null,
@@ -63,6 +63,7 @@ function directory(overrides: Partial<OrganizerPageResponse> = {}): OrganizerPag
     upcoming_terms: [],
     exchange: { counts: { GIFT: 0, SWAP: 0, RESERVED: 0 }, items: [] },
     needed_items: [],
+    upcoming_dates: [],
     recent_items: [],
     owner_nearest: null,
     stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
@@ -151,6 +152,7 @@ describe("ExchangeCountsBlock", () => {
     expect(screen.getByRole("link", { name: /3\s*Chcę oddać/ })).toHaveAttribute("href", `/${SLUG}/group/g1/term/term-2`);
     expect(screen.queryByRole("link", { name: /Chcę się zamienić/ })).not.toBeInTheDocument();
     expect(screen.getByText("Chcę się zamienić")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Wszystkie rzeczy →" })).toHaveAttribute("href", `/${SLUG}/items`);
   });
 
   it("reads N Chcę oddać · N Chcę się zamienić · N Zarezerwowane, the reserved tile leading to a reserved item's term", () => {

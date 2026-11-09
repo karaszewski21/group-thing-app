@@ -61,11 +61,13 @@ __all__ = [
     "list_active_hand_over_reservations_for_terms",
     "list_active_reservations_for_taker",
     "list_available_items_with_product",
+    "list_item_products",
     "list_items_with_product_name",
     "listed_items_with_product_select",
     "list_open_reservations_for_event",
     "list_product_names_for_items",
     "list_reservations",
+    "list_reservations_by_ids",
     "reservation_ids_for_event_select",
     "reservation_ids_for_term_select",
     "resolve_owning_inventory",
@@ -226,6 +228,22 @@ async def list_product_names_for_items(
     """Used by `application/term_end_scan.py` to name every prompted item in
     one read, soft-deleted items included."""
     return await circulation_service.list_product_names_for_items(db, item_ids)
+
+
+async def list_item_products(
+    db: AsyncSession, item_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, tuple[uuid.UUID, str]]:
+    """Used by `application/my_reservations.py`: each item's product id (for
+    its thumbnail) and name, in one read."""
+    return await circulation_service.list_item_products(db, item_ids)
+
+
+async def list_reservations_by_ids(
+    db: AsyncSession, reservation_ids: Collection[uuid.UUID]
+) -> list[Reservation]:
+    """Used by `application/my_reservations.py` for the proposer legs of
+    pending swap proposals, which carry the proposal's term or event."""
+    return await circulation_service.list_reservations_by_ids(db, reservation_ids)
 
 
 async def find_personal_inventory(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory | None:

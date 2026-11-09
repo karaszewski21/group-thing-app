@@ -10,6 +10,7 @@ interface GhostCopy {
 }
 
 const ADD_TERM = { label: "Dodaj termin →", to: "/meetings" };
+const ADD_EVENT = { label: "Dodaj wydarzenie →", to: "/add/event" };
 const ADD_EXCHANGE_ITEM = { label: "Dodaj rzecz do wymiany →", to: "/items" };
 
 const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
@@ -28,19 +29,14 @@ const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
     body: "Statystyki pojawią się, gdy będziesz mieć więcej grup i terminów. Widzisz to tylko Ty.",
     cta: ADD_TERM,
   },
-  "upcoming-terms": {
-    title: "Najbliższe terminy",
-    body: "Tu pokażemy Twoje najbliższe zajęcia. Widzisz to tylko Ty.",
-    cta: ADD_TERM,
+  "upcoming-dates": {
+    title: "Najbliższe spotkania",
+    body: "Tu pokażemy Twoje najbliższe terminy i wydarzenia. Widzisz to tylko Ty.",
+    cta: ADD_EVENT,
   },
-  "next-term-cta": {
-    title: "Najbliższe zajęcia",
-    body: "Tu pojawi się Twój najbliższy termin. Widzisz to tylko Ty.",
-    cta: ADD_TERM,
-  },
-  agenda: {
-    title: "Plan zajęć",
-    body: "Gdy dodasz terminy, odwiedzający zobaczą tu plan zajęć. Widzisz to tylko Ty.",
+  "next-date-cta": {
+    title: "Najbliższe spotkanie",
+    body: "Tu pojawi się Twój najbliższy termin lub wydarzenie. Widzisz to tylko Ty.",
     cta: ADD_TERM,
   },
   "circles-grid": {
