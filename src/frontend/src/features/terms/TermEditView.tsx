@@ -1,11 +1,14 @@
 import { useEffect, useRef } from "react";
+import type { NeededItemResponse } from "../../api/terms";
 import { useAppNavigate, useAppParams } from "../../routing/navigation";
+import { useNeededItems } from "../../hooks/useNeededItems";
 import { useAppData } from "../panel/appDataStore";
 import { TermEditForm } from "./TermEditForm";
 import { termEditDraftFrom } from "./termDraft";
 import { viewPath } from "../../routing/paths";
 
 const TITLE = "Edytuj termin";
+const NO_NEEDED_ITEMS: NeededItemResponse[] = [];
 
 /** `/terms/:termId/edit`: date, description, place, capacity and needed items
  * of a term in a group the caller leads. The term comes from the panel's live
@@ -19,6 +22,7 @@ export function TermEditView() {
   const { terms, myGroups, load, showToast, termEdit, setTermEdit } = useAppData();
   const entry = terms.find((t) => t.term.id === termId) ?? null;
   const editable = entry !== null && myGroups.some((g) => g.id === entry.term.circle_group_id);
+  const { data: neededItems, refetch: refetchNeededItems } = useNeededItems(editable ? [termId] : []);
   const draft = termEdit?.termId === termId ? termEdit.draft : null;
   // Set on save/cancel: the cleared draft must not be re-seeded (from the
   // not yet reloaded term) while the page is still mounted.
@@ -38,8 +42,11 @@ export function TermEditView() {
               term={entry.term}
               draft={draft}
               onDraftChange={(next) => setTermEdit({ termId, draft: next })}
-              neededItems={entry.neededItems}
-              onChanged={() => void load({ silent: true })}
+              neededItems={neededItems.get(termId) ?? NO_NEEDED_ITEMS}
+              onChanged={() => {
+                void load({ silent: true });
+                void refetchNeededItems();
+              }}
               onDone={(saved) => {
                 leaving.current = true;
                 setTermEdit(null);

@@ -52,7 +52,7 @@ vi.mock("../api/terms", () => ({
   createTerm: vi.fn(),
   createNeededItem: vi.fn(),
   getTerms: vi.fn(),
-  getNeededItems: vi.fn(),
+  getNeededItemsForTerms: vi.fn(),
 }));
 
 const term = { id: "t1", circle_group_id: "g1", occurs_on: "2026-11-05T17:00:00" } as termsApi.TermResponse;

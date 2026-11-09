@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { NOTIFICATIONS_KEY } from "../../hooks/useNotifications";
 import { subscribePendingActionResolved } from "../../components/layout/pending/pendingActionResolved";
 import { MY_PLEDGES_KEY } from "../../hooks/useMyPledges";
+import { NEEDED_ITEMS_KEY } from "../../hooks/useNeededItems";
 import {
   createLightweightMembers,
   createOwnFamily,
@@ -42,7 +43,6 @@ import { getMyOrganization } from "../../api/organizations";
 import {
   createNeededItem,
   createTerm,
-  getNeededItems,
   getTerms,
   type TermResponse,
 } from "../../api/terms";
@@ -57,7 +57,7 @@ import { EMPTY_EVENT_DRAFT, type EventDraft } from "../events/eventDraft";
 import { newTermDraft, type TermDraft } from "../terms/termDraft";
 import { useFirstTermStepper } from "../terms/hooks/useFirstTermStepper";
 import { createEmptyItemQuickAddValue, type ItemEditDraft, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
-import { defaultVisibility, termPublicPath, GIFT_LIMIT_MESSAGE, ITEM_MODE_TO_RESERVATION_TYPE, MAX_GIFT_ITEMS, RESERVATION_TYPE_TO_ITEM_MODE, type GuestTermCard, type ItemMode, type ModalKind, type NewFamilyMember, type TermWithNeeded, capacityText, parseCapacity } from "../../utils/appHelpers";
+import { defaultVisibility, termPublicPath, GIFT_LIMIT_MESSAGE, ITEM_MODE_TO_RESERVATION_TYPE, MAX_GIFT_ITEMS, RESERVATION_TYPE_TO_ITEM_MODE, type GuestTermCard, type ItemMode, type ModalKind, type NewFamilyMember, type PanelTerm, capacityText, parseCapacity } from "../../utils/appHelpers";
 import { type View, viewPath } from "../../routing/paths";
 import { AppDataContext } from "./appDataStore";
 
@@ -98,8 +98,8 @@ function useAppDataValue() {
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [myGroups, setMyGroups] = useState<GroupResponse[]>([]);
   // Terms of the groups I lead (`terms`) and of my family's member circles (`guestTerms`), kept apart.
-  const [terms, setTerms] = useState<TermWithNeeded[]>([]);
-  const [guestTerms, setGuestTerms] = useState<TermWithNeeded[]>([]);
+  const [terms, setTerms] = useState<PanelTerm[]>([]);
+  const [guestTerms, setGuestTerms] = useState<PanelTerm[]>([]);
   const [family, setFamily] = useState<FamilyOut | null>(null);
   const [guardians, setGuardians] = useState<GuardianResponse[]>([]);
   const [myAttendances, setMyAttendances] = useState<MyAttendanceResponse[]>([]);
@@ -290,10 +290,7 @@ function useAppDataValue() {
       }
 
       async function getGroupTerms(group: GroupResponse) {
-        const list = await getTerms(group.id);
-        return Promise.all(
-          list.map(async (term) => ({ term, group, neededItems: await getNeededItems(term.id) })),
-        );
+        return (await getTerms(group.id)).map((term) => ({ term, group }));
       }
       async function getTermsOf(groups: GroupResponse[]) {
         const termsByGroup = await Promise.all(
@@ -463,6 +460,7 @@ function useAppDataValue() {
       setTermDate("");
       setTermDescription("");
       setNeededDraft([]);
+      await queryClient.invalidateQueries({ queryKey: [NEEDED_ITEMS_KEY] });
       navigate(viewPath("meetings"));
       showToast(
         rejected.length > 0
@@ -690,12 +688,11 @@ function useAppDataValue() {
       location: a.location,
       capacity: a.capacity,
       attendeeCount: a.attendee_count,
-      neededItems: guestTermById.get(a.term_id)?.neededItems ?? [],
     }));
   const attendedIds = new Set(attendedCards.map((c) => c.termId));
   const memberCards: GuestTermCard[] = guestTerms
     .filter(({ term }) => !ledTermIds.has(term.id) && !attendedIds.has(term.id))
-    .map(({ term, group, neededItems }) => ({
+    .map(({ term, group }) => ({
       termId: term.id,
       occursOn: term.occurs_on,
       groupName: group.name,
@@ -704,7 +701,6 @@ function useAppDataValue() {
       location: term.location ?? null,
       capacity: term.capacity ?? null,
       attendeeCount: null,
-      neededItems,
     }));
   const savedCards = [...attendedCards, ...memberCards].sort((a, b) => a.occursOn.localeCompare(b.occursOn));
 

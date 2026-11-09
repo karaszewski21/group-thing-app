@@ -2,7 +2,7 @@ import type { GroupResponse, GroupVisibility } from "../api/groups";
 import type { ListingMode } from "../api/itemListingPreferences";
 import type { PublicLocationResponse } from "../api/locations";
 import type { ReservationType } from "../api/reservations";
-import type { NeededItemResponse, TermResponse } from "../api/terms";
+import type { TermResponse } from "../api/terms";
 import { viewPath, type View } from "../routing/paths";
 
 /* ------------------------------------------------------------------ */
@@ -54,10 +54,10 @@ export interface NewFamilyMember {
 
 export type ItemMode = "oddam" | "zamienię";
 
-export interface TermWithNeeded {
+/** A term of a group the panel loaded; its needed items come from `useNeededItems`. */
+export interface PanelTerm {
   term: TermResponse;
   group: GroupResponse;
-  neededItems: NeededItemResponse[];
 }
 
 /** A term the caller takes part in without leading it — their own RSVP
@@ -72,7 +72,6 @@ export interface GuestTermCard {
   capacity: number | null;
   /** Known only for an RSVP; a membership-only card shows the capacity alone. */
   attendeeCount: number | null;
-  neededItems: NeededItemResponse[];
 }
 
 export type TermPlaceLocation = Pick<PublicLocationResponse, "locality" | "label" | "formatted_address" | "google_place_id">;

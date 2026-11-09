@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
@@ -31,6 +31,8 @@ DbSession = Annotated[AsyncSession, Depends(get_db)]
 ReadPrincipal = Annotated[Principal, Depends(require_any("READ", "mcp:read"))]
 EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
 ModerationPrincipal = Annotated[Principal, Depends(require_any("ADMIN"))]
+
+MAX_NEEDED_ITEMS_TERM_IDS = 100
 
 
 # --- Term / NeededItem ----------------------------------------------------------
@@ -116,9 +118,14 @@ async def create_needed_item(
 
 @router.get("/api/needed-items", response_model=list[NeededItemResponse])
 async def list_needed_items(
-    term_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
+    term_id: Annotated[list[uuid.UUID], Query(min_length=1, max_length=MAX_NEEDED_ITEMS_TERM_IDS)],
+    db: DbSession,
+    principal: ReadPrincipal,
 ) -> list[NeededItemResponse]:
-    views = await service.list_needed_item_views(db, term_id)
+    """`term_id` repeats (`?term_id=a&term_id=b`) to read the needs of
+    several Terms in one request, ordered by term; unknown terms are skipped
+    unless only one is asked for (then 404)."""
+    views = await service.list_needed_item_views_for_terms(db, term_id)
     return [NeededItemResponse.model_validate(view) for view in views]
 
 

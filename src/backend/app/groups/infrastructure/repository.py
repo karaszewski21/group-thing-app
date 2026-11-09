@@ -474,6 +474,29 @@ async def list_needed_items_for_term(db: AsyncSession, term_id: uuid.UUID) -> li
     return list(result.scalars().all())
 
 
+async def list_live_needed_items_for_terms(
+    db: AsyncSession, term_ids: Collection[uuid.UUID]
+) -> list[tuple[NeededItem, bool]]:
+    """`(needed_item, claimed)` for the live needs of those `term_ids` whose
+    Circle is not soft-deleted, in one query; `claimed` = a pledge that is
+    not WITHDRAWN (the rule of `list_needed_item_views`)."""
+    claimed = exists().where(
+        Pledge.needed_item_id == NeededItem.id, Pledge.status != PledgeStatus.WITHDRAWN
+    )
+    result = await db.execute(
+        select(NeededItem, claimed.label("claimed"))
+        .join(Term, Term.id == NeededItem.term_id)
+        .join(Group, Group.id == Term.circle_group_id)
+        .where(
+            NeededItem.term_id.in_(term_ids),
+            NeededItem.deleted_at.is_(None),
+            Group.deleted_at.is_(None),
+        )
+        .order_by(NeededItem.term_id, NeededItem.name, NeededItem.id)
+    )
+    return list(result.tuples().all())
+
+
 # --- Pledge -------------------------------------------------------------------
 
 

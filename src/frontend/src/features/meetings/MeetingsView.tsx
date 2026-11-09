@@ -2,20 +2,24 @@ import { useState, type ReactNode } from "react";
 import { Link } from "../../routing/navigation";
 import type { EventResponse } from "../../api/events";
 import type { MyPledgeResponse } from "../../api/pledges";
+import type { NeededItemResponse } from "../../api/terms";
 import dayjs from "../../utils/dayjs";
 import { FamilyIcon } from "../../components/shared/appIcons";
-import { type GuestTermCard, type TermWithNeeded } from "../../utils/appHelpers";
+import { type GuestTermCard, type PanelTerm } from "../../utils/appHelpers";
 import { viewPath } from "../../routing/paths";
 import { useAppData } from "../panel/appDataStore";
 import { useAttendingEvents } from "../../hooks/useAttendingEvents";
 import { useMyEvents } from "../../hooks/useMyEvents";
 import { useMyPledges } from "../../hooks/useMyPledges";
+import { useNeededItems } from "../../hooks/useNeededItems";
 import { EventCard, OrganizerTermCard, SavedTermCard } from "./TermCards";
+
+const NO_NEEDED_ITEMS: NeededItemResponse[] = [];
 
 const EMPTY = "rounded-[22px] border border-dashed border-line bg-paper p-5 text-center text-[13px] text-ink-soft";
 
 /** A led term, an own event or a guest card — whatever a `TermList` row is built from. */
-type ListedTerm = TermWithNeeded | EventResponse | GuestTermCard;
+type ListedTerm = PanelTerm | EventResponse | GuestTermCard;
 
 const termIdOf = (entry: ListedTerm) =>
   "term" in entry ? entry.term.id : "starts_at" in entry ? entry.id : entry.termId;
@@ -35,7 +39,6 @@ function pledgeTermCard(pledge: MyPledgeResponse): GuestTermCard {
     location: null,
     capacity: null,
     attendeeCount: null,
-    neededItems: [],
   };
 }
 
@@ -109,6 +112,10 @@ export function MeetingsView() {
   const { data: myEvents } = useMyEvents();
   const { data: attendingEvents } = useAttendingEvents();
   const { data: myPledges, withdraw } = useMyPledges();
+  const { data: neededItems, refetch: refetchNeededItems } = useNeededItems([
+    ...terms.map((t) => t.term.id),
+    ...savedCards.map((c) => c.termId),
+  ]);
 
   async function withdrawMyPledge(pledgeId: string) {
     try {
@@ -120,10 +127,11 @@ export function MeetingsView() {
     showToast("Wycofano zgłoszenie");
     // The pledge's needed item may sit on one of the caller's own terms.
     void load({ silent: true });
+    void refetchNeededItems();
   }
   const [tab, setTab] = useState<Tab>("organizujesz");
 
-  const organized: (TermWithNeeded | EventResponse)[] = [...terms, ...myEvents].sort(byDate);
+  const organized: (PanelTerm | EventResponse)[] = [...terms, ...myEvents].sort(byDate);
 
   // Each pledge shows on its term's card; a pledged-for term with no card of
   // its own gets one.
@@ -182,7 +190,11 @@ export function MeetingsView() {
               list={organized}
               renderTerm={(entry) =>
                 "term" in entry ? (
-                  <OrganizerTermCard term={entry.term} group={entry.group} neededItems={entry.neededItems} />
+                  <OrganizerTermCard
+                    term={entry.term}
+                    group={entry.group}
+                    neededItems={neededItems.get(entry.term.id) ?? NO_NEEDED_ITEMS}
+                  />
                 ) : (
                   <EventCard event={entry} />
                 )
@@ -201,6 +213,7 @@ export function MeetingsView() {
                 "termId" in entry ? (
                   <SavedTermCard
                     card={entry}
+                    neededItems={neededItems.get(entry.termId) ?? NO_NEEDED_ITEMS}
                     pledges={pledgesByTerm.get(entry.termId) ?? []}
                     onWithdrawPledge={(pledgeId) => void withdrawMyPledge(pledgeId)}
                   />

@@ -250,6 +250,20 @@ async def list_needed_item_views(db: AsyncSession, term_id: uuid.UUID) -> list[d
     ]
 
 
+async def list_needed_item_views_for_terms(
+    db: AsyncSession, term_ids: list[uuid.UUID]
+) -> list[dict[str, Any]]:
+    """The live needs of several Terms in one query, grouped by term. Terms
+    that are unknown or in a soft-deleted Circle are skipped, but a single
+    requested term keeps the 404 of `list_needed_item_views`."""
+    if len(set(term_ids)) == 1:
+        return await list_needed_item_views(db, term_ids[0])
+    return [
+        _needed_item_view(item, claimed=claimed)
+        for item, claimed in await repository.list_live_needed_items_for_terms(db, set(term_ids))
+    ]
+
+
 async def _require_needed_item_organizer(
     db: AsyncSession, needed_item_id: uuid.UUID, caller_party_id: uuid.UUID
 ) -> NeededItem:

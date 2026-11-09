@@ -201,6 +201,7 @@ export function EventCard({ event, editable = true }: { event: EventResponse; ed
 
 interface SavedTermCardProps {
   card: GuestTermCard;
+  neededItems: NeededItemResponse[];
   /** The caller's not-withdrawn pledges for this term. */
   pledges: MyPledgeResponse[];
   onWithdrawPledge: (pledgeId: string) => void;
@@ -211,7 +212,7 @@ interface SavedTermCardProps {
  * page, so its place line carries no Maps link of its own (no nested
  * anchors); the pledges sit under it, outside the link, with their own
  * "Rezygnuję" buttons. */
-export function SavedTermCard({ card, pledges, onWithdrawPledge }: SavedTermCardProps) {
+export function SavedTermCard({ card, neededItems, pledges, onWithdrawPledge }: SavedTermCardProps) {
   return (
     <div className="rounded-[22px] border border-line bg-paper transition-colors hover:border-line-strong">
       <Link to={card.href} className="flex items-start gap-3 rounded-[22px] p-3.5">
@@ -228,9 +229,9 @@ export function SavedTermCard({ card, pledges, onWithdrawPledge }: SavedTermCard
             withMapLink={false}
             className="mt-1.5"
           />
-          {card.neededItems.length > 0 && (
+          {neededItems.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {card.neededItems.map((ni) => (
+              {neededItems.map((ni) => (
                 <span
                   key={ni.id}
                   className="rounded-full border-[1.5px] border-dashed border-accent px-2.5 py-0.5 text-xs font-extrabold text-accent-fg"

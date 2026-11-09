@@ -107,7 +107,7 @@ vi.mock("../api/products", () => ({
 vi.mock("../api/terms", () => ({
   getTerms: vi.fn(),
   getTerm: vi.fn(),
-  getNeededItems: vi.fn(),
+  getNeededItemsForTerms: vi.fn(),
   createTerm: vi.fn(),
   createNeededItem: vi.fn(),
   updateTerm: vi.fn(),
@@ -447,7 +447,7 @@ function mockOrganizerDefaults() {
   vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
   vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
   vi.mocked(termsApi.getTerms).mockResolvedValue([]);
-  vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+  vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
   vi.mocked(familiesApi.getMembershipsForFamily).mockResolvedValue([]);
   vi.mocked(familiesApi.getGuardians).mockResolvedValue([]);
@@ -673,7 +673,7 @@ describe("AppPage — dismissible home hints", () => {
     fireEvent.change(dateInput, { target: { value: "2026-02-01T17:00" } });
 
     vi.mocked(termsApi.getTerms).mockResolvedValue([TERM_FIXTURE]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj termin" }));
 
     await waitFor(() => expect(termsApi.createTerm).toHaveBeenCalled());
@@ -905,7 +905,7 @@ describe("AppPage — term edit page", () => {
   it("calls updateTerm with only the changed occurs_on field", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
     vi.mocked(termsApi.updateTerm).mockResolvedValue({ ...term, occurs_on: "2026-03-09T18:00:00" });
     renderPanel();
     const dialog = await openEditDialog();
@@ -924,7 +924,7 @@ describe("AppPage — term edit page", () => {
   it("shows an inline error and stays on the page when the save is rejected", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
     vi.mocked(termsApi.updateTerm).mockRejectedValue(new Error("400"));
     renderPanel();
     const dialog = await openEditDialog();
@@ -939,7 +939,7 @@ describe("AppPage — term edit page", () => {
   it("goes back to Spotkania without calling updateTerm when nothing changed", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
     renderPanel();
     const dialog = await openEditDialog();
 
@@ -1202,7 +1202,7 @@ describe("AppPage — Spotkania list links to the public circle page", () => {
     vi.mocked(termsApi.getTerms).mockResolvedValue([
       { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
     renderPanel();
 
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
@@ -1329,7 +1329,7 @@ describe("AppPage — family member circles (both contexts)", () => {
     vi.mocked(familiesApi.getMembershipsForFamily).mockResolvedValue([membership]);
     vi.mocked(groupsApi.getGroup).mockImplementation(async (id) => (id === OTHER_GROUP_ID ? memberGroup : mockGroup));
     vi.mocked(termsApi.getTerms).mockImplementation(async (groupId) => (groupId === OTHER_GROUP_ID ? terms : []));
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
   }
 
   it("a membership-only term (no RSVP) shows under \"Zapisane\" with its \"10 miejsc\" pill", async () => {
@@ -1401,7 +1401,7 @@ describe("AppPage — organizer term card signup chip", () => {
         attendee_count: attendeeCount, child_count: childCount,
       },
     ]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
   }
 
   beforeEach(() => {
@@ -1458,7 +1458,7 @@ describe("AppPage — per-term public links & copy-link button", () => {
     vi.mocked(termsApi.getTerms).mockResolvedValue([
       { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
     renderPanel();
 
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
@@ -1472,7 +1472,7 @@ describe("AppPage — per-term public links & copy-link button", () => {
     vi.mocked(termsApi.getTerms).mockResolvedValue([
       { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([
+    vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([
       {
         id: "1", term_id: TERM_ID, name: "Bębenek", description: null, claimed: true, created_at: "", updated_at: "",
       },
@@ -1486,6 +1486,8 @@ describe("AppPage — per-term public links & copy-link button", () => {
 
     expect(await screen.findByText("✓ Bębenek")).toBeInTheDocument();
     expect(screen.getByText("Koc")).toBeInTheDocument();
+    expect(termsApi.getNeededItemsForTerms).toHaveBeenCalledTimes(1);
+    expect(termsApi.getNeededItemsForTerms).toHaveBeenCalledWith([TERM_ID]);
   });
 
   it("copy-link button on an organizer 'Terminy' row writes the absolute per-term URL and toasts", async () => {
@@ -1493,7 +1495,7 @@ describe("AppPage — per-term public links & copy-link button", () => {
     vi.mocked(termsApi.getTerms).mockResolvedValue([
       { id: TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
     renderPanel();
 
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
@@ -1511,7 +1513,7 @@ describe("AppPage — per-term public links & copy-link button", () => {
   it("'Dodaj termin' dialog keeps 'Potrzebne rzeczy' collapsed behind a small optional button", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
     renderPanel();
 
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));
@@ -1549,7 +1551,7 @@ describe("AppPage — per-term public links & copy-link button", () => {
     vi.mocked(termsApi.getTerms).mockResolvedValue([
       { id: LATER_TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
     ]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([]);
+    vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj termin" }));
 
     const publicLink = await within(dialog).findByRole("link", { name: /Przejdź do publicznej strony/ });
@@ -1586,7 +1588,7 @@ describe("AppPage — needed item sub-CRUD (in the term dialog)", () => {
   function mockTermWithNeeded() {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([neededItem]);
+    vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([neededItem]);
   }
 
   async function openEditDialog() {
@@ -1952,7 +1954,7 @@ describe("AppPage — needed item edit error path", () => {
   it("shows an inline error and keeps the row editor open with the typed values when the edit is rejected", async () => {
     mockOrganizerDefaults();
     vi.mocked(termsApi.getTerms).mockResolvedValue([term]);
-    vi.mocked(termsApi.getNeededItems).mockResolvedValue([neededItem]);
+    vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([neededItem]);
     vi.mocked(termsApi.updateNeededItem).mockRejectedValue(new Error("500"));
     renderPanel();
 
@@ -2733,7 +2735,7 @@ describe("AppPage — delete group (soft delete)", () => {
     await waitFor(() => expect(trash).toHaveFocus());
   });
 
-  it("load survives a 404 from getGroup (and from getTerms/getNeededItems) for one group", async () => {
+  it("load survives a 404 from getGroup (and from getTerms) for one group, and a failed needed-items read", async () => {
     const THIRD_GROUP_ID = "7b2e4d9a-5d3f-4a8c-9e0b-0000000000a7";
     const gone = () => new ApiError(404, "Not Found", { message: "Group not found" });
     vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
@@ -2752,10 +2754,7 @@ describe("AppPage — delete group (soft delete)", () => {
         { id: LATER_TERM_ID, circle_group_id: GROUP_ID, occurs_on: "2026-02-08", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
       ];
     });
-    vi.mocked(termsApi.getNeededItems).mockImplementation(async (termId) => {
-      if (termId === LATER_TERM_ID) throw gone();
-      return [];
-    });
+    vi.mocked(termsApi.getNeededItemsForTerms).mockRejectedValue(gone());
     renderPanel();
 
     fireEvent.click(await screen.findByRole("link", { name: "Spotkania" }));

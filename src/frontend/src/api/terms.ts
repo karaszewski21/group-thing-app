@@ -84,8 +84,22 @@ export function updateTerm(id: string, request: UpdateTermRequest): Promise<Term
   return api.patch(`/terms/${id}`, request);
 }
 
-export function getNeededItems(termId: string): Promise<NeededItemResponse[]> {
-  return api.get(`/needed-items?term_id=${termId}`);
+/** The backend's cap on `term_id`s per `GET /needed-items`. */
+const NEEDED_ITEMS_TERM_IDS_LIMIT = 100;
+
+/** The live needs of several terms, one request per 100 terms; terms that
+ * are gone (a deleted circle) are skipped. */
+export async function getNeededItemsForTerms(termIds: readonly string[]): Promise<NeededItemResponse[]> {
+  const chunks: string[][] = [];
+  for (let i = 0; i < termIds.length; i += NEEDED_ITEMS_TERM_IDS_LIMIT) {
+    chunks.push(termIds.slice(i, i + NEEDED_ITEMS_TERM_IDS_LIMIT));
+  }
+  const pages = await Promise.all(
+    chunks.map((chunk) =>
+      api.get<NeededItemResponse[]>(`/needed-items?${chunk.map((id) => `term_id=${encodeURIComponent(id)}`).join("&")}`),
+    ),
+  );
+  return pages.flat();
 }
 
 export function getNeededItem(id: string): Promise<NeededItemResponse> {
