@@ -223,7 +223,7 @@ describe("TermPage — header and content", () => {
   it("lists every attendee with their own offered items and intent pills, no take buttons, plus non-attending listers", async () => {
     renderPage();
 
-    const list = await screen.findByRole("region", { name: "Zapisani na zajęcia" });
+    const list = await screen.findByRole("region", { name: "Zapisani na spotkanie" });
     const ola = document.getElementById("attendee-21")!;
     expect(within(ola).getByText("Rowerek")).toBeInTheDocument();
     expect(within(ola).getByText("Chcę oddać")).toBeInTheDocument();
@@ -236,7 +236,7 @@ describe("TermPage — header and content", () => {
   it("links each offered item's row under its lister's party id, leaving needed items plain", async () => {
     renderPage();
 
-    await screen.findByRole("region", { name: "Zapisani na zajęcia" });
+    await screen.findByRole("region", { name: "Zapisani na spotkanie" });
     const ola = document.getElementById("attendee-21")!;
     expect(within(ola).getByRole("link", { name: /Rowerek/ })).toHaveAttribute("href", "/21/product/9");
     expect(within(document.getElementById("attendee-99")!).getByRole("link", { name: /Namiot/ })).toHaveAttribute(
@@ -277,7 +277,7 @@ describe("TermPage — header and content", () => {
     );
     renderPage();
 
-    await screen.findByRole("region", { name: "Zapisani na zajęcia" });
+    await screen.findByRole("region", { name: "Zapisani na spotkanie" });
     const ola = document.getElementById("attendee-21")!;
     const names = within(ola)
       .getAllByRole("link", { name: /Hulajnoga|Kredki|Puzzle|Najstarsza lalka/ })
@@ -333,7 +333,7 @@ describe("TermPage — place and capacity", () => {
 
     const card = await screen.findByRole("region", { name: "Termin zajęć" });
     expect(within(card).getByRole("status")).toHaveTextContent("Brak wolnych miejsc");
-    expect(screen.getByRole("button", { name: "＋ Zapisz się na zajęcia" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "＋ Zapisz się" })).toBeEnabled();
   });
 });
 
@@ -348,7 +348,7 @@ describe("TermPage — organizer theme", () => {
     const scope = heading.closest<HTMLElement>('[data-organizer-theme="custom"]');
     expect(scope).not.toBeNull();
     expect(scope!.style.getPropertyValue("--color-primary")).toBe("#7a2a4f");
-    expect(scope).toContainElement(screen.getByRole("region", { name: "Zapisani na zajęcia" }));
+    expect(scope).toContainElement(screen.getByRole("region", { name: "Zapisani na spotkanie" }));
   });
 
   it("renders the private group gate inside the same scope", async () => {
@@ -371,12 +371,12 @@ describe("TermPage — organizer theme", () => {
 });
 
 describe("TermPage — sign-up footer", () => {
-  it("anonymous: 'Zaloguj się, żeby się zapisać' opens the login/register sheet, with no guest path", async () => {
+  it("anonymous: 'Zapisz się' opens the login/register sheet, with no guest path", async () => {
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Zaloguj się, żeby się zapisać" }));
+    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się" }));
 
-    const sheet = screen.getByRole("dialog", { name: "Zapisz się na zajęcia" });
+    const sheet = screen.getByRole("dialog", { name: "Zapisz się" });
     expect(within(sheet).getByRole("tab", { name: "Zaloguj się" })).toHaveAttribute("aria-selected", "true");
     expect(within(sheet).getByLabelText("Hasło")).toBeInTheDocument();
     expect(within(sheet).queryByRole("link")).not.toBeInTheDocument();
@@ -388,7 +388,7 @@ describe("TermPage — sign-up footer", () => {
     mockAuth = { token: "tok", displayName: "Ala" };
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
+    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się" }));
 
     expect(await screen.findByRole("dialog", { name: "Zapisz się na zajęcia" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Imię")).not.toBeInTheDocument();
@@ -401,7 +401,7 @@ describe("TermPage — sign-up footer", () => {
     ]);
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
+    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Zapisz się na zajęcia" });
     await waitFor(() => expect(familiesApi.getMyFamilies).toHaveBeenCalled());
@@ -520,7 +520,7 @@ describe("TermPage — access", () => {
     const sheet = screen.getByRole("dialog", { name: "Potrzebne konto" });
     expect(within(sheet).getByRole("tab", { name: "Załóż konto" })).toHaveAttribute("aria-selected", "true");
     fireEvent.click(within(sheet).getByRole("button", { name: "Zamknij" }));
-    expect(screen.queryByRole("region", { name: "Zapisani na zajęcia" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Zapisani na spotkanie" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mam kod dostępu" })).not.toBeInTheDocument();
   });
 
@@ -978,7 +978,7 @@ describe("TermPage — view fixes", () => {
     mockAuth = { token: "tok", displayName: null };
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
+    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się" }));
 
     expect(await screen.findByRole("dialog", { name: "Zapisz się na zajęcia" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Imię")).not.toBeInTheDocument();
@@ -989,7 +989,7 @@ describe("TermPage — view fixes", () => {
     vi.mocked(groupsApi.createRsvp).mockResolvedValue({} as never);
     const { rerender } = renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
+    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się" }));
     const dialog = await screen.findByRole("dialog", { name: "Zapisz się na zajęcia" });
     expect(within(dialog).queryByText(/Zapisujesz się jako/)).not.toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Zapisz się" })).toBeDisabled();
@@ -1011,7 +1011,7 @@ describe("TermPage — view fixes", () => {
     mockAuth = { token: "tok", displayName: "Ala" };
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
+    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Zapisz się na zajęcia" });
     expect(within(dialog).getByText(/Zapisujesz się jako/)).toHaveTextContent("Zapisujesz się jako Ala");
@@ -1025,11 +1025,10 @@ describe("TermPage — view fixes", () => {
     renderPage();
 
     expect(await screen.findByText("Zajęcia w parku")).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Zapisani na zajęcia" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "＋ Zapisz się na zajęcia" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Zapisani na spotkanie" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "＋ Zapisz się" })).toBeInTheDocument();
     expect(screen.queryByText(/Ta grupa jest prywatna/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mam kod dostępu" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Zaloguj się, żeby się zapisać" })).not.toBeInTheDocument();
   });
 
   it("the needed-items and attendee sections are named regions", async () => {
@@ -1037,7 +1036,7 @@ describe("TermPage — view fixes", () => {
 
     const needed = await screen.findByRole("region", { name: "Potrzebne rzeczy" });
     expect(within(needed).getByText("Bębenek")).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Zapisani na zajęcia" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Zapisani na spotkanie" })).toBeInTheDocument();
   });
 });
 
@@ -1048,7 +1047,7 @@ describe("TermPage — needed items", () => {
     );
     renderPage();
 
-    expect(await screen.findByRole("region", { name: "Zapisani na zajęcia" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Zapisani na spotkanie" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Potrzebne rzeczy" })).not.toBeInTheDocument();
   });
 });
@@ -1062,7 +1061,7 @@ describe("TermPage — direct sign-up and server error messages", () => {
     vi.mocked(groupsApi.createRsvp).mockResolvedValue({} as never);
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
+    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się" }));
 
     await waitFor(() =>
       expect(groupsApi.createRsvp).toHaveBeenCalledWith("7", { term_id: "101", child_count: 2 }),
@@ -1081,7 +1080,7 @@ describe("TermPage — direct sign-up and server error messages", () => {
     );
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na zajęcia" }));
+    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Termin już się odbył");
   });

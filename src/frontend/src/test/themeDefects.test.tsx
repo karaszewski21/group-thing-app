@@ -62,7 +62,7 @@ describe("default organizer palette contrast (WCAG AA)", () => {
 
 describe("in-scope public pages use theme tokens, not literal colors", () => {
   const IN_SCOPE_FILES = [
-    "features/terms/components/TermFooter.tsx",
+    "components/shared/SignUpFooter.tsx",
     "features/terms/components/termLabels.ts",
     "features/terms/blocks/TermChats.tsx",
     "features/terms/blocks/TermDescription.tsx",

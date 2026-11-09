@@ -1,7 +1,8 @@
 import type { PublicCircleResponse, PublicItemListingResponse } from "../../api/groups";
-import { PREVIEW_ITEM_LIMIT } from "../../components/shared/ParticipantItemsPreview";
+import { PREVIEW_ITEM_LIMIT, type ParticipantPreviewItem } from "../../components/shared/ParticipantItemsPreview";
+import type { ParticipantRow } from "../../components/shared/ParticipantList";
+import { LISTABLE_RESERVATION_TYPES } from "./components/termLabels";
 import type { VisualizationFamily } from "./components/visualization/visualizationTypes";
-import type { AttendeeVM } from "./components/AttendeeList";
 
 /** Newest listing first; `added_at` is naive UTC ISO, so strings sort as dates. */
 function byNewest(a: PublicItemListingResponse, b: PublicItemListingResponse): number {
@@ -9,11 +10,22 @@ function byNewest(a: PublicItemListingResponse, b: PublicItemListingResponse): n
   return a.added_at < b.added_at ? 1 : -1;
 }
 
+function toPreviewItem(listing: PublicItemListingResponse): ParticipantPreviewItem {
+  return {
+    itemId: listing.item_id,
+    name: listing.product_name,
+    modes: LISTABLE_RESERVATION_TYPES.filter((mode) => listing.offered_types.includes(mode)),
+    thumbUrl: listing.thumb_url,
+    addedAt: listing.added_at,
+    reservation: listing.reservation,
+  };
+}
+
 /** Everyone in the attendee list: the Term's guardians first, then any
  * lister who offers items without being signed up (e.g. the organizer).
  * Each keeps their `PREVIEW_ITEM_LIMIT` newest listings plus the total count;
  * the term page gets every listing, so it sorts and caps here. */
-export function buildAttendees(group: PublicCircleResponse): AttendeeVM[] {
+export function buildAttendees(group: PublicCircleResponse): ParticipantRow[] {
   const listings = group.term?.item_listings ?? [];
   const people = new Map<string, string>(group.guardians.map((g) => [g.party_id, g.display_name]));
   for (const listing of listings) {
@@ -24,8 +36,8 @@ export function buildAttendees(group: PublicCircleResponse): AttendeeVM[] {
     return {
       partyId,
       name,
-      listings: [...own].sort(byNewest).slice(0, PREVIEW_ITEM_LIMIT),
-      listingsTotal: own.length,
+      items: [...own].sort(byNewest).slice(0, PREVIEW_ITEM_LIMIT).map(toPreviewItem),
+      itemsTotal: own.length,
     };
   });
 }

@@ -2,10 +2,10 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EventParticipant, EventParticipantItem, EventResponse } from "../api/events";
-import { EventAttendeeList } from "../features/events/components/EventAttendeeList";
+import { ParticipantList } from "../components/shared/ParticipantList";
 import { EventChatRow } from "../features/events/components/EventChatRow";
-import { EventFooter } from "../features/events/components/EventFooter";
 import { EventWhenCard } from "../features/events/components/EventWhenCard";
+import { buildEventParticipants, eventAttendeesEmptyCopy } from "../features/events/eventViewModel";
 import { makeLocality, makeLocationRef } from "./fixtures/locations";
 import { renderWithRoute } from "./renderWithRoute";
 
@@ -83,10 +83,20 @@ describe("EventWhenCard", () => {
   });
 });
 
-describe("EventAttendeeList", () => {
+function EventParticipants({ participants, canSignUp }: { participants: EventParticipant[]; canSignUp: boolean }) {
+  return (
+    <ParticipantList
+      label="Zapisani na wydarzenie"
+      rows={buildEventParticipants(participants)}
+      emptyMessage={eventAttendeesEmptyCopy(participants, canSignUp)}
+    />
+  );
+}
+
+describe("Event attendee list", () => {
   it("puts the author first with Organizator and marks the viewer's row with To Ty", () => {
     renderWithProviders(
-      <EventAttendeeList
+      <EventParticipants
         canSignUp
         participants={[
           participant(),
@@ -96,7 +106,7 @@ describe("EventAttendeeList", () => {
       />,
     );
     const list = screen.getByRole("region", { name: "Zapisani na wydarzenie" });
-    expect(within(list).getByRole("heading", { level: 2, name: "Zapisani i ich rzeczy" })).toBeInTheDocument();
+    expect(within(list).getByRole("heading", { level: 2, name: "Zapisani na wydarzenie" })).toBeInTheDocument();
     const rows = within(list).getAllByRole("listitem");
     expect(rows).toHaveLength(3);
     expect(within(rows[0]).getByText("Fundacja Zielony Krąg")).toBeInTheDocument();
@@ -109,7 +119,7 @@ describe("EventAttendeeList", () => {
 
   it("links every item to its product page under the participant's party id, with its intent pill", () => {
     renderWithProviders(
-      <EventAttendeeList
+      <EventParticipants
         canSignUp
         participants={[participant({ items: [item("it-1", "Pluszowy miś", "GIFT"), item("it-2", "Rowerek", "SWAP")] })]}
       />,
@@ -124,7 +134,7 @@ describe("EventAttendeeList", () => {
 
   it("shows 3 items, then Pokaż więcej (N) › to the participant's items page, no event query", () => {
     renderWithRoute(
-      <EventAttendeeList
+      <EventParticipants
         canSignUp
         participants={[
           participant({
@@ -144,7 +154,7 @@ describe("EventAttendeeList", () => {
   });
 
   it("keeps the author row and shows the empty copy when nobody else signed up", () => {
-    renderWithProviders(<EventAttendeeList canSignUp participants={[participant()]} />);
+    renderWithProviders(<EventParticipants canSignUp participants={[participant()]} />);
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
     expect(screen.getByText("Organizator")).toBeInTheDocument();
     expect(screen.getByText(EMPTY_COPY)).toBeInTheDocument();
@@ -152,30 +162,10 @@ describe("EventAttendeeList", () => {
 
   it("shows neutral empty copy without the sign-up nudge when the viewer cannot sign up", () => {
     renderWithProviders(
-      <EventAttendeeList canSignUp={false} participants={[participant()]} />,
+      <EventParticipants canSignUp={false} participants={[participant()]} />,
     );
     expect(screen.getByText(NEUTRAL_EMPTY_COPY)).toBeInTheDocument();
     expect(screen.queryByText(EMPTY_COPY)).not.toBeInTheDocument();
-  });
-});
-
-describe("EventFooter", () => {
-  it("renders the signUp, withdraw and disabled ended variants with their copy", () => {
-    const onSignUp = vi.fn();
-    const onWithdraw = vi.fn();
-    const { rerender } = render(<EventFooter variant="signUp" busy={false} onSignUp={onSignUp} />);
-    fireEvent.click(screen.getByRole("button", { name: "＋ Zapisz się na wydarzenie" }));
-    expect(onSignUp).toHaveBeenCalledTimes(1);
-
-    rerender(<EventFooter variant="signUp" busy onSignUp={onSignUp} />);
-    expect(screen.getByRole("button", { name: "＋ Zapisz się na wydarzenie" })).toBeDisabled();
-
-    rerender(<EventFooter variant="withdraw" busy={false} onWithdraw={onWithdraw} />);
-    fireEvent.click(screen.getByRole("button", { name: "Wypisz się" }));
-    expect(onWithdraw).toHaveBeenCalledTimes(1);
-
-    rerender(<EventFooter variant="ended" />);
-    expect(screen.getByRole("button", { name: "Wydarzenie się zakończyło" })).toBeDisabled();
   });
 });
 

@@ -87,7 +87,7 @@ describe("organizer-themed files use role tokens", () => {
     "features/terms/blocks/TermLocation.tsx",
     "features/terms/blocks/TermVisualization.tsx",
     "features/terms/TermPage.tsx",
-    "features/terms/components/TermFooter.tsx",
+    "components/shared/SignUpFooter.tsx",
     "features/terms/components/termLabels.ts",
     "features/terms/modals/JoinByCodeSheet.tsx",
     "features/terms/components/CodeDigitsInput.tsx",

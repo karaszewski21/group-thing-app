@@ -1,15 +1,18 @@
 "use client";
 
-import { EventAttendeeList } from "../components/EventAttendeeList";
+import { ParticipantList } from "../../../components/shared/ParticipantList";
 import { useEventPage } from "../EventPageContext";
+import { buildEventParticipants, eventAttendeesEmptyCopy } from "../eventViewModel";
 
 /** Who takes part; the empty list invites only a viewer who can sign up. */
 export function EventAttendees() {
   const { view } = useEventPage();
+  const { participants } = view.event;
   return (
-    <EventAttendeeList
-      participants={view.event.participants}
-      canSignUp={view.kind === "visitor" && !view.ended}
+    <ParticipantList
+      label="Zapisani na wydarzenie"
+      rows={buildEventParticipants(participants)}
+      emptyMessage={eventAttendeesEmptyCopy(participants, view.kind === "visitor" && !view.ended)}
     />
   );
 }

@@ -141,7 +141,7 @@ describe("EventPage", () => {
     const when = screen.getByRole("region", { name: "Termin wydarzenia" });
     const description = screen.getByText("Kocyki i lemoniada");
     const list = screen.getByRole("region", { name: "Zapisani na wydarzenie" });
-    const footer = screen.getByRole("button", { name: "＋ Zapisz się na wydarzenie" });
+    const footer = screen.getByRole("button", { name: "＋ Zapisz się" });
     [heading, banner, when, description, list, footer].reduce((prev, next) => {
       expectBefore(prev, next);
       return next;
@@ -226,8 +226,8 @@ describe("EventPage", () => {
     vi.mocked(eventsApi.getEvent).mockResolvedValue(event());
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na wydarzenie" }));
-    const sheet = screen.getByRole("dialog", { name: "Zapisz się na wydarzenie" });
+    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się" }));
+    const sheet = screen.getByRole("dialog", { name: "Zapisz się" });
     expect(within(sheet).getByText(/Zapisy na wydarzenie wymagają konta/)).toBeInTheDocument();
     expect(within(sheet).getByRole("tab", { name: "Zaloguj się" })).toHaveAttribute("aria-selected", "true");
     expect(within(sheet).getByLabelText("Hasło")).toBeInTheDocument();
@@ -312,7 +312,7 @@ describe("EventPage", () => {
     renderPage();
 
     expect(await screen.findByRole("button", { name: "Wydarzenie się zakończyło" })).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "＋ Zapisz się na wydarzenie" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "＋ Zapisz się" })).not.toBeInTheDocument();
     expect(screen.getByText(NEUTRAL_EMPTY_COPY)).toBeInTheDocument();
   });
 
@@ -322,7 +322,7 @@ describe("EventPage", () => {
     vi.mocked(eventsApi.signUpForEvent).mockResolvedValue(ATTENDANCE);
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na wydarzenie" }));
+    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Zapisano na wydarzenie");
     expect(eventsApi.signUpForEvent).toHaveBeenCalledWith(EVENT_ID);
@@ -435,14 +435,14 @@ describe("EventPage", () => {
     );
     const { rerender } = renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się na wydarzenie" }));
-    expect(screen.getByRole("dialog", { name: "Zapisz się na wydarzenie" })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "＋ Zapisz się" }));
+    expect(screen.getByRole("dialog", { name: "Zapisz się" })).toBeInTheDocument();
 
     rerender(await eventRouteElement(`/zielony-krag/event/${OTHER_EVENT_ID}`));
 
     expect(await screen.findByRole("heading", { name: "Bazar zimowy", level: 1 })).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "＋ Zapisz się na wydarzenie" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "＋ Zapisz się" })).toBeInTheDocument();
   });
 
   it.each([

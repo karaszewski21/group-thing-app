@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { getEventOnServer } from "../../../../../api/server";
 import { EventAttendees } from "../../../../../features/events/blocks/EventAttendees";
-import { EventAuthor } from "../../../../../features/events/blocks/EventAuthor";
 import { EventBanner } from "../../../../../features/events/blocks/EventBanner";
 import { EventChat } from "../../../../../features/events/blocks/EventChat";
 import { EventDescription } from "../../../../../features/events/blocks/EventDescription";
@@ -34,7 +33,6 @@ export default async function Page({ params }: Props) {
         <EventChat />
         <EventAttendees />
         <EventRefreshError />
-        <EventAuthor />
       </div>
       <EventSignUp />
     </EventPage>

@@ -1,42 +1,33 @@
 "use client";
 
-import { AuthSheet } from "../../auth/AuthSheet";
-import { TermFooter } from "../components/TermFooter";
+import { SignUpFooter } from "../../../components/shared/SignUpFooter";
 import { useTermSignUp } from "../hooks/useTermSignUp";
 import { RsvpDialogLoggedIn } from "../modals/RsvpDialogLoggedIn";
 import { useTermPage } from "../TermPageContext";
 
-/** The sticky sign-up footer with its login sheet and RSVP dialog; nothing
- * without a term. */
+/** The sticky sign-up footer with its RSVP dialog; nothing without a term
+ * or once the viewer attends. */
 export function TermSignUp() {
   const { view, isLoggedIn, displayName, refetch, showToast } = useTermPage();
   const { group, isAttending } = view;
   const term = group.term;
   const signUp = useTermSignUp({
-    isLoggedIn,
     refetch,
     showToast,
     groupId: group.id,
     termId: term?.id ?? null,
     displayName,
   });
-  if (!term) return null;
+  if (!term || isAttending) return null;
 
   return (
     <>
-      <TermFooter
+      <SignUpFooter
+        variant="signUp"
         isLoggedIn={isLoggedIn}
-        isAttending={isAttending}
-        busy={signUp.signingUp}
-        onSignUp={signUp.openSignUp}
+        authMessage="Zapisy na zajęcia wymagają konta. Zaloguj się albo załóż konto — zostaniesz na tej stronie."
+        onSignUp={signUp.signUp}
       />
-      {signUp.gateOpen && (
-        <AuthSheet
-          title="Zapisz się na zajęcia"
-          message="Zapisy na zajęcia wymagają konta. Zaloguj się albo załóż konto — zostaniesz na tej stronie."
-          onClose={signUp.closeGate}
-        />
-      )}
       {signUp.dialogOpen && isLoggedIn && (
         <RsvpDialogLoggedIn
           groupId={group.id}

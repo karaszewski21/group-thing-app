@@ -1,8 +1,9 @@
 import { screen } from "@testing-library/react";
 import { renderWithRoute } from "./renderWithRoute";
 import { describe, expect, it } from "vitest";
-import type { PublicItemListingResponse } from "../api/groups";
-import { AttendeeList } from "../features/terms/components/AttendeeList";
+import type { PublicCircleResponse, PublicItemListingResponse } from "../api/groups";
+import { ParticipantList } from "../components/shared/ParticipantList";
+import { buildAttendees } from "../features/terms/termViewModel";
 
 function listing(thumbUrl: string | null): PublicItemListingResponse {
   return {
@@ -21,16 +22,12 @@ function listing(thumbUrl: string | null): PublicItemListingResponse {
 
 function renderRow(thumbUrl: string | null) {
   renderWithRoute(
-    <AttendeeList
-      attendees={[
-        {
-          partyId: "21",
-          name: "Ola Nowak",
-          listings: [listing(thumbUrl)],
-          listingsTotal: 1,
-        },
-      ]}
-      activePartyId={null}
+    <ParticipantList
+      label="Zapisani na zajęcia"
+      rows={buildAttendees({
+        guardians: [{ party_id: "21", display_name: "Ola Nowak" }],
+        term: { item_listings: [listing(thumbUrl)] },
+      } as unknown as PublicCircleResponse)}
     />,
     { url: "/" },
   );

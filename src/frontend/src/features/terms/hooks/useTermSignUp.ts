@@ -3,24 +3,21 @@ import { getMyFamilies } from "../../../api/families";
 import { createRsvp } from "../../../api/groups";
 import { serverMessageOr } from "../../../api/problem";
 import { pluralPl } from "../../../utils/plural";
-import { useAccountGate, type TermActionDeps } from "../../auth/useAccountGate";
+import type { TermActionDeps } from "../../auth/useAccountGate";
 
-/** Footer sign-up, which needs an account: an anonymous visitor gets the
- * login/register sheet. A logged-in parent whose family already has
+/** The logged-in side of the footer's "Zapisz się" (`SignUpFooter` gates
+ * anonymous visitors). A parent whose family already has
  * children is signed up straight away with that child count; only a family
  * with no children yet (or an unreadable one) gets the dialog, which asks
  * for the count. */
 export function useTermSignUp({
-  isLoggedIn,
   refetch,
   showToast,
   groupId,
   termId,
   displayName,
-}: TermActionDeps & { groupId: string; termId: string | null; displayName: string | null }) {
-  const gate = useAccountGate(isLoggedIn);
+}: Omit<TermActionDeps, "isLoggedIn"> & { groupId: string; termId: string | null; displayName: string | null }) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [signingUp, setSigningUp] = useState(false);
 
   function handleSubmitted(toast = "Zapisano na zajęcia") {
     setDialogOpen(false);
@@ -36,14 +33,13 @@ export function useTermSignUp({
     }
   }
 
-  async function signUpLoggedIn() {
-    if (termId === null || signingUp) return;
+  async function signUp() {
+    if (termId === null) return;
     // The display name loads after login; the dialog waits for it.
     if (displayName === null) {
       setDialogOpen(true);
       return;
     }
-    setSigningUp(true);
     try {
       const childCount = await familyChildCount();
       if (childCount < 1) {
@@ -56,17 +52,12 @@ export function useTermSignUp({
       );
     } catch (err) {
       showToast(serverMessageOr(err, "Nie udało się zapisać — spróbuj ponownie"));
-    } finally {
-      setSigningUp(false);
     }
   }
 
   return {
-    gateOpen: gate.isOpen,
-    closeGate: gate.close,
     dialogOpen,
-    signingUp,
-    openSignUp: gate.guard(signUpLoggedIn),
+    signUp,
     closeDialog: () => setDialogOpen(false),
     handleSubmitted: () => handleSubmitted(),
   };

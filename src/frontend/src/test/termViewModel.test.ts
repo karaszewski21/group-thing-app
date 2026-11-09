@@ -3,7 +3,12 @@ import type { PublicCircleResponse, PublicItemListingResponse } from "../api/gro
 import { buildAttendees, buildVisualizationFamilies } from "../features/terms/termViewModel";
 
 function listing(itemId: string, listerPartyId: string, listerName: string): PublicItemListingResponse {
-  return { item_id: itemId, lister_party_id: listerPartyId, lister_display_name: listerName } as PublicItemListingResponse;
+  return {
+    item_id: itemId,
+    lister_party_id: listerPartyId,
+    lister_display_name: listerName,
+    offered_types: [],
+  } as unknown as PublicItemListingResponse;
 }
 
 const group = {
@@ -21,7 +26,7 @@ describe("termViewModel", () => {
   it("buildAttendees_listsGuardiansFirst_thenNonAttendingListers_withOwnListings", () => {
     const attendees = buildAttendees(group);
 
-    expect(attendees.map((a) => [a.partyId, a.name, a.listings.map((l) => l.item_id)])).toEqual([
+    expect(attendees.map((a) => [a.partyId, a.name, a.items.map((i) => i.itemId)])).toEqual([
       ["1", "Ola", ["10"]],
       ["2", "Ewa", []],
       ["9", "Ania Kowalska", ["11"]],
@@ -38,7 +43,7 @@ describe("termViewModel", () => {
   it("noTerm_givesNoListingsAndNoFlags", () => {
     const empty = { ...group, term: null } as PublicCircleResponse;
 
-    expect(buildAttendees(empty).every((a) => a.listings.length === 0)).toBe(true);
+    expect(buildAttendees(empty).every((a) => a.items.length === 0)).toBe(true);
     expect(buildVisualizationFamilies(empty).some((f) => f.sharesItem || f.bringsItem)).toBe(false);
   });
 });
