@@ -3,7 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { OWNER_MEETINGS_KEY } from "../../hooks/useOwnerMeetings";
 import { PUBLIC_ORGANIZATION_KEY } from "../../hooks/usePublicOrganization";
-import { NotFoundFrame } from "../owner-page/PageFrame";
+import { NotFoundFrame } from "../../components/shared/PageFrame";
 import { OwnerMeetingsLoadError } from "./OwnerMeetingsContext";
 import { OwnerMeetingsFrame } from "./OwnerMeetingsSkeleton";
 import { OWNER_MEETINGS_LOAD_ERROR } from "./ownerMeetingsViewState";

@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { EVENT_KEY } from "../../hooks/useEvent";
-import { NotFoundFrame, PageFrame } from "../owner-page/PageFrame";
+import { NotFoundFrame, PageFrame } from "../../components/shared/PageFrame";
 import { EventLoadError } from "./EventPageContext";
 
 export const RETRY_BUTTON =

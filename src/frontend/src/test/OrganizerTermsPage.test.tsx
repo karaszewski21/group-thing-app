@@ -5,7 +5,7 @@ import * as groupsApi from "../api/groups";
 import type { OrganizerCircle, OrganizerPageResponse, OrganizerTerm } from "../api/groups";
 import * as organizationsApi from "../api/organizations";
 import type { Page } from "../api/pagination";
-import { OrganizerTermsPage } from "../features/owner-page/OrganizerTermsPage";
+import { OrganizerTermsPage } from "../features/organization-public/OrganizerTermsPage";
 import { createQueryWrapper } from "./queryClient";
 import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 

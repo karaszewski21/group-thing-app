@@ -4,12 +4,12 @@ import { describe, expect, it } from "vitest";
 import type { OrganizerPageResponse } from "../api/groups";
 import type { PublicOrganizationResponse } from "../api/organizations";
 import type { OwnerItemCard, OwnerNearestDate } from "../api/ownerItems";
-import { BlockSkeleton } from "../features/owner-page/blocks/BlockSkeleton";
-import { EmptyStateBlock } from "../features/owner-page/blocks/EmptyStateBlock";
-import { GhostBlock } from "../features/owner-page/blocks/GhostBlock";
-import { LayoutRenderer } from "../features/owner-page/LayoutRenderer";
-import { isRecommended, LAYOUT_REGISTRY } from "../features/owner-page/layouts/registry";
-import type { OrganizerPageData, PageLayoutDefinition } from "../features/owner-page/layouts/types";
+import { BlockSkeleton } from "../components/shared/BlockSkeleton";
+import { EmptyStateBlock } from "../features/organization-public/blocks/EmptyStateBlock";
+import { GhostBlock } from "../features/organization-public/blocks/GhostBlock";
+import { LayoutRenderer } from "../features/organization-public/LayoutRenderer";
+import { isRecommended, LAYOUT_REGISTRY } from "../features/organization-public/layouts/registry";
+import type { OrganizerPageData, PageLayoutDefinition } from "../features/organization-public/layouts/types";
 import dayjs from "../utils/dayjs";
 import { renderWithRoute } from "./renderWithRoute";
 

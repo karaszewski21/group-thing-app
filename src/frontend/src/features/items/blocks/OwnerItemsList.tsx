@@ -2,8 +2,8 @@
 
 import { useId } from "react";
 import { itemPagePath } from "../../product/useItemRoutes";
-import { ExchangeModeTabs, type ExchangeFilter } from "../../owner-page/blocks/ExchangeBoardBlock";
-import { ItemCard } from "../../owner-page/blocks/ExchangeItemCard";
+import { ExchangeModeTabs, type ExchangeFilter } from "../../organization-public/blocks/ExchangeBoardBlock";
+import { ItemCard } from "../../../components/shared/ItemCard";
 import { useOwnerItemsPage } from "../OwnerItemsContext";
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";

@@ -8,6 +8,9 @@ import OwnerItemsRoutePage from "../app/(site)/[slug]/items/page";
 import OwnerMeetingsRouteError from "../app/(site)/[slug]/meetings/error";
 import OwnerMeetingsRouteNotFound from "../app/(site)/[slug]/meetings/not-found";
 import OwnerMeetingsRoutePage from "../app/(site)/[slug]/meetings/page";
+import OwnerRouteError from "../app/(site)/[slug]/error";
+import OwnerRouteNotFound from "../app/(site)/[slug]/not-found";
+import OwnerRoutePage from "../app/(site)/[slug]/page";
 import { RouteBoundary } from "./routeBoundary";
 
 /** `/:slug/product/:id` as Next renders it: the route's `page.tsx` block
@@ -40,6 +43,18 @@ export async function ownerMeetingsRouteElement(url: string): Promise<ReactEleme
   const page = await OwnerMeetingsRoutePage({ params: Promise.resolve({ slug }) });
   return (
     <RouteBoundary NotFound={OwnerMeetingsRouteNotFound} ErrorPage={OwnerMeetingsRouteError}>
+      {page}
+    </RouteBoundary>
+  );
+}
+
+/** `/:slug` (an Organization's page or a person's profile) as Next renders
+ * it, like `itemRouteElement`. */
+export async function ownerRouteElement(url: string): Promise<ReactElement> {
+  const [, slug = ""] = new URL(url, "http://localhost").pathname.split("/");
+  const page = await OwnerRoutePage({ params: Promise.resolve({ slug }) });
+  return (
+    <RouteBoundary NotFound={OwnerRouteNotFound} ErrorPage={OwnerRouteError}>
       {page}
     </RouteBoundary>
   );

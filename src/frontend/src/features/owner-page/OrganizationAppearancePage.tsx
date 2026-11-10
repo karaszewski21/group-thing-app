@@ -12,9 +12,9 @@ import { ColorsTab, SECTION_LABEL } from "./editor/ColorsTab";
 import { diffDraft, sameDraft, toDraft, type Draft } from "./editor/draft";
 import { LayoutTab } from "./editor/LayoutTab";
 import { PhotosTab } from "./editor/PhotosTab";
-import { nextIndex } from "./editor/rovingIndex";
+import { nextIndex } from "../../components/shared/rovingIndex";
 import { UnsavedChangesDialog } from "./editor/UnsavedChangesDialog";
-import type { DirectoryStatus, OrganizerPageData } from "./layouts/types";
+import type { DirectoryStatus, OrganizerPageData } from "../organization-public/layouts/types";
 
 type Tab = "photos" | "layout";
 

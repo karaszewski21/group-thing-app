@@ -1,10 +1,11 @@
-import { act, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { ApiError } from "../api/client";
 import * as groupsApi from "../api/groups";
 import * as organizationsApi from "../api/organizations";
-import { PublicOrganizationPage } from "../features/owner-page/PublicOrganizationPage";
 import { buildOrgThemeVars } from "../theme/orgPalette";
 import { findPreset } from "../theme/palettes";
+import { ownerRouteElement } from "./itemRoute";
 import { createQueryWrapper } from "./queryClient";
 import { renderWithRoute } from "./renderWithRoute";
 
@@ -21,8 +22,8 @@ vi.mock("../api/groups", () => ({
   getOrganizerPage: vi.fn(),
 }));
 
-function renderAt(path: string) {
-  return renderWithRoute(<PublicOrganizationPage />, {
+async function renderAt(path: string) {
+  return renderWithRoute(await ownerRouteElement(path), {
     url: path,
     pattern: "/:slug",
     wrapper: createQueryWrapper(),
@@ -95,18 +96,30 @@ describe("PublicOrganizationPage", () => {
       gallery: [],
     });
 
-    renderAt("/muzyczne-skrzaty");
+    await renderAt("/muzyczne-skrzaty");
 
     expect(await screen.findByText("Muzyczne Skrzaty")).toBeInTheDocument();
     expect(organizationsApi.getPublicOrganization).toHaveBeenCalledWith("muzyczne-skrzaty");
   });
 
   it("shows a not-found message for an unknown slug", async () => {
-    vi.mocked(organizationsApi.getPublicOrganization).mockRejectedValue(new Error("404"));
+    vi.mocked(organizationsApi.getPublicOrganization).mockRejectedValue(new ApiError(404, "Not Found", null));
 
-    renderAt("/does-not-exist");
+    await renderAt("/does-not-exist");
 
     expect(await screen.findByText("Nie znaleziono strony")).toBeInTheDocument();
+    expect(screen.getByText("Ta organizacja nie istnieje.")).toBeInTheDocument();
+  });
+
+  it("a failed read shows the error with a retry that fetches again", async () => {
+    vi.mocked(organizationsApi.getPublicOrganization)
+      .mockRejectedValueOnce(new ApiError(500, "Server Error", null))
+      .mockResolvedValue(ORGANIZATION);
+
+    await renderAt("/muzyczne-skrzaty");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Spróbuj ponownie" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
   });
 
   it("renders the organization in its generated palette through the layout renderer", async () => {
@@ -123,7 +136,7 @@ describe("PublicOrganizationPage", () => {
       gallery: [],
     });
 
-    renderAt("/studio-ania");
+    await renderAt("/studio-ania");
 
     const name = await screen.findByText("Studio Ania");
     const scope = themeScope(name);
@@ -149,7 +162,7 @@ describe("PublicOrganizationPage", () => {
       gallery: [],
     });
 
-    renderAt("/tylko-akcent");
+    await renderAt("/tylko-akcent");
 
     const name = await screen.findByText("Tylko Akcent");
     expect(themeScope(name)).toHaveAttribute("data-organizer-theme", "default");
@@ -158,7 +171,7 @@ describe("PublicOrganizationPage", () => {
   it("shows a visitor the hero and share button without owner chrome", async () => {
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
 
-    renderAt("/muzyczne-skrzaty");
+    await renderAt("/muzyczne-skrzaty");
 
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Udostępnij" })).toBeInTheDocument();
@@ -172,7 +185,7 @@ describe("PublicOrganizationPage", () => {
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({ ...MY_ORGANIZATION, slug: "inna-org" });
 
-    renderAt("/muzyczne-skrzaty");
+    await renderAt("/muzyczne-skrzaty");
 
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
     await vi.waitFor(() => expect(organizationsApi.getMyOrganization).toHaveBeenCalled());
@@ -185,7 +198,7 @@ describe("PublicOrganizationPage", () => {
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
     vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new Error("network"));
 
-    renderAt("/muzyczne-skrzaty");
+    await renderAt("/muzyczne-skrzaty");
 
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
     await vi.waitFor(() => expect(organizationsApi.getMyOrganization).toHaveBeenCalled());
@@ -198,7 +211,7 @@ describe("PublicOrganizationPage", () => {
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
     vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue(MY_ORGANIZATION);
 
-    renderAt("/muzyczne-skrzaty");
+    await renderAt("/muzyczne-skrzaty");
 
     const settings = await screen.findByRole("link", { name: "Ustawienia" });
     expect(screen.getByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).toBeInTheDocument();
@@ -211,7 +224,7 @@ describe("PublicOrganizationPage", () => {
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
     vi.mocked(groupsApi.getOrganizerPage).mockRejectedValue(new Error("500"));
 
-    renderAt("/muzyczne-skrzaty");
+    await renderAt("/muzyczne-skrzaty");
 
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
     await vi.waitFor(() => expect(groupsApi.getOrganizerPage).toHaveBeenCalledWith("muzyczne-skrzaty"));
@@ -225,7 +238,7 @@ describe("PublicOrganizationPage", () => {
     vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
     vi.mocked(groupsApi.getOrganizerPage).mockReturnValue(new Promise(() => {}));
 
-    renderAt("/muzyczne-skrzaty");
+    await renderAt("/muzyczne-skrzaty");
 
     expect(await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" })).toBeInTheDocument();
     expect(screen.getByText("Strona utworzona w Krąg grupy")).toBeInTheDocument();
@@ -242,7 +255,7 @@ describe("PublicOrganizationPage", () => {
       gallery: [],
     });
 
-    renderAt("/muzyczne-skrzaty");
+    await renderAt("/muzyczne-skrzaty");
 
     const name = await screen.findByRole("heading", { level: 1, name: "Muzyczne Skrzaty" });
     const scope = themeScope(name);

@@ -1,9 +1,9 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import type { OwnerItemCard, PartyProfileResponse } from "../api/ownerItems";
 import * as ownerItemsApi from "../api/ownerItems";
-import { PartyProfilePage } from "../features/owner-page/PartyProfilePage";
+import { ownerRouteElement } from "./itemRoute";
 import { createQueryWrapper } from "./queryClient";
 import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
@@ -42,8 +42,8 @@ function profile(overrides: Partial<PartyProfileResponse> = {}): PartyProfileRes
   };
 }
 
-function renderAt(path: string) {
-  renderWithRoute(<PartyProfilePage />, {
+async function renderAt(path: string) {
+  renderWithRoute(await ownerRouteElement(path), {
     url: path,
     pattern: "/:slug",
     wrapper: createQueryWrapper(),
@@ -62,7 +62,7 @@ describe("PartyProfilePage", () => {
   it("shows the name, bio, newest items and a link to all items", async () => {
     vi.mocked(ownerItemsApi.getPartyProfile).mockResolvedValue(profile());
 
-    renderAt(`/${PARTY_ID}`);
+    await renderAt(`/${PARTY_ID}`);
 
     expect(await screen.findByRole("heading", { level: 1, name: "Ania Kowalska" })).toBeInTheDocument();
     expect(screen.getByText("Oddaję ubranka po córce.")).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe("PartyProfilePage", () => {
   it("invites the person themself to set up an organizer page", async () => {
     vi.mocked(ownerItemsApi.getPartyProfile).mockResolvedValue(profile({ is_me: true }));
 
-    renderAt(`/${PARTY_ID}`);
+    await renderAt(`/${PARTY_ID}`);
 
     expect(await screen.findByRole("link", { name: "Załóż stronę organizatora" })).toHaveAttribute(
       "href",
@@ -91,7 +91,7 @@ describe("PartyProfilePage", () => {
       profile({ counts: { GIFT: 0, SWAP: 0 }, recent_items: [], bio: null }),
     );
 
-    renderAt(`/${PARTY_ID}`);
+    await renderAt(`/${PARTY_ID}`);
 
     expect(await screen.findByText("Nie ma teraz rzeczy do oddania ani zamiany.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Zobacz wszystkie/ })).not.toBeInTheDocument();
@@ -102,7 +102,7 @@ describe("PartyProfilePage", () => {
       profile({ owner: { party_id: PARTY_ID, display_name: "Akademia Orlik", slug: "akademia-orlik" } }),
     );
 
-    renderAt(`/${PARTY_ID}`);
+    await renderAt(`/${PARTY_ID}`);
 
     await waitFor(() => expect(getTestLocation().pathname).toBe("/akademia-orlik"));
   });
@@ -110,8 +110,20 @@ describe("PartyProfilePage", () => {
   it("a person with nothing public is not found", async () => {
     vi.mocked(ownerItemsApi.getPartyProfile).mockRejectedValue(new ApiError(404, "Not Found", null));
 
-    renderAt(`/${PARTY_ID}`);
+    await renderAt(`/${PARTY_ID}`);
 
     expect(await screen.findByText("Ten profil nie istnieje albo nie jest publiczny.")).toBeInTheDocument();
+  });
+
+  it("a failed read shows the error with a retry that fetches again", async () => {
+    vi.mocked(ownerItemsApi.getPartyProfile)
+      .mockRejectedValueOnce(new ApiError(500, "Server Error", null))
+      .mockResolvedValue(profile());
+
+    await renderAt(`/${PARTY_ID}`);
+
+    expect(await screen.findByText(/Nie udało się wczytać profilu\./)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Ania Kowalska" })).toBeInTheDocument();
   });
 });

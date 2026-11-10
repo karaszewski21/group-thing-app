@@ -2,7 +2,7 @@ import { useId } from "react";
 import { Link } from "../../../routing/navigation";
 import { itemPagePath } from "../../product/useItemRoutes";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
-import { ItemCard } from "./ExchangeItemCard";
+import { ItemCard } from "../../../components/shared/ItemCard";
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 

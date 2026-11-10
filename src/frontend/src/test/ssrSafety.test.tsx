@@ -12,11 +12,10 @@ import type { ItemDetailsResponse } from "../api/items";
 import { AuthProvider } from "../auth/AuthContext";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { LoginPage } from "../features/auth/LoginPage";
-import { itemRouteElement } from "./itemRoute";
+import { itemRouteElement, ownerRouteElement } from "./itemRoute";
 import { eventRouteElement } from "./eventRoute";
 import { termRouteElement } from "./termRoute";
 import { LandingPage } from "../features/landing/LandingPage";
-import { OwnerPage } from "../features/owner-page/OwnerPage";
 import { EVENT_KEY } from "../hooks/useEvent";
 import { ITEM_ACTIONS_KEY } from "../hooks/useItemActions";
 import { ITEM_DETAILS_KEY } from "../hooks/useItemDetail";
@@ -149,6 +148,8 @@ afterEach(() => {
 });
 
 const ORGANIZER_ITEM_ROUTE = await itemRouteElement("/zielony-krag/product/it-1");
+const ORGANIZATION_ROUTE = await ownerRouteElement("/zielony-krag");
+const PROFILE_ROUTE = await ownerRouteElement("/0b6f3c1e-9a7d-4c2e-8f1a-2d3e4f5a6b7c");
 const EVENT_ROUTE = await eventRouteElement(`/zielony-krag/event/${EVENT_ID}`);
 const TERM_ROUTE = await termRouteElement(`/ania/group/${GROUP_ID}/term/${TERM_ID}`);
 
@@ -182,7 +183,14 @@ describe("SSR safety", () => {
   });
 
   it.each([
-    { page: "owner page", url: "/zielony-krag", pattern: "/:slug", element: <OwnerPage />, text: null },
+    { page: "organization page", url: "/zielony-krag", pattern: "/:slug", element: ORGANIZATION_ROUTE, text: null },
+    {
+      page: "party profile",
+      url: "/0b6f3c1e-9a7d-4c2e-8f1a-2d3e4f5a6b7c",
+      pattern: "/:slug",
+      element: PROFILE_ROUTE,
+      text: null,
+    },
     {
       page: "organizer item page",
       url: "/zielony-krag/product/it-1",

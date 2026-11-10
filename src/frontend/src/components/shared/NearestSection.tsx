@@ -1,7 +1,7 @@
-import type { OwnerNearestDate } from "../../../api/ownerItems";
-import { PickupPlacesBox } from "../../../components/shared/PickupPlacesBox";
-import type { OwnerRef } from "../../../hooks/useOwnerItems";
-import { useOwnerMeetings } from "../../../hooks/useOwnerMeetings";
+import type { OwnerNearestDate } from "../../api/ownerItems";
+import { PickupPlacesBox } from "./PickupPlacesBox";
+import type { OwnerRef } from "../../hooks/useOwnerItems";
+import { useOwnerMeetings } from "../../hooks/useOwnerMeetings";
 
 /** Where the owner's things can be picked up — their upcoming terms and
  * events, nearest first, in the item page's box with a select — or a

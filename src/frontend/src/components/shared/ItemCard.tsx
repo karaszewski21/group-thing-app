@@ -1,11 +1,10 @@
-import { Link } from "../../../routing/navigation";
-import type { ExchangeMode, OrganizerExchangeItem, ReservedByResponse } from "../../../api/groups";
-import type { ItemCondition } from "../../../api/inventories";
-import { PhotoPlaceholder } from "../../../components/shared/Icons";
-import { ItemTileBadges } from "../../../components/shared/ItemTileBadges";
-import { CONDITION_LABELS } from "../../../utils/productCategory";
-import { SafeImage } from "../../product/ItemGallery";
-import { itemPagePath } from "../../product/useItemRoutes";
+import { Link } from "../../routing/navigation";
+import type { ExchangeMode, ReservedByResponse } from "../../api/groups";
+import type { ItemCondition } from "../../api/inventories";
+import { PhotoPlaceholder } from "./Icons";
+import { ItemTileBadges } from "./ItemTileBadges";
+import { CONDITION_LABELS } from "../../utils/productCategory";
+import { SafeImage } from "../../features/product/ItemGallery";
 
 interface ItemCardProps {
   /** The item page, opened by the whole tile (a stretched link on the name). */
@@ -45,24 +44,5 @@ export function ItemCard({ href, name, condition, thumbUrl, mode, reservation }:
         <ItemTileBadges modes={[mode]} reservation={reservation} />
       </span>
     </article>
-  );
-}
-
-interface ExchangeItemCardProps {
-  slug: string;
-  item: OrganizerExchangeItem;
-}
-
-/** One exchange board item: the tile opens its product page. */
-export function ExchangeItemCard({ slug, item }: ExchangeItemCardProps) {
-  return (
-    <ItemCard
-      href={itemPagePath(slug, item.item_id)}
-      name={item.product_name}
-      condition={item.condition}
-      thumbUrl={item.thumb_url}
-      mode={item.mode}
-      reservation={item.reservation}
-    />
   );
 }

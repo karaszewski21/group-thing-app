@@ -1,7 +1,7 @@
 import { useRef, type KeyboardEvent } from "react";
-import { isRecommended, LAYOUT_REGISTRY } from "../layouts/registry";
-import type { OrganizerPageData } from "../layouts/types";
-import { nextIndex } from "./rovingIndex";
+import { isRecommended, LAYOUT_REGISTRY } from "../../organization-public/layouts/registry";
+import type { OrganizerPageData } from "../../organization-public/layouts/types";
+import { nextIndex } from "../../../components/shared/rovingIndex";
 
 const LAYOUTS = Object.values(LAYOUT_REGISTRY);
 

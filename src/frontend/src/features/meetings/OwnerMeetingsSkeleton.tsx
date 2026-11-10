@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { BlockSkeleton } from "../owner-page/blocks/BlockSkeleton";
-import { PageFrame } from "../owner-page/PageFrame";
+import { BlockSkeleton } from "../../components/shared/BlockSkeleton";
+import { PageFrame } from "../../components/shared/PageFrame";
 
 /** The page column of `/:slug/meetings`, above the footer. */
 export function OwnerMeetingsFrame({ children }: { children: ReactNode }) {

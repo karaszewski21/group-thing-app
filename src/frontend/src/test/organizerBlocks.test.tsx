@@ -5,10 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OrganizerPageResponse } from "../api/groups";
 import type { PublicOrganizationResponse } from "../api/organizations";
 import type { OwnerNearestDate } from "../api/ownerItems";
-import { NextDateCtaBlock } from "../features/owner-page/blocks/NextDateCtaBlock";
-import { isStatsEmpty, StatsBlock } from "../features/owner-page/blocks/StatsBlock";
-import { isUpcomingDatesEmpty, UpcomingDatesBlock } from "../features/owner-page/blocks/UpcomingDatesBlock";
-import type { OrganizerPageData } from "../features/owner-page/layouts/types";
+import { NextDateCtaBlock } from "../features/organization-public/blocks/NextDateCtaBlock";
+import { isStatsEmpty, StatsBlock } from "../features/organization-public/blocks/StatsBlock";
+import { isUpcomingDatesEmpty, UpcomingDatesBlock } from "../features/organization-public/blocks/UpcomingDatesBlock";
+import type { OrganizerPageData } from "../features/organization-public/layouts/types";
 import { createQueryWrapper } from "./queryClient";
 
 const SLUG = "akademia-orlik";

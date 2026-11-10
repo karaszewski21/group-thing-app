@@ -3,7 +3,7 @@ import type { OrganizerTheme } from "../../../api/groups";
 import { DEFAULT_THEME_VARS, type ThemeVars } from "../../../theme/orgPalette";
 import { PALETTE_PRESETS } from "../../../theme/palettes";
 import { DEFAULT_THEME, paletteSelection } from "./draft";
-import { nextIndex } from "./rovingIndex";
+import { nextIndex } from "../../../components/shared/rovingIndex";
 
 interface Tile {
   key: string;

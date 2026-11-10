@@ -1,6 +1,6 @@
 import { type ComponentType, type ReactNode } from "react";
 import { AboutBlock, isAboutEmpty } from "./blocks/AboutBlock";
-import { BlockSkeleton } from "./blocks/BlockSkeleton";
+import { BlockSkeleton } from "../../components/shared/BlockSkeleton";
 import { CirclesGridBlock, isCirclesGridEmpty } from "./blocks/CirclesGridBlock";
 import { EmptyStateBlock } from "./blocks/EmptyStateBlock";
 import { ExchangeBoardBlock, isExchangeBoardEmpty } from "./blocks/ExchangeBoardBlock";

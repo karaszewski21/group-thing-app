@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { UseOrganizerTermsResult } from "../../../hooks/useOrganizerTerms";
 import { pluralPl } from "../../../utils/plural";
 import { AgendaList } from "./AgendaList";
-import { BlockSkeleton } from "./BlockSkeleton";
+import { BlockSkeleton } from "../../../components/shared/BlockSkeleton";
 
 const SECONDARY_BUTTON =
   "flex min-h-11 items-center justify-center rounded-2xl border border-line bg-paper px-5 text-[14px] font-bold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:opacity-60";

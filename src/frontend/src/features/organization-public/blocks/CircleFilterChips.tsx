@@ -1,6 +1,6 @@
 import { useRef, type KeyboardEvent } from "react";
 import type { OrganizerCircle } from "../../../api/groups";
-import { nextIndex } from "../editor/rovingIndex";
+import { nextIndex } from "../../../components/shared/rovingIndex";
 
 interface CircleFilterChipsProps {
   circles: Pick<OrganizerCircle, "id" | "name">[];

@@ -4,9 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OrganizerCircle, OrganizerPageResponse, OrganizerTerm } from "../api/groups";
 import type { OwnerItemCard, OwnerNearestDate } from "../api/ownerItems";
 import type { PublicOrganizationResponse } from "../api/organizations";
-import { LayoutRenderer } from "../features/owner-page/LayoutRenderer";
-import { FALLBACK_LAYOUT, isRecommended, LAYOUT_REGISTRY, resolveLayout } from "../features/owner-page/layouts/registry";
-import type { BlockSlot, OrganizerPageData, RenderMode } from "../features/owner-page/layouts/types";
+import { LayoutRenderer } from "../features/organization-public/LayoutRenderer";
+import { FALLBACK_LAYOUT, isRecommended, LAYOUT_REGISTRY, resolveLayout } from "../features/organization-public/layouts/registry";
+import type { BlockSlot, OrganizerPageData, RenderMode } from "../features/organization-public/layouts/types";
 import dayjs from "../utils/dayjs";
 import { createQueryWrapper } from "./queryClient";
 

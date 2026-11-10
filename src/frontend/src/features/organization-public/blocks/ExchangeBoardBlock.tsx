@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 import type { ExchangeMode, OrganizerExchangeItem } from "../../../api/groups";
 import { EXCHANGE_MODE_TONE, INTENT_LABELS } from "../../terms/components/termLabels";
-import { nextIndex } from "../editor/rovingIndex";
+import { nextIndex } from "../../../components/shared/rovingIndex";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
 import { exchangeTotal } from "../organizerHelpers";
 import { ExchangeCountTiles } from "./ExchangeCountsBlock";

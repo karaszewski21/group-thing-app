@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { GROUP_ACCESS_KEY } from "../../hooks/useTermAccess";
-import { NotFoundFrame, PageFrame } from "../owner-page/PageFrame";
+import { NotFoundFrame, PageFrame } from "../../components/shared/PageFrame";
 import { TERM_LOAD_ERROR } from "./termViewState";
 
 const RETRY_BUTTON =

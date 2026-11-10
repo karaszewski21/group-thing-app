@@ -3,7 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { OWNER_ITEMS_KEY } from "../../hooks/useOwnerItems";
 import { PUBLIC_ORGANIZATION_KEY } from "../../hooks/usePublicOrganization";
-import { NotFoundFrame } from "../owner-page/PageFrame";
+import { NotFoundFrame } from "../../components/shared/PageFrame";
 import { OwnerItemsLoadError } from "./OwnerItemsContext";
 import { OwnerItemsFrame } from "./OwnerItemsSkeleton";
 import { OWNER_ITEMS_LOAD_ERROR } from "./ownerItemsViewState";

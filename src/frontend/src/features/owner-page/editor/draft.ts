@@ -1,7 +1,7 @@
 import type { OrganizerTheme } from "../../../api/groups";
 import type { OrganizationResponse, UpdateOrganizationRequest } from "../../../api/organizations";
 import { findPreset } from "../../../theme/palettes";
-import { resolveLayout } from "../layouts/registry";
+import { resolveLayout } from "../../organization-public/layouts/registry";
 
 /** What the owner is choosing in the editor: the effective layout key, the
  * three stored theme fields and the description as typed ("" for none). */

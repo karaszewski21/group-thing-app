@@ -6,9 +6,9 @@ import { usePublicOrganization } from "../../hooks/usePublicOrganization";
 import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
 import { pluralPl } from "../../utils/plural";
 import { AgendaResults } from "./blocks/AgendaResults";
-import { BlockSkeleton } from "./blocks/BlockSkeleton";
+import { BlockSkeleton } from "../../components/shared/BlockSkeleton";
 import { CircleFilterChips } from "./blocks/CircleFilterChips";
-import { NotFoundFrame, PageFrame } from "./PageFrame";
+import { NotFoundFrame, PageFrame } from "../../components/shared/PageFrame";
 
 const GROUP_PARAM = "group_id";
 

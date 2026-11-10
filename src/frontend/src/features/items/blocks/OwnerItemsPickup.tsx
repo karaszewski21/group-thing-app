@@ -1,6 +1,6 @@
 "use client";
 
-import { NearestSection } from "../../owner-page/blocks/NearestSection";
+import { NearestSection } from "../../../components/shared/NearestSection";
 import { useOwnerItemsPage } from "../OwnerItemsContext";
 
 /** The owner's nearest pickup dates, or the chat-only notice. */

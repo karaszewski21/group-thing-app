@@ -10,7 +10,7 @@ import type { ItemActionsResponse } from "../../../api/itemActions";
 import dayjs from "../../../utils/dayjs";
 import type { ItemActionsView } from "../itemActionsViewState";
 import { useItemPage } from "../ItemPageContext";
-import { organizerTermPath } from "../../owner-page/organizerHelpers";
+import { organizerTermPath } from "../../organization-public/organizerHelpers";
 
 /** Where the hand-over happens: a Term or an event. `contextId` feeds the
  * calendar uid and `path` the link; `groupName` is the event name for an

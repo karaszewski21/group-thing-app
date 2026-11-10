@@ -1,5 +1,5 @@
 import { Skeleton, SkeletonCard } from "../../components/shared/Skeleton";
-import { PageFrame } from "./PageFrame";
+import { PageFrame } from "../../components/shared/PageFrame";
 
 /** The organizer page before the organization loads. Its layout and palette
  * come with that data, so this is one neutral shape for every layout: a

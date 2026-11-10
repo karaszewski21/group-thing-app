@@ -4,7 +4,7 @@ import { useOrigin } from "../../lib/useClientValue";
 import { calendarUid } from "../../utils/calendar";
 import { eventPath } from "../../routing/paths";
 import dayjs from "../../utils/dayjs";
-import { organizerTermPath } from "../owner-page/organizerHelpers";
+import { organizerTermPath } from "../organization-public/organizerHelpers";
 import { ModalSheet } from "../../components/shared/appComponents";
 
 export interface AcceptedSwap {

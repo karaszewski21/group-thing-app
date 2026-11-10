@@ -4,7 +4,7 @@ import type { OwnerNearestDate } from "../../../api/ownerItems";
 import { Link } from "../../../routing/navigation";
 import dayjs from "../../../utils/dayjs";
 import { pluralPl } from "../../../utils/plural";
-import { DateTile } from "../../owner-page/blocks/DateTile";
+import { DateTile } from "../../organization-public/blocks/DateTile";
 import { useOwnerMeetingsPage } from "../OwnerMeetingsContext";
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
