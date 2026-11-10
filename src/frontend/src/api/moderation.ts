@@ -1,8 +1,9 @@
 import { api } from "./client";
 import { pageParams, type Page } from "./pagination";
 import type { ModerationStatus } from "./products";
+import type { MediaKind } from "./media";
 
-export type ModerationSubjectType = "PHOTO" | "AVATAR" | "ORGANIZATION_MEDIA";
+export type ModerationSubjectType = "PHOTO" | "MEDIA";
 
 /** `GET /api/moderation/photos` (ADMIN-only) row — a product photo with the
  * latest ShieldGemma category scores (`null` when no model has scored it,
@@ -11,8 +12,8 @@ export type ModerationSubjectType = "PHOTO" | "AVATAR" | "ORGANIZATION_MEDIA";
 export interface ModerationQueueEntry {
   subject_type: ModerationSubjectType;
   subject_id: string;
-  /** `null` for an avatar or organization media; `product_name` then holds
-   * the profile's or the organization's name. */
+  /** `null` for page media; `product_name` then holds the owner's name
+   * (the Organization's, else the person's). */
   product_id: string | null;
   product_name: string;
   photo_url: string | null;
@@ -20,8 +21,8 @@ export interface ModerationQueueEntry {
   model_id: string | null;
   scores: Record<string, number> | null;
   submitted_at: string;
-  /** Set only for `ORGANIZATION_MEDIA`. */
-  media_kind: "LOGO" | "COVER" | "GALLERY" | null;
+  /** Set only for `MEDIA`. */
+  media_kind: MediaKind | null;
 }
 
 export interface ModerationDecisionRequest {

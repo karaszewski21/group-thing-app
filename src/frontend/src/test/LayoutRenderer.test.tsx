@@ -21,6 +21,7 @@ const organization: PublicOrganizationResponse = {
   palette_preset: null,
   description: null,
   logo: null,
+  avatar: null,
   cover: null,
   gallery: [],
 };
@@ -140,7 +141,7 @@ describe("LayoutRenderer", () => {
     expect(ghost).toHaveAttribute("data-ghost", "about");
     expect(ghost).not.toHaveAttribute("tabindex");
     expect(ghost).not.toHaveAttribute("role");
-    expect(within(ghost).getByRole("link", { name: "Dodaj opis →" })).toHaveAttribute("href", "/organization/appearance?tab=photos");
+    expect(within(ghost).getByRole("link", { name: "Dodaj opis →" })).toHaveAttribute("href", `/${SLUG}/appearance?tab=photos`);
     expect(ghost.querySelectorAll("button, a, [tabindex]")).toHaveLength(1);
   });
 

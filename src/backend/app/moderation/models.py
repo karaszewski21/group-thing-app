@@ -21,9 +21,9 @@ from .status import ModerationStatus
 
 class ModerationSubjectType(enum.StrEnum):
     PHOTO = "PHOTO"
-    AVATAR = "AVATAR"
     PRODUCT_TEXT = "PRODUCT_TEXT"
-    ORGANIZATION_MEDIA = "ORGANIZATION_MEDIA"
+    # A party's avatar, cover or gallery photo (`app.media`).
+    MEDIA = "MEDIA"
 
 
 class ModerationSource(enum.StrEnum):

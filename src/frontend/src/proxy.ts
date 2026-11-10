@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { authPath } from "./auth/authPaths";
-import { PROTECTED_PREFIXES } from "./routing/paths";
+import { isAppearancePath, PROTECTED_PREFIXES } from "./routing/paths";
 
 export interface ProxyRequest {
   method: string;
@@ -16,6 +16,7 @@ export type ProxyDecision =
   | { kind: "rewrite"; destination: string };
 
 function isProtected(pathname: string): boolean {
+  if (isAppearancePath(pathname)) return true;
   return PROTECTED_PREFIXES.some((prefix) =>
     prefix.endsWith("/") ? pathname.startsWith(prefix) : pathname === prefix || pathname.startsWith(`${prefix}/`),
   );

@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import type { PublicOrganizationResponse } from "../api/organizations";
@@ -7,7 +7,7 @@ import type { OwnerMeetingsResponse, OwnerNearestDate } from "../api/ownerItems"
 import * as ownerItemsApi from "../api/ownerItems";
 import { ownerMeetingsRouteElement } from "./itemRoute";
 import { createQueryWrapper } from "./queryClient";
-import { getTestLocation, getTestRouter, renderWithRoute } from "./renderWithRoute";
+import { getTestRouter, renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/organizations", () => ({
   getPublicOrganization: vi.fn(),
@@ -30,6 +30,7 @@ const ORGANIZATION: PublicOrganizationResponse = {
   palette_preset: null,
   description: null,
   logo: null,
+  avatar: null,
   cover: null,
   gallery: [],
 };
@@ -106,16 +107,16 @@ describe("OwnerMeetingsPage", () => {
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
 
-  it("redirects a party URL of an Organization owner to the slug URL, keeping the query", async () => {
-    vi.mocked(ownerItemsApi.getPartyOwnerMeetings).mockResolvedValue(meetings());
+  it("keeps a person's party URL on their own page", async () => {
+    vi.mocked(ownerItemsApi.getPartyOwnerMeetings).mockResolvedValue({
+      owner: { party_id: PARTY_ID, display_name: "Ania", slug: null },
+      meetings: [],
+    });
 
     await renderAt(`/${PARTY_ID}/meetings?x=1`);
 
-    await waitFor(() => {
-      const { pathname, search } = getTestLocation();
-      expect(pathname + search).toBe(`/${SLUG}/meetings?x=1`);
-    });
-    expect(getTestRouter().calls).toEqual([{ method: "replace", url: `/${SLUG}/meetings?x=1`, scroll: true }]);
+    expect(await screen.findByText("Ania nie ma teraz zaplanowanych spotkań")).toBeInTheDocument();
+    expect(getTestRouter().calls).toEqual([]);
   });
 
   it("shows not found for a person with nothing public", async () => {

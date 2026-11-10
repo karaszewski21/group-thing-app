@@ -154,9 +154,12 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("GET"), r"^/api/reservations(/.*)?$", ("READ", "mcp:read")),  # 42
     (_methods("GET"), r"^/api/circulation-transactions/[^/]+$", ("READ", "mcp:read")),  # 45
     (_methods("GET"), r"^/api/people(/.*)?$", ("READ", "mcp:read")),  # 46
-    # The caller's own profile edit and avatar; ownership is the principal itself.
-    (_methods("PATCH"), r"^/api/people/me$", ("EDIT", "mcp:edit")),
-    (_methods("POST", "DELETE"), r"^/api/people/me/avatar$", ("EDIT", "mcp:edit")),
+    # The caller's own profile edit, appearance and media; ownership is the
+    # principal itself.
+    (_methods("PATCH"), r"^/api/people/me(/appearance)?$", ("EDIT", "mcp:edit")),
+    (_methods("POST"), r"^/api/people/me/media$", ("EDIT", "mcp:edit")),
+    (_methods("PATCH"), r"^/api/people/me/media/order$", ("EDIT", "mcp:edit")),
+    (_methods("DELETE"), r"^/api/people/me/media/[^/]+$", ("EDIT", "mcp:edit")),
     # 47: public self-registration — the party-module counterpart to row 6's
     # `/api/auth/login`. No existing row matches this literal path, so it's
     # appended here rather than inserted next to row 6, to avoid renumbering

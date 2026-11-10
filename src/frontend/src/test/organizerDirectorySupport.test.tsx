@@ -22,6 +22,7 @@ const organization: PublicOrganizationResponse = {
   palette_preset: null,
   description: null,
   logo: null,
+  avatar: null,
   cover: null,
   gallery: [],
 };
@@ -70,7 +71,7 @@ function renderWithRouter(ui: ReactElement) {
 
 describe("GhostBlock", () => {
   it("renders a directory ghost with its panel CTA, and the unavailable variant without one", () => {
-    const { unmount } = renderWithRouter(<GhostBlock block="upcoming-dates" />);
+    const { unmount } = renderWithRouter(<GhostBlock block="upcoming-dates" slug="rodzinny-grajdolek" />);
 
     expect(screen.getByText("Najbliższe spotkania")).toBeInTheDocument();
     expect(screen.getByText("Tu pokażemy Twoje najbliższe terminy i wydarzenia. Widzisz to tylko Ty.")).toBeInTheDocument();
@@ -79,7 +80,7 @@ describe("GhostBlock", () => {
     expect(cta).toHaveClass("min-h-[44px]");
     unmount();
 
-    renderWithRouter(<GhostBlock block="exchange-board" unavailable />);
+    renderWithRouter(<GhostBlock block="exchange-board" slug="rodzinny-grajdolek" unavailable />);
 
     expect(screen.getByText("Wymiana rzeczy")).toBeInTheDocument();
     expect(screen.getByText("Nie udało się wczytać danych. Odwiedzający nie widzą tej sekcji.")).toBeInTheDocument();

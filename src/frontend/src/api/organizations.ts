@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { ModerationStatus } from "./products";
+import type { OwnerMedia, PublicMediaSet } from "./media";
 
 export interface OrganizationResponse {
   id: string;
@@ -15,27 +15,11 @@ export interface OrganizationResponse {
   updated_at: string;
 }
 
-export type MediaKind = "LOGO" | "COVER" | "GALLERY";
-
-export interface PublicMedia {
-  url: string;
-  thumb_url: string;
-}
-
-export interface OwnerMedia {
-  id: string;
-  kind: MediaKind;
-  status: ModerationStatus;
-  url: string;
-  thumb_url: string;
-  sort_order: number;
-}
-
 export interface MyOrganizationResponse extends OrganizationResponse {
   media: OwnerMedia[];
 }
 
-export interface PublicOrganizationResponse {
+export interface PublicOrganizationResponse extends PublicMediaSet {
   slug: string;
   name: string;
   primary_color: string | null;
@@ -43,9 +27,6 @@ export interface PublicOrganizationResponse {
   page_layout: string;
   palette_preset: string | null;
   description: string | null;
-  logo: PublicMedia | null;
-  cover: PublicMedia | null;
-  gallery: PublicMedia[];
 }
 
 export interface CreateOwnOrganizationRequest {
@@ -81,20 +62,4 @@ export function updateOrganization(
 
 export function getPublicOrganization(slug: string): Promise<PublicOrganizationResponse> {
   return api.get(`/public/organizations/${encodeURIComponent(slug)}`);
-}
-
-export function uploadOrganizationMedia(organizationId: string, kind: MediaKind, file: File): Promise<OwnerMedia> {
-  const body = new FormData();
-  body.append("file", file);
-  return api.upload(`/organizations/${encodeURIComponent(organizationId)}/media?kind=${kind}`, body);
-}
-
-export function deleteOrganizationMedia(organizationId: string, mediaId: string): Promise<void> {
-  return api.delete(
-    `/organizations/${encodeURIComponent(organizationId)}/media/${encodeURIComponent(mediaId)}`,
-  );
-}
-
-export function reorderOrganizationGallery(organizationId: string, mediaIds: string[]): Promise<OwnerMedia[]> {
-  return api.patch(`/organizations/${encodeURIComponent(organizationId)}/media/order`, { media_ids: mediaIds });
 }

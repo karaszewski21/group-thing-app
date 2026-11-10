@@ -1,9 +1,12 @@
 import { createContext, useContext } from "react";
 import type { PartyProfileResponse } from "../../api/ownerItems";
 
-/** What every block of a loaded person profile reads. */
+/** What every block of a loaded person profile reads: the profile and
+ * whether it has upcoming terms and listed items (never re-derived). */
 export interface PartyProfilePageValue {
   profile: PartyProfileResponse;
+  hasTerms: boolean;
+  hasItems: boolean;
 }
 
 export const PartyProfilePageContext = createContext<PartyProfilePageValue | null>(null);

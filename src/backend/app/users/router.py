@@ -14,15 +14,18 @@ from app.core.security import encode_login_token
 from app.db import get_db
 from app.groups.schemas import LeadershipResponse
 from app.groups.service import build_leadership_responses, list_active_leaderships_for_party
+from app.media import service as media
+from app.media.models import MediaKind
+from app.media.schemas import OwnerMediaResponse, ReorderMediaRequest
 from app.storage.images import MAX_UPLOAD_BYTES
 from app.storage.service import ObjectStorage, get_storage
 
 from . import service
 from .models import UserProfile
 from .schemas import (
-    AvatarResponse,
     RegisterRequest,
     RegisterResponse,
+    UpdateMyProfileAppearanceRequest,
     UpdateMyProfileRequest,
     UserProfileResponse,
 )
@@ -57,11 +60,10 @@ async def _to_profile_response(db: DbSession, profile: UserProfile) -> UserProfi
 async def _to_my_profile_response(
     db: DbSession, profile: UserProfile, storage: ObjectStorage | None
 ) -> UserProfileResponse:
-    """The caller's own profile, with their avatar in any moderation status."""
+    """The caller's own profile, with their media in any moderation status."""
     response = await _to_profile_response(db, profile)
-    avatar = await service.get_avatar(db, cast(uuid.UUID, profile.id))
-    if avatar is not None and storage is not None:
-        response.avatar = service.avatar_response(avatar, storage)
+    if storage is not None:
+        response.media = await media.load_owner_media(db, storage, profile.party_id)
     return response
 
 
@@ -81,24 +83,50 @@ async def update_my_profile(
     return await _to_my_profile_response(db, profile, storage)
 
 
-@router.post("/api/people/me/avatar", response_model=AvatarResponse)
-async def set_my_avatar(
+@router.patch("/api/people/me/appearance", response_model=UserProfileResponse)
+async def update_my_profile_appearance(
+    body: UpdateMyProfileAppearanceRequest,
+    db: DbSession,
+    principal: EditPrincipal,
+    storage: Storage,
+) -> UserProfileResponse:
+    profile = await service.update_my_profile_appearance(db, principal, body)
+    return await _to_my_profile_response(db, profile, storage)
+
+
+@router.post(
+    "/api/people/me/media", response_model=OwnerMediaResponse, status_code=status.HTTP_201_CREATED
+)
+async def upload_my_media(
+    kind: MediaKind,
     db: DbSession,
     principal: EditPrincipal,
     storage: Storage,
     file: Annotated[UploadFile, File()],
-) -> AvatarResponse:
-    """Multipart upload of one image (`file`), replacing the caller's avatar.
-    Reads at most one byte past the limit, like product photo uploads."""
+) -> OwnerMediaResponse:
+    """Multipart upload (`file`) of the caller's avatar, cover or a gallery
+    photo, like an Organization's. Reads at most one byte past the limit."""
+    profile = await service.get_profile_by_principal(db, principal)
     data = await file.read(MAX_UPLOAD_BYTES + 1)
-    avatar = await service.set_my_avatar(db, principal, data, storage)
-    assert storage is not None  # `set_my_avatar` refuses the upload otherwise
-    return service.avatar_response(avatar, storage)
+    return await media.upload_media(
+        db, storage, profile.party_id, cast(uuid.UUID, profile.account_user_id), kind, data
+    )
 
 
-@router.delete("/api/people/me/avatar", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
-async def remove_my_avatar(db: DbSession, principal: EditPrincipal) -> None:
-    await service.remove_my_avatar(db, principal)
+@router.patch("/api/people/me/media/order", response_model=list[OwnerMediaResponse])
+async def reorder_my_media(
+    body: ReorderMediaRequest, db: DbSession, principal: EditPrincipal, storage: Storage
+) -> list[OwnerMediaResponse]:
+    profile = await service.get_profile_by_principal(db, principal)
+    return await media.reorder_gallery(db, storage, profile.party_id, body.media_ids)
+
+
+@router.delete(
+    "/api/people/me/media/{media_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None
+)
+async def delete_my_media(media_id: uuid.UUID, db: DbSession, principal: EditPrincipal) -> None:
+    profile = await service.get_profile_by_principal(db, principal)
+    await media.delete_media(db, profile.party_id, media_id)
 
 
 @router.get("/api/people/{user_profile_id}", response_model=UserProfileResponse)

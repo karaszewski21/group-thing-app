@@ -1,14 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
-import { getMyOrganization, type MyOrganizationResponse, type OwnerMedia } from "../api/organizations";
+import { getMyOrganization, type MyOrganizationResponse } from "../api/organizations";
 import { extractProblemMessage, hasStatus } from "../api/problem";
 import { useAuth } from "../auth/AuthContext";
+import { isAwaitingModeration, mediaStatusChanged, PENDING_MEDIA_POLL_MS } from "./mediaModeration";
 import { PUBLIC_ORGANIZATION_KEY } from "./usePublicOrganization";
 
 export const MY_ORGANIZATION_KEY = "myOrganization";
-
-/** How often the photos tab re-reads the organization while media awaits moderation. */
-const PENDING_MEDIA_POLL_MS = 10_000;
 
 interface UseMyOrganizationOptions {
   /** Poll while any media row is PENDING or NEEDS_REVIEW. Only the mounted
@@ -21,16 +19,6 @@ interface UseMyOrganizationResult {
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
-}
-
-function isAwaitingModeration(media: OwnerMedia): boolean {
-  return media.status === "PENDING" || media.status === "NEEDS_REVIEW";
-}
-
-/** True when a row of `previous` disappeared or changed status in `next`. */
-function mediaStatusChanged(previous: OwnerMedia[], next: OwnerMedia[]): boolean {
-  const nextStatus = new Map(next.map((m) => [m.id, m.status]));
-  return previous.some((m) => nextStatus.get(m.id) !== m.status);
 }
 
 /** The logged-in caller's own Organization, or `null` when they have none

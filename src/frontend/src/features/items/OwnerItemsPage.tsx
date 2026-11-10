@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useOwnerItems, type OwnerRef } from "../../hooks/useOwnerItems";
 import { usePublicOrganization } from "../../hooks/usePublicOrganization";
-import { Navigate, notFound, useAppSearch } from "../../routing/navigation";
+import { notFound } from "../../routing/navigation";
 import { isPartyId } from "../../routing/paths";
 import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
 import {
@@ -51,11 +51,8 @@ function OwnerItemsContent({
 }) {
   const [filter, setFilter] = useState<OwnerItemsFilter>("ALL");
   const items = useOwnerItems(ownerRef, filter === "ALL" ? undefined : filter);
-  const search = useAppSearch();
-  const view = resolveOwnerItemsView({ ownerRef, search, organization, items });
+  const view = resolveOwnerItemsView({ organization, items });
   switch (view.kind) {
-    case "redirect":
-      return <Navigate to={view.to} replace />;
     case "content": {
       const value: OwnerItemsPageValue = {
         ownerRef,

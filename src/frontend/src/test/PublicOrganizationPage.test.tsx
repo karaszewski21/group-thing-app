@@ -45,6 +45,7 @@ const ORGANIZATION = {
   palette_preset: null,
   description: null,
   logo: null,
+  avatar: null,
   cover: null,
   gallery: [],
 };
@@ -92,6 +93,7 @@ describe("PublicOrganizationPage", () => {
       palette_preset: null,
       description: null,
       logo: null,
+      avatar: null,
       cover: null,
       gallery: [],
     });
@@ -132,6 +134,7 @@ describe("PublicOrganizationPage", () => {
       palette_preset: null,
       description: null,
       logo: null,
+      avatar: null,
       cover: null,
       gallery: [],
     });
@@ -158,6 +161,7 @@ describe("PublicOrganizationPage", () => {
       palette_preset: null,
       description: null,
       logo: null,
+      avatar: null,
       cover: null,
       gallery: [],
     });
@@ -217,7 +221,7 @@ describe("PublicOrganizationPage", () => {
     expect(screen.getByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty.")).toBeInTheDocument();
     const scope = themeScope(settings);
     expect(scope).toContainElement(screen.getByText("Napisz kilka zdań o sobie i swoich zajęciach — odwiedzający zobaczą je tutaj. Widzisz to tylko Ty."));
-    expect(settings).toHaveAttribute("href", "/organization/appearance");
+    expect(settings).toHaveAttribute("href", "/muzyczne-skrzaty/appearance");
   });
 
   it("keeps the hero, share and footer when the directory request fails", async () => {
@@ -251,6 +255,7 @@ describe("PublicOrganizationPage", () => {
       palette_preset: "OCEAN",
       description: null,
       logo: null,
+      avatar: null,
       cover: null,
       gallery: [],
     });

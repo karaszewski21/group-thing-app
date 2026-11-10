@@ -25,7 +25,7 @@ Use heading levels (h1-h6) in proper order for clear document outline.
 Manage focus appropriately in dynamic content, modals, and client-side navigations.
 
 ### Leaving Pages With Unsaved Edits
-An editor with unsaved changes guards navigation with `useNavigationGuard(shouldBlock)` from `src/routing/navigation.tsx` (it covers app links, programmatic navigation, back/forward best-effort and tab close), and asks in a blocking dialog while `blocker.state === "blocked"`, then calls `blocker.proceed()` or `blocker.reset()`. Never import a router API or call `window.history` directly to get past the guard. Reference: `features/owner-page/OrganizationAppearancePage.tsx`.
+An editor with unsaved changes guards navigation with `useNavigationGuard(shouldBlock)` from `src/routing/navigation.tsx` (it covers app links, programmatic navigation, back/forward best-effort and tab close), and asks in a blocking dialog while `blocker.state === "blocked"`, then calls `blocker.proceed()` or `blocker.reset()`. Never import a router API or call `window.history` directly to get past the guard. Reference: `features/editor/AppearanceEditor.tsx`.
 
 ### Modal Sheets and Blocking Dialogs
 Every `aria-modal="true"` sheet traps Tab/Shift+Tab with `components/shared/trapFocus.ts`, closes on Esc handled on its dialog element (ignoring events already `defaultPrevented`, e.g. a nested menu's Esc), and returns focus to the opener (fallback `main[tabindex=-1]`). Prefer the shared `components/shared/ModalSheet` over hand-rolling this.

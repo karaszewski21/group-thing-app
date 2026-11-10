@@ -11,6 +11,7 @@ from typing import Literal
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.circulation.models import ItemCondition, ItemListingStatus, ReservationType
+from app.media.schemas import PublicMediaResponse
 
 from .infrastructure.locations_acl import (
     LocalityResponse,
@@ -563,14 +564,29 @@ class OwnerMeetingsResponse(BaseModel):
     meetings: list[OwnerNearestDateResponse]
 
 
+class OrganizationLinkResponse(BaseModel):
+    name: str
+    slug: str
+
+
 class PartyProfileResponse(BaseModel):
-    """The public profile of a person (`/<party-id>`). `owner.slug` is set
-    when they own an Organization, so the client can redirect to its page."""
+    """The public profile of a person (`/<party-id>`): always the person
+    (`owner` with their own name and no slug); an Organization they own is a
+    separate page, linked through `organization`."""
 
     owner: OwnerSummaryResponse
+    organization: OrganizationLinkResponse | None
     bio: str | None
-    # The approved avatar's thumbnail; never a pending or rejected one.
-    avatar_url: str | None
+    # The approved images only; never a pending or rejected one.
+    logo: PublicMediaResponse | None
+    avatar: PublicMediaResponse | None
+    cover: PublicMediaResponse | None
+    gallery: list[PublicMediaResponse]
+    # The effective layout key and the theme the person chose.
+    page_layout: str
+    palette_preset: str | None
+    primary_color: str | None
+    accent_color: str | None
     nearest: OwnerNearestDateResponse | None
     counts: OwnerItemCountsResponse
     # The newest listed items, at most `PROFILE_RECENT_ITEMS`.

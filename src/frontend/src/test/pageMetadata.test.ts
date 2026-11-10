@@ -21,6 +21,7 @@ const ORGANIZATION: PublicOrganizationResponse = {
   palette_preset: null,
   description: null,
   logo: null,
+  avatar: null,
   cover: { url: "https://cdn.example/cover.webp", thumb_url: "https://cdn.example/t.webp" },
   gallery: [],
 };

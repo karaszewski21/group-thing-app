@@ -57,6 +57,24 @@ describe("proxy", () => {
     },
   );
 
+  it.each(["/muzyczne-skrzaty/appearance", "/0b6f3c1e-9a7d-4c2e-8f1a-2d3e4f5a6b7c/appearance"])(
+    "gates the page editor %s without a cookie and keeps its tab in returnTo",
+    (pathname) => {
+      expect(resolveProxy(request({ pathname, search: "?tab=name" }), BACKEND)).toEqual({
+        kind: "redirect",
+        location: `/login?returnTo=${encodeURIComponent(`${pathname}?tab=name`)}`,
+      });
+      expect(resolveProxy(request({ pathname, hasSession: true }), BACKEND)).toEqual({ kind: "next" });
+    },
+  );
+
+  it.each(["/muzyczne-skrzaty/appearances", "/muzyczne-skrzaty/appearance/x", "/muzyczne-skrzaty/items"])(
+    "does not gate the owner page path %s",
+    (pathname) => {
+      expect(resolveProxy(request({ pathname }), BACKEND)).toEqual({ kind: "next" });
+    },
+  );
+
   it("gates nested paths of a prefix on a segment boundary", () => {
     expect(resolveProxy(request({ pathname: "/groups/42/members" }), BACKEND)).toEqual({
       kind: "redirect",

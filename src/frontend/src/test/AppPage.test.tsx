@@ -3,7 +3,7 @@ import { fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
 import { Link, useAppNavigate, useAppPathname, useNavigationState } from "../routing/navigation";
-import { renderWithRoute } from "./renderWithRoute";
+import { getTestLocation, getTestRouter, renderWithRoute } from "./renderWithRoute";
 import { PanelPageOutlet } from "./PanelPageOutlet";
 import { panelRoutes } from "./panelPages";
 
@@ -53,8 +53,6 @@ vi.mock("../api/people", () => ({
   getProfileByParty: vi.fn(),
   getLeadershipsForPerson: vi.fn(),
   updateMyProfile: vi.fn(),
-  uploadMyAvatar: vi.fn(),
-  deleteMyAvatar: vi.fn(),
 }));
 
 vi.mock("../api/families", () => ({
@@ -185,7 +183,11 @@ const mockProfile: peopleApi.UserProfileResponse = {
   updated_at: "2026-01-01T00:00:00Z",
   is_organizer: false,
   bio: null,
-  avatar: null,
+  page_layout: "BANNER",
+  palette_preset: null,
+  primary_color: null,
+  accent_color: null,
+  media: [],
 };
 
 const mockOrganizerProfile: peopleApi.UserProfileResponse = {
@@ -678,7 +680,7 @@ describe("AppPage — dismissible home hints", () => {
     renderPanel();
 
     const link = await screen.findByRole("link", { name: "Przejdź →" });
-    expect(link).toHaveAttribute("href", "/organization/appearance");
+    expect(link).toHaveAttribute("href", "/muzyczne-skrzaty/appearance");
     expect(
       screen.getByText("Wybierz układ i kolory swojej strony — zobaczą je odwiedzający."),
     ).toBeInTheDocument();
@@ -2693,70 +2695,16 @@ describe("AppPage — moderation errors inline in the add-group page and add-ter
 });
 
 describe("AppPage — profil", () => {
-  const PROFILE_NAME_REJECTED = "Imię i nazwisko narusza zasady społeczności. Zmień je i spróbuj ponownie.";
-
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("/profile edits name and 'O mnie' (no location field) and saves them", async () => {
+  it("/profile sends the caller to their public profile, where its settings live", async () => {
     mockGuestDefaults();
-    vi.mocked(peopleApi.updateMyProfile).mockResolvedValue({
-      ...mockProfile,
-      display_name: "Jan Nowak",
-      bio: "Tata dwójki",
-    });
     renderPanel("/profile");
 
-    const name = await screen.findByLabelText("Imię i nazwisko");
-    expect(name).toHaveValue("Jan Kowalski");
-    expect(screen.queryByLabelText("Lokalizacja")).not.toBeInTheDocument();
-    fireEvent.change(name, { target: { value: "Jan Nowak" } });
-    fireEvent.change(screen.getByLabelText("O mnie"), { target: { value: "Tata dwójki" } });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz zmiany" }));
-
-    await waitFor(() =>
-      expect(peopleApi.updateMyProfile).toHaveBeenCalledWith({ display_name: "Jan Nowak", bio: "Tata dwójki" }),
-    );
-    expect(await screen.findByText("✓ Zapisano")).toBeInTheDocument();
-  });
-
-  it("shows the moderation message when the name is rejected", async () => {
-    mockGuestDefaults();
-    vi.mocked(peopleApi.updateMyProfile).mockRejectedValue(
-      new ApiError(400, "Bad Request", { message: PROFILE_NAME_REJECTED }),
-    );
-    renderPanel("/profile");
-
-    fireEvent.change(await screen.findByLabelText("Imię i nazwisko"), { target: { value: "brzydko" } });
-    fireEvent.click(screen.getByRole("button", { name: "Zapisz zmiany" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(PROFILE_NAME_REJECTED);
-  });
-
-  it("uploads an avatar, shows it with the pending note, and removes it", async () => {
-    mockGuestDefaults();
-    vi.mocked(peopleApi.uploadMyAvatar).mockResolvedValue({
-      url: "https://origin.test/avatars/1/a/w400.webp?signed",
-      status: "PENDING",
-    });
-    vi.mocked(peopleApi.deleteMyAvatar).mockResolvedValue(undefined);
-    renderPanel("/profile");
-
-    const file = new File(["png"], "me.png", { type: "image/png" });
-    fireEvent.change(await screen.findByLabelText("Zdjęcie profilowe"), { target: { files: [file] } });
-
-    expect(await screen.findByAltText("Twoje zdjęcie profilowe")).toHaveAttribute(
-      "src",
-      "https://origin.test/avatars/1/a/w400.webp?signed",
-    );
-    expect(peopleApi.uploadMyAvatar).toHaveBeenCalledWith(file);
-    expect(screen.getByText(/Zdjęcie czeka na moderację —/)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Usuń" }));
-
-    await waitFor(() => expect(screen.queryByAltText("Twoje zdjęcie profilowe")).not.toBeInTheDocument());
-    expect(peopleApi.deleteMyAvatar).toHaveBeenCalled();
+    await waitFor(() => expect(getTestLocation().pathname).toBe(`/${mockProfile.party_id}`));
+    expect(getTestRouter().calls.at(-1)).toMatchObject({ method: "replace", url: `/${mockProfile.party_id}` });
   });
 });
 
@@ -2943,7 +2891,7 @@ describe("AppPage — redesigned navigation and pages", () => {
       .flatMap((list) => within(list).getAllByRole("link"))
       .map((link) => [link.textContent, link.getAttribute("href")]);
     expect(rows).toEqual([
-      ["Dane profilowe", "/profile"],
+      ["Mój profil", "/1"],
       ["Moje lokalizacje", "/places"],
       ["Mój dom", "/family"],
       ["Moje grupybrak", "/groups"],
@@ -2981,8 +2929,16 @@ describe("AppPage — redesigned navigation and pages", () => {
     expect(within(organization).getAllByRole("link").map((link) => link.textContent)).toEqual([
       "Muzyczne SkrzatyZobacz stronę",
       "Wygląd strony",
-      "Dane organizacji",
+      "Nazwa organizacji",
     ]);
+    expect(within(organization).getByRole("link", { name: "Wygląd strony" })).toHaveAttribute(
+      "href",
+      "/muzyczne-skrzaty/appearance",
+    );
+    expect(within(organization).getByRole("link", { name: "Nazwa organizacji" })).toHaveAttribute(
+      "href",
+      "/muzyczne-skrzaty/appearance?tab=name",
+    );
   });
 
   it("a Konto sub-page has no back link and keeps the tab bar on Konto", async () => {

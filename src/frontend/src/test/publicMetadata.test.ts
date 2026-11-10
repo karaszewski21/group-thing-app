@@ -20,6 +20,7 @@ function organization(overrides: Partial<PublicOrganizationResponse> = {}): Publ
     palette_preset: null,
     description: null,
     logo: null,
+    avatar: null,
     cover: null,
     gallery: [],
     ...overrides,

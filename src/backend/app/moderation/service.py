@@ -27,13 +27,13 @@ from app.auth.models import User
 from app.core.auth_deps import Principal
 from app.core.errors import EntityNotFoundException
 from app.core.pagination import PageParams
-from app.organizations import media as organization_media
-from app.organizations.models import MediaKind, Organization, OrganizationMedia
+from app.media import service as media_service
+from app.media.models import Media, MediaKind
+from app.organizations.models import Organization
 from app.product import service as product_service
 from app.product.models import Product, ProductPhoto
 from app.storage.service import ObjectStorage
-from app.users import service as users_service
-from app.users.models import ProfileAvatar, UserProfile
+from app.users.models import UserProfile
 
 from .models import ModerationDecision, ModerationSource, ModerationSubjectType
 from .status import ModerationStatus
@@ -72,7 +72,7 @@ def _record(
     )
 
 
-type _Upload = ProductPhoto | ProfileAvatar | OrganizationMedia
+type _Upload = ProductPhoto | Media
 
 
 async def _set_photo_files_public(photo: _Upload, storage: ObjectStorage, public: bool) -> None:
@@ -101,30 +101,22 @@ def _photo_branch() -> Select[Any]:
     ).join(Product, Product.id == ProductPhoto.product_id)
 
 
-def _avatar_branch() -> Select[Any]:
-    return select(
-        ProfileAvatar.id,
-        literal(ModerationSubjectType.AVATAR.value, String),
-        null().cast(postgresql.UUID(as_uuid=True)),
-        UserProfile.display_name,
-        ProfileAvatar.storage_key,
-        ProfileAvatar.status,
-        ProfileAvatar.created_at,
-        null().cast(String),
-    ).join(UserProfile, UserProfile.id == ProfileAvatar.user_profile_id)
-
-
-def _organization_media_branch() -> Select[Any]:
-    return select(
-        OrganizationMedia.id,
-        literal(ModerationSubjectType.ORGANIZATION_MEDIA.value, String),
-        null().cast(postgresql.UUID(as_uuid=True)),
-        Organization.name,
-        OrganizationMedia.storage_key,
-        OrganizationMedia.status,
-        OrganizationMedia.created_at,
-        OrganizationMedia.kind,
-    ).join(Organization, Organization.id == OrganizationMedia.organization_id)
+def _media_branch() -> Select[Any]:
+    """The owner's name: the Organization's, else the person's."""
+    return (
+        select(
+            Media.id,
+            literal(ModerationSubjectType.MEDIA.value, String),
+            null().cast(postgresql.UUID(as_uuid=True)),
+            func.coalesce(Organization.name, UserProfile.display_name, ""),
+            Media.storage_key,
+            Media.status,
+            Media.created_at,
+            Media.kind,
+        )
+        .outerjoin(Organization, Organization.party_id == Media.owner_party_id)
+        .outerjoin(UserProfile, UserProfile.party_id == Media.owner_party_id)
+    )
 
 
 @dataclass(frozen=True)
@@ -148,17 +140,12 @@ _SUBJECTS: dict[ModerationSubjectType, _Subject] = {
         admin_delete=product_service.delete_photo_as_admin,
         list_branch=_photo_branch,
     ),
-    ModerationSubjectType.AVATAR: _Subject(
-        model=ProfileAvatar,
-        admin_delete=users_service.delete_avatar_as_admin,
-        list_branch=_avatar_branch,
-    ),
-    ModerationSubjectType.ORGANIZATION_MEDIA: _Subject(
-        model=OrganizationMedia,
-        admin_delete=organization_media.delete_media_as_admin,
-        list_branch=_organization_media_branch,
-        lock_parent=organization_media.lock_media_parent,
-        after_decide=organization_media.after_media_decide,
+    ModerationSubjectType.MEDIA: _Subject(
+        model=Media,
+        admin_delete=media_service.delete_media_as_admin,
+        list_branch=_media_branch,
+        lock_parent=media_service.lock_media_parent,
+        after_decide=media_service.after_media_decide,
     ),
 }
 
@@ -170,8 +157,7 @@ _SUBJECTS: dict[ModerationSubjectType, _Subject] = {
 class QueueEntry:
     subject_type: ModerationSubjectType
     subject_id: uuid.UUID
-    # `None` for an avatar or organization media; `product_name` then holds
-    # the profile's or the organization's name.
+    # `None` for media; `product_name` then holds the owner's name.
     product_id: uuid.UUID | None
     product_name: str
     photo_url: str | None
@@ -179,7 +165,7 @@ class QueueEntry:
     model_id: str | None
     scores: dict[str, Any] | None
     submitted_at: datetime
-    # Only for organization media.
+    # Only for media.
     media_kind: MediaKind | None = None
 
 

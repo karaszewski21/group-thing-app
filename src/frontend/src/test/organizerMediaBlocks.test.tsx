@@ -2,7 +2,8 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { getTestLocation, getTestRouter, renderWithRoute } from "./renderWithRoute";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as groupsApi from "../api/groups";
-import type { PublicMedia, PublicOrganizationResponse } from "../api/organizations";
+import type { PublicMedia } from "../api/media";
+import type { PublicOrganizationResponse } from "../api/organizations";
 import { GalleryBlock } from "../features/organization-public/blocks/GalleryBlock";
 import { HeroBlock } from "../features/organization-public/blocks/HeroBlock";
 import { LayoutRenderer } from "../features/organization-public/LayoutRenderer";
@@ -34,6 +35,7 @@ function pageData(overrides: Partial<PublicOrganizationResponse> = {}): Organize
       palette_preset: "SUN",
       description: null,
       logo: null,
+      avatar: null,
       cover: null,
       gallery: [],
       ...overrides,
@@ -228,10 +230,10 @@ describe("LayoutRenderer gallery slot", () => {
       within(ghost).getByText("Dodaj do 3 zdjęć — odwiedzający zobaczą je po sprawdzeniu. Widzisz to tylko Ty."),
     ).toBeInTheDocument();
     const cta = within(ghost).getByRole("link", { name: "Dodaj zdjęcia →" });
-    expect(cta).toHaveAttribute("href", "/organization/appearance?tab=photos");
+    expect(cta).toHaveAttribute("href", "/rodzinny-grajdolek/appearance?tab=photos");
 
     fireEvent.click(cta);
-    expect(getTestLocation()).toEqual({ pathname: "/organization/appearance", search: "?tab=photos" });
-    expect(getTestRouter().calls.at(-1)).toMatchObject({ method: "push", url: "/organization/appearance?tab=photos" });
+    expect(getTestLocation()).toEqual({ pathname: "/rodzinny-grajdolek/appearance", search: "?tab=photos" });
+    expect(getTestRouter().calls.at(-1)).toMatchObject({ method: "push", url: "/rodzinny-grajdolek/appearance?tab=photos" });
   });
 });

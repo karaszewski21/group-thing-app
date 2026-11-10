@@ -2,13 +2,13 @@ import { act, fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import * as groupsApi from "../api/groups";
+import * as mediaApi from "../api/media";
 import type { OwnerNearestDate } from "../api/ownerItems";
 import { ACCESS_DENIED_MESSAGE } from "../api/problem";
 import * as organizationsApi from "../api/organizations";
-import { diffDraft, paletteSelection, sameDraft, type Draft } from "../features/owner-page/editor/draft";
-import { OrganizationAppearancePage } from "../features/owner-page/OrganizationAppearancePage";
 import { findPreset } from "../theme/palettes";
 import dayjs from "../utils/dayjs";
+import { appearanceRouteElement } from "./itemRoute";
 import { createQueryWrapper } from "./queryClient";
 import { getTestLocation, getTestRouter, renderWithRoute } from "./renderWithRoute";
 
@@ -19,9 +19,12 @@ vi.mock("../api/organizations", () => ({
   getPublicOrganization: vi.fn(),
   getMyOrganization: vi.fn(),
   updateOrganization: vi.fn(),
-  uploadOrganizationMedia: vi.fn(),
-  deleteOrganizationMedia: vi.fn(),
-  reorderOrganizationGallery: vi.fn(),
+}));
+
+vi.mock("../api/media", () => ({
+  uploadMedia: vi.fn(),
+  deleteMedia: vi.fn(),
+  reorderGallery: vi.fn(),
 }));
 
 vi.mock("../api/groups", () => ({
@@ -33,17 +36,20 @@ function currentUrl() {
   return pathname + search;
 }
 
-function renderAt(path: string) {
-  renderWithRoute(<OrganizationAppearancePage />, {
+const EDITOR = "/muzyczne-skrzaty/appearance";
+
+/** `/:slug/appearance` through its route files (page, not-found, error). */
+async function renderAt(path: string) {
+  renderWithRoute(await appearanceRouteElement(path), {
     url: path,
-    pattern: "/organization/appearance",
-    routes: { "/home": <p>Panel</p> },
+    pattern: "/:slug/appearance",
+    routes: { "/home": <p>Panel</p>, "/login": <p>Logowanie</p> },
     wrapper: createQueryWrapper(),
   });
   return getTestRouter();
 }
 
-const ORGANIZATION = {
+const ORGANIZATION: organizationsApi.PublicOrganizationResponse = {
   slug: "muzyczne-skrzaty",
   name: "Muzyczne Skrzaty",
   primary_color: null,
@@ -52,11 +58,12 @@ const ORGANIZATION = {
   palette_preset: null,
   description: null,
   logo: null,
+  avatar: null,
   cover: null,
   gallery: [],
 };
 
-const MY_ORGANIZATION = {
+const MY_ORGANIZATION: organizationsApi.MyOrganizationResponse = {
   id: "org-1",
   party_id: "party-1",
   name: "Muzyczne Skrzaty",
@@ -122,7 +129,7 @@ function recommendedLayouts() {
 
 /** Opens the page on "Układ i kolor", where most of these tests work. */
 async function openEditor() {
-  const router = renderAt("/organization/appearance?tab=layout");
+  const router = await renderAt(`${EDITOR}?tab=layout`);
   await screen.findByRole("radio", { name: "Klasyczny" });
   return { router };
 }
@@ -139,7 +146,7 @@ function chooseLinks() {
 async function expectSaved() {
   expect(await screen.findByRole("status")).toHaveTextContent("Zapisano");
   expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
-  expect(currentUrl()).toBe("/organization/appearance?tab=layout");
+  expect(currentUrl()).toBe(`${EDITOR}?tab=layout`);
 }
 
 beforeEach(() => {
@@ -160,12 +167,39 @@ describe("Wygląd strony page", () => {
     expect(screen.getByRole("link", { name: "Zobacz stronę →" })).toHaveAttribute("href", "/muzyczne-skrzaty");
   });
 
-  it("without an Organization points to Moja organizacja", async () => {
+  it("is not found for a caller without an Organization", async () => {
     vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new ApiError(404, "Not Found", null));
-    renderAt("/organization/appearance");
+    await renderAt(EDITOR);
 
-    expect(await screen.findByRole("link", { name: "Moja organizacja →" })).toHaveAttribute("href", "/organization");
+    expect(await screen.findByText("Tej strony nie możesz edytować.")).toBeInTheDocument();
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+  });
+
+  it("is not found on another Organization's page", async () => {
+    await renderAt("/inna-organizacja/appearance");
+
+    expect(await screen.findByText("Tej strony nie możesz edytować.")).toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+  });
+
+  it("sends a visitor without a session to log in and come back", async () => {
+    mockAuth = { token: null };
+    await renderAt(EDITOR);
+
+    await vi.waitFor(() => expect(getTestLocation().pathname).toBe("/login"));
+    expect(new URLSearchParams(getTestLocation().search).get("returnTo")).toBe(EDITOR);
+    expect(organizationsApi.getMyOrganization).not.toHaveBeenCalled();
+  });
+
+  it("shows the load error with a retry that reads the organization again", async () => {
+    vi.mocked(organizationsApi.getMyOrganization).mockRejectedValue(new ApiError(500, "Server Error", null));
+    await renderAt(EDITOR);
+
+    expect(await screen.findByText(/Nie udało się wczytać ustawień strony\./)).toBeInTheDocument();
+    vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue(MY_ORGANIZATION);
+    fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
+
+    expect(await screen.findByRole("tablist", { name: "Ustawienia strony" })).toBeInTheDocument();
   });
 
   it("Anuluj drops a chosen layout and disables Zapisz again", async () => {
@@ -223,7 +257,7 @@ describe("Wygląd strony page", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Zdjęcia i opis" }));
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(currentUrl()).toBe("/organization/appearance?tab=photos");
+    expect(currentUrl()).toBe(`${EDITOR}?tab=photos`);
     expect(screen.getByRole("button", { name: "Zapisz" })).toBeEnabled();
   });
 
@@ -404,7 +438,7 @@ describe("Wygląd strony photos and description", () => {
   }
 
   it("opens on Zdjęcia i opis by default, with the photos and the description together", async () => {
-    renderAt("/organization/appearance");
+    await renderAt(EDITOR);
     await screen.findByRole("region", { name: "Logo" });
 
     expect(tab("Zdjęcia i opis")).toHaveAttribute("aria-selected", "true");
@@ -415,14 +449,14 @@ describe("Wygląd strony photos and description", () => {
   });
 
   it("falls back to Zdjęcia i opis for an unknown tab value", async () => {
-    renderAt("/organization/appearance?tab=nieznana");
+    await renderAt(`${EDITOR}?tab=nieznana`);
     await screen.findByRole("region", { name: "Logo" });
 
     expect(tab("Zdjęcia i opis")).toHaveAttribute("aria-selected", "true");
   });
 
   it("uploads a photo right away without making the draft dirty", async () => {
-    vi.mocked(organizationsApi.uploadOrganizationMedia).mockResolvedValue({
+    vi.mocked(mediaApi.uploadMedia).mockResolvedValue({
       id: "m-1",
       kind: "LOGO",
       status: "PENDING",
@@ -430,13 +464,13 @@ describe("Wygląd strony photos and description", () => {
       thumb_url: "https://cdn/m-1-t",
       sort_order: 0,
     });
-    const router = renderAt("/organization/appearance?tab=photos");
+    const router = await renderAt(`${EDITOR}?tab=photos`);
     const logo = within(await screen.findByRole("region", { name: "Logo" }));
 
     fireEvent.change(logo.getByLabelText("Dodaj logo"), { target: { files: [JPEG] } });
 
     await vi.waitFor(() =>
-      expect(organizationsApi.uploadOrganizationMedia).toHaveBeenCalledWith("org-1", "LOGO", JPEG),
+      expect(mediaApi.uploadMedia).toHaveBeenCalledWith({ kind: "organization", organizationId: "org-1" }, "LOGO", JPEG),
     );
     expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
 
@@ -446,22 +480,22 @@ describe("Wygląd strony photos and description", () => {
     expect(await screen.findByText("Panel")).toBeInTheDocument();
   });
 
-  it("moves roving focus across both pills with the arrow keys", async () => {
+  it("moves roving focus across the three pills with the arrow keys, wrapping around", async () => {
     await openEditor();
 
     fireEvent.keyDown(tab("Układ i kolor"), { key: "ArrowRight" });
+    expect(tab("Nazwa")).toHaveFocus();
+    expect(tab("Nazwa")).toHaveAttribute("aria-selected", "true");
+    expect(tab("Nazwa")).toHaveAttribute("tabindex", "0");
+    fireEvent.keyDown(tab("Nazwa"), { key: "ArrowRight" });
     expect(tab("Zdjęcia i opis")).toHaveFocus();
-    expect(tab("Zdjęcia i opis")).toHaveAttribute("aria-selected", "true");
-    expect(tab("Zdjęcia i opis")).toHaveAttribute("tabindex", "0");
-    fireEvent.keyDown(tab("Zdjęcia i opis"), { key: "ArrowRight" });
-    expect(tab("Układ i kolor")).toHaveFocus();
-    fireEvent.keyDown(tab("Układ i kolor"), { key: "ArrowLeft" });
-    expect(tab("Zdjęcia i opis")).toHaveFocus();
+    fireEvent.keyDown(tab("Zdjęcia i opis"), { key: "ArrowLeft" });
+    expect(tab("Nazwa")).toHaveFocus();
   });
 
   it("saves the typed description trimmed", async () => {
     vi.mocked(organizationsApi.updateOrganization).mockResolvedValue({ ...MY_ORGANIZATION, description: "Śpiewamy." });
-    renderAt("/organization/appearance?tab=photos");
+    await renderAt(`${EDITOR}?tab=photos`);
     const textarea = await screen.findByRole("textbox", { name: "O nas" });
 
     fireEvent.change(textarea, { target: { value: "  Śpiewamy.  " } });
@@ -475,40 +509,39 @@ describe("Wygląd strony photos and description", () => {
   });
 });
 
-describe("editor draft helpers", () => {
-  const baseline: Draft = {
-    pageLayout: "CLASSIC",
-    theme: { palette_preset: null, primary_color: "#7A2A4F", accent_color: null },
-    description: "Śpiewamy razem.",
-  };
+describe("Wygląd strony name", () => {
+  async function openName() {
+    await renderAt(`${EDITOR}?tab=name`);
+    return screen.findByRole("textbox", { name: "Nazwa organizacji" });
+  }
 
-  it("compares colors case-insensitively and sends nothing for a case-only change", () => {
-    const current: Draft = { ...baseline, theme: { ...baseline.theme, primary_color: "#7a2a4f" } };
+  it("renames the organization with only the trimmed name", async () => {
+    vi.mocked(organizationsApi.updateOrganization).mockResolvedValue({ ...MY_ORGANIZATION, name: "Skrzaty" });
+    const name = await openName();
+    expect(name).toHaveValue("Muzyczne Skrzaty");
 
-    expect(sameDraft(current, baseline)).toBe(true);
-    expect(diffDraft(current, baseline)).toEqual({});
+    fireEvent.change(name, { target: { value: "  Skrzaty " } });
+    vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue({ ...MY_ORGANIZATION, name: "Skrzaty" });
+    fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Zapisano");
+    expect(organizationsApi.updateOrganization).toHaveBeenCalledWith("org-1", { name: "Skrzaty" });
   });
 
-  it("sends only changed fields, with explicit nulls", () => {
-    const current: Draft = {
-      pageLayout: "CLASSIC",
-      theme: { palette_preset: null, primary_color: null, accent_color: null },
-      description: "Śpiewamy razem.",
-    };
+  it("blocks Zapisz with an inline error while the name is blank", async () => {
+    const name = await openName();
 
-    expect(diffDraft(current, baseline)).toEqual({ primary_color: null });
-  });
+    fireEvent.change(name, { target: { value: "   " } });
 
-  it("sends the trimmed description, a blank one as null, and nothing for a whitespace-only change", () => {
-    expect(diffDraft({ ...baseline, description: "  Śpiewamy razem. \n" }, baseline)).toEqual({});
-    expect(diffDraft({ ...baseline, description: " Tańczymy. " }, baseline)).toEqual({ description: "Tańczymy." });
-    expect(diffDraft({ ...baseline, description: "   " }, baseline)).toEqual({ description: null });
-  });
+    expect(screen.getByRole("alert")).toHaveTextContent("Podaj nazwę.");
+    expect(name).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("button", { name: "Zapisz" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Anuluj" })).toBeEnabled();
 
-  it("derives the palette selection from the theme", () => {
-    expect(paletteSelection({ palette_preset: null, primary_color: null, accent_color: null })).toBe("DEFAULT");
-    expect(paletteSelection({ palette_preset: "OCEAN", primary_color: "#0E7490", accent_color: null })).toBe("OCEAN");
-    expect(paletteSelection(baseline.theme)).toBe("CUSTOM");
-    expect(paletteSelection({ palette_preset: "RETIRED", primary_color: null, accent_color: null })).toBe("CUSTOM");
+    fireEvent.click(screen.getByRole("button", { name: "Anuluj" }));
+
+    expect(name).toHaveValue("Muzyczne Skrzaty");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(organizationsApi.updateOrganization).not.toHaveBeenCalled();
   });
 });

@@ -1,10 +1,14 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
+import * as mediaApi from "../api/media";
+import type { MediaOwner, OwnerMedia } from "../api/media";
 import * as organizationsApi from "../api/organizations";
-import type { MyOrganizationResponse, OwnerMedia } from "../api/organizations";
+import type { MyOrganizationResponse } from "../api/organizations";
+import { useMediaActions } from "../hooks/useMediaActions";
 import { MY_ORGANIZATION_KEY, useMyOrganization } from "../hooks/useMyOrganization";
-import { useOrganizationMedia } from "../hooks/useOrganizationMedia";
+import { MY_PROFILE_KEY } from "../hooks/useMyProfile";
+import { OWNER_ITEMS_KEY } from "../hooks/useOwnerItems";
 import { PUBLIC_ORGANIZATION_KEY } from "../hooks/usePublicOrganization";
 import { useUpdateOrganization } from "../hooks/useUpdateOrganization";
 import { createQueryWrapper, createTestQueryClient } from "./queryClient";
@@ -15,9 +19,12 @@ vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
 vi.mock("../api/organizations", () => ({
   getMyOrganization: vi.fn(),
   updateOrganization: vi.fn(),
-  uploadOrganizationMedia: vi.fn(),
-  deleteOrganizationMedia: vi.fn(),
-  reorderOrganizationGallery: vi.fn(),
+}));
+
+vi.mock("../api/media", () => ({
+  uploadMedia: vi.fn(),
+  deleteMedia: vi.fn(),
+  reorderGallery: vi.fn(),
 }));
 
 const ORGANIZATION: MyOrganizationResponse = {
@@ -206,44 +213,55 @@ describe("useMyOrganization media polling", () => {
   });
 });
 
-describe("useOrganizationMedia", () => {
-  it("uploads, removes and reorders, invalidating both organization prefixes after each call", async () => {
-    vi.mocked(organizationsApi.uploadOrganizationMedia).mockResolvedValue(media("a", "PENDING"));
-    vi.mocked(organizationsApi.deleteOrganizationMedia).mockResolvedValue(undefined);
-    vi.mocked(organizationsApi.reorderOrganizationGallery).mockResolvedValue([]);
+const ORGANIZATION_OWNER: MediaOwner = { kind: "organization", organizationId: "7" };
+const ME: MediaOwner = { kind: "me" };
+
+describe("useMediaActions", () => {
+  it.each<{ name: string; owner: MediaOwner; keys: string[]; others: string[] }>([
+    {
+      name: "an Organization",
+      owner: ORGANIZATION_OWNER,
+      keys: [PUBLIC_ORGANIZATION_KEY, MY_ORGANIZATION_KEY],
+      others: [MY_PROFILE_KEY, OWNER_ITEMS_KEY],
+    },
+    {
+      name: "the caller's profile",
+      owner: ME,
+      keys: [MY_PROFILE_KEY, OWNER_ITEMS_KEY],
+      others: [PUBLIC_ORGANIZATION_KEY, MY_ORGANIZATION_KEY],
+    },
+  ])("uploads, removes and reorders for $name, invalidating its own reads after each call", async ({ owner, keys, others }) => {
+    vi.mocked(mediaApi.uploadMedia).mockResolvedValue(media("a", "PENDING"));
+    vi.mocked(mediaApi.deleteMedia).mockResolvedValue(undefined);
+    vi.mocked(mediaApi.reorderGallery).mockResolvedValue([]);
     const client = createTestQueryClient();
     const invalidate = vi.spyOn(client, "invalidateQueries");
-    const { result } = renderHook(() => useOrganizationMedia("7"), { wrapper: createQueryWrapper(client) });
+    const { result } = renderHook(() => useMediaActions(owner), { wrapper: createQueryWrapper(client) });
     const file = new File(["x"], "logo.png", { type: "image/png" });
 
-    await act(() => result.current.upload("LOGO", file));
-    expect(organizationsApi.uploadOrganizationMedia).toHaveBeenCalledWith("7", "LOGO", file);
-    expect(invalidatedPrefixes(invalidate)).toEqual(
-      expect.arrayContaining([PUBLIC_ORGANIZATION_KEY, MY_ORGANIZATION_KEY]),
-    );
+    await act(() => result.current.upload("AVATAR", file));
+    expect(mediaApi.uploadMedia).toHaveBeenCalledWith(owner, "AVATAR", file);
+    expect(invalidatedPrefixes(invalidate)).toEqual(expect.arrayContaining(keys));
 
     invalidate.mockClear();
     await act(() => result.current.remove("m1"));
-    expect(organizationsApi.deleteOrganizationMedia).toHaveBeenCalledWith("7", "m1");
-    expect(invalidatedPrefixes(invalidate)).toEqual(
-      expect.arrayContaining([PUBLIC_ORGANIZATION_KEY, MY_ORGANIZATION_KEY]),
-    );
+    expect(mediaApi.deleteMedia).toHaveBeenCalledWith(owner, "m1");
+    expect(invalidatedPrefixes(invalidate)).toEqual(expect.arrayContaining(keys));
 
     invalidate.mockClear();
     await act(() => result.current.reorder(["m2", "m1"]));
-    expect(organizationsApi.reorderOrganizationGallery).toHaveBeenCalledWith("7", ["m2", "m1"]);
-    expect(invalidatedPrefixes(invalidate)).toEqual(
-      expect.arrayContaining([PUBLIC_ORGANIZATION_KEY, MY_ORGANIZATION_KEY]),
-    );
+    expect(mediaApi.reorderGallery).toHaveBeenCalledWith(owner, ["m2", "m1"]);
+    expect(invalidatedPrefixes(invalidate)).toEqual(expect.arrayContaining(keys));
+    for (const other of others) expect(invalidatedPrefixes(invalidate)).not.toContain(other);
   });
 
-  it("rethrows the server message verbatim after invalidating both prefixes", async () => {
-    vi.mocked(organizationsApi.uploadOrganizationMedia).mockRejectedValue(
+  it("rethrows the server message verbatim after invalidating the owner's reads", async () => {
+    vi.mocked(mediaApi.uploadMedia).mockRejectedValue(
       new ApiError(409, "Conflict", { status: 409, message: "Galeria może mieć najwyżej 3 zdjęcia." }),
     );
     const client = createTestQueryClient();
     const invalidate = vi.spyOn(client, "invalidateQueries");
-    const { result } = renderHook(() => useOrganizationMedia("7"), { wrapper: createQueryWrapper(client) });
+    const { result } = renderHook(() => useMediaActions(ORGANIZATION_OWNER), { wrapper: createQueryWrapper(client) });
 
     let prefixesAtRejection: unknown[] = [];
     let message = "";
@@ -261,12 +279,12 @@ describe("useOrganizationMedia", () => {
   });
 
   it("falls back to Polish copy per action when the server gives no message", async () => {
-    vi.mocked(organizationsApi.uploadOrganizationMedia).mockRejectedValue(new TypeError("Failed to fetch"));
-    vi.mocked(organizationsApi.deleteOrganizationMedia).mockRejectedValue(new ApiError(500, "Server Error", null));
-    vi.mocked(organizationsApi.reorderOrganizationGallery).mockRejectedValue(new ApiError(500, "Server Error", null));
+    vi.mocked(mediaApi.uploadMedia).mockRejectedValue(new TypeError("Failed to fetch"));
+    vi.mocked(mediaApi.deleteMedia).mockRejectedValue(new ApiError(500, "Server Error", null));
+    vi.mocked(mediaApi.reorderGallery).mockRejectedValue(new ApiError(500, "Server Error", null));
     const client = createTestQueryClient();
     const invalidate = vi.spyOn(client, "invalidateQueries");
-    const { result } = renderHook(() => useOrganizationMedia("7"), { wrapper: createQueryWrapper(client) });
+    const { result } = renderHook(() => useMediaActions(ME), { wrapper: createQueryWrapper(client) });
 
     await expect(result.current.upload("COVER", new File(["x"], "c.png"))).rejects.toThrow(
       "Nie udało się wysłać zdjęcia. Spróbuj ponownie.",
@@ -275,6 +293,6 @@ describe("useOrganizationMedia", () => {
     await expect(result.current.reorder(["m1"])).rejects.toThrow(
       "Nie udało się zmienić kolejności. Spróbuj ponownie.",
     );
-    expect(invalidatedPrefixes(invalidate).filter((p) => p === MY_ORGANIZATION_KEY)).toHaveLength(3);
+    expect(invalidatedPrefixes(invalidate).filter((p) => p === MY_PROFILE_KEY)).toHaveLength(3);
   });
 });

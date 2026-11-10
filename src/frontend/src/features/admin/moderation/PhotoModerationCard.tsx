@@ -14,17 +14,17 @@ const STATUS_LABELS: Record<ModerationStatus, string> = {
 
 const MEDIA_KIND_LABELS: Record<NonNullable<ModerationQueueEntry["media_kind"]>, string> = {
   LOGO: "Logo",
+  AVATAR: "Avatar",
   COVER: "Cover",
   GALLERY: "Gallery",
 };
 
 const TITLES: Record<ModerationSubjectType, (entry: ModerationQueueEntry) => string> = {
   PHOTO: (entry) => entry.product_name,
-  AVATAR: (entry) => `Avatar · ${entry.product_name}`,
-  ORGANIZATION_MEDIA: (entry) =>
+  MEDIA: (entry) =>
     entry.media_kind
-      ? `Organization · ${entry.product_name} · ${MEDIA_KIND_LABELS[entry.media_kind]}`
-      : `Organization · ${entry.product_name}`,
+      ? `Page · ${entry.product_name} · ${MEDIA_KIND_LABELS[entry.media_kind]}`
+      : `Page · ${entry.product_name}`,
 };
 
 function formatScores(scores: Record<string, number> | null): string {

@@ -35,6 +35,7 @@ from app.families.router import router as families_router
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.router import router as groups_router
 from app.locations.router import router as locations_router
+from app.media.service import sweep_superseded_media
 from app.messaging.router import router as messaging_router
 from app.moderation import text_guard
 from app.moderation.router import router as moderation_router
@@ -42,7 +43,6 @@ from app.notifications import outbox_listener as notifications_outbox_listener
 from app.notifications.router import router as notifications_router
 from app.oauth2.metadata_router import router as oauth2_metadata_router
 from app.oauth2.router import router as oauth2_router
-from app.organizations.media import sweep_superseded_media
 from app.organizations.router import router as organizations_router
 from app.outbox import scheduler as outbox_scheduler
 from app.plugin.router import router as plugin_router

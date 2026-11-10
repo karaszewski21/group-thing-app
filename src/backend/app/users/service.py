@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import re
 import uuid
 from collections.abc import Collection
@@ -14,21 +13,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import Permission, User, user_permissions
-from app.config import settings
 from app.core.auth_deps import Principal
 from app.core.errors import BusinessConflictException, EntityNotFoundException
 from app.core.security import hash_password
-from app.moderation.status import ModerationStatus
 from app.moderation.text_guard import TextField, check_text
-from app.outbox import service as outbox_service
 from app.party.models import Party, PartyType
 from app.party.service import create_party
-from app.storage import images
-from app.storage.outbox_listener import OBJECTS_DELETE
-from app.storage.service import ObjectStorage
 
-from .models import ProfileAvatar, UserProfile, UserRole, UserRoleType
-from .schemas import AvatarResponse, RegisterRequest, UpdateMyProfileRequest
+from .models import UserProfile, UserRole, UserRoleType
+from .schemas import (
+    RegisterRequest,
+    UpdateMyProfileAppearanceRequest,
+    UpdateMyProfileRequest,
+)
 
 _USERNAME_MAX_LENGTH = 50
 # Anything outside this set is stripped from the email local-part before
@@ -114,93 +111,26 @@ async def update_my_profile(
     return profile
 
 
+async def update_my_profile_appearance(
+    db: AsyncSession, principal: Principal, data: UpdateMyProfileAppearanceRequest
+) -> UserProfile:
+    """The caller's public profile appearance ("Wygląd strony"): exactly the
+    fields present in the request; the bio is text-moderated as in
+    `update_my_profile`."""
+    profile = await get_profile_by_principal(db, principal)
+    fields = data.model_fields_set
+    if "bio" in fields:
+        await check_text(TextField.PROFILE_BIO, data.bio, profile.bio)
+        profile.bio = data.bio
+    for name in ("page_layout", "palette_preset", "primary_color", "accent_color"):
+        if name in fields:
+            setattr(profile, name, getattr(data, name))
+    await db.commit()
+    await db.refresh(profile)
+    return profile
+
+
 AVATAR_UPLOAD_DISABLED_MESSAGE = "Dodawanie zdjęć jest chwilowo niedostępne"
-
-
-async def get_avatar(db: AsyncSession, user_profile_id: uuid.UUID) -> ProfileAvatar | None:
-    return (
-        await db.execute(
-            select(ProfileAvatar).where(ProfileAvatar.user_profile_id == user_profile_id)
-        )
-    ).scalar_one_or_none()
-
-
-def avatar_response(avatar: ProfileAvatar, storage: ObjectStorage) -> AvatarResponse:
-    link = (
-        storage.public_url if avatar.status == ModerationStatus.APPROVED else storage.presigned_url
-    )
-    return AvatarResponse(url=link(avatar.thumb_key), status=avatar.status)
-
-
-async def _stage_avatar_files_delete(db: AsyncSession, avatar: ProfileAvatar) -> None:
-    await outbox_service.append(
-        db, event_type=OBJECTS_DELETE, payload={"keys": [avatar.large_key, avatar.thumb_key]}
-    )
-
-
-async def set_my_avatar(
-    db: AsyncSession, principal: Principal, data: bytes, storage: ObjectStorage | None
-) -> ProfileAvatar:
-    """Sanitizes the upload like a product photo and replaces the caller's
-    avatar. With image moderation on, the new avatar is PENDING and private
-    until VPS B's cron approves it. The previous avatar's files are deleted
-    through the outbox; on any failure the new files are deleted instead."""
-    if storage is None:
-        raise BusinessConflictException(AVATAR_UPLOAD_DISABLED_MESSAGE)
-    processed = await asyncio.to_thread(images.process_upload, data)
-    profile = await get_profile_by_principal(db, principal)
-    previous = (
-        await db.execute(
-            select(ProfileAvatar)
-            .where(ProfileAvatar.user_profile_id == profile.id)
-            .with_for_update()
-        )
-    ).scalar_one_or_none()
-
-    avatar_id = uuid.uuid4()
-    approved = not settings.moderation_image_enabled
-    avatar = ProfileAvatar(
-        id=avatar_id,
-        user_profile_id=profile.id,
-        storage_key=f"avatars/{profile.id}/{avatar_id}",
-        size_bytes=len(processed.large),
-        content_sha256=processed.sha256,
-        status=ModerationStatus.APPROVED if approved else ModerationStatus.PENDING,
-    )
-    await storage.put(avatar.large_key, processed.large, "image/webp", public=approved)
-    await storage.put(avatar.thumb_key, processed.thumb, "image/webp", public=approved)
-    try:
-        if previous is not None:
-            await db.delete(previous)
-            # The one-avatar-per-profile constraint needs the delete first.
-            await db.flush()
-            await _stage_avatar_files_delete(db, previous)
-        db.add(avatar)
-        await db.commit()
-    except Exception:
-        await db.rollback()
-        await storage.delete([avatar.large_key, avatar.thumb_key])
-        raise
-    return avatar
-
-
-async def delete_avatar_as_admin(db: AsyncSession, avatar_id: uuid.UUID) -> None:
-    avatar = await db.get(ProfileAvatar, avatar_id, with_for_update=True)
-    if avatar is None:
-        raise EntityNotFoundException("ProfileAvatar", avatar_id)
-    await db.delete(avatar)
-    await _stage_avatar_files_delete(db, avatar)
-    await db.commit()
-
-
-async def remove_my_avatar(db: AsyncSession, principal: Principal) -> None:
-    profile = await get_profile_by_principal(db, principal)
-    avatar = await get_avatar(db, cast(uuid.UUID, profile.id))
-    if avatar is None:
-        raise EntityNotFoundException("ProfileAvatar", profile.id)
-    await db.delete(avatar)
-    await _stage_avatar_files_delete(db, avatar)
-    await db.commit()
 
 
 async def get_profile(db: AsyncSession, user_profile_id: uuid.UUID) -> UserProfile:

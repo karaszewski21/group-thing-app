@@ -1,54 +1,37 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
-import * as organizationsApi from "../api/organizations";
-import type { MyOrganizationResponse, OwnerMedia } from "../api/organizations";
-import { MY_ORGANIZATION_KEY } from "../hooks/useMyOrganization";
-import { PhotosTab } from "../features/owner-page/editor/PhotosTab";
-import { createTestQueryClient, withQueryClient } from "./queryClient";
+import * as mediaApi from "../api/media";
+import type { MediaOwner, OwnerMedia } from "../api/media";
+import { PhotosTab } from "../features/editor/PhotosTab";
+import { useMediaActions } from "../hooks/useMediaActions";
+import { createQueryWrapper } from "./queryClient";
 
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ token: "token-a" }) }));
 
-vi.mock("../api/organizations", () => ({
-  getMyOrganization: vi.fn(),
-  uploadOrganizationMedia: vi.fn(),
-  deleteOrganizationMedia: vi.fn(),
-  reorderOrganizationGallery: vi.fn(),
+vi.mock("../api/media", () => ({
+  uploadMedia: vi.fn(),
+  deleteMedia: vi.fn(),
+  reorderGallery: vi.fn(),
 }));
+
+const ORGANIZATION: MediaOwner = { kind: "organization", organizationId: "7" };
 
 function row(id: string, kind: OwnerMedia["kind"], status: OwnerMedia["status"], sortOrder = 0): OwnerMedia {
   return { id, kind, status, url: `https://cdn/${id}`, thumb_url: `https://cdn/${id}-t`, sort_order: sortOrder };
 }
 
-function organization(media: OwnerMedia[]): MyOrganizationResponse {
-  return {
-    id: "7",
-    party_id: "11",
-    name: "Muzyczne Skrzaty",
-    slug: "muzyczne-skrzaty",
-    primary_color: null,
-    accent_color: null,
-    page_layout: "CLASSIC",
-    palette_preset: null,
-    description: null,
-    created_at: "2026-10-01T10:00:00Z",
-    updated_at: "2026-10-01T10:00:00Z",
-    media,
-  };
+/** The tab as an editor mounts it: the owner's media plus its real actions. */
+function Harness({ media }: { media: OwnerMedia[] }) {
+  const actions = useMediaActions(ORGANIZATION);
+  return <PhotosTab media={media} actions={actions} initials="MS" />;
 }
 
-async function renderTab(media: OwnerMedia[]) {
-  vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue(organization(media));
-  const client = createTestQueryClient();
-  render(withQueryClient(<PhotosTab organizationId="7" />, client));
-  await act(async () => {});
+function renderTab(media: OwnerMedia[]) {
+  const view = render(<Harness media={media} />, { wrapper: createQueryWrapper() });
   return {
-    /** Replaces the cached organization's media, as a re-read would. */
-    updateMedia: (next: OwnerMedia[]) =>
-      act(() => {
-        vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue(organization(next));
-        client.setQueryData([MY_ORGANIZATION_KEY, "token-a"], organization(next));
-      }),
+    /** Re-renders with the media a re-read would return. */
+    updateMedia: (next: OwnerMedia[]) => view.rerender(<Harness media={next} />),
   };
 }
 
@@ -67,10 +50,23 @@ beforeEach(() => {
 });
 
 describe("PhotosTab", () => {
-  it("shows the intro and a first pending logo with change and cancel", async () => {
-    await renderTab([row("l1", "LOGO", "PENDING")]);
+  it("shows the avatar, banner, logo and gallery sections in that order", () => {
+    renderTab([]);
 
     expect(screen.getByText("Zdjęcia zapisują się od razu.")).toBeInTheDocument();
+    expect(screen.getAllByRole("region")).toHaveLength(4);
+    expect(
+      screen.getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent),
+    ).toEqual(["Awatar", "Baner", "Logo", "Galeria"]);
+    expect(section("Awatar").getByText("MS")).toBeInTheDocument();
+    expect(section("Awatar").getByText("Brak awatara — na stronie widać inicjały.")).toBeInTheDocument();
+    expect(section("Baner").getByText("Widoczny u góry strony.")).toBeInTheDocument();
+    expect(section("Logo").getByText("Brak logo.")).toBeInTheDocument();
+  });
+
+  it("shows a first pending logo with change and cancel", () => {
+    renderTab([row("l1", "LOGO", "PENDING")]);
+
     const logo = section("Logo");
     expect(logo.getByText("W weryfikacji")).toBeInTheDocument();
     expect(logo.getByText("Odwiedzający zobaczą je po sprawdzeniu.")).toBeInTheDocument();
@@ -78,22 +74,21 @@ describe("PhotosTab", () => {
     expect(logo.getByRole("button", { name: "Anuluj" })).toBeInTheDocument();
   });
 
-  it("shows the approved logo above the pending replacement", async () => {
-    await renderTab([row("l1", "LOGO", "APPROVED"), row("l2", "LOGO", "NEEDS_REVIEW")]);
+  it("shows the approved avatar above the pending replacement", () => {
+    renderTab([row("a1", "AVATAR", "APPROVED"), row("a2", "AVATAR", "NEEDS_REVIEW")]);
 
-    const logo = section("Logo");
-    expect(logo.getByText("Na stronie teraz")).toBeInTheDocument();
-    expect(logo.getByRole("button", { name: "Usuń ze strony" })).toBeInTheDocument();
-    expect(logo.getByRole("separator")).toBeInTheDocument();
-    expect(logo.getByText("Nowe")).toBeInTheDocument();
-    expect(logo.getByText("Zastąpi obecne po sprawdzeniu.")).toBeInTheDocument();
-    expect(logo.getByLabelText("Zmień")).toBeInTheDocument();
-    expect(logo.getByRole("button", { name: "Anuluj" })).toBeInTheDocument();
+    const avatar = section("Awatar");
+    expect(avatar.getByText("Na stronie teraz")).toBeInTheDocument();
+    expect(avatar.getByRole("button", { name: "Usuń ze strony" })).toBeInTheDocument();
+    expect(avatar.getByRole("separator")).toBeInTheDocument();
+    expect(avatar.getByText("Nowe")).toBeInTheDocument();
+    expect(avatar.getByText("Zastąpi obecne po sprawdzeniu.")).toBeInTheDocument();
+    expect(avatar.getByLabelText("Zmień")).toBeInTheDocument();
   });
 
   it("lists every rejected logo newest first, each removable, with one add picker", async () => {
-    vi.mocked(organizationsApi.deleteOrganizationMedia).mockResolvedValue(undefined);
-    await renderTab([row("old", "LOGO", "REJECTED"), row("new", "LOGO", "REJECTED")]);
+    vi.mocked(mediaApi.deleteMedia).mockResolvedValue(undefined);
+    renderTab([row("old", "LOGO", "REJECTED"), row("new", "LOGO", "REJECTED")]);
 
     const logo = section("Logo");
     expect(logo.getAllByText("Odrzucone")).toHaveLength(2);
@@ -103,41 +98,38 @@ describe("PhotosTab", () => {
     expect(removes).toHaveLength(2);
 
     fireEvent.click(removes[0]);
-    await waitFor(() => expect(organizationsApi.deleteOrganizationMedia).toHaveBeenCalledWith("7", "new"));
+    await waitFor(() => expect(mediaApi.deleteMedia).toHaveBeenCalledWith(ORGANIZATION, "new"));
     await waitFor(() => expect(logo.getByLabelText("Dodaj logo")).toHaveFocus());
   });
 
-  it("uses the cover copy for an approved cover and shows the uploading state while it is replaced", async () => {
-    vi.mocked(organizationsApi.uploadOrganizationMedia).mockReturnValue(new Promise(() => {}));
-    await renderTab([row("c1", "COVER", "APPROVED")]);
+  it("replaces an approved banner and shows the uploading state meanwhile", async () => {
+    vi.mocked(mediaApi.uploadMedia).mockReturnValue(new Promise(() => {}));
+    renderTab([row("c1", "COVER", "APPROVED")]);
 
-    const cover = section("Okładka");
+    const cover = section("Baner");
     expect(cover.getByText("Na stronie")).toBeInTheDocument();
-    expect(cover.getByRole("button", { name: "Usuń" })).toBeInTheDocument();
-    pick(cover.getByLabelText("Zmień okładkę"), JPEG);
+    pick(cover.getByLabelText("Zmień baner"), JPEG);
 
     expect(await cover.findByText("Wysyłanie…")).toBeInTheDocument();
-    expect(cover.getByLabelText("Dodaj okładkę")).toBeDisabled();
-    expect(organizationsApi.uploadOrganizationMedia).toHaveBeenCalledWith("7", "COVER", JPEG);
+    expect(cover.getByLabelText("Dodaj baner")).toBeDisabled();
+    expect(mediaApi.uploadMedia).toHaveBeenCalledWith(ORGANIZATION, "COVER", JPEG);
   });
 
   it("uploads a valid file with its kind and rejects an invalid one without a call", async () => {
-    vi.mocked(organizationsApi.uploadOrganizationMedia).mockResolvedValue(row("c1", "COVER", "PENDING"));
-    await renderTab([]);
+    vi.mocked(mediaApi.uploadMedia).mockResolvedValue(row("a1", "AVATAR", "PENDING"));
+    renderTab([]);
 
     const logo = section("Logo");
-    expect(logo.getByText("Brak logo — na stronie widać inicjały.")).toBeInTheDocument();
-    expect(logo.getByText("MS")).toBeInTheDocument();
     pick(logo.getByLabelText("Dodaj logo"), new File(["x"], "doc.pdf", { type: "application/pdf" }));
     expect(logo.getByRole("alert")).toHaveTextContent("Nieobsługiwany plik — dodaj zdjęcie JPG, PNG lub WebP");
-    expect(organizationsApi.uploadOrganizationMedia).not.toHaveBeenCalled();
+    expect(mediaApi.uploadMedia).not.toHaveBeenCalled();
 
-    pick(section("Okładka").getByLabelText("Dodaj okładkę"), JPEG);
-    await waitFor(() => expect(organizationsApi.uploadOrganizationMedia).toHaveBeenCalledWith("7", "COVER", JPEG));
+    pick(section("Awatar").getByLabelText("Dodaj awatar"), JPEG);
+    await waitFor(() => expect(mediaApi.uploadMedia).toHaveBeenCalledWith(ORGANIZATION, "AVATAR", JPEG));
   });
 
-  it("disables the gallery picker at 3/3 and keeps rejected photos out of the count and order", async () => {
-    await renderTab([
+  it("disables the gallery picker at 3/3 and keeps rejected photos out of the count and order", () => {
+    renderTab([
       row("g1", "GALLERY", "APPROVED", 0),
       row("g2", "GALLERY", "PENDING", 1),
       row("g3", "GALLERY", "APPROVED", 2),
@@ -157,19 +149,18 @@ describe("PhotosTab", () => {
   it("moves a photo down with the full non-rejected order and keeps focus on it", async () => {
     const media = [row("g1", "GALLERY", "APPROVED", 0), row("g2", "GALLERY", "APPROVED", 1), row("gx", "GALLERY", "REJECTED", 2)];
     let finishReorder: (value: OwnerMedia[]) => void = () => {};
-    vi.mocked(organizationsApi.reorderOrganizationGallery).mockReturnValue(
+    vi.mocked(mediaApi.reorderGallery).mockReturnValue(
       new Promise((resolve) => {
         finishReorder = resolve;
       }),
     );
-    const view = await renderTab(media);
+    const view = renderTab(media);
 
     fireEvent.click(section("Galeria").getByRole("button", { name: "Przesuń zdjęcie 1 w dół" }));
-    expect(organizationsApi.reorderOrganizationGallery).toHaveBeenCalledWith("7", ["g2", "g1"]);
+    expect(mediaApi.reorderGallery).toHaveBeenCalledWith(ORGANIZATION, ["g2", "g1"]);
     expect(screen.getByRole("region", { name: "Galeria" })).toHaveAttribute("aria-busy", "true");
 
-    const moved = [{ ...media[1], sort_order: 0 }, { ...media[0], sort_order: 1 }, media[2]];
-    view.updateMedia(moved);
+    view.updateMedia([{ ...media[1], sort_order: 0 }, { ...media[0], sort_order: 1 }, media[2]]);
     finishReorder([]);
     await waitFor(() =>
       expect(section("Galeria").getByRole("button", { name: "Przesuń zdjęcie 2 w górę" })).toHaveFocus(),
@@ -177,19 +168,13 @@ describe("PhotosTab", () => {
   });
 
   it("shows a server conflict verbatim in the gallery's alert line", async () => {
-    vi.mocked(organizationsApi.uploadOrganizationMedia).mockRejectedValue(
+    vi.mocked(mediaApi.uploadMedia).mockRejectedValue(
       new ApiError(409, "Conflict", { status: 409, message: "To zdjęcie jest już w galerii." }),
     );
-    await renderTab([]);
+    renderTab([]);
 
     const gallery = section("Galeria");
     pick(gallery.getByLabelText("Dodaj zdjęcie"), JPEG);
     expect(await gallery.findByRole("alert")).toHaveTextContent("To zdjęcie jest już w galerii.");
-  });
-
-  it("notes that the cover shows in every layout", async () => {
-    await renderTab([]);
-
-    expect(section("Okładka").getByText("Widoczna u góry strony w każdym układzie.")).toBeInTheDocument();
   });
 });

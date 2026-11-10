@@ -31,6 +31,7 @@ const ORGANIZATION = {
   palette_preset: null,
   description: null,
   logo: null,
+  avatar: null,
   cover: null,
   gallery: [],
 };

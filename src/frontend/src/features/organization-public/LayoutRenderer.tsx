@@ -95,16 +95,16 @@ export function LayoutRenderer({ layout, data, mode, heroAction }: LayoutRendere
       return <BlockSkeleton key={key} shape={GRID_SKELETON_BLOCKS.has(slot.block) ? "grid" : "rows"} />;
     }
     if (directory && data.directoryStatus === "unavailable") {
-      return owner ? <GhostBlock key={key} block={slot.block} unavailable /> : emptyState(true);
+      return owner ? <GhostBlock key={key} block={slot.block} slug={data.organization.slug} unavailable /> : emptyState(true);
     }
     if (isEmpty?.(data)) {
-      return owner ? <GhostBlock key={key} block={slot.block} /> : emptyState(false);
+      return owner ? <GhostBlock key={key} block={slot.block} slug={data.organization.slug} /> : emptyState(false);
     }
     if (Component) {
       const action = slot.block === "hero" ? heroAction : undefined;
       return <Component key={key} data={data} variant={slot.variant} mode={mode} heroAction={action} />;
     }
-    return owner ? <GhostBlock key={key} block={slot.block} /> : null;
+    return owner ? <GhostBlock key={key} block={slot.block} slug={data.organization.slug} /> : null;
   }
 
   return (

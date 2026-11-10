@@ -2,8 +2,9 @@
 `GET /api/public/parties/{party_id}/meetings`: the owner meetings
 pages behind `/<org-slug>/meetings` and `/<party-id>/meetings`. Covers the
 response contract, terms and events merged earliest first, PRIVATE circles
-left out, the 404s that keep a private person hidden, the Organization slug
-for the redirect, and a statement count that does not grow with the list."""
+left out, the 404 for an unknown party and the empty list of an account
+with nothing public, the person (not their Organization) as the owner of the
+party page, and a statement count that does not grow with the list."""
 
 from __future__ import annotations
 
@@ -65,14 +66,13 @@ async def test_getOrganizationMeetings_unknownSlug_returns404(client: AsyncClien
     assert response.status_code == 404, response.text
 
 
-async def test_getPartyMeetings_unknownOrNoPublicFootprint_returns404(client: AsyncClient) -> None:
-    assert (
-        await client.get(f"/api/public/parties/{uuid.uuid4()}/meetings")
-    ).status_code == 404
+async def test_getPartyMeetings_unknown404_accountWithNothingPublicEmpty(
+    client: AsyncClient,
+) -> None:
+    assert (await client.get(f"/api/public/parties/{uuid.uuid4()}/meetings")).status_code == 404
     _, quiet_party_id = await _register(client, "GUEST", "om.quiet@example.com")
-    assert (
-        await client.get(f"/api/public/parties/{quiet_party_id}/meetings")
-    ).status_code == 404
+    quiet = await _meetings(client, f"/api/public/parties/{quiet_party_id}/meetings")
+    assert quiet["meetings"] == []
 
 
 async def test_getPartyMeetings_personWithoutOrganization_listsLedTermsAndEvents(
@@ -92,7 +92,7 @@ async def test_getPartyMeetings_personWithoutOrganization_listsLedTermsAndEvents
     ]
 
 
-async def test_getPartyMeetings_organizationOwner_carriesSlugForRedirect(
+async def test_getPartyMeetings_organizationOwner_staysThePerson(
     client: AsyncClient,
 ) -> None:
     token, party_id = await _register(client, "ORGANIZER", "om.redirect@example.com")
@@ -101,7 +101,9 @@ async def test_getPartyMeetings_organizationOwner_carriesSlugForRedirect(
 
     body = await _meetings(client, f"/api/public/parties/{party_id}/meetings")
 
-    assert body["owner"]["slug"] == slug
+    assert body["owner"]["slug"] is None
+    assert body["owner"]["display_name"] != "Om Przekierowanie"
+    assert slug
 
 
 async def test_getOrganizationMeetings_moreMeetings_sameStatementCount(

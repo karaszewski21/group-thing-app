@@ -5,7 +5,7 @@ import { useClientValue } from "../../lib/useClientValue";
 import { BuildingIcon, CalendarPlusIcon } from "../../components/shared/appIcons";
 import { HintCard, ItemTile } from "../../components/shared/appComponents";
 import { capitalize, ITEM_MODE_TONE, ITEM_MODES } from "../../utils/appHelpers";
-import { viewPath } from "../../routing/paths";
+import { appearancePath, viewPath } from "../../routing/paths";
 import { MOCK_RECENT_ITEMS } from "../../utils/mocks";
 import { useAppData } from "./appDataStore";
 
@@ -148,7 +148,7 @@ export function HomeView() {
             title="Dopracuj stronę organizacji"
             description="Wybierz układ i kolory swojej strony — zobaczą je odwiedzający."
             ctaLabel="Przejdź →"
-            ctaTo={viewPath("organization/appearance")}
+            ctaTo={appearancePath(organizationSlug)}
             onDismiss={dismissOrgPolishHint}
           />
         )}

@@ -29,10 +29,11 @@ from app.core import clock
 from app.core.auth_deps import Principal
 from app.core.errors import EntityNotFoundException
 from app.core.pagination import PageParams
-from app.moderation.status import ModerationStatus
+from app.media.service import load_public_media
 from app.storage.service import ObjectStorage
 from app.users.models import UserProfile
-from app.users.service import get_avatar, get_profile_by_party
+from app.users.profile_layouts import resolve_profile_page_layout
+from app.users.service import get_profile_by_party
 
 from ..infrastructure import (
     circulation_bridge,
@@ -45,6 +46,7 @@ from ..infrastructure import (
 from ..infrastructure.slug_resolver import resolve_organizer_slugs
 from ..schemas import (
     ExchangeMode,
+    OrganizationLinkResponse,
     OwnerItemCardResponse,
     OwnerItemCountsResponse,
     OwnerItemsPageResponse,
@@ -192,6 +194,25 @@ async def get_owner_nearest(
     return dates[0] if dates else None
 
 
+async def _organization_link(
+    db: AsyncSession, party_id: uuid.UUID
+) -> OrganizationLinkResponse | None:
+    """The Organization the person owns, as a separate page to link to."""
+    organization = await organizations_acl.get_own_organization(db, party_id)
+    if organization is None:
+        return None
+    return OrganizationLinkResponse(name=organization.name, slug=organization.slug)
+
+
+def person_summary(profile: UserProfile) -> OwnerSummaryResponse:
+    """The person themself, on their own pages (`/<party-id>…`): always their
+    profile name and no slug, even when they also own an Organization — the
+    person and the Organization are separate."""
+    return OwnerSummaryResponse(
+        party_id=profile.party_id, display_name=profile.display_name, slug=None
+    )
+
+
 async def owner_summary(db: AsyncSession, profile: UserProfile) -> OwnerSummaryResponse:
     """The owner as the items page and the item page name it: its
     Organization's name and slug when it has one, else its profile name."""
@@ -259,27 +280,26 @@ async def get_party_owner_items(
 ) -> OwnerItemsPageResponse:
     """404 when the party has no user profile (e.g. an Organization's own
     party) or no listed item at all, so a bare party id does not reveal a
-    private person's name. `owner.slug` lets the client redirect an
-    Organization owner's party-id URL to the slug URL."""
+    private person's name. The owner is the person (`person_summary`)."""
     profile = await get_profile_by_party(db, party_id)
     counts = await _counts(db, party_id)
     if counts.GIFT + counts.SWAP == 0:
         raise EntityNotFoundException("Party", party_id)
-    owner = await owner_summary(db, profile)
+    owner = person_summary(profile)
     return await _build_page(db, owner, counts, params, mode, storage, principal)
 
 
 PROFILE_RECENT_ITEMS = 6
 
 
-async def _has_public_footprint(db: AsyncSession, party_id: uuid.UUID, listed: int) -> bool:
-    """The person already shows their name publicly: a listed item, an
-    authored event or a PUBLIC circle they lead."""
-    return (
-        listed > 0
-        or await events_acl.has_authored_event(db, party_id)
-        or await repository.party_leads_public_circle(db, party_id)
-    )
+async def _account_profile(db: AsyncSession, party_id: uuid.UUID) -> UserProfile:
+    """The person's profile when it belongs to an account; a family member
+    added without one (e.g. a child) has no public page, so it 404s like an
+    unknown party."""
+    profile = await get_profile_by_party(db, party_id)
+    if profile.account_user_id is None:
+        raise EntityNotFoundException("Party", party_id)
+    return profile
 
 
 async def get_party_profile(
@@ -288,26 +308,26 @@ async def get_party_profile(
     storage: ObjectStorage | None,
     principal: Principal | None = None,
 ) -> PartyProfileResponse:
-    """404 when the party has no user profile or no public footprint
-    (`_has_public_footprint`), so a bare party id never reveals a private
-    person. Nothing beyond what that footprint shows is exposed: the bio the
-    person wrote for others, an approved avatar, public dates and listed
-    items."""
-    profile = await get_profile_by_party(db, party_id)
+    """Every account's profile is public, also with nothing listed or
+    planned yet (the page then shows empty boxes); 404 for a party without an
+    account profile (`_account_profile`). Exposed: the bio the person wrote
+    for others, approved media, public dates and listed items."""
+    profile = await _account_profile(db, party_id)
     counts = await _counts(db, party_id)
-    if not await _has_public_footprint(db, party_id, counts.GIFT + counts.SWAP):
-        raise EntityNotFoundException("Party", party_id)
-    avatar = await get_avatar(db, cast(uuid.UUID, profile.id))
-    avatar_url = (
-        storage.public_url(avatar.thumb_key)
-        if storage is not None and avatar is not None and avatar.status == ModerationStatus.APPROVED
-        else None
-    )
     viewer_party_id = await resolve_viewer_party_id(db, principal)
+    public_media = await load_public_media(db, storage, party_id)
     return PartyProfileResponse(
-        owner=await owner_summary(db, profile),
+        owner=person_summary(profile),
+        organization=await _organization_link(db, party_id),
         bio=profile.bio,
-        avatar_url=avatar_url,
+        logo=public_media.logo,
+        avatar=public_media.avatar,
+        cover=public_media.cover,
+        gallery=public_media.gallery,
+        page_layout=resolve_profile_page_layout(profile.page_layout),
+        palette_preset=profile.palette_preset,
+        primary_color=profile.primary_color,
+        accent_color=profile.accent_color,
         nearest=await get_owner_nearest(db, party_id),
         counts=counts,
         recent_items=await list_owner_recent_items(
@@ -332,13 +352,10 @@ async def get_organization_owner_meetings(db: AsyncSession, slug: str) -> OwnerM
 
 
 async def get_party_owner_meetings(db: AsyncSession, party_id: uuid.UUID) -> OwnerMeetingsResponse:
-    """`/<party-id>/meetings`; 404 under the profile's rule
-    (`_has_public_footprint`), so a bare party id never reveals a private
-    person. `owner.slug` lets the client redirect an Organization owner."""
-    profile = await get_profile_by_party(db, party_id)
-    if not await _has_public_footprint(db, party_id, await count_owner_items(db, party_id)):
-        raise EntityNotFoundException("Party", party_id)
+    """`/<party-id>/meetings`, public like the profile (`_account_profile`).
+    The owner is the person (`person_summary`)."""
+    profile = await _account_profile(db, party_id)
     return OwnerMeetingsResponse(
-        owner=await owner_summary(db, profile),
+        owner=person_summary(profile),
         meetings=await list_owner_dates(db, party_id, OWNER_MEETINGS_LIMIT),
     )

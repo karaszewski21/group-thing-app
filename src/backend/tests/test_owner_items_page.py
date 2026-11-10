@@ -169,7 +169,9 @@ async def test_getOwnerItems_unknownPseudoProfilelessOrNothingListed_returns404E
 
     await _listed_items(client, org_token, ("Oi organizacji", "GIFT"))
     by_party = await _items_page(client, f"/api/public/parties/{org_owner_party_id}/items")
-    assert by_party["owner"]["slug"] == slug
+    # The person's own page: their name, not the Organization's.
+    assert by_party["owner"]["slug"] is None
+    assert by_party["owner"]["display_name"] != "Profilowe Nutki"
 
     guest_token, guest_party_id = await _register(client, "GUEST", "oi.404.guest@example.com")
     nothing_listed = await client.get(f"/api/public/parties/{guest_party_id}/items")
