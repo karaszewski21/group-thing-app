@@ -55,7 +55,7 @@ vi.mock("../api/terms", () => ({
   getNeededItemsForTerms: vi.fn(),
 }));
 
-const term = { id: "t1", circle_group_id: "g1", occurs_on: "2026-11-05T17:00:00" } as termsApi.TermResponse;
+const term = { id: "t1", group_id: "g1", occurs_on: "2026-11-05T17:00:00" } as termsApi.TermResponse;
 
 /** Renders `useAppData()` inside the provider on the page at `url`. */
 function renderAppData(url: string) {

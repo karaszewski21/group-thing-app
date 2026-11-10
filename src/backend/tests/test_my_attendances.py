@@ -57,7 +57,7 @@ async def _create_term(client: AsyncClient, token: str, group_id: int, occurs_on
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth_headers(token)),
-            "circle_group_id": group_id,
+            "group_id": group_id,
             "occurs_on": occurs_on.isoformat(),
             "description": None,
         },
@@ -71,7 +71,7 @@ async def _rsvp(
     client: AsyncClient, group_id: int, term_id: int, child_count: int, token: str
 ) -> dict[str, object]:
     response = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "x", "child_count": child_count},
         headers=_auth_headers(token),
     )
@@ -122,6 +122,7 @@ async def test_getMyAttendances_returnsOnlyCallersAttendancesWithTermAndCircleAn
         "attendance_id",
         "term_id",
         "occurs_on",
+        "description",
         "child_count",
         "group_id",
         "group_name",

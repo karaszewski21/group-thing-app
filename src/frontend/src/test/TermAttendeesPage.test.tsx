@@ -27,7 +27,7 @@ const GROUP_ID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
 
 const term: TermResponse = {
   id: TERM_ID,
-  circle_group_id: GROUP_ID,
+  group_id: GROUP_ID,
   occurs_on: "2026-10-12T17:00:00",
   description: "Zabawy sensoryczne",
   created_at: "2026-09-01T10:00:00",

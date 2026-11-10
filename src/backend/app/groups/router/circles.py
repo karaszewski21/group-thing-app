@@ -2,12 +2,11 @@
 caller's own attendances, and per-circle leadership /
 membership listings.
 
-Handler declaration order is load-bearing: `/api/groups/mine/attendances`,
-`/api/groups/public/{group_id}`, `POST .../public/{group_id}/rsvp`
-and `PATCH /api/groups/{group_id}` are declared
-BEFORE `GET /api/groups/{group_id}` so FastAPI (which matches in
-registration order) does not swallow the literal segments into
-`{group_id}: int`.
+Handler declaration order is load-bearing: the literal `/api/groups/mine/...`
+and `/api/groups/moderation` routes are declared BEFORE
+`GET /api/groups/{group_id}` so FastAPI (which matches in registration order)
+does not swallow the literal segments into `{group_id}`. The anonymous circle
+page and access reads live under `/api/public/groups/{group_id}`.
 """
 
 from __future__ import annotations
@@ -130,19 +129,13 @@ async def list_groups(db: DbSession, principal: ReadPrincipal) -> list[GroupResp
     return responses
 
 
-@router.get("/api/groups/public/{group_id}", response_model=PublicCircleResponse)
+@router.get("/api/public/groups/{group_id}", response_model=PublicCircleResponse)
 async def get_public_circle(
     group_id: uuid.UUID, db: DbSession, storage: Storage, term_id: uuid.UUID | None = None
 ) -> PublicCircleResponse:
     """Unauthenticated — the page a shared `/<slug>/group/<groupId>/term/<termId>`
-    (or term-less `/<slug>/group/<groupId>`) link resolves to. Still matched
-    by the unchanged `^/api/groups/public/[^/]+$` PUBLIC row in
-    `AUTHORIZATION_MATRIX` (declared ahead of the blanket `/api/groups` READ
-    row) — `term_id` is a query parameter, not a path segment, so the path
-    match is unaffected and no new matrix row / `Depends` / route-order
-    change is needed. Must be registered ahead of `get_group` below, since
-    `/public/{id}` would otherwise be swallowed by `{group_id}: int` and
-    fail path-param conversion instead of matching here.
+    (or term-less `/<slug>/group/<groupId>`) link resolves to, matched by the
+    `GET ^/api/public/` PUBLIC row in `AUTHORIZATION_MATRIX`.
 
     `term_id` given: that exact Term drives the view (404 if it does not
     exist or belongs to another Circle). `term_id` omitted: the nearest
@@ -150,7 +143,7 @@ async def get_public_circle(
     return await service.get_public_circle_view(db, group_id, term_id, storage=storage)
 
 
-@router.get("/api/groups/public/{group_id}/access", response_model=GroupAccessResponse)
+@router.get("/api/public/groups/{group_id}/access", response_model=GroupAccessResponse)
 async def get_group_access(
     group_id: uuid.UUID,
     db: DbSession,
@@ -159,9 +152,7 @@ async def get_group_access(
     principal: OptionalPrincipal = None,
     term_id: uuid.UUID | None = None,
 ) -> GroupAccessResponse:
-    """Unauthenticated-friendly (mirrors `get_public_circle` above — same
-    `PUBLIC` matrix row, `/access` is an extra path segment so it never
-    collides with `/public/{group_id}`'s match). A valid session token is
+    """Unauthenticated-friendly, like `get_public_circle` above. A valid session token is
     optionally honoured to resolve `access.is_member`/`access.is_organizer`;
     a missing/malformed/expired token degrades to both `False`, never a 401
     — replaces the frontend's previous "any auth token = member view"
@@ -172,7 +163,7 @@ async def get_group_access(
 
 
 @router.post(
-    "/api/groups/public/{group_id}/rsvp",
+    "/api/groups/{group_id}/rsvp",
     response_model=RsvpResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -279,7 +270,9 @@ async def delete_group(group_id: uuid.UUID, db: DbSession, principal: EditPrinci
 @router.get("/api/groups/{group_id}", response_model=GroupResponse)
 async def get_group(group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> GroupResponse:
     group = await service.get_group(db, group_id)
-    return await _group_response(db, group)
+    response = await _group_response(db, group)
+    response.term_count = (await service.count_terms_by_group(db, [group_id])).get(group_id, 0)
+    return response
 
 
 @router.get(

@@ -35,7 +35,7 @@ EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
 Storage = Annotated[ObjectStorage | None, Depends(get_storage)]
 
 
-@router.get("/api/organizations/public/{slug}", response_model=PublicOrganizationResponse)
+@router.get("/api/public/organizations/{slug}", response_model=PublicOrganizationResponse)
 async def get_public_organization(
     slug: str, db: DbSession, storage: Storage
 ) -> PublicOrganizationResponse:

@@ -58,7 +58,7 @@ async def _create_term(client: AsyncClient, headers: dict[str, str]) -> int:
         "/api/terms",
         json={
             "location_id": await create_location(client, headers),
-            "circle_group_id": circle.json()["id"],
+            "group_id": circle.json()["id"],
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
         headers=headers,

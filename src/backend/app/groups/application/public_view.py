@@ -135,6 +135,7 @@ async def list_my_attendances(db: AsyncSession, party_id: uuid.UUID) -> list[MyA
                 attendance_id=cast(uuid.UUID, attendance.id),
                 term_id=cast(uuid.UUID, term.id),
                 occurs_on=term.occurs_on,
+                description=term.description,
                 child_count=attendance.child_count,
                 group_id=cast(uuid.UUID, group.id),
                 group_name=group.name,

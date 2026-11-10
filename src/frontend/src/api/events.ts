@@ -92,7 +92,7 @@ export function createEvent(request: CreateEventRequest): Promise<EventResponse>
 }
 
 export function getEvent(eventId: string): Promise<EventDetailResponse> {
-  return api.get(`/events/${eventId}`);
+  return api.get(`/public/events/${eventId}`);
 }
 
 /** Every field is sent, so the whole event is replaced by the form's values. */

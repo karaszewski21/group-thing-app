@@ -46,7 +46,7 @@ async def _create_term(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(token)),
-            "circle_group_id": str(group_id),
+            "group_id": str(group_id),
             "occurs_on": occurs_on.isoformat(),
         },
         headers=_auth(token),
@@ -59,7 +59,7 @@ async def _rsvp(
     client: AsyncClient, group_id: uuid.UUID, term_id: uuid.UUID, token: str
 ) -> uuid.UUID:
     response = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": str(term_id), "child_count": 1},
         headers=_auth(token),
     )

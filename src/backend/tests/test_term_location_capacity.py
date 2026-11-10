@@ -66,7 +66,7 @@ async def _post_term(
     occurs_on = (clock.local_now() + timedelta(days=days)).replace(microsecond=0)
     return await client.post(
         "/api/terms",
-        json={"circle_group_id": group_id, "occurs_on": occurs_on.isoformat(), **body},
+        json={"group_id": group_id, "occurs_on": occurs_on.isoformat(), **body},
         headers=_auth(token),
     )
 
@@ -81,7 +81,7 @@ async def _create_term(
 
 async def _rsvp(client: AsyncClient, group_id: str, term_id: str, token: str) -> dict[str, Any]:
     response = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "x", "child_count": 1},
         headers=_auth(token),
     )
@@ -297,12 +297,12 @@ async def test_listTerms_attachesLocation_withQueryCountNotGrowingWithTermCount(
 
     with count_queries(engine) as one_term_statements:
         response = await client.get(
-            "/api/terms", params={"circle_group_id": group["id"]}, headers=_auth(token)
+            f"/api/groups/{group['id']}/terms", headers=_auth(token)
         )
     assert response.status_code == 200
-    assert response.json()[0]["location"]["id"] == location["id"]
+    assert response.json()["items"][0]["location"]["id"] == location["id"]
     for hidden in ("owner_party_id", "lat", "lng"):
-        assert hidden not in response.json()[0]["location"]
+        assert hidden not in response.json()["items"][0]["location"]
 
     for index in (2, 3):
         location = await _create_location(client, token, f"ChIJ-tlc-list-{index}")
@@ -311,9 +311,9 @@ async def test_listTerms_attachesLocation_withQueryCountNotGrowingWithTermCount(
 
     with count_queries(engine) as three_term_statements:
         response = await client.get(
-            "/api/terms", params={"circle_group_id": group["id"]}, headers=_auth(token)
+            f"/api/groups/{group['id']}/terms", headers=_auth(token)
         )
-    rows = {row["id"]: row for row in response.json()}
+    rows = {row["id"]: row for row in response.json()["items"]}
     assert {term_id: rows[term_id]["location"]["id"] for term_id in expected} == expected
     assert len(three_term_statements) == len(one_term_statements)
 
@@ -373,7 +373,7 @@ async def test_publicCircleView_termHasLocationWithoutOwnerPartyId_capacity_andA
     deleted = await client.delete(f"/api/locations/{location['id']}", headers=_auth(token))
     assert deleted.status_code == 204
 
-    response = await client.get(f"/api/groups/public/{group['id']}?term_id={term['id']}")
+    response = await client.get(f"/api/public/groups/{group['id']}?term_id={term['id']}")
 
     assert response.status_code == 200, response.text
     public_term = response.json()["term"]

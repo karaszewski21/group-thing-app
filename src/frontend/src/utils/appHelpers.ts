@@ -2,7 +2,6 @@ import type { GroupResponse, GroupVisibility } from "../api/groups";
 import type { ListingMode } from "../api/itemListingPreferences";
 import type { PublicLocationResponse } from "../api/locations";
 import type { ReservationType } from "../api/reservations";
-import type { TermResponse } from "../api/terms";
 import { viewPath, type View } from "../routing/paths";
 
 /* ------------------------------------------------------------------ */
@@ -53,12 +52,6 @@ export interface NewFamilyMember {
 }
 
 export type ItemMode = "oddam" | "zamienię";
-
-/** A term of a group the panel loaded; its needed items come from `useNeededItems`. */
-export interface PanelTerm {
-  term: TermResponse;
-  group: GroupResponse;
-}
 
 /** A term the caller takes part in without leading it — their own RSVP
  * ("attended") or a term of a circle their family belongs to ("member"). */
@@ -156,5 +149,10 @@ export function initials(name: string): string {
  * no Organization) — the `?? "krag"` only guards the `GET /api/groups` list
  * response, which the Panel never uses to build these links. */
 export function termPublicPath(group: GroupResponse, termId: string): string {
-  return `/${group.organizer_slug ?? "krag"}/group/${group.id}/term/${termId}`;
+  return circleTermPath(group.organizer_slug ?? "krag", group.id, termId);
+}
+
+/** Public per-term URL from the ids a term row carries. */
+export function circleTermPath(organizerSlug: string, groupId: string, termId: string): string {
+  return `/${organizerSlug}/group/${groupId}/term/${termId}`;
 }

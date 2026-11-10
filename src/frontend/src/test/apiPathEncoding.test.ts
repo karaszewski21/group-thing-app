@@ -16,18 +16,18 @@ describe("API path segment encoding", () => {
   it("getPublicOrganization_traversalSlug_isEncodedAsSingleSegment", async () => {
     await getPublicOrganization("../x");
 
-    expect(api.get).toHaveBeenCalledWith("/organizations/public/..%2Fx");
+    expect(api.get).toHaveBeenCalledWith("/public/organizations/..%2Fx");
   });
 
   it("getPublicOrganization_normalSlug_isUnchanged", async () => {
     await getPublicOrganization("fundacja-krag");
 
-    expect(api.get).toHaveBeenCalledWith("/organizations/public/fundacja-krag");
+    expect(api.get).toHaveBeenCalledWith("/public/organizations/fundacja-krag");
   });
 
   it("itemHelpers_traversalId_isEncodedAsSingleSegment", async () => {
     await getItemDetails("../../admin");
 
-    expect(api.get).toHaveBeenCalledWith("/inventory-items/..%2F..%2Fadmin/details");
+    expect(api.get).toHaveBeenCalledWith("/public/items/..%2F..%2Fadmin/details");
   });
 });

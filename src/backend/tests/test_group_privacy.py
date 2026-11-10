@@ -38,7 +38,7 @@ async def _create_circle_and_term(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": circle.json()["id"],
+            "group_id": circle.json()["id"],
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
         headers=_auth(org_token),
@@ -59,7 +59,7 @@ async def _rsvp_with_family(
     )
     assert family.status_code == 201
     rsvp = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": guardian_email, "child_count": 1},
         headers=_auth(guardian_token),
     )
@@ -79,7 +79,7 @@ async def test_createRsvp_privateGroupAnonymous_returns401(client: AsyncClient) 
     assert patch.json()["visibility"] == "PRIVATE"
 
     response = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "Anonim", "child_count": 0},
     )
 
@@ -97,7 +97,7 @@ async def test_createRsvp_privateGroupOutsider_returns403(client: AsyncClient) -
     outsider_token, _ = await _register(client, "GUEST", "priv.rsvp.outsider2@example.com")
 
     response = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "X", "child_count": 0},
         headers=_auth(outsider_token),
     )
@@ -111,7 +111,7 @@ async def test_createRsvp_publicGroupNonMember_returns201(client: AsyncClient) -
     visitor_token, _ = await _register(client, "GUEST", "priv.rsvp.visitor3@example.com")
 
     response = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "child_count": 2},
         headers=_auth(visitor_token),
     )
@@ -133,7 +133,7 @@ async def test_createRsvp_publicGroupWithExistingMembers_stillAcceptsNonMemberRs
 
     newcomer_token, _ = await _register(client, "GUEST", "priv.members.newcomer4c@example.com")
     response = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "child_count": 0},
         headers=_auth(newcomer_token),
     )
@@ -241,18 +241,18 @@ async def test_publicTermViewAndAccess_familyWithAgedChildren_exposeNoChildData(
     )
     assert members.status_code == 201
     rsvp = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "Opiekun", "child_count": 2},
         headers=_auth(guardian_token),
     )
     assert rsvp.status_code == 201
 
-    view = await client.get(f"/api/groups/public/{group_id}", params={"term_id": term_id})
+    view = await client.get(f"/api/public/groups/{group_id}", params={"term_id": term_id})
     anonymous_access = await client.get(
-        f"/api/groups/public/{group_id}/access", params={"term_id": term_id}
+        f"/api/public/groups/{group_id}/access", params={"term_id": term_id}
     )
     guardian_access = await client.get(
-        f"/api/groups/public/{group_id}/access",
+        f"/api/public/groups/{group_id}/access",
         params={"term_id": term_id},
         headers=_auth(guardian_token),
     )

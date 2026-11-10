@@ -53,7 +53,7 @@ async def _circle_with_term(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": str(group_id),
+            "group_id": str(group_id),
             "occurs_on": _TERM_AT,
         },
         headers=_auth(org_token),
@@ -298,7 +298,7 @@ async def test_getItemDetails_offeredItemInTransit_partiesSeeTermAndGroupOutside
         ("outsider", outsider_token),
     ):
         response = await client.get(
-            f"/api/inventory-items/{offered_item_id}/details", headers=_auth(token)
+            f"/api/public/items/{offered_item_id}/details", headers=_auth(token)
         )
         assert response.status_code == 200, response.text
         statuses[viewer] = response.json()["status"]

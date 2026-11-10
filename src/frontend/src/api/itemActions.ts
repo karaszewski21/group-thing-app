@@ -78,5 +78,5 @@ export interface ItemActionsResponse {
 
 /** The item page's actions (public). */
 export function getItemActions(itemId: string): Promise<ItemActionsResponse> {
-  return api.get(`/items/${encodeURIComponent(itemId)}/actions`);
+  return api.get(`/public/items/${encodeURIComponent(itemId)}/actions`);
 }

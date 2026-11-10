@@ -104,7 +104,7 @@ async def test_addProductPhoto_upload_storesSanitizedWebpAndAppendsSortOrder(
     with Image.open(io.BytesIO(thumb.data)) as stored_thumb:
         assert max(stored_thumb.size) == 400
 
-    details = await client.get(f"/api/inventory-items/{item_a}/details", headers=_auth(token_b))
+    details = await client.get(f"/api/public/items/{item_a}/details", headers=_auth(token_b))
     assert [p["id"] for p in details.json()["photos"]] == [first["id"], second["id"]]
 
 
@@ -325,7 +325,7 @@ async def test_addPhoto_imageModerationEnabled_pendingPrivateNoOutboxEvent(
     assert [p["id"] for p in await _list_photos(client, owner_token, product_id)] == [photo["id"]]
     assert await _list_photos(client, other_token, product_id) == []
     other_details = await client.get(
-        f"/api/inventory-items/{item_id}/details", headers=_auth(other_token)
+        f"/api/public/items/{item_id}/details", headers=_auth(other_token)
     )
     assert other_details.json()["photos"] == []
 

@@ -141,7 +141,7 @@ async def test_deleteEvent_beforeStartWithOpenExchanges_cancelsReleasesRejectsAn
     before = await _reservations(db_session, s.item_ids)
     assert len(before) == 4
     assert {r.status.value for r in before} <= OPEN_STATUSES
-    page = await client.get(f"/api/events/{s.event_id}", headers=_auth(s.author))
+    page = await client.get(f"/api/public/events/{s.event_id}", headers=_auth(s.author))
     assert page.json()["open_reservations"] == {"total": 3, "swaps": 2}
 
     response = await client.delete(f"/api/events/{s.event_id}", headers=_auth(s.author))
@@ -238,9 +238,9 @@ async def test_deleteEvent_failureAfterCancellations_rollsBackEverything(
 async def test_getEvent_openReservations_authorOnlyNullForOthers(client: AsyncClient) -> None:
     s = await _scenario(client, "erd6")
 
-    as_author = await client.get(f"/api/events/{s.event_id}", headers=_auth(s.author))
-    as_owner = await client.get(f"/api/events/{s.event_id}", headers=_auth(s.owner))
-    anonymous = await client.get(f"/api/events/{s.event_id}")
+    as_author = await client.get(f"/api/public/events/{s.event_id}", headers=_auth(s.author))
+    as_owner = await client.get(f"/api/public/events/{s.event_id}", headers=_auth(s.owner))
+    anonymous = await client.get(f"/api/public/events/{s.event_id}")
 
     assert as_author.json()["open_reservations"] == {"total": 3, "swaps": 2}
     assert as_owner.json()["open_reservations"] is None

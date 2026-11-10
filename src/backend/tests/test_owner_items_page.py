@@ -1,5 +1,5 @@
-"""`GET /api/groups/public/organizers/{slug}/items` and
-`GET /api/groups/public/parties/{party_id}/items`: the anonymous owner items
+"""`GET /api/public/organizers/{slug}/items` and
+`GET /api/public/parties/{party_id}/items`: the anonymous owner items
 page. Covers the response contract, the 404s, mode filtering, ordering and
 pagination, the owner's nearest public date (terms and events, private
 circles excluded), the constant statement count, and the slug guard that
@@ -106,7 +106,7 @@ async def test_getOwnerItems_organizationSlug_exactShapeNewestFirstModeFilterAnd
             reserved: ADDED - timedelta(days=3),
         },
     )
-    base = f"/api/groups/public/organizers/{slug}/items"
+    base = f"/api/public/organizers/{slug}/items"
 
     body = await _items_page(client, base)
 
@@ -154,29 +154,29 @@ async def test_getOwnerItems_unknownPseudoProfilelessOrNothingListed_returns404E
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     for slug in ("nie-ma-takiej", "k-0123456789ab"):
-        missing = await client.get(f"/api/groups/public/organizers/{slug}/items")
+        missing = await client.get(f"/api/public/organizers/{slug}/items")
         assert missing.status_code == 404
         assert "cache-control" not in missing.headers
-    assert (await client.get(f"/api/groups/public/parties/{uuid.uuid4()}/items")).status_code == 404
+    assert (await client.get(f"/api/public/parties/{uuid.uuid4()}/items")).status_code == 404
 
     org_token, org_owner_party_id = await _register(client, "ORGANIZER", "oi.404.org@example.com")
     slug = await _organization_slug(client, org_token, "Profilowe Nutki")
     organization_party_id = (
         await db_session.execute(select(Organization.party_id).where(Organization.slug == slug))
     ).scalar_one()
-    profileless = await client.get(f"/api/groups/public/parties/{organization_party_id}/items")
+    profileless = await client.get(f"/api/public/parties/{organization_party_id}/items")
     assert profileless.status_code == 404
 
     await _listed_items(client, org_token, ("Oi organizacji", "GIFT"))
-    by_party = await _items_page(client, f"/api/groups/public/parties/{org_owner_party_id}/items")
+    by_party = await _items_page(client, f"/api/public/parties/{org_owner_party_id}/items")
     assert by_party["owner"]["slug"] == slug
 
     guest_token, guest_party_id = await _register(client, "GUEST", "oi.404.guest@example.com")
-    nothing_listed = await client.get(f"/api/groups/public/parties/{guest_party_id}/items")
+    nothing_listed = await client.get(f"/api/public/parties/{guest_party_id}/items")
     assert nothing_listed.status_code == 404
     [item_id] = await _listed_items(client, guest_token, ("Oi gościa", "SWAP"))
 
-    guest = await _items_page(client, f"/api/groups/public/parties/{guest_party_id}/items")
+    guest = await _items_page(client, f"/api/public/parties/{guest_party_id}/items")
 
     assert guest["owner"]["party_id"] == str(guest_party_id)
     assert guest["owner"]["slug"] is None
@@ -196,7 +196,7 @@ async def test_getOwnerItems_nearest_privateCircleTermExcludedPublicTermWithPath
     public_term = await _term(client, owner_token, public_id, public_on)
     await _term(client, owner_token, public_id, _in_days(-1))
 
-    nearest = (await _items_page(client, f"/api/groups/public/organizers/{slug}/items"))["nearest"]
+    nearest = (await _items_page(client, f"/api/public/organizers/{slug}/items"))["nearest"]
 
     assert nearest == {
         "kind": "TERM",
@@ -220,7 +220,7 @@ async def test_getOwnerItems_nearest_earliestOfAttendedTermAndEvent(
     owner_token, owner_party_id = await _register(client, "GUEST", "oi.near.owner@example.com")
     await _listed_items(client, owner_token, ("Oi near", "GIFT"))
     await _rsvp(client, owner_token, group_id, term_id)
-    path = f"/api/groups/public/parties/{owner_party_id}/items"
+    path = f"/api/public/parties/{owner_party_id}/items"
 
     attended = (await _items_page(client, path))["nearest"]
 
@@ -277,9 +277,9 @@ async def test_getOwnerItems_oneVsFiveItems_queryCountConstant(
     five = await _owner_with_items(client, db_session, "oi-budget-five", 5)
 
     with count_queries(engine) as one_statements:
-        one_body = await _items_page(client, f"/api/groups/public/organizers/{one}/items")
+        one_body = await _items_page(client, f"/api/public/organizers/{one}/items")
     with count_queries(engine) as five_statements:
-        five_body = await _items_page(client, f"/api/groups/public/organizers/{five}/items")
+        five_body = await _items_page(client, f"/api/public/organizers/{five}/items")
 
     assert (len(one_body["items"]), len(five_body["items"])) == (1, 5)
     assert all(item["thumb_url"] for item in five_body["items"])
@@ -305,7 +305,7 @@ async def test_getOwnerItems_nearest_attendedEventUntilWithdrawn(client: AsyncCl
         f"/api/events/{event_id}/attendances", json={}, headers=_auth(owner_token)
     )
     assert signed_up.status_code == 201, signed_up.text
-    path = f"/api/groups/public/parties/{owner_party_id}/items"
+    path = f"/api/public/parties/{owner_party_id}/items"
 
     attending = (await _items_page(client, path))["nearest"]
     withdrawn = await client.post(

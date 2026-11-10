@@ -54,6 +54,10 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # excludes `/oauth2/authorize` (POST) without needing to special-case
     # that path, and lets it correctly fall through to row 25.
     (_methods("GET"), r"^(?!/api/).*$", "PUBLIC"),
+    # Every anonymous-friendly read lives under `/api/public/` (organizer and
+    # party pages, the circle page and access, events, item details and
+    # actions). A valid token may still personalise the response.
+    (_methods("GET"), r"^/api/public/.*$", "PUBLIC"),
     (_methods("GET"), r"^/api/products(/.*)?$", ("READ", "mcp:read")),  # 11
     (_methods("GET"), r"^/api/plugins$", ("READ",)),  # 13
     (_methods("GET"), r"^/api/plugins/[^/]+$", ("READ",)),  # 14
@@ -79,36 +83,13 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # `mine/attendances` path matches here. Caller's party is derived from the
     # principal in the route — no ownership check beyond authentication + READ.
     (_methods("GET"), r"^/api/groups/mine/attendances$", ("READ", "mcp:read")),
-    # Public organizer directory (`GET /api/groups/public/organizers/{slug}`
-    # and its `/terms` and `/items` pages). First match wins: without this row,
-    # `/organizers/{slug}` would fall through to row 26's blanket READ row
-    # and `/organizers/access` would read like the `/public/{id}/access` row
-    # below, so it is declared ahead of both. GET only — any other method on
-    # this path still falls to the blanket rows.
-    (_methods("GET"), r"^/api/groups/public/organizers/[^/]+(/terms|/items|/meetings)?$", "PUBLIC"),
-    # A party's public profile, items and meetings pages — ahead of row 26's blanket
-    # READ row so an anonymous visitor can load them. Visibility filtering
-    # lives in the routes.
-    (_methods("GET"), r"^/api/groups/public/parties/[^/]+(/items|/meetings)?$", "PUBLIC"),
-    # Public circle/term page (`/krag/:groupId/publiczny`) — declared ahead of
-    # row 26's blanket /api/groups READ requirement so an anonymous visitor
-    # can load it. Mirrors row 48's placement.
-    (_methods("GET"), r"^/api/groups/public/[^/]+$", "PUBLIC"),
-    # The caller's resolved is_member/is_organizer/can_view_content/is_attending
-    # for a Circle — unauthenticated-friendly like the row above (an
-    # unauthenticated caller just gets all-False access flags, never a
-    # 401/403), declared ahead of row 26's blanket READ row for the same
-    # reason. `/access` is an extra path segment so it never collides with
-    # the row above's `$`-anchored match.
-    (_methods("GET"), r"^/api/groups/public/[^/]+/access$", "PUBLIC"),
     # Redeeming a PRIVATE Circle's join code needs only an account-backed
     # principal (`require_any()` on the route). Declared ahead of row 27's
     # blanket `POST ^/api/groups(/.*)?$` EDIT row, which would otherwise
-    # swallow this path and demand EDIT. The organizer's GET and regenerate
-    # routes fall to rows 26/27.
-    (_methods("POST"), r"^/api/groups/public/[^/]+/join-code$", "AUTHENTICATED"),
+    # swallow this path and demand EDIT.
+    (_methods("POST"), r"^/api/groups/[^/]+/join-code/redeem$", "AUTHENTICATED"),
     # Fine-grained circle rename and soft delete — declared ahead of row 26's
-    # blanket /api/groups READ row and after the /mine + /public rows above,
+    # blanket /api/groups READ row and after the /mine rows above,
     # so first-match evaluation reaches it. The active-organizer-or-ADMIN
     # checks live in `app.groups.service.update_group` / `soft_delete_group`;
     # the matrix only gates them to EDIT (an ADMIN login token carries EDIT).
@@ -168,9 +149,6 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # (`inventory.owner_user_id == acting user`) lives in
     # `app.circulation.service`; the matrix only gates it to EDIT.
     (_methods("PATCH", "DELETE"), r"^/api/inventory-items/[^/]+$", ("EDIT", "mcp:edit")),
-    # Public item details (anonymous visitors of an items page) — ahead of
-    # row 40 so only this exact path drops the READ requirement.
-    (_methods("GET"), r"^/api/inventory-items/[^/]+/details$", "PUBLIC"),
     (_methods("GET"), r"^/api/inventory-items(/.*)?$", ("READ", "mcp:read")),  # 40
     (_methods("POST"), r"^/api/inventory-items(/.*)?$", ("EDIT", "mcp:edit")),  # 41
     (_methods("GET"), r"^/api/reservations(/.*)?$", ("READ", "mcp:read")),  # 42
@@ -184,9 +162,6 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # appended here rather than inserted next to row 6, to avoid renumbering
     # rows 7-22's original spec.md sequence.
     (_methods("POST"), r"^/api/auth/register$", "PUBLIC"),  # 47
-    # Public organizer page (`domena.pl/<slug>`) — declared ahead of row 49's
-    # blanket READ requirement so an unauthenticated visitor can load it.
-    (_methods("GET"), r"^/api/organizations/public/[^/]+$", "PUBLIC"),  # 48
     (_methods("GET"), r"^/api/organizations(/.*)?$", ("READ", "mcp:read")),  # 49
     (  # 50
         _methods("POST", "PATCH", "DELETE"),
@@ -202,16 +177,13 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("GET"), r"^/api/localities$", ("READ", "mcp:read")),
     # app.events — one-off events, their banner and sign-ups. Authorship (only
     # the author may upload the banner) lives in `app.events.service`.
-    # `/mine` and `/attending` sit ahead of the public `/{event_id}` page row
-    # they would match. Signing up and withdrawing need an account.
+    # The public event page is `GET /api/public/events/{id}`. Signing up and
+    # withdrawing need an account.
     (_methods("GET"), r"^/api/events/(mine|attending)$", ("READ", "mcp:read")),
-    (_methods("GET"), r"^/api/events/[^/]+$", "PUBLIC"),
     (_methods("POST"), r"^/api/events/[^/]+/attendances(/withdraw)?$", ("EDIT", "mcp:edit")),
     (_methods("PATCH", "DELETE"), r"^/api/events/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("POST"), r"^/api/events$", ("EDIT", "mcp:edit")),
     (_methods("POST"), r"^/api/events/[^/]+/banner$", ("EDIT", "mcp:edit")),
-    # The viewer's available actions on an item — anonymous callers get none.
-    (_methods("GET"), r"^/api/items/[^/]+/actions$", "PUBLIC"),
     # Reserving an item in a term, an event or personally needs an account;
     # eligibility lives in the use case.
     (_methods("POST"), r"^/api/items/[^/]+/(take|propose)$", ("EDIT", "mcp:edit")),

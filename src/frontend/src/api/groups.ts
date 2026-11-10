@@ -28,6 +28,8 @@ export interface GroupResponse {
   updated_at: string;
   default_location?: LocationRefResponse | null;
   default_capacity?: number | null;
+  /** Every term of the circle; set only by `GET /groups/{id}`. */
+  term_count?: number | null;
 }
 
 export interface CreateCircleRequest {
@@ -253,7 +255,7 @@ export function getPublicCircle(
   termId?: string,
 ): Promise<PublicCircleResponse> {
   const query = termId !== undefined ? `?term_id=${termId}` : "";
-  return api.get(`/groups/public/${groupId}${query}`);
+  return api.get(`/public/groups/${groupId}${query}`);
 }
 
 /** The caller's server-resolved relationship to a Circle — mirrors
@@ -272,7 +274,7 @@ export interface GroupAccessDetails {
 }
 
 /** Mirrors `app.groups.schemas.GroupAccessResponse` — `GET
- * /groups/public/{groupId}/access`. `group` is the same shape as
+ * /public/groups/{groupId}/access`. `group` is the same shape as
  * `getPublicCircle`'s response. */
 export interface GroupAccessResponse {
   group: PublicCircleResponse;
@@ -281,15 +283,15 @@ export interface GroupAccessResponse {
 
 export function getGroupAccess(groupId: string, termId: string): Promise<GroupAccessResponse> {
   const query = termId !== undefined ? `?term_id=${termId}` : "";
-  return api.get(`/groups/public/${groupId}/access${query}`);
+  return api.get(`/public/groups/${groupId}/access${query}`);
 }
 
 export function createRsvp(groupId: string, request: CreateRsvpRequest): Promise<RsvpResponse> {
-  return api.post(`/groups/public/${groupId}/rsvp`, request);
+  return api.post(`/groups/${groupId}/rsvp`, request);
 }
 
 /* ------------------------------------------------------------------ */
-/*  Public organizer directory (`/groups/public/organizers/{slug}`)    */
+/*  Public organizer directory (`/public/organizers/{slug}`)           */
 /* ------------------------------------------------------------------ */
 
 export interface OrganizerNextTerm {
@@ -369,7 +371,7 @@ export interface OrganizerPageResponse {
 }
 
 export function getOrganizerPage(slug: string): Promise<OrganizerPageResponse> {
-  return api.get(`/groups/public/organizers/${encodeURIComponent(slug)}`);
+  return api.get(`/public/organizers/${encodeURIComponent(slug)}`);
 }
 
 export function getOrganizerTerms(
@@ -377,9 +379,9 @@ export function getOrganizerTerms(
   page: number,
   groupId?: string,
 ): Promise<Page<OrganizerTerm>> {
-  const params = new URLSearchParams(pageParams(page));
-  if (groupId !== undefined) params.set("group_id", groupId);
-  return api.get(`/groups/public/organizers/${encodeURIComponent(slug)}/terms?${params}`);
+  const organizer = `/public/organizers/${encodeURIComponent(slug)}`;
+  const path = groupId === undefined ? organizer : `${organizer}/groups/${encodeURIComponent(groupId)}`;
+  return api.get(`${path}/terms?${new URLSearchParams(pageParams(page))}`);
 }
 
 /* ------------------------------------------------------------------ */
@@ -423,7 +425,7 @@ export function getGroupMembers(groupId: string): Promise<GroupMemberResponse[]>
 
 /* ------------------------------------------------------------------ */
 /*  PRIVATE-group access code (organizer: `/groups/{id}/join-code`;    */
-/*  visitor: `/groups/public/{id}/join-code`)                          */
+/*  visitor: `/groups/{id}/join-code/redeem`)                          */
 /* ------------------------------------------------------------------ */
 
 export interface JoinCodeResponse {
@@ -449,7 +451,7 @@ export function regenerateJoinCode(groupId: string): Promise<JoinCodeResponse> {
 /** Joins the PRIVATE group as a standing member; 409 on a wrong code, 429
  * after too many attempts. */
 export function redeemJoinCode(groupId: string, code: string): Promise<RedeemJoinCodeResponse> {
-  return api.post(`/groups/public/${groupId}/join-code`, { code });
+  return api.post(`/groups/${groupId}/join-code/redeem`, { code });
 }
 
 /* ------------------------------------------------------------------ */
@@ -463,6 +465,7 @@ export interface MyAttendanceResponse {
   attendance_id: string;
   term_id: string;
   occurs_on: string;
+  description: string | null;
   child_count: number;
   group_id: string;
   group_name: string;

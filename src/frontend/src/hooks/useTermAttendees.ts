@@ -8,8 +8,8 @@ import {
 } from "../api/groups";
 import { extractProblemMessage, hasStatus } from "../api/problem";
 import { getTerm, type TermResponse } from "../api/terms";
+import { TERM_KEY } from "./useTerm";
 
-const TERM_KEY = "term";
 const GROUP_KEY = "group";
 const TERM_ATTENDEES_KEY = "termAttendees";
 
@@ -28,7 +28,7 @@ interface UseTermAttendeesResult {
 
 /** The organizer attendees page's data: the term, then (once the term is
  * known, since the route carries only `termId`) its group and the attendee
- * list, both keyed by `term.circle_group_id`. A disabled dependent query
+ * list, both keyed by `term.group_id`. A disabled dependent query
  * stays `isPending` forever in TanStack v5, so `loading` counts the
  * dependents only after the term query has succeeded. */
 export function useTermAttendees(termId: string): UseTermAttendeesResult {
@@ -36,7 +36,7 @@ export function useTermAttendees(termId: string): UseTermAttendeesResult {
     queryKey: [TERM_KEY, termId],
     queryFn: () => getTerm(termId),
   });
-  const groupId = termQ.data?.circle_group_id;
+  const groupId = termQ.data?.group_id;
   const dependentsEnabled = termQ.isSuccess && groupId !== undefined;
 
   const groupQ = useQuery({

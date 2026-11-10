@@ -4,7 +4,7 @@
   content from `/access`, and a foreign/unknown `term_id` must 404 for them.
 - B14: membership of a PRIVATE group is granted only with the organizer's
   access code; no other endpoint may grant it (`POST /api/memberships`,
-  `POST /api/groups/public/{id}/join`).
+  `POST /api/public/groups/{id}/join`).
 
 Naming follows `action_condition_expectedResult`
 (`standards/testing/backend-testing.md`).
@@ -44,7 +44,7 @@ async def _create_private_circle_and_term(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": group_id,
+            "group_id": group_id,
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
         headers=_auth(org_token),
@@ -72,7 +72,7 @@ async def test_getGroupAccess_privateGroupOrganizer_returnsFullTermContent(
     group_id, term_id = await _create_private_circle_and_term(client, org_token, "b13a")
 
     response = await client.get(
-        f"/api/groups/public/{group_id}/access?term_id={term_id}", headers=_auth(org_token)
+        f"/api/public/groups/{group_id}/access?term_id={term_id}", headers=_auth(org_token)
     )
 
     assert response.status_code == 200
@@ -89,7 +89,7 @@ async def test_getGroupAccess_privateGroupOrganizerUnknownTermId_returns404(
     group_id, _term_id = await _create_private_circle_and_term(client, org_token, "b13b")
 
     response = await client.get(
-        f"/api/groups/public/{group_id}/access?term_id={uuid.uuid4()}", headers=_auth(org_token)
+        f"/api/public/groups/{group_id}/access?term_id={uuid.uuid4()}", headers=_auth(org_token)
     )
 
     assert response.status_code == 404
@@ -103,7 +103,7 @@ async def test_getGroupAccess_privateGroupOutsider_keepsReducedResponse(
     outsider_token = await _register(client, "GUEST", "b13.outsider3@example.com")
 
     response = await client.get(
-        f"/api/groups/public/{group_id}/access?term_id={term_id}",
+        f"/api/public/groups/{group_id}/access?term_id={term_id}",
         headers=_auth(outsider_token),
     )
 
@@ -139,7 +139,7 @@ async def test_joinPrivateGroup_outsiderWithoutApproval_isNotPossible(
     outsider_token = await _register(client, "GUEST", "b14.outsider2@example.com")
 
     response = await client.post(
-        f"/api/groups/public/{group_id}/join",
+        f"/api/public/groups/{group_id}/join",
         json={"guardian_name": "Gość", "child_count": 0},
         headers=_auth(outsider_token),
     )

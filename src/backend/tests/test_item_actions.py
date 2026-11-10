@@ -1,4 +1,4 @@
-"""`GET /api/items/{item_id}/actions` v2: the item page's action read model.
+"""`GET /api/public/items/{item_id}/actions` v2: the item page's action read model.
 Covers the response shape and viewer classification, the owner's upcoming
 contexts (owner-eligible, viewer-filtered in SQL before the limit, ordered,
 term wins a tie, at most 5), the viewer-shaped item location (the address
@@ -55,7 +55,7 @@ async def _actions(
     client: AsyncClient, item_id: uuid.UUID, token: str | None = None
 ) -> dict[str, Any]:
     response = await client.get(
-        f"/api/items/{item_id}/actions", headers=_auth(token) if token is not None else {}
+        f"/api/public/items/{item_id}/actions", headers=_auth(token) if token is not None else {}
     )
     assert response.status_code == 200, response.text
     body: dict[str, Any] = response.json()
@@ -86,7 +86,7 @@ async def _term(
     location_id: str | None = None,
 ) -> uuid.UUID:
     body = {
-        "circle_group_id": str(group_id),
+        "group_id": str(group_id),
         "occurs_on": on.isoformat(),
         "location_id": location_id or await create_location(client, _auth(token)),
     }
@@ -143,8 +143,8 @@ async def test_getItemActions_exactKeySet(client: AsyncClient) -> None:
     own = await _actions(client, listed, owner)
     other = await _actions(client, listed, attendee)
     draft = await _actions(client, unlisted, attendee)
-    hidden = await client.get(f"/api/items/{unlisted}/actions")
-    unknown = await client.get(f"/api/items/{uuid.uuid4()}/actions")
+    hidden = await client.get(f"/api/public/items/{unlisted}/actions")
+    unknown = await client.get(f"/api/public/items/{uuid.uuid4()}/actions")
 
     assert [b["viewer"] for b in (anonymous, own, other)] == ["ANONYMOUS", "OWN", "OTHER"]
     assert anonymous["mode"] == "GIFT" and anonymous["available"] is True
@@ -256,7 +256,7 @@ async def test_getItemActions_location_ownerGetsAddressOthersOnlyTheLocality(
     locality_only = {"locality": locality, "formatted_address": None, "deleted_at": None}
     assert other["location"] == anonymous["location"] == locality_only
     assert unset["location"] is None
-    item_pages = ("/api/items/{}/actions", "/api/inventory-items/{}/details")
+    item_pages = ("/api/public/items/{}/actions", "/api/public/items/{}/details")
     for headers, paths in (
         (_auth(viewer), (*item_pages, "/api/inventory-items/{}")),
         ({}, item_pages),

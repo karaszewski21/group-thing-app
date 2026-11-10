@@ -59,7 +59,7 @@ async def _create_circle_and_term(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": circle.json()["id"],
+            "group_id": circle.json()["id"],
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
         headers=_auth(org_token),
@@ -175,7 +175,7 @@ async def test_familyWithActiveListingPreference_sharesItemTrue(
     # (or organizer), not Circle-Membership-based — RSVP separately, same
     # dual-eligibility shape `term_item_listings.py` already relies on.
     await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored", "child_count": 0},
         headers=_auth(guardian_token),
     )
@@ -228,7 +228,7 @@ async def test_fulfilledOrCancelledOffer_doesNotCountAsActive_sharesItemFalse(
         client, db_session, lister_token, group_id, "Rodzina Listera"
     )
     await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored", "child_count": 0},
         headers=_auth(lister_token),
     )
@@ -239,7 +239,7 @@ async def test_fulfilledOrCancelledOffer_doesNotCountAsActive_sharesItemFalse(
 
     taker_token, _ = await _register(client, "GUEST", "exs.taker4@example.com")
     await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored", "child_count": 0},
         headers=_auth(taker_token),
     )
@@ -354,7 +354,7 @@ async def test_getFamilyExchangeOffers_returnsAllGuardianOffers(
         client, db_session, guardian_token, group_id, "Rodzina 7"
     )
     await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored", "child_count": 0},
         headers=_auth(guardian_token),
     )
@@ -412,7 +412,7 @@ async def test_pendingSwapProposal_offerNoLongerTakeable_sharesItemFalseAndNoOff
     family_id = await _join_group_as_family_guardian(
         client, db_session, lister_token, group_id, "Rodzina 9"
     )
-    await client.post(f"/api/groups/public/{group_id}/rsvp", json=rsvp, headers=_auth(lister_token))
+    await client.post(f"/api/groups/{group_id}/rsvp", json=rsvp, headers=_auth(lister_token))
     item_id = await _register_personal_item(client, lister_token, "Rower 9")
     await service.set_item_listing_preference(
         db_session, _principal(lister_token), item_id, ReservationType.SWAP
@@ -420,7 +420,7 @@ async def test_pendingSwapProposal_offerNoLongerTakeable_sharesItemFalseAndNoOff
 
     proposer_token, _ = await _register(client, "GUEST", "exs.proposer9@example.com")
     await client.post(
-        f"/api/groups/public/{group_id}/rsvp", json=rsvp, headers=_auth(proposer_token)
+        f"/api/groups/{group_id}/rsvp", json=rsvp, headers=_auth(proposer_token)
     )
     offered_id = await _register_personal_item(client, proposer_token, "Rolki 9")
     await service.set_item_listing_preference(
@@ -494,7 +494,7 @@ async def test_privateCircle_rsvpOnlyCoGuardianPrivateItem_notOffered_memberGuar
 
     for token in (member_token, co_token, lone_token, lone_co_token):
         response = await client.post(
-            f"/api/groups/public/{group_id}/rsvp", json=rsvp, headers=_auth(token)
+            f"/api/groups/{group_id}/rsvp", json=rsvp, headers=_auth(token)
         )
         assert response.status_code == 201, response.text
     member_item = await _list_private(client, member_token, "Rowerek 10")

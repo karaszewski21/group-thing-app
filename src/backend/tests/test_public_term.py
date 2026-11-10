@@ -1,4 +1,4 @@
-"""Per-term public-page tests: the `GET /api/groups/public/{group_id}?term_id=`
+"""Per-term public-page tests: the `GET /api/public/groups/{group_id}?term_id=`
 generalization. The URL-named term (not only the server-picked nearest one)
 drives `term` / `needed_items` / `guardians`; a cross-circle or unknown
 `term_id` is a 404; the no-`term_id` path is unchanged; `needed_items` come
@@ -69,7 +69,7 @@ async def _create_term(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth_headers(token)),
-            "circle_group_id": group_id,
+            "group_id": group_id,
             "occurs_on": occurs_on.isoformat(),
             "description": description,
         },
@@ -118,7 +118,7 @@ async def test_getPublicCircle_withTermIdParam_returnsThatTermsItemsAndGuardians
 
     await seed_legacy_guest(db_session, "Marek Nowak", term_id=far_term_id, child_count=1)
 
-    response = await client.get(f"/api/groups/public/{group_id}?term_id={far_term_id}")
+    response = await client.get(f"/api/public/groups/{group_id}?term_id={far_term_id}")
 
     assert response.status_code == 200
     body = response.json()
@@ -137,7 +137,7 @@ async def test_getPublicCircle_termIdFromAnotherGroup_returns404(client: AsyncCl
     group_b = await _create_circle(client, token_b, "Krąg B")
     term_b = await _create_term(client, token_b, group_b, clock.local_now().date())
 
-    response = await client.get(f"/api/groups/public/{group_a}?term_id={term_b}")
+    response = await client.get(f"/api/public/groups/{group_a}?term_id={term_b}")
 
     assert response.status_code == 404
 
@@ -147,7 +147,7 @@ async def test_getPublicCircle_nonexistentTermId_returns404(client: AsyncClient)
     group_id = await _create_circle(client, token, "Krąg C")
     await _create_term(client, token, group_id, clock.local_now().date())
 
-    response = await client.get(f"/api/groups/public/{group_id}?term_id={uuid.uuid4()}")
+    response = await client.get(f"/api/public/groups/{group_id}?term_id={uuid.uuid4()}")
 
     assert response.status_code == 404
 
@@ -164,7 +164,7 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
         client, token, group_id, clock.local_now().date() + timedelta(days=20), "Dalej"
     )
 
-    response = await client.get(f"/api/groups/public/{group_id}")
+    response = await client.get(f"/api/public/groups/{group_id}")
 
     assert response.status_code == 200
     body = response.json()
@@ -204,7 +204,7 @@ async def test_getPublicCircle_neededItems_orderedByName(client: AsyncClient) ->
     await _create_needed_item(client, token, term_id, "Bebenek", "bębenek")
     await _create_needed_item(client, token, term_id, "Farby", "farby")
 
-    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+    response = await client.get(f"/api/public/groups/{group_id}?term_id={term_id}")
 
     assert response.status_code == 200
     returned_names = [item["name"] for item in response.json()["term"]["needed_items"]]
@@ -226,13 +226,13 @@ async def test_getPublicCircle_afterLoggedInRsvp_stillExposesOnlyGuardianDisplay
 
     guest_token, guest_party_id = await _register_guest(client, "pt.loggedin.parent@example.com")
     rsvp = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "Ignorowane Imie", "child_count": 3},
         headers=_auth_headers(guest_token),
     )
     assert rsvp.status_code == 201
 
-    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+    response = await client.get(f"/api/public/groups/{group_id}?term_id={term_id}")
 
     assert response.status_code == 200
     body = response.json()
@@ -265,7 +265,7 @@ async def test_getPublicCircle_softDeletedNeededItem_notReturned(
     removed.deleted_at = datetime.utcnow()
     await db_session.commit()
 
-    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+    response = await client.get(f"/api/public/groups/{group_id}?term_id={term_id}")
 
     assert response.status_code == 200
     returned_ids = [item["id"] for item in response.json()["term"]["needed_items"]]
@@ -286,7 +286,7 @@ async def test_getPublicCircle_termWithNeededItems_unaffectedAfterSiblingDelete(
     removed.deleted_at = datetime.utcnow()
     await db_session.commit()
 
-    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+    response = await client.get(f"/api/public/groups/{group_id}?term_id={term_id}")
 
     assert response.status_code == 200
     items = response.json()["term"]["needed_items"]
@@ -300,7 +300,7 @@ async def test_getPublicCircle_neededItem_reflectsPledgeClaim(client: AsyncClien
     term_id = await _create_term(client, token, group_id, clock.local_now().date())
     needed_item_id = await _create_needed_item(client, token, term_id, "Bębenek", "mały")
 
-    before = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+    before = await client.get(f"/api/public/groups/{group_id}?term_id={term_id}")
     item_before = before.json()["term"]["needed_items"][0]
     assert item_before["claimed"] is False
     assert item_before["claimed_by_name"] is None
@@ -314,7 +314,7 @@ async def test_getPublicCircle_neededItem_reflectsPledgeClaim(client: AsyncClien
     )
     assert pledge.status_code == 201
 
-    after = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+    after = await client.get(f"/api/public/groups/{group_id}?term_id={term_id}")
     item_after = after.json()["term"]["needed_items"][0]
     assert item_after["claimed"] is True
     assert item_after["claimed_by_name"] is not None
@@ -335,7 +335,7 @@ async def test_getPublicCircle_organizerSlug_isOrgSlugWhenOrgExists_elsePartyId(
     assert org.status_code == 201
     slug = org.json()["slug"]
 
-    response_with = await client.get(f"/api/groups/public/{group_with}")
+    response_with = await client.get(f"/api/public/groups/{group_with}")
     assert response_with.status_code == 200
     assert response_with.json()["organizer_slug"] == slug
 
@@ -345,7 +345,7 @@ async def test_getPublicCircle_organizerSlug_isOrgSlugWhenOrgExists_elsePartyId(
     group_without = await _create_circle(client, token_without, "Krąg bez organizacji")
     await _create_term(client, token_without, group_without, clock.local_now().date())
 
-    url = f"/api/groups/public/{group_without}"
+    url = f"/api/public/groups/{group_without}"
     slug = (await client.get(url)).json()["organizer_slug"]
     assert slug is not None
     assert uuid.UUID(slug)
@@ -378,7 +378,7 @@ async def test_getPublicCircle_organization_carriesOrgColors_whenOrgHasColors(
         client, token, "Bordowe Nutki", {"primary_color": "#7A2A4F", "accent_color": "#a9c24f"}
     )
 
-    response = await client.get(f"/api/groups/public/{group_id}")
+    response = await client.get(f"/api/public/groups/{group_id}")
 
     assert response.status_code == 200
     assert response.json()["organization"] == {
@@ -396,7 +396,7 @@ async def test_getPublicCircle_organization_isObjectWithNullColors_whenOrgHasNoC
     group_id = await _create_circle(client, token, "Krąg bez kolorów")
     await _create_organization(client, token, "Bezbarwne Nutki")
 
-    response = await client.get(f"/api/groups/public/{group_id}")
+    response = await client.get(f"/api/public/groups/{group_id}")
 
     assert response.status_code == 200
     assert response.json()["organization"] == {
@@ -418,7 +418,7 @@ async def test_getPublicCircle_organization_carriesPalettePreset_whenOrgHasPrese
     stored.palette_preset = "OCEAN"
     await db_session.commit()
 
-    response = await client.get(f"/api/groups/public/{group_id}")
+    response = await client.get(f"/api/public/groups/{group_id}")
 
     assert response.status_code == 200
     assert response.json()["organization"] == {
@@ -435,7 +435,7 @@ async def test_getPublicCircle_organization_isNull_whenOrganizerHasNoOrganizatio
     token = await _register_organizer(client, "pt.theme3@example.com")
     group_id = await _create_circle(client, token, "Krąg bez organizacji motywu")
 
-    response = await client.get(f"/api/groups/public/{group_id}")
+    response = await client.get(f"/api/public/groups/{group_id}")
 
     assert response.status_code == 200
     body = response.json()
@@ -460,7 +460,7 @@ async def test_getPublicCircle_organization_isNull_whenCircleHasNoActiveLeadersh
     leadership.valid_to = clock.local_now().date()
     await db_session.commit()
 
-    response = await client.get(f"/api/groups/public/{group_id}")
+    response = await client.get(f"/api/public/groups/{group_id}")
 
     assert response.status_code == 200
     body = response.json()
@@ -491,8 +491,8 @@ async def test_getPublicCircle_privateReducedResponse_includesOrganization(
         "palette_preset": None,
     }
 
-    response = await client.get(f"/api/groups/public/{group_id}")
-    access = await client.get(f"/api/groups/public/{group_id}/access")
+    response = await client.get(f"/api/public/groups/{group_id}")
+    access = await client.get(f"/api/public/groups/{group_id}/access")
 
     assert response.status_code == 200
     body = response.json()
@@ -562,7 +562,7 @@ async def test_getPublicCircle_organizerAndAttendeeListings_visibleAnonymously(
         client, "pt.exchange.attendee@example.com"
     )
     rsvp = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored", "child_count": 0},
         headers=_auth_headers(attendee_token),
     )
@@ -570,7 +570,7 @@ async def test_getPublicCircle_organizerAndAttendeeListings_visibleAnonymously(
     attendee_item_id = await _register_personal_item(client, attendee_token, "Sanki")
     await _set_preference(client, attendee_token, attendee_item_id, "GIFT")
 
-    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+    response = await client.get(f"/api/public/groups/{group_id}?term_id={term_id}")
 
     assert response.status_code == 200
     listings = response.json()["term"]["item_listings"]
@@ -597,7 +597,7 @@ async def test_getPublicCircle_takenItem_staysListedWithAnonymousReservation(
 
     taker_token, _ = await _register_guest(client, "pt.exchange.taker@example.com")
     await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored", "child_count": 0},
         headers=_auth_headers(taker_token),
     )
@@ -608,7 +608,7 @@ async def test_getPublicCircle_takenItem_staysListedWithAnonymousReservation(
     )
     assert take.status_code == 200
 
-    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+    response = await client.get(f"/api/public/groups/{group_id}?term_id={term_id}")
     [listing] = response.json()["term"]["item_listings"]
     assert listing["item_id"] == item_id
     assert listing["reservation"] == {"by_name": None, "by_me": False}
@@ -637,7 +637,7 @@ async def test_getPublicCircle_termOccursOnInPast_listingsStillVisible(
     term.occurs_on = clock.local_now() - timedelta(days=1)
     await db_session.commit()
 
-    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+    response = await client.get(f"/api/public/groups/{group_id}?term_id={term_id}")
 
     assert response.status_code == 200
     listings = response.json()["term"]["item_listings"]
@@ -660,7 +660,7 @@ async def test_getPublicCircle_pledgedNeededItem_exposesPledgerPartyId(client: A
     )
     assert pledge.status_code == 201
 
-    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+    response = await client.get(f"/api/public/groups/{group_id}?term_id={term_id}")
 
     item = response.json()["term"]["needed_items"][0]
     assert item["claimed_by_party_id"] == guest_party_id
@@ -697,7 +697,7 @@ async def test_getPublicCircle_itemListing_carriesAddedAtAsNaiveUtcPreferenceCre
         )
     )
 
-    response = await client.get(f"/api/groups/public/{group_id}?term_id={term_id}")
+    response = await client.get(f"/api/public/groups/{group_id}?term_id={term_id}")
 
     assert response.status_code == 200
     [listing] = response.json()["term"]["item_listings"]

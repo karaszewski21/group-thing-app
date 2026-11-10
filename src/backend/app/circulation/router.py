@@ -14,7 +14,7 @@ their own inventory) are enforced in `service.py`.
 Reservations are read-only here: GIFT/SWAP reservations are created and
 resolved exclusively by the groups exchange flow.
 
-Item reads (`GET /api/inventory-items/{id}`, `/details`, `/history`,
+Item reads (`GET /api/inventory-items/{id}`, `/api/public/items/{id}/details`, `/history`,
 `/balance`) first call the groups visibility gate
 (`item_visibility.require_item_visible_to`), injected here as
 `register_item`'s listing hook is: a PRIVATE item is a 404 for anyone but
@@ -186,7 +186,7 @@ async def delete_item(item_id: uuid.UUID, db: DbSession, principal: EditPrincipa
     return None
 
 
-@router.get("/api/inventory-items/{item_id}/details", response_model=ItemDetailsResponse)
+@router.get("/api/public/items/{item_id}/details", response_model=ItemDetailsResponse)
 async def get_item_details(
     item_id: uuid.UUID,
     db: DbSession,

@@ -37,7 +37,7 @@ async def _create_circle_and_term(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": circle.json()["id"],
+            "group_id": circle.json()["id"],
             "occurs_on": (clock.local_now().date() + timedelta(days=7)).isoformat(),
         },
         headers=_auth(org_token),

@@ -166,7 +166,7 @@ async def test_itemDetails_locationId_ownerOnlyAndNullOnceThePlaceIsDeleted(
     other = await _register(client, "itloc.det.other@example.com")
     location_id = await create_location(client, owner)
     item_id = await _create_item(client, owner, location_id)
-    url = f"/api/inventory-items/{item_id}/details"
+    url = f"/api/public/items/{item_id}/details"
 
     owner_live = (await client.get(url, headers=owner)).json()
     other_view = (await client.get(url, headers=other)).json()

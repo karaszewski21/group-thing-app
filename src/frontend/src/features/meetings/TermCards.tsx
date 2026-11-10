@@ -1,12 +1,11 @@
 import { Link } from "../../routing/navigation";
 import type { EventResponse } from "../../api/events";
-import type { GroupResponse } from "../../api/groups";
 import type { MyPledgeResponse } from "../../api/pledges";
-import type { NeededItemResponse, TermResponse } from "../../api/terms";
+import type { MyTermResponse, NeededItemResponse } from "../../api/terms";
 import { useAppData } from "../panel/appDataStore";
 import { TermPlaceLine } from "../../components/shared/TermPlaceLine";
 import { CopyIcon, FamilyIcon, PencilIcon } from "../../components/shared/appIcons";
-import { dayMonth, termPublicPath, termTime, type GuestTermCard } from "../../utils/appHelpers";
+import { circleTermPath, dayMonth, termTime, type GuestTermCard } from "../../utils/appHelpers";
 import { eventEditPath, eventPath, termAttendeesPath, termEditPath } from "../../routing/paths";
 import { pluralPl } from "../../utils/plural";
 
@@ -53,14 +52,14 @@ function TimeAndDescription({ occursOn, description }: { occursOn: string; descr
 
 /** Sign-up summary pill linking to the organizer attendees page. Counts come
  * from the terms payload and are `null` for non-organizers — no chip then. */
-function SignupSummaryChip({ term }: { term: TermResponse }) {
+function SignupSummaryChip({ term }: { term: MyTermResponse }) {
   const attendees = term.attendee_count;
   if (attendees === null) return null;
   const children = term.child_count ?? 0;
   const hasAttendees = attendees > 0;
   const attendeesText = `${attendees} ${pluralPl(attendees, "zapis", "zapisy", "zapisów")}`;
   const childrenText = `${children} ${pluralPl(children, "dziecko", "dzieci", "dzieci")}`;
-  const capacity = term.capacity ?? null;
+  const capacity = term.capacity;
   const capacityLabel = capacity === null ? "" : `${attendees}/${capacity} miejsc`;
 
   return (
@@ -86,8 +85,7 @@ function SignupSummaryChip({ term }: { term: TermResponse }) {
 }
 
 interface OrganizerTermCardProps {
-  term: TermResponse;
-  group: GroupResponse;
+  term: MyTermResponse;
   neededItems: NeededItemResponse[];
 }
 
@@ -95,8 +93,9 @@ interface OrganizerTermCardProps {
  * the public per-term page; a copy-link button and an edit pencil (linking
  * to `/terms/:termId/edit`) are the only controls. Guest terms use
  * `SavedTermCard`. */
-export function OrganizerTermCard({ term, group, neededItems }: OrganizerTermCardProps) {
+export function OrganizerTermCard({ term, neededItems }: OrganizerTermCardProps) {
   const { showToast } = useAppData();
+  const href = circleTermPath(term.organizer_slug, term.group_id, term.id);
 
   return (
     <div className="rounded-[22px] border border-line bg-paper p-3.5">
@@ -104,13 +103,13 @@ export function OrganizerTermCard({ term, group, neededItems }: OrganizerTermCar
         <DateBadge occursOn={term.occurs_on} />
         <div className="min-w-0 flex-1">
           <KindBadge kind="term" />
-          <Link to={termPublicPath(group, term.id)} className="text-base font-bold text-ink hover:underline">
-            {group.name}
+          <Link to={href} className="text-base font-bold text-ink hover:underline">
+            {term.group_name}
           </Link>
           <p className="mt-0.5 text-sm text-ink-soft">
             <TimeAndDescription occursOn={term.occurs_on} description={term.description} />
           </p>
-          <TermPlaceLine location={term.location ?? null} capacity={null} withMapLink className="mt-1.5" />
+          <TermPlaceLine location={term.location} capacity={null} withMapLink className="mt-1.5" />
           {neededItems.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {neededItems.map((ni) => (
@@ -137,7 +136,7 @@ export function OrganizerTermCard({ term, group, neededItems }: OrganizerTermCar
             title="Kopiuj link do terminu"
             aria-label="Kopiuj link do terminu"
             onClick={() => {
-              void navigator.clipboard.writeText(`${window.location.origin}${termPublicPath(group, term.id)}`);
+              void navigator.clipboard.writeText(`${window.location.origin}${href}`);
               showToast("Skopiowano link");
             }}
             className={ICON_BUTTON}

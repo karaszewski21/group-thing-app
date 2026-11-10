@@ -1,4 +1,4 @@
-"""`GET /api/items/{item_id}/actions` — the item page's action read model
+"""`GET /api/public/items/{item_id}/actions` — the item page's action read model
 (PUBLIC, `OptionalPrincipal`): the owner's upcoming contexts come from the
 server, not from URL hints."""
 
@@ -21,7 +21,7 @@ router = APIRouter(tags=["groups"])
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 
 
-@router.get("/api/items/{item_id}/actions", response_model=ItemActionsResponse)
+@router.get("/api/public/items/{item_id}/actions", response_model=ItemActionsResponse)
 async def get_item_actions(
     item_id: uuid.UUID, db: DbSession, response: Response, principal: OptionalPrincipal = None
 ) -> ItemActionsResponse:

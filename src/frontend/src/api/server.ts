@@ -25,20 +25,20 @@ export const serverGet = cache(async <T,>(path: string): Promise<T | null> => {
 
 export function getPublicOrganizationOnServer(slug: string): Promise<PublicOrganizationResponse | null> {
   if (!isOrganizationSlug(slug)) return Promise.resolve(null);
-  return serverGet<PublicOrganizationResponse>(`/organizations/public/${encodeURIComponent(slug)}`);
+  return serverGet<PublicOrganizationResponse>(`/public/organizations/${encodeURIComponent(slug)}`);
 }
 
 export function getEventOnServer(eventId: string): Promise<EventDetailResponse | null> {
-  return serverGet<EventDetailResponse>(`/events/${encodeURIComponent(eventId)}`);
+  return serverGet<EventDetailResponse>(`/public/events/${encodeURIComponent(eventId)}`);
 }
 
 export function getPublicCircleOnServer(groupId: string, termId: string): Promise<PublicCircleResponse | null> {
   return serverGet<PublicCircleResponse>(
-    `/groups/public/${encodeURIComponent(groupId)}?term_id=${encodeURIComponent(termId)}`,
+    `/public/groups/${encodeURIComponent(groupId)}?term_id=${encodeURIComponent(termId)}`,
   );
 }
 
 /** A listed item as an anonymous visitor sees it; `null` for one that is not public. */
 export function getItemOnServer(itemId: string): Promise<ItemDetailsResponse | null> {
-  return serverGet<ItemDetailsResponse>(`/inventory-items/${encodeURIComponent(itemId)}/details`);
+  return serverGet<ItemDetailsResponse>(`/public/items/${encodeURIComponent(itemId)}/details`);
 }

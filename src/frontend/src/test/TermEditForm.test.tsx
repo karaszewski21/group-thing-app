@@ -17,6 +17,7 @@ vi.mock("../api/terms", () => ({
   deleteNeededItem: vi.fn(),
   updateNeededItem: vi.fn(),
   updateTerm: vi.fn(),
+  getTerm: vi.fn(),
 }));
 vi.mock("../api/locations", () => ({
   getMyLocations: vi.fn(),
@@ -74,7 +75,7 @@ function locationRef({ id, locality, label, formatted_address, google_place_id, 
 
 const term: termsApi.TermResponse = {
   id: "t1",
-  circle_group_id: "g1",
+  group_id: "g1",
   occurs_on: "2026-10-14T17:00:00",
   description: "Park Sołacki",
   created_at: "2026-01-01T00:00:00Z",
@@ -301,8 +302,8 @@ describe("TermEditView — draft in the panel", () => {
   }
 
   beforeEach(() => {
+    vi.mocked(termsApi.getTerm).mockResolvedValue(term);
     panel.reset({
-      terms: [{ term, group: { id: "g1" }, neededItems: [neededItem] }],
       myGroups: [{ id: "g1" }],
       termEdit: null,
       load: vi.fn(),

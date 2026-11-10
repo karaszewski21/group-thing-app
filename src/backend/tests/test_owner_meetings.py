@@ -1,5 +1,5 @@
-"""`GET /api/groups/public/organizers/{slug}/meetings` and
-`GET /api/groups/public/parties/{party_id}/meetings`: the owner meetings
+"""`GET /api/public/organizers/{slug}/meetings` and
+`GET /api/public/parties/{party_id}/meetings`: the owner meetings
 pages behind `/<org-slug>/meetings` and `/<party-id>/meetings`. Covers the
 response contract, terms and events merged earliest first, PRIVATE circles
 left out, the 404s that keep a private person hidden, the Organization slug
@@ -43,7 +43,7 @@ async def test_getOrganizationMeetings_termsAndEvents_mergedEarliestFirstWithout
     await _term(client, token, private_id, _in_days(3))
     event_id = await _create_event(client, token, "Om wymianka", _in_days(4))
 
-    body = await _meetings(client, f"/api/groups/public/organizers/{slug}/meetings")
+    body = await _meetings(client, f"/api/public/organizers/{slug}/meetings")
 
     assert body["owner"] == {
         "party_id": str(party_id),
@@ -61,17 +61,17 @@ async def test_getOrganizationMeetings_termsAndEvents_mergedEarliestFirstWithout
 
 
 async def test_getOrganizationMeetings_unknownSlug_returns404(client: AsyncClient) -> None:
-    response = await client.get("/api/groups/public/organizers/om-nie-ma/meetings")
+    response = await client.get("/api/public/organizers/om-nie-ma/meetings")
     assert response.status_code == 404, response.text
 
 
 async def test_getPartyMeetings_unknownOrNoPublicFootprint_returns404(client: AsyncClient) -> None:
     assert (
-        await client.get(f"/api/groups/public/parties/{uuid.uuid4()}/meetings")
+        await client.get(f"/api/public/parties/{uuid.uuid4()}/meetings")
     ).status_code == 404
     _, quiet_party_id = await _register(client, "GUEST", "om.quiet@example.com")
     assert (
-        await client.get(f"/api/groups/public/parties/{quiet_party_id}/meetings")
+        await client.get(f"/api/public/parties/{quiet_party_id}/meetings")
     ).status_code == 404
 
 
@@ -83,7 +83,7 @@ async def test_getPartyMeetings_personWithoutOrganization_listsLedTermsAndEvents
     term_id = await _term(client, token, group_id, _in_days(3))
     event_id = await _create_event(client, token, "Om wymianka osoby", _in_days(1))
 
-    body = await _meetings(client, f"/api/groups/public/parties/{party_id}/meetings")
+    body = await _meetings(client, f"/api/public/parties/{party_id}/meetings")
 
     assert body["owner"]["slug"] is None
     assert [(m["kind"], m["id"]) for m in body["meetings"]] == [
@@ -99,7 +99,7 @@ async def test_getPartyMeetings_organizationOwner_carriesSlugForRedirect(
     slug = await _organization_slug(client, token, "Om Przekierowanie")
     await _create_event(client, token, "Om wydarzenie", _in_days(2))
 
-    body = await _meetings(client, f"/api/groups/public/parties/{party_id}/meetings")
+    body = await _meetings(client, f"/api/public/parties/{party_id}/meetings")
 
     assert body["owner"]["slug"] == slug
 
@@ -112,7 +112,7 @@ async def test_getOrganizationMeetings_moreMeetings_sameStatementCount(
     group_id = await _circle(client, token, "Om liczony")
     await _term(client, token, group_id, _in_days(2))
     await _create_event(client, token, "Om liczone 1", _in_days(3))
-    path = f"/api/groups/public/organizers/{slug}/meetings"
+    path = f"/api/public/organizers/{slug}/meetings"
 
     with count_queries(engine) as one_each:
         await _meetings(client, path)

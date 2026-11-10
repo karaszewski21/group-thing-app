@@ -1,4 +1,4 @@
-"""`GET /api/groups/public/organizers/{slug}`: the anonymous organizer
+"""`GET /api/public/organizers/{slug}`: the anonymous organizer
 directory read model. Covers the response contract (and the absence of any
 identity field), circle qualification, the 404 / empty cases, the 60-day
 window, the `family_count` threshold, exchange eligibility and thumbnails,
@@ -82,7 +82,7 @@ async def _term(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(token)),
-            "circle_group_id": str(group_id),
+            "group_id": str(group_id),
             "occurs_on": occurs_on.isoformat(),
             "description": description,
         },
@@ -117,7 +117,7 @@ async def _listed_items(
 
 
 async def _page(client: AsyncClient, slug: str) -> dict[str, Any]:
-    response = await client.get(f"/api/groups/public/organizers/{slug}")
+    response = await client.get(f"/api/public/organizers/{slug}")
     assert response.status_code == 200, response.text
     assert response.headers["cache-control"] == "public, max-age=0, s-maxage=60"
     body: dict[str, Any] = response.json()
@@ -249,12 +249,12 @@ async def test_getOrganizerPage_privateOrRevokedCircles_excludedFromEveryField(
 async def test_getOrganizerPage_unknownPseudoOwnerlessOrEmpty_returns404OrEmpty(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    missing = await client.get("/api/groups/public/organizers/nie-ma-takiej")
+    missing = await client.get("/api/public/organizers/nie-ma-takiej")
     assert missing.status_code == 404
     assert "cache-control" not in missing.headers
-    assert (await client.get("/api/groups/public/organizers/k-0123456789ab")).status_code == 404
+    assert (await client.get("/api/public/organizers/k-0123456789ab")).status_code == 404
 
-    access = await client.get("/api/groups/public/organizers/access")
+    access = await client.get("/api/public/organizers/access")
     assert access.status_code == 404
     assert "Organization" in access.json()["message"]
 
@@ -269,7 +269,7 @@ async def test_getOrganizerPage_unknownPseudoOwnerlessOrEmpty_returns404OrEmpty(
     ).scalar_one()
     membership.valid_to = clock.local_now().date()
     await db_session.flush()
-    assert (await client.get(f"/api/groups/public/organizers/{ownerless_slug}")).status_code == 404
+    assert (await client.get(f"/api/public/organizers/{ownerless_slug}")).status_code == 404
 
     empty_token, _ = await _register(client, "ORGANIZER", "op.404.empty@example.com")
     empty_slug = await _organization_slug(client, empty_token, "Pusta Strona")

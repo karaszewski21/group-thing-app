@@ -5,6 +5,7 @@ import * as groupsApi from "../api/groups";
 import * as termsApi from "../api/terms";
 import { ApiError } from "../api/client";
 import type { GroupMemberResponse, GroupResponse } from "../api/groups";
+import type { Page } from "../api/pagination";
 import type { TermResponse } from "../api/terms";
 import { termPublicPath } from "../utils/appHelpers";
 import { makeLocality, makeLocationRef } from "./fixtures/locations";
@@ -17,7 +18,7 @@ vi.mock("../api/groups", () => ({
   getJoinCode: vi.fn(),
   regenerateJoinCode: vi.fn(),
 }));
-vi.mock("../api/terms", () => ({ getTerms: vi.fn() }));
+vi.mock("../api/terms", () => ({ getGroupTerms: vi.fn() }));
 const conversationHook = vi.hoisted(() => ({ openConversation: vi.fn() }));
 vi.mock("../hooks/useOpenConversation", () => ({ useOpenConversation: () => conversationHook }));
 
@@ -62,6 +63,10 @@ const members: GroupMemberResponse[] = [
   },
 ];
 
+function termsPage(items: TermResponse[]): Page<TermResponse> {
+  return { items, total: items.length, page: 1, size: 1 };
+}
+
 function renderPage() {
   return renderWithRoute(<GroupDetailsPage />, {
     url: `/groups/${GROUP_ID}`,
@@ -77,7 +82,7 @@ describe("GroupDetailsPage", () => {
     vi.mocked(groupsApi.getGroup).mockResolvedValue(group);
     vi.mocked(groupsApi.getGroupMembers).mockResolvedValue(members);
     vi.mocked(groupsApi.getJoinCode).mockRejectedValue(new ApiError(403, "Forbidden", null));
-    vi.mocked(termsApi.getTerms).mockResolvedValue([]);
+    vi.mocked(termsApi.getGroupTerms).mockResolvedValue(termsPage([]));
     clipboardWriteText.mockResolvedValue(undefined);
   });
 
@@ -196,7 +201,7 @@ describe("GroupDetailsPage", () => {
     function term(id: string, occursOn: string): TermResponse {
       return {
         id,
-        circle_group_id: GROUP_ID,
+        group_id: GROUP_ID,
         occurs_on: occursOn,
         description: null,
         created_at: "",
@@ -231,7 +236,7 @@ describe("GroupDetailsPage", () => {
       await waitFor(() => expect(groupsApi.getJoinCode).toHaveBeenCalledTimes(2));
       expect(screen.queryByRole("region", { name: "Kod dostępu" })).not.toBeInTheDocument();
       expect(screen.queryByText("Kod dostępu")).not.toBeInTheDocument();
-      expect(termsApi.getTerms).toHaveBeenCalledTimes(1);
+      expect(termsApi.getGroupTerms).toHaveBeenCalledTimes(1);
     });
 
     it("a PUBLIC group never asks for a code and shows no card", async () => {
@@ -242,7 +247,7 @@ describe("GroupDetailsPage", () => {
       await screen.findByText("Anna Nowak");
       expect(screen.queryByRole("region", { name: "Kod dostępu" })).not.toBeInTheDocument();
       expect(groupsApi.getJoinCode).not.toHaveBeenCalled();
-      expect(termsApi.getTerms).not.toHaveBeenCalled();
+      expect(termsApi.getGroupTerms).not.toHaveBeenCalled();
     });
 
     it("shows a skeleton while loading and an inline retry on a 500", async () => {
@@ -272,11 +277,7 @@ describe("GroupDetailsPage", () => {
 
     it("copies the raw code and a link to the nearest upcoming term; no link without one", async () => {
       vi.mocked(groupsApi.getJoinCode).mockResolvedValue({ code: "482913" });
-      vi.mocked(termsApi.getTerms).mockResolvedValue([
-        term("t-later", "2026-10-28T17:00:00"),
-        term("t-past", "2026-10-20T17:00:00"),
-        term("t-today", "2026-10-21T08:00:00"),
-      ]);
+      vi.mocked(termsApi.getGroupTerms).mockResolvedValue(termsPage([term("t-today", "2026-10-21T08:00:00")]));
       const { unmount } = renderPage();
 
       fireEvent.click(await screen.findByRole("button", { name: "Kopiuj kod" }));
@@ -291,12 +292,13 @@ describe("GroupDetailsPage", () => {
         ),
       );
       expect(await screen.findByText("Skopiowano link")).toBeInTheDocument();
+      expect(termsApi.getGroupTerms).toHaveBeenCalledWith(GROUP_ID, "upcoming", 1, 1);
       unmount();
 
-      vi.mocked(termsApi.getTerms).mockResolvedValue([term("t-past", "2026-10-20T17:00:00")]);
+      vi.mocked(termsApi.getGroupTerms).mockResolvedValue(termsPage([]));
       renderPage();
       expect(await screen.findByRole("button", { name: "Kopiuj kod" })).toBeInTheDocument();
-      await waitFor(() => expect(termsApi.getTerms).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(termsApi.getGroupTerms).toHaveBeenCalledTimes(2));
       expect(screen.queryByRole("button", { name: "Kopiuj link z kodem" })).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Wygeneruj nowy kod" })).toBeInTheDocument();
     });

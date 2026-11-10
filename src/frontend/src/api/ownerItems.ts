@@ -60,7 +60,7 @@ export function getOrganizationOwnerItems(
   page: number,
   mode?: ExchangeMode,
 ): Promise<OwnerItemsPageResponse> {
-  return api.get(`/groups/public/organizers/${encodeURIComponent(slug)}/items?${query(page, mode)}`);
+  return api.get(`/public/organizers/${encodeURIComponent(slug)}/items?${query(page, mode)}`);
 }
 
 /** `/<party-id>/items`: any person's listed items, newest first. */
@@ -69,7 +69,7 @@ export function getPartyOwnerItems(
   page: number,
   mode?: ExchangeMode,
 ): Promise<OwnerItemsPageResponse> {
-  return api.get(`/groups/public/parties/${encodeURIComponent(partyId)}/items?${query(page, mode)}`);
+  return api.get(`/public/parties/${encodeURIComponent(partyId)}/items?${query(page, mode)}`);
 }
 
 /** Mirrors `app.groups.schemas.PartyProfileResponse`: a person's public
@@ -90,7 +90,7 @@ export interface PartyProfileResponse {
 
 /** `/<party-id>`: 404 for a person with nothing public. */
 export function getPartyProfile(partyId: string): Promise<PartyProfileResponse> {
-  return api.get(`/groups/public/parties/${encodeURIComponent(partyId)}`);
+  return api.get(`/public/parties/${encodeURIComponent(partyId)}`);
 }
 
 /** Mirrors `app.groups.schemas.OwnerMeetingsResponse`: the owner's upcoming
@@ -103,10 +103,10 @@ export interface OwnerMeetingsResponse {
 
 /** `/<org-slug>/meetings`. */
 export function getOrganizationOwnerMeetings(slug: string): Promise<OwnerMeetingsResponse> {
-  return api.get(`/groups/public/organizers/${encodeURIComponent(slug)}/meetings`);
+  return api.get(`/public/organizers/${encodeURIComponent(slug)}/meetings`);
 }
 
 /** `/<party-id>/meetings`: 404 for a person with nothing public. */
 export function getPartyOwnerMeetings(partyId: string): Promise<OwnerMeetingsResponse> {
-  return api.get(`/groups/public/parties/${encodeURIComponent(partyId)}/meetings`);
+  return api.get(`/public/parties/${encodeURIComponent(partyId)}/meetings`);
 }

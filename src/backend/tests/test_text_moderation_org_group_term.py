@@ -201,7 +201,7 @@ async def test_createTerm_offendingDescription_returns400_groupNameNotScored(
         "/api/terms",
         json={
             "location_id": await create_location(client, headers),
-            "circle_group_id": circle_id,
+            "group_id": circle_id,
             "occurs_on": date.today().isoformat(),
             "description": f"Spotkanie {OFFENSIVE}",
         },
@@ -224,7 +224,7 @@ async def test_updateTerm_offendingDescription_returns400(
         "/api/terms",
         json={
             "location_id": await create_location(client, headers),
-            "circle_group_id": circle_id,
+            "group_id": circle_id,
             "occurs_on": date.today().isoformat(),
             "description": "Spotkanie w parku",
         },

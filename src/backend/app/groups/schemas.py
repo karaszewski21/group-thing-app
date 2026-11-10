@@ -3,11 +3,12 @@
 
 from __future__ import annotations
 
+import enum
 import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.circulation.models import ItemCondition, ItemListingStatus, ReservationType
 
@@ -42,6 +43,8 @@ class GroupResponse(BaseModel):
     default_capacity: int | None = None
     created_at: datetime
     updated_at: datetime
+    # Every Term of the Circle; filled only by `GET /api/groups/{id}`.
+    term_count: int | None = None
 
 
 class ModerationGroupResponse(BaseModel):
@@ -147,7 +150,7 @@ class ModerationTermResponse(BaseModel):
     with the Circle's name and its active (non-withdrawn) signup counts."""
 
     id: uuid.UUID
-    circle_group_id: uuid.UUID
+    group_id: uuid.UUID
     group_name: str
     occurs_on: datetime
     description: str | None
@@ -162,7 +165,8 @@ class TermResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    circle_group_id: uuid.UUID
+    # Read from `Term.circle_group_id`; the API calls it `group_id`.
+    group_id: uuid.UUID = Field(validation_alias=AliasChoices("group_id", "circle_group_id"))
     occurs_on: datetime
     description: str | None
     created_at: datetime
@@ -173,11 +177,44 @@ class TermResponse(BaseModel):
     capacity: int | None = None
 
 
+class TermPeriod(enum.StrEnum):
+    """`upcoming`: from the start of today (Warsaw) on, earliest first;
+    `past`: before it, latest first."""
+
+    UPCOMING = "upcoming"
+    PAST = "past"
+
+
+class MyTermRole(enum.StrEnum):
+    """`led`: circles the caller leads; `member`: PRIVATE circles the caller
+    or their family belongs to, without the led ones."""
+
+    LED = "led"
+    MEMBER = "member"
+
+
+class MyTermResponse(BaseModel):
+    """`GET /api/groups/mine/terms` row: only what a `/meetings` card shows —
+    the Term with its circle's name and public-URL slug, so the panel needs no
+    per-circle read. `attendee_count`/`child_count` are set for led terms."""
+
+    id: uuid.UUID
+    group_id: uuid.UUID
+    group_name: str
+    organizer_slug: str
+    occurs_on: datetime
+    description: str | None
+    location: LocationRefResponse | None
+    capacity: int | None
+    attendee_count: int | None
+    child_count: int | None
+
+
 class CreateTermRequest(BaseModel):
     """`location_id`/`capacity` omitted -> copied from the Circle's defaults
     (told apart via `model_fields_set`); a term without any place is rejected."""
 
-    circle_group_id: uuid.UUID
+    group_id: uuid.UUID
     occurs_on: datetime
     description: str | None = Field(default=None, max_length=2000)
     location_id: uuid.UUID | None = None
@@ -352,7 +389,7 @@ class GroupAccessDetails(BaseModel):
 
 
 class GroupAccessResponse(BaseModel):
-    """`GET /api/groups/public/{group_id}/access` — the Circle's public
+    """`GET /api/public/groups/{group_id}/access` — the Circle's public
     identity plus the caller's resolved access, in one call. `group` reuses
     `PublicCircleResponse`'s already-privacy-safe shape (a `PRIVATE` group's
     response still omits `term`/`guardians` regardless of `access`)."""
@@ -361,7 +398,7 @@ class GroupAccessResponse(BaseModel):
     access: GroupAccessDetails
 
 
-# --- Public organizer directory (`GET /api/groups/public/organizers/{slug}`) --
+# --- Public organizer directory (`GET /api/public/organizers/{slug}`) --
 # Anonymous read model: explicit allowlisted fields only, never a person's
 # name, party id or child data.
 
@@ -490,7 +527,7 @@ class OrganizerPageResponse(BaseModel):
     owner_nearest: OwnerNearestDateResponse | None
 
 
-# --- Public owner items page (`GET /api/groups/public/{organizers/{slug},parties/{id}}/items`)
+# --- Public owner items page (`GET /api/public/{organizers/{slug},parties/{id}}/items`)
 
 
 class OwnerSummaryResponse(BaseModel):
@@ -627,6 +664,7 @@ class MyAttendanceResponse(BaseModel):
     attendance_id: uuid.UUID
     term_id: uuid.UUID
     occurs_on: datetime
+    description: str | None
     child_count: int
     group_id: uuid.UUID
     group_name: str

@@ -124,7 +124,7 @@ async def test_uploadGallery_moderationOn_returns201PendingPrivateFilesAppendedS
     assert second["sort_order"] == 1
     assert fake_storage.objects[large].public is False
     assert fake_storage.objects[thumb].content_type == "image/webp"
-    public = await client.get(f"/api/organizations/public/{organization['slug']}")
+    public = await client.get(f"/api/public/organizations/{organization['slug']}")
     assert public.json()["gallery"] == []
 
 
@@ -243,7 +243,7 @@ async def test_uploadLogo_replacesPendingAndRejected_stagesKeys_approvedStaysPub
 
     assert await _media_ids(db_session, org_id) == {approved["id"], replacing["id"]}
     assert _keys(org_id, pending["id"]) == await _deleted_keys(db_session)
-    public = await client.get(f"/api/organizations/public/{organization['slug']}")
+    public = await client.get(f"/api/public/organizations/{organization['slug']}")
     assert public.json()["logo"]["url"] == f"https://cdn.test/{_keys(org_id, approved['id'])[0]}"
 
     await _set_status(db_session, replacing["id"], ModerationStatus.REJECTED)
@@ -282,7 +282,7 @@ async def test_uploadLogo_moderationOff_retiresOlderApproved_supersededByCronReu
 
     assert reupload.status_code == 201, reupload.text
     assert await _media_ids(db_session, org_id) == {pending["id"], reupload.json()["id"]}
-    public = await client.get(f"/api/organizations/public/{organization['slug']}")
+    public = await client.get(f"/api/public/organizations/{organization['slug']}")
     assert public.json()["cover"]["url"] == f"https://cdn.test/{_keys(org_id, pending['id'])[0]}"
     outbox_rows = await db_session.execute(
         select(func.count())
@@ -360,7 +360,7 @@ async def test_deleteLogo_approvedWithOlderApproved_publicLogoNull_olderRowDelet
     assert set(await _deleted_keys(db_session)) == set(
         _keys(org_id, older["id"]) + _keys(org_id, newer["id"])
     )
-    public = await client.get(f"/api/organizations/public/{organization['slug']}")
+    public = await client.get(f"/api/public/organizations/{organization['slug']}")
     assert public.json()["logo"] is None
 
 
@@ -437,7 +437,7 @@ async def test_raceH2_ownerDeletesPendingFlippedToApproved_retiresOlder_publicLo
     assert response.status_code == 204
     assert await _media_ids(db_session, org_id) == set()
     assert set(_keys(org_id, older["id"])) <= set(await _deleted_keys(db_session))
-    public = await client.get(f"/api/organizations/public/{organization['slug']}")
+    public = await client.get(f"/api/public/organizations/{organization['slug']}")
     assert public.json()["logo"] is None
 
 
@@ -463,7 +463,7 @@ async def test_raceH2_replaceUpload_doesNotDeleteJustApprovedRow(
     assert replacing["status"] == "PENDING"
     assert pending["id"] in await _media_ids(db_session, org_id)
     assert not set(_keys(org_id, pending["id"])) & set(await _deleted_keys(db_session))
-    public = await client.get(f"/api/organizations/public/{organization['slug']}")
+    public = await client.get(f"/api/public/organizations/{organization['slug']}")
     assert public.json()["logo"]["url"] == f"https://cdn.test/{_keys(org_id, pending['id'])[0]}"
 
 

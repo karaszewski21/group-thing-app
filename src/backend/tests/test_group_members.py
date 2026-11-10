@@ -39,7 +39,7 @@ async def _create_term(client: AsyncClient, org_token: str, group_id: str, days:
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": group_id,
+            "group_id": group_id,
             "occurs_on": (date.today() + timedelta(days=days)).isoformat(),
         },
         headers=_auth(org_token),
@@ -50,7 +50,7 @@ async def _create_term(client: AsyncClient, org_token: str, group_id: str, days:
 
 async def _rsvp(client: AsyncClient, token: str, group_id: str, term_id: str) -> str:
     r = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored", "child_count": 1},
         headers=_auth(token),
     )

@@ -83,7 +83,7 @@ async def list_attending_events(db: DbSession, principal: ReadPrincipal) -> list
     return await _event_responses(db, await service.list_attending_events(db, principal))
 
 
-@router.get("/api/events/{event_id}", response_model=EventDetailResponse)
+@router.get("/api/public/events/{event_id}", response_model=EventDetailResponse)
 async def get_event(
     event_id: uuid.UUID,
     db: DbSession,

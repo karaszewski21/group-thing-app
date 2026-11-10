@@ -63,7 +63,7 @@ export function FirstTermStepperOrganizer({
     setFormError(null);
     try {
       const request: CreateTermRequest = {
-        circle_group_id: circleGroupId,
+        group_id: circleGroupId,
         occurs_on: occursOn,
         description: description || undefined,
         location_id: locationId,

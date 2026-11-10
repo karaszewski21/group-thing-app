@@ -69,7 +69,7 @@ async def _create_circle_and_term(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": circle.json()["id"],
+            "group_id": circle.json()["id"],
             "occurs_on": (clock.local_now().date() + timedelta(days=7)).isoformat(),
         },
         headers=_auth(org_token),
@@ -80,7 +80,7 @@ async def _create_circle_and_term(
 
 async def _rsvp(client: AsyncClient, token: str, group_id: int, term_id: int) -> int:
     r = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored", "child_count": 0},
         headers=_auth(token),
     )
@@ -390,7 +390,7 @@ async def test_scan_giftReservationOfOtherTerm_isNotPrompted(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": group_id,
+            "group_id": group_id,
             "occurs_on": (clock.local_now().date() + timedelta(days=14)).isoformat(),
         },
         headers=_auth(org_token),
@@ -853,7 +853,7 @@ async def _event_swap(
 
 
 async def _event_link(client: AsyncClient, event_id: uuid.UUID) -> str:
-    page = await client.get(f"/api/events/{event_id}")
+    page = await client.get(f"/api/public/events/{event_id}")
     assert page.status_code == 200, page.text
     return f"/{page.json()['author_slug']}/event/{event_id}"
 

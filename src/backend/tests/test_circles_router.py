@@ -50,7 +50,7 @@ async def _create_circle_and_term(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": circle.json()["id"],
+            "group_id": circle.json()["id"],
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
         headers=_auth(org_token),
@@ -213,7 +213,7 @@ async def test_patchGroup_missingName_returns400(client: AsyncClient) -> None:
 async def _rsvp_as_new_user(client: AsyncClient, group_id: int, term_id: int, kids: int) -> None:
     token, _ = await _register(client, "GUEST", f"router.rsvp.{uuid.uuid4().hex[:10]}@example.com")
     r = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "child_count": kids},
         headers=_auth(token),
     )
@@ -229,7 +229,7 @@ async def test_listTerms_organizer_returnsAttendeeAndChildCounts(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": group_id,
+            "group_id": group_id,
             "occurs_on": (date.today() + timedelta(days=14)).isoformat(),
         },
         headers=_auth(org_token),
@@ -246,11 +246,11 @@ async def test_listTerms_organizer_returnsAttendeeAndChildCounts(
     await db_session.commit()
 
     response = await client.get(
-        "/api/terms", params={"circle_group_id": group_id}, headers=_auth(org_token)
+        f"/api/groups/{group_id}/terms", headers=_auth(org_token)
     )
 
     assert response.status_code == 200
-    by_id = {t["id"]: t for t in response.json()}
+    by_id = {t["id"]: t for t in response.json()["items"]}
     assert (by_id[term_id]["attendee_count"], by_id[term_id]["child_count"]) == (2, 3)
     empty = by_id[empty_term.json()["id"]]
     assert (empty["attendee_count"], empty["child_count"]) == (0, 0)
@@ -266,12 +266,12 @@ async def test_listTerms_nonOrganizerMember_returnsNullCounts(
     await _rsvp_as_new_user(client, group_id, term_id, 2)
 
     response = await client.get(
-        "/api/terms", params={"circle_group_id": group_id}, headers=_auth(guardian_token)
+        f"/api/groups/{group_id}/terms", headers=_auth(guardian_token)
     )
 
     assert response.status_code == 200
-    assert response.json()[0]["attendee_count"] is None
-    assert response.json()[0]["child_count"] is None
+    assert response.json()["items"][0]["attendee_count"] is None
+    assert response.json()["items"][0]["child_count"] is None
 
 
 async def test_getTerm_organizer_returnsNullCounts(client: AsyncClient) -> None:
@@ -294,9 +294,9 @@ async def test_listTerms_principalWithoutProfile_returns200NullCounts(client: As
     )
 
     response = await client.get(
-        "/api/terms", params={"circle_group_id": group_id}, headers=_auth(profileless_token)
+        f"/api/groups/{group_id}/terms", headers=_auth(profileless_token)
     )
 
     assert response.status_code == 200
-    assert response.json()[0]["attendee_count"] is None
-    assert response.json()[0]["child_count"] is None
+    assert response.json()["items"][0]["attendee_count"] is None
+    assert response.json()["items"][0]["child_count"] is None

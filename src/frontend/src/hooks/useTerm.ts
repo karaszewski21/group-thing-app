@@ -1,34 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { extractProblemMessage } from "../api/problem";
-import { getTerms, type TermResponse } from "../api/terms";
+import { getTerm, type TermResponse } from "../api/terms";
 
-const GROUP_TERMS_KEY = "groupTerms";
-const NO_TERMS: TermResponse[] = [];
+export const TERM_KEY = "term";
 
-interface UseGroupTermsResult {
-  data: TermResponse[];
+interface UseTermResult {
+  term: TermResponse | null;
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
 }
 
-/** Every Term of one Circle. */
-export function useGroupTerms(groupId: string, { enabled }: { enabled: boolean }): UseGroupTermsResult {
+/** One term by id. */
+export function useTerm(termId: string, { enabled }: { enabled: boolean }): UseTermResult {
   const query = useQuery({
-    queryKey: [GROUP_TERMS_KEY, groupId],
-    queryFn: () => getTerms(groupId),
+    queryKey: [TERM_KEY, termId],
+    queryFn: () => getTerm(termId),
     enabled,
   });
   const { refetch: queryRefetch } = query;
-
   const refetch = useCallback(async () => {
     await queryRefetch();
   }, [queryRefetch]);
-
   return {
-    data: query.data ?? NO_TERMS,
-    loading: query.isPending,
+    term: query.data ?? null,
+    loading: enabled && query.isPending,
     error: query.error ? extractProblemMessage(query.error) : null,
     refetch,
   };

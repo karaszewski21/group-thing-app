@@ -75,7 +75,7 @@ async def test_listGroupsForModeration_adminPrincipal_returnsOrganizerAndCounts(
         "/api/terms",
         json={
             "location_id": await create_location(client, org_headers),
-            "circle_group_id": circle_id,
+            "group_id": circle_id,
             "occurs_on": date.today().isoformat(),
         },
         headers=org_headers,
@@ -124,7 +124,7 @@ async def test_listTermsForModeration_adminPrincipal_returnsGroupNameAndSignupCo
         "/api/terms",
         json={
             "location_id": await create_location(client, org_headers),
-            "circle_group_id": circle_id,
+            "group_id": circle_id,
             "occurs_on": "2026-11-02T10:00:00",
         },
         headers=org_headers,
@@ -133,14 +133,14 @@ async def test_listTermsForModeration_adminPrincipal_returnsGroupNameAndSignupCo
         "/api/terms",
         json={
             "location_id": await create_location(client, org_headers),
-            "circle_group_id": circle_id,
+            "group_id": circle_id,
             "occurs_on": "2026-11-09T10:00:00",
             "description": "Drugie spotkanie",
         },
         headers=org_headers,
     )
     rsvp = await client.post(
-        f"/api/groups/public/{circle_id}/rsvp",
+        f"/api/groups/{circle_id}/rsvp",
         json={"term_id": later.json()["id"], "child_count": 2},
         headers=await _authed_headers(client, "modterms.attendee@example.com"),
     )
@@ -153,7 +153,7 @@ async def test_listTermsForModeration_adminPrincipal_returnsGroupNameAndSignupCo
     response = await client.get("/api/terms/moderation?size=100", headers=admin_headers)
 
     assert response.status_code == 200, response.text
-    mine = [row for row in response.json()["items"] if row["circle_group_id"] == circle_id]
+    mine = [row for row in response.json()["items"] if row["group_id"] == circle_id]
     assert [row["id"] for row in mine] == [later.json()["id"], earlier.json()["id"]]
     assert mine[0]["group_name"] == "Krąg Terminów"
     assert mine[0]["description"] == "Drugie spotkanie"
@@ -247,7 +247,7 @@ async def test_restoreGroup_admin_returns204AndGroupReadableAgain(
     assert non_admin.status_code == 403
     assert response.status_code == 204
     assert (await client.get(f"/api/groups/{circle_id}", headers=org_headers)).status_code == 200
-    assert (await client.get(f"/api/groups/public/{circle_id}")).status_code == 200
+    assert (await client.get(f"/api/public/groups/{circle_id}")).status_code == 200
     live = await client.post(f"/api/groups/{circle_id}/restore", headers=admin_headers)
     assert live.status_code == 409
     assert live.json()["message"] == "Grupa nie jest usunięta"

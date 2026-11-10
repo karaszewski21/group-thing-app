@@ -74,7 +74,7 @@ async def _create_circle_and_term(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": circle.json()["id"],
+            "group_id": circle.json()["id"],
             "occurs_on": (occurs_on or (clock.local_now().date() + timedelta(days=7))).isoformat(),
         },
         headers=_auth(org_token),
@@ -85,7 +85,7 @@ async def _create_circle_and_term(
 
 async def _rsvp(client: AsyncClient, token: str, group_id: int, term_id: int) -> int:
     r = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored", "child_count": 0},
         headers=_auth(token),
     )
@@ -734,7 +734,7 @@ async def test_cancelTransaction_reservationTermUpcoming_returns409(client: Asyn
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": group_id,
+            "group_id": group_id,
             "occurs_on": (clock.local_now().date() + timedelta(days=3)).isoformat(),
         },
         headers=_auth(org_token),
@@ -831,7 +831,7 @@ async def test_listMineAsTaker_takeOfLaterTerm_showsOnlyOwnTakesOfThatTerm(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": group_id,
+            "group_id": group_id,
             "occurs_on": (clock.local_now().date() + timedelta(days=14)).isoformat(),
         },
         headers=_auth(org_token),

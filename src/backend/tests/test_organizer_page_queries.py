@@ -84,8 +84,8 @@ async def test_getOrganizerPage_oneVsFiveCircles_constantStatementCountWithinBud
     one_slug = await _populated_organizer(client, db_session, "opq-one", 1)
     five_slug = await _populated_organizer(client, db_session, "opq-five", 5)
 
-    one = await _statement_count(client, engine, f"/api/groups/public/organizers/{one_slug}")
-    five = await _statement_count(client, engine, f"/api/groups/public/organizers/{five_slug}")
+    one = await _statement_count(client, engine, f"/api/public/organizers/{one_slug}")
+    five = await _statement_count(client, engine, f"/api/public/organizers/{five_slug}")
 
     assert one == five, (one, five)
     assert five <= MAIN_ENDPOINT_BUDGET, five
@@ -102,7 +102,7 @@ async def test_getOrganizerPage_loggedInOneVsFiveCirclesAllReserved_constantStat
     for slug in (one_slug, five_slug):
         with count_queries(engine) as statements:
             response = await client.get(
-                f"/api/groups/public/organizers/{slug}", headers=_auth(viewer_token)
+                f"/api/public/organizers/{slug}", headers=_auth(viewer_token)
             )
         assert response.status_code == 200, response.text
         assert all(item["reservation"] for item in response.json()["exchange"]["items"])
@@ -124,7 +124,7 @@ async def test_listOrganizerTerms_oneVsFiveCirclesAndOneVs25Terms_constantStatem
         await _term(client, many_token, many_group, _in_days(day))
 
     counts = [
-        await _statement_count(client, engine, f"/api/groups/public/organizers/{slug}/terms")
+        await _statement_count(client, engine, f"/api/public/organizers/{slug}/terms")
         for slug in (one_slug, five_slug, many_slug)
     ]
 
@@ -168,8 +168,8 @@ async def test_getGroupAccess_oneVsFiveListings_singleProductPhotosStatement(
     one_group, _ = await _term_with_listings(client, db_session, "tpq-one", 1, 1)
     five_group, _ = await _term_with_listings(client, db_session, "tpq-five", 5, 5)
 
-    one = await _photo_statement_count(client, engine, f"/api/groups/public/{one_group}/access")
-    five = await _photo_statement_count(client, engine, f"/api/groups/public/{five_group}/access")
+    one = await _photo_statement_count(client, engine, f"/api/public/groups/{one_group}/access")
+    five = await _photo_statement_count(client, engine, f"/api/public/groups/{five_group}/access")
 
     assert (one, five) == (1, 1)
 
@@ -181,7 +181,7 @@ async def test_getGroupAccess_listingThumbs_approvedPhotoUrlOrNull(
         client, db_session, "tpq-thumb", 2, 1
     )
 
-    response = await client.get(f"/api/groups/public/{group_id}/access")
+    response = await client.get(f"/api/public/groups/{group_id}/access")
 
     assert response.status_code == 200, response.text
     listings = response.json()["group"]["term"]["item_listings"]
@@ -196,7 +196,7 @@ async def test_getPublicCircle_listingWithApprovedPhoto_thumbUrlFilled(
 ) -> None:
     group_id, [item_id] = await _term_with_listings(client, db_session, "tpq-public", 1, 1)
 
-    response = await client.get(f"/api/groups/public/{group_id}")
+    response = await client.get(f"/api/public/groups/{group_id}")
 
     assert response.status_code == 200, response.text
     [listing] = response.json()["term"]["item_listings"]

@@ -4,7 +4,7 @@ import { pageParams, type Page } from "./pagination";
 
 export interface TermResponse {
   id: string;
-  circle_group_id: string;
+  group_id: string;
   /** ISO datetime — class date *and* wall-clock start time (`2026-03-12T17:30:00`). */
   occurs_on: string;
   description: string | null;
@@ -22,7 +22,7 @@ export interface TermResponse {
  * with the Circle's name and its non-withdrawn signup counts. */
 export interface ModerationTermResponse {
   id: string;
-  circle_group_id: string;
+  group_id: string;
   group_name: string;
   occurs_on: string;
   description: string | null;
@@ -36,7 +36,7 @@ export interface ModerationTermResponse {
 /** Omitted `location_id`/`capacity` inherit the group's defaults by value;
  * an explicit `null` suppresses that. */
 export interface CreateTermRequest {
-  circle_group_id: string;
+  group_id: string;
   occurs_on: string;
   description?: string;
   location_id?: string | null;
@@ -60,8 +60,37 @@ export interface CreateNeededItemRequest {
   description?: string;
 }
 
-export function getTerms(circleGroupId: string): Promise<TermResponse[]> {
-  return api.get(`/terms?circle_group_id=${circleGroupId}`);
+/** `upcoming`: from the start of today on, earliest first; `past`: before it, latest first. */
+export type TermPeriod = "upcoming" | "past";
+
+/** `led`: circles the caller leads; `member`: PRIVATE circles the caller or their family belongs to. */
+export type MyTermRole = "led" | "member";
+
+/** `GET /groups/mine/terms` row — only what a `/meetings` card shows;
+ * `attendee_count`/`child_count` are set for led terms. */
+export interface MyTermResponse
+  extends Pick<TermResponse, "id" | "group_id" | "occurs_on" | "description" | "attendee_count" | "child_count"> {
+  group_name: string;
+  organizer_slug: string;
+  location: LocationRefResponse | null;
+  capacity: number | null;
+}
+
+/** One page of a circle's terms in `period`. */
+export function getGroupTerms(
+  groupId: string,
+  period: TermPeriod,
+  page: number,
+  size?: number,
+): Promise<Page<TermResponse>> {
+  const params = new URLSearchParams([["period", period], ...pageParams(page, size)]);
+  return api.get(`/groups/${encodeURIComponent(groupId)}/terms?${params}`);
+}
+
+/** One page of the caller's led or member terms, latest date first. */
+export function getMyTerms(role: MyTermRole, page: number, size?: number): Promise<Page<MyTermResponse>> {
+  const params = new URLSearchParams([["role", role], ...pageParams(page, size)]);
+  return api.get(`/groups/mine/terms?${params}`);
 }
 
 export function getTerm(id: string): Promise<TermResponse> {

@@ -51,7 +51,7 @@ async def _set_location(
 
 async def _remove_location(client: AsyncClient, token: str, item_id: uuid.UUID) -> None:
     """Soft-deletes the item's place, leaving the item without a live one."""
-    details = await client.get(f"/api/inventory-items/{item_id}/details", headers=_auth(token))
+    details = await client.get(f"/api/public/items/{item_id}/details", headers=_auth(token))
     assert details.status_code == 200, details.text
     deleted = await client.delete(
         f"/api/locations/{details.json()['location_id']}", headers=_auth(token)
@@ -118,7 +118,7 @@ async def test_takeItem_personalGift_createsNoContextReservationAndNullContext(
     (reservation,) = await _reservations(db_session, item_id)
     assert (reservation.term_id, reservation.event_id) == (None, None)
     assert reservation.status.value == "PENDING"
-    details = await client.get(f"/api/inventory-items/{item_id}/details", headers=_auth(taker))
+    details = await client.get(f"/api/public/items/{item_id}/details", headers=_auth(taker))
     assert details.json()["status"]["code"] == "RESERVED"
     assert details.json()["status"]["personal_pickup"] is True
     detail = await client.get(f"/api/reservations/{reservation.id}", headers=_auth(taker))
@@ -138,7 +138,7 @@ async def test_takeItem_personalItemWithoutLiveLocation_returns409UntilRelocated
 
     deleted_status, deleted_body = await _take(client, unlocated, taker)
     unlisted_status, _ = await _take(client, uuid.uuid4(), taker)
-    pickup = await client.get(f"/api/items/{unlocated}/actions", headers=_auth(taker))
+    pickup = await client.get(f"/api/public/items/{unlocated}/actions", headers=_auth(taker))
 
     assert (deleted_status, deleted_body["message"]) == (409, NO_LOCATION_MESSAGE)
     assert unlisted_status == 404
@@ -326,7 +326,7 @@ async def test_personalGift_itemMadePrivateAndLocationRemoved_takerStillConfirms
     deleted = await client.delete(f"/api/locations/{location_id}", headers=_auth(owner))
     assert deleted.status_code == 204, deleted.text
 
-    actions = await client.get(f"/api/items/{item_id}/actions", headers=_auth(taker))
+    actions = await client.get(f"/api/public/items/{item_id}/actions", headers=_auth(taker))
     assert actions.status_code == 200, actions.text
     party = actions.json()["party_reservation"]
     assert (party["reservation_id"], party["can_confirm"]) == (str(reservation.id), True)

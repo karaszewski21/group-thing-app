@@ -7,11 +7,13 @@ import { NOTIFICATIONS_KEY } from "../../hooks/useNotifications";
 import { subscribePendingActionResolved } from "../../components/layout/pending/pendingActionResolved";
 import { MY_PLEDGES_KEY } from "../../hooks/useMyPledges";
 import { NEEDED_ITEMS_KEY } from "../../hooks/useNeededItems";
+import { MY_TERMS_KEY } from "../../hooks/useMyTerms";
+import { GROUP_TERMS_KEY } from "../../hooks/useNearestGroupTerm";
+import { TERM_KEY } from "../../hooks/useTerm";
 import {
   createLightweightMembers,
   createOwnFamily,
   getGuardians,
-  getMembershipsForFamily,
   getMyFamilies,
   removeFamilyMember,
   renameFamily,
@@ -43,7 +45,6 @@ import { getMyOrganization } from "../../api/organizations";
 import {
   createNeededItem,
   createTerm,
-  getTerms,
   type TermResponse,
 } from "../../api/terms";
 import {
@@ -57,7 +58,7 @@ import { EMPTY_EVENT_DRAFT, type EventDraft } from "../events/eventDraft";
 import { newTermDraft, type TermDraft } from "../terms/termDraft";
 import { useFirstTermStepper } from "../terms/hooks/useFirstTermStepper";
 import { createEmptyItemQuickAddValue, type ItemEditDraft, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
-import { defaultVisibility, termPublicPath, GIFT_LIMIT_MESSAGE, ITEM_MODE_TO_RESERVATION_TYPE, MAX_GIFT_ITEMS, RESERVATION_TYPE_TO_ITEM_MODE, type GuestTermCard, type ItemMode, type ModalKind, type NewFamilyMember, type PanelTerm, capacityText, parseCapacity } from "../../utils/appHelpers";
+import { defaultVisibility, GIFT_LIMIT_MESSAGE, ITEM_MODE_TO_RESERVATION_TYPE, MAX_GIFT_ITEMS, RESERVATION_TYPE_TO_ITEM_MODE, type GuestTermCard, type ItemMode, type ModalKind, type NewFamilyMember, capacityText, circleTermPath, parseCapacity } from "../../utils/appHelpers";
 import { type View, viewPath } from "../../routing/paths";
 import { AppDataContext } from "./appDataStore";
 
@@ -97,9 +98,6 @@ function useAppDataValue() {
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [myGroups, setMyGroups] = useState<GroupResponse[]>([]);
-  // Terms of the groups I lead (`terms`) and of my family's member circles (`guestTerms`), kept apart.
-  const [terms, setTerms] = useState<PanelTerm[]>([]);
-  const [guestTerms, setGuestTerms] = useState<PanelTerm[]>([]);
   const [family, setFamily] = useState<FamilyOut | null>(null);
   const [guardians, setGuardians] = useState<GuardianResponse[]>([]);
   const [myAttendances, setMyAttendances] = useState<MyAttendanceResponse[]>([]);
@@ -230,8 +228,7 @@ function useAppDataValue() {
 
       const activeLeaderships = leaderships.filter((l) => l.valid_to === null);
 
-      // "Rodzina" section (§7): fetched once here and reused below for the
-      // family's member circles instead of a second `getMyFamilies()` round trip.
+      // "Rodzina" section (§7).
      
       const myFamilies = await getMyFamilies();
       const myFamily = myFamilies[0] ?? null;
@@ -256,13 +253,17 @@ function useAppDataValue() {
       }
 
       // "Zadeklarowane rzeczy" and the notification bell read their own queries.
+      // So do the terms of "Spotkania" and of the group pages.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: [MY_PLEDGES_KEY] }),
         queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
+        queryClient.invalidateQueries({ queryKey: [MY_TERMS_KEY] }),
+        queryClient.invalidateQueries({ queryKey: [GROUP_TERMS_KEY] }),
+        queryClient.invalidateQueries({ queryKey: [TERM_KEY] }),
       ]);
 
      
-      // A group deleted between the leadership/membership read and these
+      // A group deleted between the leadership read and these
       // fetches answers 404; skip it instead of failing the whole panel.
       async function unlessGone<T>(request: Promise<T>): Promise<T | null> {
         try {
@@ -277,30 +278,8 @@ function useAppDataValue() {
           (group): group is GroupResponse => group !== null,
         );
 
-      // Led groups and the family's member circles load independently:
-      // leading a group never hides the circles the family belongs to.
       const ledGroups = await getGroups(activeLeaderships.map((l) => l.to_group_id));
       setMyGroups(ledGroups);
-      let memberGroups: GroupResponse[] = [];
-      if (myFamily) {
-        const ledIds = new Set(ledGroups.map((g) => g.id));
-        const memberships = await getMembershipsForFamily(myFamily.id);
-        const active = memberships.filter((m) => m.valid_to === null && !ledIds.has(m.to_group_id));
-        memberGroups = await getGroups(active.map((m) => m.to_group_id));
-      }
-
-      async function getGroupTerms(group: GroupResponse) {
-        return (await getTerms(group.id)).map((term) => ({ term, group }));
-      }
-      async function getTermsOf(groups: GroupResponse[]) {
-        const termsByGroup = await Promise.all(
-          groups.map(async (group) => (await unlessGone(getGroupTerms(group))) ?? []),
-        );
-        return termsByGroup.flat().sort((a, b) => a.term.occurs_on.localeCompare(b.term.occurs_on));
-      }
-      const [ledTerms, memberTerms] = await Promise.all([getTermsOf(ledGroups), getTermsOf(memberGroups)]);
-      setTerms(ledTerms);
-      setGuestTerms(memberTerms);
     } catch (err) {
      
       setError(err instanceof Error ? err.message : "Nie udało się wczytać panelu");
@@ -429,7 +408,7 @@ function useAppDataValue() {
       let term: TermResponse;
       try {
         term = await createTerm({
-          circle_group_id: termGroupId,
+          group_id: termGroupId,
           occurs_on: termDate,
           description: termDescription || undefined,
           location_id: termLocationId,
@@ -673,36 +652,20 @@ function useAppDataValue() {
     }
   }
 
-  // The "Zapisane" cards: my RSVPs, then my family circles' other terms. A
-  // term shows once (led > attended > membership-only), sorted by date.
-  const ledTermIds = new Set(terms.map((t) => t.term.id));
-  const guestTermById = new Map(guestTerms.map((t) => [t.term.id, t]));
-  const attendedCards: GuestTermCard[] = myAttendances
-    .filter((a) => !ledTermIds.has(a.term_id))
+  // The "Zapisane" cards: my RSVPs, sorted by date. "Spotkania" adds the
+  // family circles' other terms page by page.
+  const savedCards: GuestTermCard[] = myAttendances
     .map((a) => ({
       termId: a.term_id,
       occursOn: a.occurs_on,
       groupName: a.group_name,
-      description: guestTermById.get(a.term_id)?.term.description ?? null,
-      href: `/${a.organizer_slug}/group/${a.group_id}/term/${a.term_id}`,
+      description: a.description,
+      href: circleTermPath(a.organizer_slug, a.group_id, a.term_id),
       location: a.location,
       capacity: a.capacity,
       attendeeCount: a.attendee_count,
-    }));
-  const attendedIds = new Set(attendedCards.map((c) => c.termId));
-  const memberCards: GuestTermCard[] = guestTerms
-    .filter(({ term }) => !ledTermIds.has(term.id) && !attendedIds.has(term.id))
-    .map(({ term, group }) => ({
-      termId: term.id,
-      occursOn: term.occurs_on,
-      groupName: group.name,
-      description: term.description,
-      href: termPublicPath(group, term.id),
-      location: term.location ?? null,
-      capacity: term.capacity ?? null,
-      attendeeCount: null,
-    }));
-  const savedCards = [...attendedCards, ...memberCards].sort((a, b) => a.occursOn.localeCompare(b.occursOn));
+    }))
+    .sort((a, b) => a.occursOn.localeCompare(b.occursOn));
 
   return {
     // --- auth ---
@@ -712,7 +675,6 @@ function useAppDataValue() {
     error,
     profile,
     myGroups,
-    terms,
     savedCards,
     family,
     guardians,

@@ -30,7 +30,7 @@ function useDismissibleHint(storageKey: string): [boolean, () => void] {
 }
 
 export function HomeView() {
-  const { profile, organizationSlug, terms, myGroups, items, itemModes, setView, openFirstTermStepper } = useAppData();
+  const { profile, organizationSlug, myGroups, items, itemModes, setView, openFirstTermStepper } = useAppData();
   const { username } = useAuth();
   // Dismissed flags are per account (`hintKey`): a browser shared by several
   // accounts never hides a new account's hints because another dismissed them.
@@ -153,7 +153,7 @@ export function HomeView() {
           />
         )}
 
-        {hasGroups && terms.length === 0 && !hintOrgFirstTermDismissed && (
+        {hasGroups && myGroups.every((g) => !g.term_count) && !hintOrgFirstTermDismissed && (
           <HintCard
             icon={<CalendarPlusIcon c="currentColor" />}
             title="Dodaj swój pierwszy termin"

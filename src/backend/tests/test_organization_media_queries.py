@@ -152,7 +152,7 @@ async def test_publicRead_onlyApprovedNewestPerSlot_orderedGallery_cdnUrls(
         db_session, org_id, uploader, MediaKind.GALLERY, approved, minutes=6, sort_order=0
     )
 
-    response = await client.get(f"/api/organizations/public/{organization['slug']}")
+    response = await client.get(f"/api/public/organizations/{organization['slug']}")
 
     assert response.status_code == 200
     body = response.json()
@@ -169,9 +169,9 @@ async def test_publicRead_statementCount_isTwo_forZeroAndFullMedia(
     await _full_media(db_session, full["id"])
 
     with count_queries(engine) as empty_statements:
-        empty_response = await client.get(f"/api/organizations/public/{empty['slug']}")
+        empty_response = await client.get(f"/api/public/organizations/{empty['slug']}")
     with count_queries(engine) as full_statements:
-        full_response = await client.get(f"/api/organizations/public/{full['slug']}")
+        full_response = await client.get(f"/api/public/organizations/{full['slug']}")
 
     assert empty_response.status_code == 200
     assert empty_response.json()["gallery"] == []
@@ -192,7 +192,7 @@ async def test_publicRead_storageNone_returnsEmptyMedia_oneStatement(
     app.dependency_overrides[get_storage] = lambda: None
 
     with count_queries(engine) as statements:
-        response = await client.get(f"/api/organizations/public/{organization['slug']}")
+        response = await client.get(f"/api/public/organizations/{organization['slug']}")
 
     assert response.status_code == 200
     body = response.json()

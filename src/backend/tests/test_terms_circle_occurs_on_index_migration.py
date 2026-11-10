@@ -40,4 +40,4 @@ async def test_migration0053_downgradeUpgrade_roundTrip(
 
     indexes = await _read_indexes(engine)
     assert indexes[INDEX_NAME] == ["circle_group_id", "occurs_on"]
-    assert indexes["ix_terms_circle_group_id"] == ["circle_group_id"]
+    assert indexes["ix_terms_circle_group_id"] == ["group_id"]

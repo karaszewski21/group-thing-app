@@ -1,4 +1,4 @@
-"""`GET /api/groups/public/{group_id}/access` — server-resolved caller
+"""`GET /api/public/groups/{group_id}/access` — server-resolved caller
 relationship to a Circle (is_member/is_organizer/can_view_content/is_attending),
 replacing the frontend's previous "any auth token = member view" heuristic.
 
@@ -57,7 +57,7 @@ async def test_getGroupAccess_publicGroupUnauthenticated_canViewNoMembership(
     org_token = await _register(client, "ORGANIZER", "access.org1@example.com")
     group_id = await _create_circle(client, org_token, "Access Public Circle")
 
-    response = await client.get(f"/api/groups/public/{group_id}/access")
+    response = await client.get(f"/api/public/groups/{group_id}/access")
 
     assert response.status_code == 200
     body = response.json()
@@ -77,7 +77,7 @@ async def test_getGroupAccess_organizerOwnGroup_reportsOrganizerAndMember(
     org_token = await _register(client, "ORGANIZER", "access.org2@example.com")
     group_id = await _create_circle(client, org_token, "Access Organizer Circle")
 
-    response = await client.get(f"/api/groups/public/{group_id}/access", headers=_auth(org_token))
+    response = await client.get(f"/api/public/groups/{group_id}/access", headers=_auth(org_token))
 
     assert response.status_code == 200
     assert response.json()["access"] == {
@@ -97,7 +97,7 @@ async def test_getGroupAccess_privateGroupUnrelatedLoggedInVisitor_cannotView(
     visitor_token = await _register(client, "GUEST", "access.visitor3@example.com")
 
     response = await client.get(
-        f"/api/groups/public/{group_id}/access", headers=_auth(visitor_token)
+        f"/api/public/groups/{group_id}/access", headers=_auth(visitor_token)
     )
 
     assert response.status_code == 200
@@ -116,7 +116,7 @@ async def test_getGroupAccess_privateGroupUnauthenticated_cannotView(
     org_token = await _register(client, "ORGANIZER", "access.org4@example.com")
     group_id = await _create_circle(client, org_token, "Access Private Circle 4", "PRIVATE")
 
-    response = await client.get(f"/api/groups/public/{group_id}/access")
+    response = await client.get(f"/api/public/groups/{group_id}/access")
 
     assert response.status_code == 200
     body = response.json()
@@ -134,7 +134,7 @@ async def test_getGroupAccess_loggedInAttendeeOfShownTerm_reportsAttending(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": group_id,
+            "group_id": group_id,
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
         headers=_auth(org_token),
@@ -144,17 +144,17 @@ async def test_getGroupAccess_loggedInAttendeeOfShownTerm_reportsAttending(
     attendee_token = await _register(client, "GUEST", "access.attendee5@example.com")
     bystander_token = await _register(client, "GUEST", "access.bystander5@example.com")
     rsvp = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored"},
         headers=_auth(attendee_token),
     )
     assert rsvp.status_code == 201
 
     attendee = await client.get(
-        f"/api/groups/public/{group_id}/access?term_id={term_id}", headers=_auth(attendee_token)
+        f"/api/public/groups/{group_id}/access?term_id={term_id}", headers=_auth(attendee_token)
     )
     bystander = await client.get(
-        f"/api/groups/public/{group_id}/access?term_id={term_id}", headers=_auth(bystander_token)
+        f"/api/public/groups/{group_id}/access?term_id={term_id}", headers=_auth(bystander_token)
     )
 
     assert attendee.json()["access"]["is_attending"] is True
@@ -169,7 +169,7 @@ async def test_getGroupAccess_withdrawnAttendee_isAttendingButNotActiveAttendee(
     term_id = await _create_term(client, org_token, group_id)
     attendee_token = await _register(client, "GUEST", "access.attendee6@example.com")
     rsvp = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored"},
         headers=_auth(attendee_token),
     )
@@ -182,7 +182,7 @@ async def test_getGroupAccess_withdrawnAttendee_isAttendingButNotActiveAttendee(
     assert withdraw.status_code == 200, withdraw.text
 
     withdrawn = await _access(client, attendee_token, group_id, term_id)
-    anonymous = await client.get(f"/api/groups/public/{group_id}/access?term_id={term_id}")
+    anonymous = await client.get(f"/api/public/groups/{group_id}/access?term_id={term_id}")
 
     assert active["access"]["is_attending"] is True
     assert active["access"]["is_active_attendee"] is True
@@ -196,7 +196,7 @@ async def _create_term(client: AsyncClient, org_token: str, group_id: int) -> in
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": group_id,
+            "group_id": group_id,
             "occurs_on": (date.today() + timedelta(days=7)).isoformat(),
         },
         headers=_auth(org_token),
@@ -238,14 +238,14 @@ async def test_getGroupAccess_privateMember_returnsFullContentAndIsAttending(
         client, db_session, "pm1"
     )
     rsvp = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored"},
         headers=_auth(member_token),
     )
     assert rsvp.status_code == 201
 
     response = await client.get(
-        f"/api/groups/public/{group_id}/access?term_id={term_id}", headers=_auth(member_token)
+        f"/api/public/groups/{group_id}/access?term_id={term_id}", headers=_auth(member_token)
     )
 
     assert response.status_code == 200
@@ -268,7 +268,7 @@ async def test_getGroupAccess_privateMemberForeignTermId_returns404(
     foreign_term_id = await _create_term(client, other_org_token, other_group_id)
 
     response = await client.get(
-        f"/api/groups/public/{group_id}/access?term_id={foreign_term_id}",
+        f"/api/public/groups/{group_id}/access?term_id={foreign_term_id}",
         headers=_auth(member_token),
     )
 
@@ -284,7 +284,7 @@ async def test_getGroupAccess_privateOutsiderForeignTermId_keepsReduced200(
     outsider_token = await _register(client, "GUEST", "access.pm3.outsider@example.com")
 
     response = await client.get(
-        f"/api/groups/public/{group_id}/access?term_id={uuid.uuid4()}",
+        f"/api/public/groups/{group_id}/access?term_id={uuid.uuid4()}",
         headers=_auth(outsider_token),
     )
 
@@ -302,7 +302,7 @@ async def test_getPublicCircleView_privateGroup_staysReducedForMember(
     )
 
     response = await client.get(
-        f"/api/groups/public/{group_id}?term_id={term_id}", headers=_auth(member_token)
+        f"/api/public/groups/{group_id}?term_id={term_id}", headers=_auth(member_token)
     )
 
     assert response.status_code == 200
@@ -329,7 +329,7 @@ async def _private_circle_with_outsider(
 
 async def _access(client: AsyncClient, token: str, group_id: int, term_id: int) -> dict:
     r = await client.get(
-        f"/api/groups/public/{group_id}/access?term_id={term_id}", headers=_auth(token)
+        f"/api/public/groups/{group_id}/access?term_id={term_id}", headers=_auth(token)
     )
     assert r.status_code == 200
     return r.json()
@@ -345,7 +345,7 @@ async def test_groupReads_privateGroupWithCode_neverExposeJoinCode(
     assert code.status_code == 200
 
     own = await client.get(f"/api/groups/{group_id}", headers=_auth(org_token))
-    public = await client.get(f"/api/groups/public/{group_id}", headers=_auth(org_token))
+    public = await client.get(f"/api/public/groups/{group_id}", headers=_auth(org_token))
     organizer_access = await _access(client, org_token, group_id, term_id)
     outsider_access = await _access(client, outsider_token, group_id, term_id)
 
@@ -362,6 +362,7 @@ async def test_groupReads_privateGroupWithCode_neverExposeJoinCode(
         "default_capacity",
         "created_at",
         "updated_at",
+        "term_count",
     }
     public_keys = {
         "id",
@@ -397,7 +398,7 @@ async def test_getGroupAccess_exMemberAfterRedeem_reducedView(
     code = await client.get(f"/api/groups/{group_id}/join-code", headers=_auth(org_token))
     assert code.status_code == 200
     redeem = await client.post(
-        f"/api/groups/public/{group_id}/join-code",
+        f"/api/groups/{group_id}/join-code/redeem",
         json={"code": code.json()["code"]},
         headers=_auth(outsider_token),
     )

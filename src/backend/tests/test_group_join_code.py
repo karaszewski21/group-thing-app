@@ -1,6 +1,6 @@
 """PRIVATE-group join codes: the organizer's lazy `GET /api/groups/{id}/join-code`
 and `POST .../join-code/regenerate`, and the visitor's
-`POST /api/groups/public/{id}/join-code` redeem (error order, idempotent
+`POST /api/groups/{id}/join-code/redeem` redeem (error order, idempotent
 `{created: false}`, the in-memory failure limiter and the lazy-GET
 `StaleDataError` recovery)."""
 
@@ -50,7 +50,7 @@ async def _create_circle_and_term(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": group_id,
+            "group_id": group_id,
             "occurs_on": (clock.local_now() + timedelta(days=7)).replace(microsecond=0).isoformat(),
         },
         headers=_auth(org_token),
@@ -76,7 +76,7 @@ async def _get_code(client: AsyncClient, org_token: str, group_id: str) -> str:
 async def _redeem(client: AsyncClient, token: str | None, group_id: str, code: str) -> Any:
     headers = _auth(token) if token is not None else {}
     return await client.post(
-        f"/api/groups/public/{group_id}/join-code", json={"code": code}, headers=headers
+        f"/api/groups/{group_id}/join-code/redeem", json={"code": code}, headers=headers
     )
 
 
@@ -160,10 +160,10 @@ async def test_redeemJoinCode_validCode_createdTrue_accessViewable_rsvp201(
 
     assert response.status_code == 200, response.text
     assert response.json() == {"created": True}
-    access = await client.get(f"/api/groups/public/{group_id}/access", headers=_auth(guest_token))
+    access = await client.get(f"/api/public/groups/{group_id}/access", headers=_auth(guest_token))
     assert access.json()["access"]["can_view_content"] is True
     rsvp = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "ignored"},
         headers=_auth(guest_token),
     )

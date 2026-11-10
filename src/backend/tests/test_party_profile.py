@@ -1,4 +1,4 @@
-"""`GET /api/groups/public/parties/{party_id}`: the anonymous person profile
+"""`GET /api/public/parties/{party_id}`: the anonymous person profile
 behind `/<party-id>`. Covers the response contract, the 404s that keep a
 private person hidden, each public footprint (listed item, authored event,
 led PUBLIC circle), the bio and the recent items cap."""
@@ -19,7 +19,7 @@ PROFILE_KEYS = {"owner", "bio", "avatar_url", "nearest", "counts", "recent_items
 
 
 async def _profile(client: AsyncClient, party_id: uuid.UUID) -> dict[str, Any]:
-    response = await client.get(f"/api/groups/public/parties/{party_id}")
+    response = await client.get(f"/api/public/parties/{party_id}")
     assert response.status_code == 200, response.text
     assert response.headers["cache-control"] == "public, max-age=0, s-maxage=60"
     body: dict[str, Any] = response.json()
@@ -33,14 +33,14 @@ async def _profile(client: AsyncClient, party_id: uuid.UUID) -> dict[str, Any]:
 
 
 async def test_getPartyProfile_unknownOrNoPublicFootprint_returns404(client: AsyncClient) -> None:
-    assert (await client.get(f"/api/groups/public/parties/{uuid.uuid4()}")).status_code == 404
+    assert (await client.get(f"/api/public/parties/{uuid.uuid4()}")).status_code == 404
 
     _, quiet_party_id = await _register(client, "GUEST", "pp.quiet@example.com")
-    assert (await client.get(f"/api/groups/public/parties/{quiet_party_id}")).status_code == 404
+    assert (await client.get(f"/api/public/parties/{quiet_party_id}")).status_code == 404
 
     org_token, org_party_id = await _register(client, "ORGANIZER", "pp.private.circle@example.com")
     await _circle(client, org_token, "Pp prywatny", "PRIVATE")
-    assert (await client.get(f"/api/groups/public/parties/{org_party_id}")).status_code == 404
+    assert (await client.get(f"/api/public/parties/{org_party_id}")).status_code == 404
 
 
 async def test_getPartyProfile_listedItems_bioCountsAndRecentItemsCapped(
@@ -72,7 +72,7 @@ async def test_getPartyProfile_listedItems_bioCountsAndRecentItemsCapped(
     assert len(body["recent_items"]) == PROFILE_RECENT_ITEMS
     assert body["nearest"] is None
     assert body["is_me"] is False
-    own = await client.get(f"/api/groups/public/parties/{party_id}", headers=_auth(token))
+    own = await client.get(f"/api/public/parties/{party_id}", headers=_auth(token))
     assert own.json()["is_me"] is True
 
 
@@ -115,7 +115,7 @@ async def test_getPublicCircle_organizerPartyId_linksPersonProfile(client: Async
     token, party_id = await _register(client, "ORGANIZER", "pp.term.link@example.com")
     group_id = await _circle(client, token, "Pp link")
 
-    response = await client.get(f"/api/groups/public/{group_id}")
+    response = await client.get(f"/api/public/groups/{group_id}")
 
     assert response.status_code == 200, response.text
     assert response.json()["organizer_party_id"] == str(party_id)

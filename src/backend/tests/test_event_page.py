@@ -1,5 +1,6 @@
-"""`GET/PATCH/DELETE /api/events/{id}`: the public event page (participants
-with their listed items, per-viewer flags, constant query count),
+"""`GET /api/public/events/{id}` and `PATCH/DELETE /api/events/{id}`: the
+public event page (participants with their listed items, per-viewer flags,
+constant query count),
 author-only editing, and deleting only while nobody is signed up."""
 
 from __future__ import annotations
@@ -101,7 +102,9 @@ async def _attend(client: AsyncClient, event_id: str, token: str) -> None:
 
 async def _page(client: AsyncClient, event_id: str, token: str | None = None) -> dict[str, Any]:
     """The detail payload, with its exact key sets checked at every level."""
-    response = await client.get(f"/api/events/{event_id}", headers=_auth(token) if token else None)
+    response = await client.get(
+        f"/api/public/events/{event_id}", headers=_auth(token) if token else None
+    )
     assert response.status_code == 200, response.text
     body: dict[str, Any] = response.json()
     assert set(body) == DETAIL_KEYS
@@ -146,9 +149,9 @@ async def test_getEvent_anonymousAndAuthor_returnsExactKeysAndAuthorFlag(
     )
     assert upload.status_code == 200, upload.text
 
-    anonymous = await client.get(f"/api/events/{event_id}")
-    as_other = await client.get(f"/api/events/{event_id}", headers=_auth(other))
-    as_author = await client.get(f"/api/events/{event_id}", headers=_auth(token))
+    anonymous = await client.get(f"/api/public/events/{event_id}")
+    as_other = await client.get(f"/api/public/events/{event_id}", headers=_auth(other))
+    as_author = await client.get(f"/api/public/events/{event_id}", headers=_auth(token))
 
     assert anonymous.status_code == 200, anonymous.text
     body = anonymous.json()
@@ -165,7 +168,7 @@ async def test_getEvent_anonymousAndAuthor_returnsExactKeysAndAuthorFlag(
 
 
 async def test_getEvent_unknownId_returns404Polish(client: AsyncClient) -> None:
-    response = await client.get(f"/api/events/{uuid.uuid4()}")
+    response = await client.get(f"/api/public/events/{uuid.uuid4()}")
 
     assert response.status_code == 404
     assert response.json()["message"] == "Nie znaleziono wydarzenia."
@@ -186,7 +189,7 @@ async def test_updateEvent_author_changesSentFieldsOnly(client: AsyncClient) -> 
     assert body["name"] == "Piknik nad rzeką"
     assert body["starts_at"] == "2026-11-16T15:00:00"
     assert body["description"] is None
-    page = await client.get(f"/api/events/{event_id}")
+    page = await client.get(f"/api/public/events/{event_id}")
     assert page.json()["name"] == "Piknik nad rzeką"
 
 
@@ -248,7 +251,7 @@ async def test_deleteEvent_activeSignUp_returns409KeepsEvent(
 
     assert response.status_code == 409
     assert response.json()["message"] == "Nie można usunąć wydarzenia, na które ktoś się zapisał."
-    page = await client.get(f"/api/events/{event_id}")
+    page = await client.get(f"/api/public/events/{event_id}")
     assert page.status_code == 200
     assert page.json()["attendee_count"] == 1
 
@@ -275,7 +278,7 @@ async def test_deleteEvent_withdrawnSignUpAndBanner_returns204StagesBannerDelete
     response = await client.delete(f"/api/events/{event_id}", headers=_auth(token))
 
     assert response.status_code == 204, response.text
-    assert (await client.get(f"/api/events/{event_id}")).status_code == 404
+    assert (await client.get(f"/api/public/events/{event_id}")).status_code == 404
     staged = (
         await db_session.execute(
             select(OutboxEntry.payload).where(OutboxEntry.event_type == OBJECTS_DELETE)
@@ -292,7 +295,7 @@ async def test_deleteEvent_nonAuthor_returns403(client: AsyncClient) -> None:
     response = await client.delete(f"/api/events/{event_id}", headers=_auth(other))
 
     assert response.status_code == 403
-    assert (await client.get(f"/api/events/{event_id}")).status_code == 200
+    assert (await client.get(f"/api/public/events/{event_id}")).status_code == 200
 
 
 async def test_getEvent_withAttendees_authorFirstThenSignUpOrder_isMeAndIsAuthorFlags(

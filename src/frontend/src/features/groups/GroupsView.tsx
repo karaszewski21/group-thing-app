@@ -20,7 +20,7 @@ const TILE_BUTTON =
 /** `/groups` ("Moje grupy"): the groups the caller leads, with links to
  * adding and editing them (own pages) and deleting them. Their terms stay on `/meetings`. */
 export function GroupsView() {
-  const { myGroups, terms, load, showToast } = useAppData();
+  const { myGroups, load, showToast } = useAppData();
   const [pendingDeleteGroup, setPendingDeleteGroup] = useState<GroupResponse | null>(null);
   const deleteFailedRef = useRef(false);
 
@@ -61,7 +61,7 @@ export function GroupsView() {
         ) : (
           <div className="grid grid-cols-2 gap-2.5">
             {myGroups.map((g, index) => {
-              const termCount = terms.filter((t) => t.group.id === g.id).length;
+              const termCount = g.term_count ?? 0;
               return (
                 <div
                   key={g.id}

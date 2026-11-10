@@ -318,15 +318,7 @@ async def has_active_attendance(db: AsyncSession, term_id: uuid.UUID, party_id: 
 
 
 async def list_led_group_ids_for_party(db: AsyncSession, party_id: uuid.UUID) -> set[uuid.UUID]:
-    result = await db.execute(
-        select(Leadership.to_group_id)
-        .join(GroupRole, GroupRole.id == Leadership.from_role_id)
-        .where(
-            GroupRole.party_id == party_id,
-            GroupRole.role_type == GroupRoleType.ORGANIZATOR,
-            Leadership.valid_to.is_(None),
-        )
-    )
+    result = await db.execute(led_group_ids_query(party_id))
     return set(result.scalars().all())
 
 
@@ -433,6 +425,100 @@ async def list_terms_for_group(db: AsyncSession, circle_group_id: uuid.UUID) -> 
         select(Term).where(Term.circle_group_id == circle_group_id).order_by(Term.occurs_on.desc())
     )
     return list(result.scalars().all())
+
+
+def led_group_ids_query(party_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
+    """Circles the party currently leads."""
+    return (
+        select(Leadership.to_group_id)
+        .join(GroupRole, GroupRole.id == Leadership.from_role_id)
+        .where(
+            GroupRole.party_id == party_id,
+            GroupRole.role_type == GroupRoleType.ORGANIZATOR,
+            Leadership.valid_to.is_(None),
+        )
+    )
+
+
+def member_group_ids_query(party_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
+    """PRIVATE circles the party or anyone in the party's families currently
+    belongs to, without the circles the party leads. A PUBLIC circle's terms
+    reach the panel through RSVPs instead."""
+    own_family_ids = (
+        select(FamilyMembership.to_family_id)
+        .join(FamilyRole, FamilyRole.id == FamilyMembership.from_role_id)
+        .where(FamilyRole.party_id == party_id, FamilyMembership.valid_to.is_(None))
+    )
+    family_party_ids = (
+        select(FamilyRole.party_id)
+        .join(FamilyMembership, FamilyMembership.from_role_id == FamilyRole.id)
+        .where(
+            FamilyMembership.to_family_id.in_(own_family_ids),
+            FamilyMembership.valid_to.is_(None),
+        )
+    )
+    return (
+        select(Membership.to_group_id)
+        .join(GroupRole, GroupRole.id == Membership.from_role_id)
+        .join(Group, Group.id == Membership.to_group_id)
+        .where(
+            or_(GroupRole.party_id == party_id, GroupRole.party_id.in_(family_party_ids)),
+            GroupRole.role_type == GroupRoleType.MEMBER,
+            Group.visibility == GroupVisibility.PRIVATE,
+            Membership.valid_to.is_(None),
+            Membership.to_group_id.not_in(led_group_ids_query(party_id)),
+        )
+    )
+
+
+async def list_terms_page(
+    db: AsyncSession,
+    circles: uuid.UUID | Select[tuple[uuid.UUID]],
+    upcoming: bool | None,
+    since: datetime,
+    offset: int,
+    limit: int,
+) -> tuple[list[tuple[Term, str]], int]:
+    """One page of the Terms of live circles with each circle's name, plus the
+    total. `upcoming=True`: from `since` on, earliest first; `False`: before
+    `since`, latest first; `None`: every Term, latest first."""
+    query = (
+        select(Term, Group.name)
+        .join(Group, Group.id == Term.circle_group_id)
+        .where(
+            Term.circle_group_id == circles
+            if isinstance(circles, uuid.UUID)
+            else Term.circle_group_id.in_(circles),
+            Group.deleted_at.is_(None),
+        )
+    )
+    if upcoming is True:
+        query = query.where(Term.occurs_on >= since)
+    elif upcoming is False:
+        query = query.where(Term.occurs_on < since)
+    total = (
+        await db.execute(select(func.count()).select_from(query.order_by(None).subquery()))
+    ).scalar_one()
+    order = (
+        (Term.occurs_on.asc(), Term.id.asc())
+        if upcoming is True
+        else (Term.occurs_on.desc(), Term.id.desc())
+    )
+    result = await db.execute(query.order_by(*order).offset(offset).limit(limit))
+    return [(term, name) for term, name in result.all()], int(total)
+
+
+async def count_terms_by_group(
+    db: AsyncSession, group_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    if not group_ids:
+        return {}
+    result = await db.execute(
+        select(Term.circle_group_id, func.count())
+        .where(Term.circle_group_id.in_(group_ids))
+        .group_by(Term.circle_group_id)
+    )
+    return {group_id: int(count) for group_id, count in result.all()}
 
 
 async def count_terms(db: AsyncSession) -> int:

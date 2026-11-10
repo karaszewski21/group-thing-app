@@ -4,25 +4,31 @@ co-located with the mutations it guards (per `standards/backend/security.md`).""
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, time
 from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import clock
 from app.core.auth_deps import Principal
 from app.core.errors import BusinessConflictException, EntityNotFoundException
-from app.core.pagination import PageParams
+from app.core.pagination import Page, PageParams
 from app.moderation import rules
 from app.moderation.text_guard import TextField, check_text
 from app.users.service import get_profile_by_principal
 
 from ..infrastructure import locations_acl, notifications_bridge, repository
+from ..infrastructure.slug_resolver import resolve_organizer_slugs
 from ..models import NeededItem, Pledge, PledgeStatus, Term
 from ..schemas import (
     CreateNeededItemRequest,
     CreateTermRequest,
     ModerationTermResponse,
+    MyTermResponse,
+    MyTermRole,
+    TermPeriod,
+    TermResponse,
     UpdateNeededItemRequest,
     UpdateTermRequest,
 )
@@ -38,8 +44,8 @@ async def create_term(db: AsyncSession, principal: Principal, data: CreateTermRe
     place other than the Circle's default is ownership-checked — the default
     (inherited or re-sent) is the Circle's own and may even be soft-deleted."""
     profile = await get_profile_by_principal(db, principal)
-    group = await get_group(db, data.circle_group_id)
-    await _require_active_organizer(db, data.circle_group_id, profile.party_id)
+    group = await get_group(db, data.group_id)
+    await _require_active_organizer(db, data.group_id, profile.party_id)
     await check_text(TextField.TERM_DESCRIPTION, data.description)
 
     if "location_id" in data.model_fields_set:
@@ -53,7 +59,7 @@ async def create_term(db: AsyncSession, principal: Principal, data: CreateTermRe
     capacity = data.capacity if "capacity" in data.model_fields_set else group.default_capacity
 
     term = Term(
-        circle_group_id=data.circle_group_id,
+        circle_group_id=data.group_id,
         occurs_on=data.occurs_on,
         description=data.description,
         location_id=location_id,
@@ -85,23 +91,88 @@ async def list_terms(db: AsyncSession, circle_group_id: uuid.UUID) -> list[Term]
     return await repository.list_terms_for_group(db, circle_group_id)
 
 
-async def list_terms_with_counts(
-    db: AsyncSession, circle_group_id: uuid.UUID, caller_party_id: uuid.UUID | None
-) -> list[tuple[Term, int | None, int | None]]:
-    """Terms of a Circle with organizer-only signup counts: `(attendee_count,
-    child_count)` over non-withdrawn RSVPs for the active organizer, `(None,
-    None)` for everyone else (including callers without a profile)."""
-    await get_group(db, circle_group_id)
-    terms = await repository.list_terms_for_group(db, circle_group_id)
-    if caller_party_id is None or not await is_active_group_organizer(
-        db, circle_group_id, caller_party_id
-    ):
-        return [(term, None, None) for term in terms]
+def _today_start() -> datetime:
+    return datetime.combine(clock.local_now().date(), time.min)
 
-    counts = await repository.count_active_attendances_by_term(
-        db, [cast(uuid.UUID, term.id) for term in terms]
+
+def _upcoming(period: TermPeriod | None) -> bool | None:
+    return None if period is None else period is TermPeriod.UPCOMING
+
+
+async def _term_responses(
+    db: AsyncSession, terms: list[Term], *, with_counts: bool
+) -> list[TermResponse]:
+    """`TermResponse`s with their places (one batched lookup) and, for the
+    circle's organizer, the non-withdrawn signup counts (one grouped query)."""
+    term_ids = [cast(uuid.UUID, term.id) for term in terms]
+    counts = await repository.count_active_attendances_by_term(db, term_ids) if with_counts else {}
+    locations = await locations_acl.get_locations_by_ids(
+        db, {term.location_id for term in terms if term.location_id is not None}
     )
-    return [(term, *counts.get(cast(uuid.UUID, term.id), (0, 0))) for term in terms]
+    responses = []
+    for term in terms:
+        response = TermResponse.model_validate(term)
+        if with_counts:
+            response.attendee_count, response.child_count = counts.get(
+                cast(uuid.UUID, term.id), (0, 0)
+            )
+        if term.location_id is not None:
+            response.location = locations_acl.location_ref_response(
+                locations.get(term.location_id)
+            )
+        responses.append(response)
+    return responses
+
+
+async def list_group_terms_page(
+    db: AsyncSession,
+    group_id: uuid.UUID,
+    caller_party_id: uuid.UUID | None,
+    period: TermPeriod | None,
+    params: PageParams,
+) -> Page[TermResponse]:
+    """One page of a Circle's Terms. `attendee_count`/`child_count` are filled
+    only for the Circle's active organizer."""
+    await get_group(db, group_id)
+    rows, total = await repository.list_terms_page(
+        db, group_id, _upcoming(period), _today_start(), params.offset, params.size
+    )
+    is_organizer = caller_party_id is not None and await is_active_group_organizer(
+        db, group_id, caller_party_id
+    )
+    items = await _term_responses(db, [term for term, _ in rows], with_counts=is_organizer)
+    return Page(items=items, total=total, page=params.page, size=params.size)
+
+
+async def list_my_terms_page(
+    db: AsyncSession,
+    party_id: uuid.UUID,
+    role: MyTermRole,
+    params: PageParams,
+) -> Page[MyTermResponse]:
+    """One page of the Terms of the circles the caller leads (with signup
+    counts) or of the PRIVATE circles they or their family belong to (without
+    them), latest date first."""
+    circles = (
+        repository.led_group_ids_query(party_id)
+        if role is MyTermRole.LED
+        else repository.member_group_ids_query(party_id)
+    )
+    rows, total = await repository.list_terms_page(
+        db, circles, None, _today_start(), params.offset, params.size
+    )
+    terms = [term for term, _ in rows]
+    responses = await _term_responses(db, terms, with_counts=role is MyTermRole.LED)
+    slugs = await resolve_organizer_slugs(db, {term.circle_group_id for term in terms})
+    items = [
+        MyTermResponse(
+            **response.model_dump(exclude={"created_at", "updated_at"}),
+            group_name=group_name,
+            organizer_slug=slugs[term.circle_group_id],
+        )
+        for response, (term, group_name) in zip(responses, rows, strict=True)
+    ]
+    return Page(items=items, total=total, page=params.page, size=params.size)
 
 
 async def list_terms_for_moderation(
@@ -123,7 +194,7 @@ async def list_terms_for_moderation(
         responses.append(
             ModerationTermResponse(
                 id=cast(uuid.UUID, term.id),
-                circle_group_id=term.circle_group_id,
+                group_id=term.circle_group_id,
                 group_name=group_name,
                 occurs_on=term.occurs_on,
                 description=term.description,

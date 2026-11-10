@@ -25,7 +25,7 @@ describe("api client 401 handling", () => {
   it("request_unauthorized_redirectsToLoginWithEncodedReturnTo", async () => {
     const location = stubLocation("/org/group/5/term/7", "?tab=rzeczy");
 
-    await expect(api.get("/groups/public/5/access")).rejects.toBeInstanceOf(ApiError);
+    await expect(api.get("/public/groups/5/access")).rejects.toBeInstanceOf(ApiError);
 
     expect(location.href).toBe(`/login?returnTo=${encodeURIComponent("/org/group/5/term/7?tab=rzeczy")}`);
     expect(localStorage.getItem("auth_token")).toBeNull();

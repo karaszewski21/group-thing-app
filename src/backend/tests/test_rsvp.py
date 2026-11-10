@@ -1,4 +1,4 @@
-"""RSVP tests: `POST /api/groups/public/{group_id}/rsvp` needs an account —
+"""RSVP tests: `POST /api/groups/{group_id}/rsvp` needs an account —
 no token (or an invalid one) is a 401 that creates nothing; a logged-in
 caller's own party is attached idempotently, its display name then appears
 in the public GET's `guardians` list; a mismatched group_id/term_id pair is
@@ -51,7 +51,7 @@ async def _create_circle_with_term(client: AsyncClient, email: str) -> tuple[int
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth_headers(token)),
-            "circle_group_id": group_id,
+            "group_id": group_id,
             "occurs_on": date.today().isoformat(),
             "description": "Pierwsze spotkanie",
         },
@@ -70,7 +70,7 @@ async def test_createRsvp_withoutOrInvalidToken_returns401AndCreatesNothing(
 
     for headers in ({}, {"Authorization": "Bearer not-a-real-token"}):
         response = await client.post(
-            f"/api/groups/public/{group_id}/rsvp",
+            f"/api/groups/{group_id}/rsvp",
             json={"term_id": term_id, "guardian_name": "Kasia Nowak", "child_count": 2},
             headers=headers,
         )
@@ -97,7 +97,7 @@ async def test_createRsvp_thenPublicGet_displayNameAndShapeRoundTrip(
     guest_token, _ = await _register_guest(client, "piotr.zielinski@example.com")
 
     response = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "child_count": 1},
         headers=_auth_headers(guest_token),
     )
@@ -106,7 +106,7 @@ async def test_createRsvp_thenPublicGet_displayNameAndShapeRoundTrip(
     body = response.json()
     assert set(body) == {"id", "term_id", "user_profile_id", "guardian_name", "child_count"}
     assert body["child_count"] == 1
-    public_view = await client.get(f"/api/groups/public/{group_id}")
+    public_view = await client.get(f"/api/public/groups/{group_id}")
 
     assert public_view.status_code == 200
     guardians = public_view.json()["guardians"]
@@ -122,7 +122,7 @@ async def test_createRsvp_loggedInUser_attachesToExistingAccountNotNewAnonymousP
     guest_token, guest_party_id = await _register_guest(client, "rsvp.loggedin.guest@example.com")
 
     response = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "Zalogowany Rodzic", "child_count": 1},
         headers=_auth_headers(guest_token),
     )
@@ -163,12 +163,12 @@ async def test_createRsvp_loggedInUserRepeat_updatesChildCountNoDuplicateRow(
     guest_token, guest_party_id = await _register_guest(client, "rsvp.repeat.guest@example.com")
 
     first = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "x", "child_count": 1},
         headers=_auth_headers(guest_token),
     )
     second = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "x", "child_count": 3},
         headers=_auth_headers(guest_token),
     )
@@ -209,7 +209,7 @@ async def test_createRsvp_loggedInUserNotCircleMember_attachesAttendanceWithoutM
     ).scalar_one()
 
     response = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term_id, "guardian_name": "Nieczlonek", "child_count": 2},
         headers=_auth_headers(guest_token),
     )
@@ -246,7 +246,7 @@ async def test_createRsvp_mismatchedGroupAndTerm_raises404(client: AsyncClient) 
     guest_token, _ = await _register_guest(client, "rsvp.mismatch.guest@example.com")
 
     response = await client.post(
-        f"/api/groups/public/{group_id_a}/rsvp",
+        f"/api/groups/{group_id_a}/rsvp",
         json={"term_id": term_id_b, "child_count": 0},
         headers=_auth_headers(guest_token),
     )

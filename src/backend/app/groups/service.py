@@ -101,11 +101,12 @@ from app.groups.application.terms import (
     get_needed_item_view,
     get_term,
     get_term_any,
+    list_group_terms_page,
+    list_my_terms_page,
     list_needed_item_views,
     list_needed_item_views_for_terms,
     list_terms,
     list_terms_for_moderation,
-    list_terms_with_counts,
     soft_delete_needed_item,
     update_needed_item,
     update_term,
@@ -116,6 +117,7 @@ from app.groups.infrastructure.locations_acl import (
     location_ref_response,
 )
 from app.groups.infrastructure.repository import (
+    count_terms_by_group,
     has_active_attendance,
     has_active_membership,
     item_listing_preferences_select,
@@ -127,6 +129,7 @@ from app.groups.infrastructure.repository import (
 from app.groups.infrastructure.slug_resolver import resolve_organizer_slug
 
 __all__ = [
+    "count_terms_by_group",
     "ChatAudience",
     "OpenEventReservationCounts",
     "ReservedByNames",
@@ -195,7 +198,8 @@ __all__ = [
     "list_term_attendees",
     "list_terms",
     "list_terms_for_moderation",
-    "list_terms_with_counts",
+    "list_group_terms_page",
+    "list_my_terms_page",
     "location_ref_response",
     "propose_item_swap",
     "redeem_join_code",

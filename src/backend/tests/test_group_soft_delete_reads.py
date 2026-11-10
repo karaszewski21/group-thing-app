@@ -88,8 +88,8 @@ async def test_listGroups_and_publicOrganizerDirectory_excludeDeletedGroup(
     await _delete(client, token, deleted)
 
     groups = await client.get("/api/groups", headers=_auth(token))
-    page = await client.get(f"/api/groups/public/organizers/{slug}")
-    terms = await client.get(f"/api/groups/public/organizers/{slug}/terms")
+    page = await client.get(f"/api/public/organizers/{slug}")
+    terms = await client.get(f"/api/public/organizers/{slug}/terms")
     assert str(deleted) not in {row["id"] for row in groups.json()}
     assert str(kept) in {row["id"] for row in groups.json()}
     assert page.status_code == 200
@@ -166,7 +166,7 @@ async def test_termsByCircle_termById_neededItemsByTerm_createPledge_return404(
 
     headers = _auth(guest_token)
     assert (
-        await client.get(f"/api/terms?circle_group_id={group_id}", headers=headers)
+        await client.get(f"/api/groups/{group_id}/terms", headers=headers)
     ).status_code == 404
     assert (await client.get(f"/api/terms/{term_id}", headers=headers)).status_code == 404
     assert (
@@ -198,7 +198,7 @@ async def test_redeemJoinCode_onDeletedPrivateGroup_returns404(client: AsyncClie
     await _delete(client, org_token, group_id)
 
     response = await client.post(
-        f"/api/groups/public/{group_id}/join-code",
+        f"/api/groups/{group_id}/join-code/redeem",
         json={"code": "123456"},
         headers=_auth(guest_token),
     )
@@ -222,7 +222,7 @@ async def test_mutationsOnDeletedGroup_return404(client: AsyncClient) -> None:
             "/api/terms",
             json={
                 "location_id": await create_location(client, org),
-                "circle_group_id": str(group_id),
+                "group_id": str(group_id),
                 "occurs_on": _in_days(5).isoformat(),
             },
             headers=org,
@@ -236,12 +236,12 @@ async def test_mutationsOnDeletedGroup_return404(client: AsyncClient) -> None:
             headers=org,
         ),
         "rsvp": await client.post(
-            f"/api/groups/public/{group_id}/rsvp",
+            f"/api/groups/{group_id}/rsvp",
             json={"term_id": str(term_id), "child_count": 1},
             headers=_auth(guest_token),
         ),
         "redeem join code": await client.post(
-            f"/api/groups/public/{group_id}/join-code",
+            f"/api/groups/{group_id}/join-code/redeem",
             json={"code": "123456"},
             headers=_auth(guest_token),
         ),

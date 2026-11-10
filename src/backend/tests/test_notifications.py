@@ -62,7 +62,7 @@ async def _setup_pledge(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": circle.json()["id"],
+            "group_id": circle.json()["id"],
             "occurs_on": date.today().isoformat(),
         },
         headers=_auth(org_token),

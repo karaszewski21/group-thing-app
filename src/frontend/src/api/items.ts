@@ -53,5 +53,5 @@ export interface ItemDetailsResponse {
 }
 
 export function getItemDetails(id: string): Promise<ItemDetailsResponse> {
-  return api.get(`/inventory-items/${encodeURIComponent(id)}/details`);
+  return api.get(`/public/items/${encodeURIComponent(id)}/details`);
 }

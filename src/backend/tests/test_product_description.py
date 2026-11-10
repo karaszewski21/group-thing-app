@@ -56,7 +56,7 @@ async def test_updateProductDescription_mergesIntoAiDescriptionKeepsOtherKeysAnd
         "ai-description": {"model": "x", "description": "Nowy opis"},
         "other-plugin": {"k": 1},
     }
-    details = await client.get(f"/api/inventory-items/{item_id}/details", headers=_auth(token))
+    details = await client.get(f"/api/public/items/{item_id}/details", headers=_auth(token))
     assert details.json()["description"] == "Nowy opis"
 
     cleared = await client.patch(
@@ -124,7 +124,7 @@ async def test_updateProductDescription_clearedWithAdminDescription_staysCleared
     ).scalar_one()
     product.description = "Opis admina"
     await db_session.commit()
-    details_url = f"/api/inventory-items/{item_id}/details"
+    details_url = f"/api/public/items/{item_id}/details"
     assert (await client.get(details_url, headers=_auth(token))).json()[
         "description"
     ] == "Opis admina"

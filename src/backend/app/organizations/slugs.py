@@ -56,9 +56,8 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         # ("product" and "terms" are listed elsewhere).
         "group",
         "event",
-        # Backend sub-paths under `/api/groups/public/organizers/{slug}`
-        # (`/terms`) and the sibling `/api/groups/public/{group_id}/access`
-        # route the organizer router must never be confused with.
+        # Backend sub-paths under `/api/public/organizers/{slug}` (`/terms`)
+        # and `/api/public/groups/{group_id}/access`.
         "access",
         "terms",
         # Backend/static namespaces and other names that must never be

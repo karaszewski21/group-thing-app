@@ -60,7 +60,7 @@ async def _attend(client: AsyncClient, token: str, circle_id: object, term_id: o
     """An active RSVP to the term, which a pledge requires (or a standing
     membership in its Circle); returns the attendance id."""
     response = await client.post(
-        f"/api/groups/public/{circle_id}/rsvp",
+        f"/api/groups/{circle_id}/rsvp",
         json={"term_id": str(term_id), "guardian_name": "ignored", "child_count": 0},
         headers=_auth_headers(token),
     )
@@ -80,7 +80,7 @@ async def _create_circle_with_term(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth_headers(token)),
-            "circle_group_id": circle_id,
+            "group_id": circle_id,
             "occurs_on": date.today().isoformat(),
             "description": description,
         },
@@ -484,7 +484,7 @@ async def test_createTerm_happyPath_returns201WithTermFields(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth_headers(token)),
-            "circle_group_id": circle_group_id,
+            "group_id": circle_group_id,
             "occurs_on": date.today().isoformat(),
             "description": "Pierwsze spotkanie",
         },
@@ -493,7 +493,7 @@ async def test_createTerm_happyPath_returns201WithTermFields(
 
     assert response.status_code == 201
     body = response.json()
-    assert body["circle_group_id"] == circle_group_id
+    assert body["group_id"] == circle_group_id
     assert body["description"] == "Pierwsze spotkanie"
 
 
@@ -509,7 +509,7 @@ async def test_createNeededItem_happyPath_returns201WithName(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth_headers(token)),
-            "circle_group_id": circle_group_id,
+            "group_id": circle_group_id,
             "occurs_on": date.today().isoformat(),
         },
         headers=_auth_headers(token),
@@ -543,7 +543,7 @@ async def test_getNeededItem_softDeleted_returns404(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth_headers(token)),
-            "circle_group_id": circle_group_id,
+            "group_id": circle_group_id,
             "occurs_on": date.today().isoformat(),
         },
         headers=_auth_headers(token),
@@ -648,7 +648,7 @@ async def test_getPublicCircle_noAuthHeader_returnsExpectedShape(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth_headers(token)),
-            "circle_group_id": circle_group_id,
+            "group_id": circle_group_id,
             "occurs_on": date.today().isoformat(),
             "description": "Termin publiczny",
         },
@@ -658,7 +658,7 @@ async def test_getPublicCircle_noAuthHeader_returnsExpectedShape(
     await _create_needed_item(client, token, term_id)
 
     # No Authorization header at all — this must succeed unauthenticated.
-    response = await client.get(f"/api/groups/public/{circle_group_id}")
+    response = await client.get(f"/api/public/groups/{circle_group_id}")
 
     assert response.status_code == 200
     body = response.json()
@@ -672,7 +672,7 @@ async def test_getPublicCircle_noAuthHeader_returnsExpectedShape(
 
 
 async def test_getPublicCircle_unknownId_returns404(client: AsyncClient) -> None:
-    response = await client.get(f"/api/groups/public/{uuid.uuid4()}")
+    response = await client.get(f"/api/public/groups/{uuid.uuid4()}")
     assert response.status_code == 404
 
 

@@ -111,7 +111,7 @@ async def _proposed_swap(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth(org_token)),
-            "circle_group_id": group_id,
+            "group_id": group_id,
             "occurs_on": "2099-06-10T16:30:00",
         },
         headers=_auth(org_token),
@@ -123,7 +123,7 @@ async def _proposed_swap(
     proposer_token = await _register(client, "GUEST", f"dcg.proposer{suffix}@example.com")
     for token in (lister_token, proposer_token):
         r = await client.post(
-            f"/api/groups/public/{group_id}/rsvp",
+            f"/api/groups/{group_id}/rsvp",
             json={"term_id": str(term_id), "guardian_name": "ignored", "child_count": 0},
             headers=_auth(token),
         )

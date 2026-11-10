@@ -50,8 +50,8 @@ async def test_deleteGroup_activeOrganizer_hidesGroupAndKeepsLeadership(
     response = await client.delete(f"/api/groups/{group_id}", headers=_auth_headers(token))
 
     assert response.status_code == 204
-    assert (await client.get(f"/api/groups/public/{group_id}")).status_code == 404
-    assert (await client.get(f"/api/groups/public/{group_id}/access")).status_code == 404
+    assert (await client.get(f"/api/public/groups/{group_id}")).status_code == 404
+    assert (await client.get(f"/api/public/groups/{group_id}/access")).status_code == 404
     assert (
         await client.get(f"/api/groups/{group_id}", headers=_auth_headers(token))
     ).status_code == 404
@@ -148,7 +148,7 @@ async def test_deleteGroup_upcomingTermWithActiveRsvp_returns409WithDate(
         "/api/terms",
         json={
             "location_id": await create_location(client, _auth_headers(token)),
-            "circle_group_id": group_id,
+            "group_id": group_id,
             "occurs_on": occurs_on.isoformat(),
         },
         headers=_auth_headers(token),
@@ -159,7 +159,7 @@ async def test_deleteGroup_upcomingTermWithActiveRsvp_returns409WithDate(
         json={"role": "GUEST", "email": "sd.rsvp.attendee@example.com", "password": "secret123"},
     )
     rsvp = await client.post(
-        f"/api/groups/public/{group_id}/rsvp",
+        f"/api/groups/{group_id}/rsvp",
         json={"term_id": term.json()["id"], "child_count": 1},
         headers=_auth_headers(attendee.json()["token"]),
     )

@@ -33,7 +33,7 @@ FLAGS = ("can_confirm", "can_cancel", "can_accept", "can_reject")
 
 async def _party(client: AsyncClient, item_id: uuid.UUID, token: str | None) -> Any:
     response = await client.get(
-        f"/api/items/{item_id}/actions", headers=_auth(token) if token is not None else {}
+        f"/api/public/items/{item_id}/actions", headers=_auth(token) if token is not None else {}
     )
     assert response.status_code == 200, response.text
     block = response.json()["party_reservation"]
@@ -190,7 +190,7 @@ async def test_partyReservation_personalGiftCancelled_bothNull_itemAvailableAgai
 
     assert await _party(client, item_id, taker) is None
     assert await _party(client, item_id, owner) is None
-    actions = await client.get(f"/api/items/{item_id}/actions", headers=_auth(third))
+    actions = await client.get(f"/api/public/items/{item_id}/actions", headers=_auth(third))
     assert actions.status_code == 200, actions.text
     assert actions.json()["available"] is True
     assert actions.json()["reservation"] is None

@@ -119,7 +119,7 @@ describe("FirstTermStepperOrganizer — place and capacity", () => {
 
     expect(await screen.findByRole("button", { name: "Gotowe" })).toBeInTheDocument();
     expect(termsApi.createTerm).toHaveBeenCalledWith({
-      circle_group_id: "g-1",
+      group_id: "g-1",
       occurs_on: "2026-10-10T10:00",
       description: "opis",
       location_id: "loc-1",
@@ -137,7 +137,7 @@ describe("FirstTermStepperOrganizer — place and capacity", () => {
 
     expect(await screen.findByRole("button", { name: "Gotowe" })).toBeInTheDocument();
     expect(termsApi.createTerm).toHaveBeenCalledWith({
-      circle_group_id: "g-1",
+      group_id: "g-1",
       occurs_on: "2026-10-10T10:00",
       description: "opis",
       location_id: "loc-1",
@@ -160,7 +160,7 @@ describe("FirstTermStepperOrganizer — place and capacity", () => {
 
     expect(await screen.findByRole("button", { name: "Gotowe" })).toBeInTheDocument();
     expect(termsApi.createTerm).toHaveBeenCalledWith({
-      circle_group_id: "g-1",
+      group_id: "g-1",
       occurs_on: "2026-10-10T10:00",
       description: "opis",
       location_id: KETY.id,

@@ -15,7 +15,7 @@ vi.mock("../api/terms", () => ({
 
 const TERM: ModerationTermResponse = {
   id: "term-1",
-  circle_group_id: "group-1",
+  group_id: "group-1",
   group_name: "Muzyczne Skrzaty",
   occurs_on: "2026-11-09T17:30:00",
   description: "Drugie spotkanie",

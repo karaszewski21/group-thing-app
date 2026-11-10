@@ -80,7 +80,7 @@ export function updateOrganization(
 }
 
 export function getPublicOrganization(slug: string): Promise<PublicOrganizationResponse> {
-  return api.get(`/organizations/public/${encodeURIComponent(slug)}`);
+  return api.get(`/public/organizations/${encodeURIComponent(slug)}`);
 }
 
 export function uploadOrganizationMedia(organizationId: string, kind: MediaKind, file: File): Promise<OwnerMedia> {

@@ -57,7 +57,7 @@ class ReorderOrganizationMediaRequest(BaseModel):
 
 
 class PublicOrganizationResponse(BaseModel):
-    """Served from the unauthenticated `/api/organizations/public/{slug}`
+    """Served from the unauthenticated `/api/public/organizations/{slug}`
     endpoint — deliberately a narrower shape than `OrganizationResponse`:
     no `party_id`/timestamps, nothing beyond what the public page itself
     displays. `page_layout` is the effective layout (`resolve_page_layout`),

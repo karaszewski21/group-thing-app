@@ -3,7 +3,7 @@ import { Link, useAppParams } from "../../routing/navigation";
 import type { GroupMemberResponse, GroupResponse } from "../../api/groups";
 import { JoinCodeCard } from "./JoinCodeCard";
 import { useGroupDetails } from "../../hooks/useGroupDetails";
-import { useGroupTerms } from "../../hooks/useGroupTerms";
+import { useNearestGroupTerm } from "../../hooks/useNearestGroupTerm";
 import { useJoinCode } from "../../hooks/useJoinCode";
 import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
 import dayjs from "../../utils/dayjs";
@@ -25,11 +25,7 @@ export function GroupDetailsPage() {
   // A failed fetch must not hide the chat (the backend gates the chat itself).
   const mayBeOrganizer = joinCode.status === "ready" || joinCode.status === "error";
   // Only the organizer (code loaded) needs a term to link to.
-  const { data: terms } = useGroupTerms(groupId, { enabled: joinCode.status === "ready" });
-  const today = dayjs().startOf("day");
-  const nearestTerm = terms
-    .filter((t) => !dayjs(t.occurs_on).isBefore(today))
-    .sort((a, b) => a.occurs_on.localeCompare(b.occurs_on))[0];
+  const nearestTerm = useNearestGroupTerm(groupId, { enabled: joinCode.status === "ready" });
 
   return (
     <>

@@ -202,7 +202,7 @@ class ItemStatusResponse(BaseModel):
 
 
 class ItemDetailsResponse(BaseModel):
-    """`GET /api/inventory-items/{id}/details` — the item page's read
+    """`GET /api/public/items/{id}/details` — the item page's read
     model. Carries no user, inventory or reservation ids."""
 
     model_config = ConfigDict(from_attributes=True)

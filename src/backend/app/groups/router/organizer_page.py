@@ -1,10 +1,6 @@
-"""`/api/groups/public/organizers/{slug}` — the public organizer
-directory behind the `/:slug` page, the owner items and meetings pages and
-the person profile behind `/:partyId`.
-
-Included first in `app.groups.router`, ahead of `circles.py`'s
-`/api/groups/public/{group_id}/access`, so that `/public/organizers/access`
-reaches this route instead of being read as a group id."""
+"""`/api/public/organizers/{slug}` and `/api/public/parties/{party_id}` —
+the public organizer directory behind the `/:slug` page, the owner items and
+meetings pages and the person profile behind `/:partyId`."""
 
 from __future__ import annotations
 
@@ -36,7 +32,7 @@ DbSession = Annotated[AsyncSession, Depends(get_db)]
 Storage = Annotated[ObjectStorage | None, Depends(get_storage)]
 
 
-@router.get("/api/groups/public/organizers/{slug}", response_model=OrganizerPageResponse)
+@router.get("/api/public/organizers/{slug}", response_model=OrganizerPageResponse)
 async def get_organizer_page(
     slug: str,
     db: DbSession,
@@ -44,8 +40,7 @@ async def get_organizer_page(
     response: Response,
     principal: OptionalPrincipal = None,
 ) -> OrganizerPageResponse:
-    """Unauthenticated — matched by the PUBLIC row
-    `GET ^/api/groups/public/organizers/[^/]+(/terms|/items|/meetings)?$` in
+    """Unauthenticated — matched by the `GET ^/api/public/` PUBLIC row in
     `AUTHORIZATION_MATRIX`, so no `require_any` dependency. 404 when the slug
     resolves to no Organization or the Organization has no active owner."""
     page = await service.get_organizer_page(db, slug, storage, principal)
@@ -53,27 +48,32 @@ async def get_organizer_page(
     return page
 
 
+@router.get("/api/public/organizers/{slug}/terms", response_model=Page[OrganizerTermResponse])
+async def list_organizer_terms(
+    slug: str, db: DbSession, pagination: Pagination, response: Response
+) -> Page[OrganizerTermResponse]:
+    """Upcoming terms of every PUBLIC circle of the organizer. Invalid `page`
+    or `size` give 400 via the app's `RequestValidationError` handler."""
+    page = await service.list_organizer_terms(db, slug, pagination, None)
+    response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
+    return page
+
+
 @router.get(
-    "/api/groups/public/organizers/{slug}/terms",
+    "/api/public/organizers/{slug}/groups/{group_id}/terms",
     response_model=Page[OrganizerTermResponse],
 )
-async def list_organizer_terms(
-    slug: str,
-    db: DbSession,
-    pagination: Pagination,
-    response: Response,
-    group_id: uuid.UUID | None = None,
+async def list_organizer_group_terms(
+    slug: str, group_id: uuid.UUID, db: DbSession, pagination: Pagination, response: Response
 ) -> Page[OrganizerTermResponse]:
-    """Unauthenticated — matched by the same PUBLIC row as
-    `get_organizer_page`. Invalid `page`, `size` or `group_id` give 400 via
-    the app's `RequestValidationError` handler; a `group_id` outside the
+    """Upcoming terms of one circle of the organizer; a circle outside the
     owner's PUBLIC circles gives an empty page."""
     page = await service.list_organizer_terms(db, slug, pagination, group_id)
     response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
     return page
 
 
-@router.get("/api/groups/public/organizers/{slug}/items", response_model=OwnerItemsPageResponse)
+@router.get("/api/public/organizers/{slug}/items", response_model=OwnerItemsPageResponse)
 async def get_organization_owner_items(
     slug: str,
     db: DbSession,
@@ -93,7 +93,7 @@ async def get_organization_owner_items(
     return page
 
 
-@router.get("/api/groups/public/parties/{party_id}/items", response_model=OwnerItemsPageResponse)
+@router.get("/api/public/parties/{party_id}/items", response_model=OwnerItemsPageResponse)
 async def get_party_owner_items(
     party_id: uuid.UUID,
     db: DbSession,
@@ -104,7 +104,7 @@ async def get_party_owner_items(
     principal: OptionalPrincipal = None,
 ) -> OwnerItemsPageResponse:
     """Unauthenticated — matched by the PUBLIC row
-    `GET ^/api/groups/public/parties/[^/]+(/items|/meetings)?$`. 404 when the party has
+    `GET ^/api/public/` PUBLIC row. 404 when the party has
     no user profile."""
     page = await owner_items.get_party_owner_items(
         db, party_id, pagination, mode, storage, principal
@@ -113,7 +113,7 @@ async def get_party_owner_items(
     return page
 
 
-@router.get("/api/groups/public/parties/{party_id}", response_model=PartyProfileResponse)
+@router.get("/api/public/parties/{party_id}", response_model=PartyProfileResponse)
 async def get_party_profile(
     party_id: uuid.UUID,
     db: DbSession,
@@ -130,7 +130,7 @@ async def get_party_profile(
 
 
 @router.get(
-    "/api/groups/public/organizers/{slug}/meetings", response_model=OwnerMeetingsResponse
+    "/api/public/organizers/{slug}/meetings", response_model=OwnerMeetingsResponse
 )
 async def get_organization_owner_meetings(
     slug: str, db: DbSession, response: Response
@@ -143,7 +143,7 @@ async def get_organization_owner_meetings(
 
 
 @router.get(
-    "/api/groups/public/parties/{party_id}/meetings", response_model=OwnerMeetingsResponse
+    "/api/public/parties/{party_id}/meetings", response_model=OwnerMeetingsResponse
 )
 async def get_party_owner_meetings(
     party_id: uuid.UUID, db: DbSession, response: Response

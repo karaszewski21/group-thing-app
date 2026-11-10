@@ -1,4 +1,4 @@
-"""The item page's action read model behind `GET /api/items/{id}/actions`:
+"""The item page's action read model behind `GET /api/public/items/{id}/actions`:
 the item's listing mode and availability, its reserved badge (as on the
 lists), its owner, how the viewer stands (ANONYMOUS/OWN/OTHER), the item's
 own location shaped for the viewer, the owner's upcoming contexts the viewer

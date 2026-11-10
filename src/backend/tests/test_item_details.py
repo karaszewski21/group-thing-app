@@ -1,4 +1,4 @@
-"""`GET /api/inventory-items/{id}/details`: the item page's read model —
+"""`GET /api/public/items/{id}/details`: the item page's read model —
 product fields, shared description (with the `Product.description`
 fallback), gallery, `is_owner` and the privacy-labelled current status."""
 
@@ -45,7 +45,7 @@ async def _display_name(client: AsyncClient, headers: dict[str, str]) -> str:
 
 
 async def _details(client: AsyncClient, item_id: uuid.UUID, headers: dict[str, str]) -> dict:
-    response = await client.get(f"/api/inventory-items/{item_id}/details", headers=headers)
+    response = await client.get(f"/api/public/items/{item_id}/details", headers=headers)
     assert response.status_code == 200, response.text
     return response.json()
 
@@ -206,7 +206,7 @@ async def test_getItemDetails_deletedOrMissingItem_returns200DeletedOr404(
         "personal_pickup": False,
     }
     missing = await client.get(
-        f"/api/inventory-items/{uuid.uuid4()}/details", headers=_auth(owner_token)
+        f"/api/public/items/{uuid.uuid4()}/details", headers=_auth(owner_token)
     )
     assert missing.status_code == 404
 
@@ -348,7 +348,7 @@ async def test_getItemDetails_anonymousOnActiveItem_returns200WithoutCounterpart
     )
     await _reserve(db_session, item_id, await _user_id(db_session, taker_token), event_id=event_id)
 
-    response = await client.get(f"/api/inventory-items/{item_id}/details")
+    response = await client.get(f"/api/public/items/{item_id}/details")
 
     assert response.status_code == 200, response.text
     body = response.json()
@@ -385,8 +385,8 @@ async def test_getItemDetails_anonymousOnDraftOrDeletedItem_returns404(
     item.deleted_at = datetime.utcnow()
     await db_session.commit()
 
-    draft = await client.get(f"/api/inventory-items/{draft_id}/details")
-    gone = await client.get(f"/api/inventory-items/{deleted_id}/details")
+    draft = await client.get(f"/api/public/items/{draft_id}/details")
+    gone = await client.get(f"/api/public/items/{deleted_id}/details")
 
     assert draft.status_code == 404
     assert gone.status_code == 404
@@ -396,7 +396,7 @@ async def test_getItemDetails_anonymousOnDraftOrDeletedItem_returns404(
 async def test_getItemDetails_malformedItemId_returns400(client: AsyncClient) -> None:
     token, _ = await _register(client, "GUEST", "itd.malformed8@example.com")
 
-    response = await client.get("/api/inventory-items/not-a-uuid/details", headers=_auth(token))
+    response = await client.get("/api/public/items/not-a-uuid/details", headers=_auth(token))
 
     assert response.status_code == 400
 

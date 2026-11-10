@@ -241,7 +241,7 @@ async def _access_listings(
     client: AsyncClient, group_id: uuid.UUID, term_id: uuid.UUID, token: str | None
 ) -> dict[uuid.UUID, Any]:
     response = await client.get(
-        f"/api/groups/public/{group_id}/access?term_id={term_id}", headers=_headers(token)
+        f"/api/public/groups/{group_id}/access?term_id={term_id}", headers=_headers(token)
     )
     assert response.status_code == 200, response.text
     return _reservations(response.json()["group"]["term"]["item_listings"])
@@ -295,11 +295,11 @@ async def _route_reservations(
     if route == "access":
         return await _access_listings(client, world["group_id"], world["term_id"], token)
     if route == "event":
-        url = f"/api/events/{world['event_id']}"
+        url = f"/api/public/events/{world['event_id']}"
     elif route == "organizer":
-        url = f"/api/groups/public/organizers/{world['slug']}"
+        url = f"/api/public/organizers/{world['slug']}"
     else:
-        url = f"/api/groups/public/organizers/{world['slug']}/items"
+        url = f"/api/public/organizers/{world['slug']}/items"
     response = await client.get(url, headers=_headers(token))
     assert response.status_code == 200, response.text
     body = response.json()
@@ -367,12 +367,12 @@ async def test_counts_organizerAvailableOnlyPlusReserved_ownerIncludesReservedEq
 ) -> None:
     world = await _owner_world(client, db_session, "rb-counts", ("rb-counts zamiana", "SWAP"))
     [swap_id] = world["extra_ids"]
-    base = f"/api/groups/public/organizers/{world['slug']}"
+    base = f"/api/public/organizers/{world['slug']}"
 
     exchange = (await client.get(base)).json()["exchange"]
     owner_items = (await client.get(f"{base}/items")).json()
     gifts = (await client.get(f"{base}/items?mode=GIFT")).json()
-    actions = (await client.get(f"/api/items/{swap_id}/actions")).json()
+    actions = (await client.get(f"/api/public/items/{swap_id}/actions")).json()
 
     assert exchange["counts"] == {"GIFT": 1, "SWAP": 1, "RESERVED": 1}
     assert {uuid.UUID(item["item_id"]) for item in exchange["items"]} == {
@@ -396,9 +396,9 @@ async def test_cacheHeaders_anonymousPublic_authenticatedPrivateNoStore_invalidT
     slug = await _organization_slug(client, owner_token, f"Nagłówki {route}")
     await _listed_items(client, owner_token, (f"rb-cache {route}", "GIFT"))
     url = {
-        "organizer": f"/api/groups/public/organizers/{slug}",
-        "organizer_items": f"/api/groups/public/organizers/{slug}/items",
-        "party_items": f"/api/groups/public/parties/{owner_party_id}/items",
+        "organizer": f"/api/public/organizers/{slug}",
+        "organizer_items": f"/api/public/organizers/{slug}/items",
+        "party_items": f"/api/public/parties/{owner_party_id}/items",
     }[route]
 
     anonymous = await client.get(url)
@@ -434,10 +434,10 @@ async def test_personalisedReads_cacheHeaders_principalPrivateNoStore_anonymousP
     )
     assert event.status_code == 201, event.text
     url = {
-        "actions": f"/api/items/{item_id}/actions",
-        "details": f"/api/inventory-items/{item_id}/details",
-        "event": f"/api/events/{event.json()['id']}",
-        "access": f"/api/groups/public/{group_id}/access",
+        "actions": f"/api/public/items/{item_id}/actions",
+        "details": f"/api/public/items/{item_id}/details",
+        "event": f"/api/public/events/{event.json()['id']}",
+        "access": f"/api/public/groups/{group_id}/access",
     }[route]
 
     anonymous = await client.get(url)
@@ -512,7 +512,9 @@ async def test_getItemActions_pendingProposal_unavailableWithReservation(
         ("third", third_token),
         ("proposer", proposer_token),
     ):
-        response = await client.get(f"/api/items/{listed_id}/actions", headers=_headers(token))
+        response = await client.get(
+            f"/api/public/items/{listed_id}/actions", headers=_headers(token)
+        )
         assert response.status_code == 200, response.text
         views[viewer] = (response.json()["available"], response.json()["reservation"])
 

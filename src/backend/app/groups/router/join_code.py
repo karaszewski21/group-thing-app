@@ -22,8 +22,7 @@ ReadPrincipal = Annotated[Principal, Depends(require_any("READ", "mcp:read"))]
 EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
 
 
-# The literal `/public/` path is declared before the `{group_id}` routes.
-@router.post("/api/groups/public/{group_id}/join-code", response_model=RedeemJoinCodeResponse)
+@router.post("/api/groups/{group_id}/join-code/redeem", response_model=RedeemJoinCodeResponse)
 async def redeem_join_code(
     group_id: uuid.UUID,
     body: RedeemJoinCodeRequest,

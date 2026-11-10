@@ -3,7 +3,7 @@ across task groups G2+G3 (implementation/spec.md §4 authorization matrix).
 
 Each new row must resolve to the `("EDIT", "mcp:edit")` permission tuple,
 and — because first-match-wins ordering is significant — the pre-existing
-`/api/groups/mine/...` and `/api/groups/public/...` rows must keep resolving
+`/api/groups/mine/...` and `/api/public/groups/...` rows must keep resolving
 to their own requirements despite the new `PATCH /api/groups/{id}` row.
 """
 
@@ -141,7 +141,7 @@ async def test_conversationRoutes_mcpScopeToken_returns403_loginTokenReaches200(
 
 
 def test_resolveRequirement_publicGroup_notRegressedByGroupsPatchRow() -> None:
-    assert resolve_requirement("GET", "/api/groups/public/some-id") == "PUBLIC"
+    assert resolve_requirement("GET", "/api/public/groups/some-id") == "PUBLIC"
 
 
 def test_resolveRequirement_termItemListingsBrowse_andWithdrawAttendance() -> None:
@@ -180,10 +180,10 @@ def test_resolveRequirement_productPhotoAndDescriptionRoutes_resolveToEditOrRead
 @pytest.mark.parametrize(
     ("method", "path", "expected"),
     [
-        ("POST", "/api/groups/public/42/join-code", "AUTHENTICATED"),
+        ("POST", "/api/groups/42/join-code/redeem", "AUTHENTICATED"),
         ("GET", "/api/groups/42/join-code", READ),
         ("POST", "/api/groups/42/join-code/regenerate", EDIT),
-        ("POST", "/api/groups/public/42/join", EDIT),
+        ("POST", "/api/groups/42/join", EDIT),
         ("POST", "/api/memberships/42/end", EDIT),
     ],
 )
@@ -199,7 +199,7 @@ def test_resolveRequirement_joinCodeRoutes_resolveToExpectedRow(
 def test_resolveRequirement_withoutJoinCodeRow_redeemFallsToRow27Edit() -> None:
     """Guards the row's placement: without it the redeem path would demand
     EDIT (row 27), stricter than the route's `require_any()` dependency."""
-    path = "/api/groups/public/42/join-code"
+    path = "/api/groups/42/join-code/redeem"
     remaining = [
         entry for entry in AUTHORIZATION_MATRIX if "join-code" not in entry.pattern.pattern
     ]
@@ -214,19 +214,19 @@ def test_resolveRequirement_withoutJoinCodeRow_redeemFallsToRow27Edit() -> None:
 
 
 @pytest.mark.parametrize(
-    "path", ["/api/groups/public/organizers/x", "/api/groups/public/organizers/x/terms"]
+    "path", ["/api/public/organizers/x", "/api/public/organizers/x/terms"]
 )
 def test_resolveRequirement_getOrganizerPage_resolvesToPublic(path: str) -> None:
     assert resolve_requirement("GET", path) == "PUBLIC"
 
 
 def test_resolveRequirement_postOrganizerPage_isNotPublic() -> None:
-    assert resolve_requirement("POST", "/api/groups/public/organizers/x") != "PUBLIC"
+    assert resolve_requirement("POST", "/api/public/organizers/x") != "PUBLIC"
 
 
 @pytest.mark.parametrize("suffix", ["", "/access"])
 def test_resolveRequirement_publicCircleRoutes_notRegressedByOrganizerRow(suffix: str) -> None:
-    assert resolve_requirement("GET", f"/api/groups/public/{uuid.uuid4()}{suffix}") == "PUBLIC"
+    assert resolve_requirement("GET", f"/api/public/groups/{uuid.uuid4()}{suffix}") == "PUBLIC"
 
 
 def test_resolveRequirement_getGroupById_stillResolvesToRow26Read() -> None:
@@ -246,7 +246,7 @@ def test_resolveRequirement_mediaPostPatchDelete_requireEdit(method: str, path: 
 
 
 def test_resolveRequirement_publicOrganizationSlug_staysPublic() -> None:
-    assert resolve_requirement("GET", "/api/organizations/public/some-slug") == "PUBLIC"
+    assert resolve_requirement("GET", "/api/public/organizations/some-slug") == "PUBLIC"
 
 
 @pytest.mark.parametrize(
@@ -259,8 +259,10 @@ def test_resolveRequirement_publicOrganizationSlug_staysPublic() -> None:
         ("POST", "/api/leaderships/x/end", EDIT),
         ("GET", "/api/groups/x", READ),
         ("GET", "/api/groups/mine/attendances", READ),
-        ("GET", "/api/groups/public/x", "PUBLIC"),
-        ("POST", "/api/groups/public/x/rsvp", EDIT),
+        ("GET", "/api/groups/mine/terms", READ),
+        ("GET", "/api/groups/x/terms", READ),
+        ("GET", "/api/public/groups/x", "PUBLIC"),
+        ("POST", "/api/groups/x/rsvp", EDIT),
     ],
 )
 def test_resolveRequirement_groupSoftDeleteAndLeadershipRows_resolveToExpectedRow(
@@ -279,7 +281,7 @@ def test_resolveRequirement_groupSoftDeleteAndLeadershipRows_resolveToExpectedRo
         ("GET", "/api/localities", READ),
         ("GET", "/api/events/mine", READ),
         ("GET", "/api/events/attending", READ),
-        ("GET", "/api/events/x", "PUBLIC"),
+        ("GET", "/api/public/events/x", "PUBLIC"),
         ("PATCH", "/api/events/x", EDIT),
         ("DELETE", "/api/events/x", EDIT),
         ("POST", "/api/events", EDIT),
@@ -335,13 +337,13 @@ def _first_match_without(method: str, path: str, removed_pattern: str) -> Matrix
 @pytest.mark.parametrize(
     "path",
     [
-        "/api/groups/public/organizers/x/items",
-        f"/api/groups/public/parties/{uuid.uuid4()}/items",
-        f"/api/groups/public/parties/{uuid.uuid4()}",
-        "/api/groups/public/organizers/x/meetings",
-        f"/api/groups/public/parties/{uuid.uuid4()}/meetings",
-        f"/api/inventory-items/{uuid.uuid4()}/details",
-        f"/api/items/{uuid.uuid4()}/actions",
+        "/api/public/organizers/x/items",
+        f"/api/public/parties/{uuid.uuid4()}/items",
+        f"/api/public/parties/{uuid.uuid4()}",
+        "/api/public/organizers/x/meetings",
+        f"/api/public/parties/{uuid.uuid4()}/meetings",
+        f"/api/public/items/{uuid.uuid4()}/details",
+        f"/api/public/items/{uuid.uuid4()}/actions",
     ],
 )
 def test_resolveRequirement_itemsPageReadRoutes_resolveToPublic(path: str) -> None:
@@ -373,43 +375,28 @@ def test_matrix_removedReservationRows_absent() -> None:
     assert resolve_requirement("POST", f"/api/events/{uuid.uuid4()}/attendances") == EDIT
 
 
-@pytest.mark.parametrize(
-    ("path", "removed", "fallback_pattern", "fallback_requirement"),
-    [
-        (
-            "/api/groups/public/parties/p1/items",
-            r"^/api/groups/public/parties/[^/]+(/items|/meetings)?$",
-            r"^/api/groups(/.*)?$",
-            READ,
-        ),
-        (
-            "/api/inventory-items/i1/details",
-            r"^/api/inventory-items/[^/]+/details$",
-            r"^/api/inventory-items(/.*)?$",
-            READ,
-        ),
-    ],
-)
-def test_resolveRequirement_withoutNewPublicRow_fallsToBlanketRead(
-    path: str, removed: str, fallback_pattern: str, fallback_requirement: object
-) -> None:
-    """Guards placement: each new PUBLIC row sits ahead of the blanket READ
-    row that would otherwise demand a login."""
-    first_match = _first_match_without("GET", path, removed)
-    assert first_match.pattern.pattern == fallback_pattern
-    assert first_match.requirement == fallback_requirement
+def test_resolveRequirement_withoutPublicPrefixRow_publicReadsNeedLogin() -> None:
+    """Guards placement: the single `/api/public/` row is what keeps these
+    reads anonymous; without it they fall to the catch-all."""
+    first_match = _first_match_without("GET", "/api/public/parties/p1/items", r"^/api/public/.*$")
+    assert first_match.requirement == "AUTHENTICATED"
 
 
 @pytest.mark.parametrize(
-    "path",
+    ("path", "expected"),
     [
-        "/api/inventory-items/i1",
-        "/api/inventory-items/i1/details/extra",
-        "/api/inventory-items/mine",
+        ("/api/inventory-items/i1", READ),
+        ("/api/inventory-items/i1/details", READ),
+        ("/api/inventory-items/mine", READ),
+        ("/api/groups/public/x", READ),
+        ("/api/groups/public/organizers/x", READ),
+        ("/api/organizations/public/x", READ),
+        ("/api/events/x", "AUTHENTICATED"),
+        ("/api/items/i1/actions", "AUTHENTICATED"),
     ],
 )
-def test_resolveRequirement_otherInventoryItemGets_stayRead(path: str) -> None:
-    assert resolve_requirement("GET", path) == READ
+def test_resolveRequirement_oldPublicPaths_areNoLongerPublic(path: str, expected: object) -> None:
+    assert resolve_requirement("GET", path) == expected
 
 
 @pytest.mark.parametrize("action", ["take", "propose"])
@@ -419,6 +406,6 @@ def test_resolveRequirement_itemTakeOrPropose_requiresEdit(action: str) -> None:
 
 
 def test_resolveRequirement_postItemsPageReadRoutes_areNotPublic() -> None:
-    assert resolve_requirement("POST", "/api/groups/public/organizers/x/items") != "PUBLIC"
-    assert resolve_requirement("POST", "/api/inventory-items/i1/details") != "PUBLIC"
-    assert resolve_requirement("POST", "/api/items/i1/actions") != "PUBLIC"
+    assert resolve_requirement("POST", "/api/public/organizers/x/items") != "PUBLIC"
+    assert resolve_requirement("POST", "/api/public/items/i1/details") != "PUBLIC"
+    assert resolve_requirement("POST", "/api/public/items/i1/actions") != "PUBLIC"

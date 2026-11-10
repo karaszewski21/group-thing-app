@@ -1,4 +1,4 @@
-"""`/api/terms` and `/api/needed-items` routes."""
+"""`/api/terms`, `/api/groups/{mine,{group_id}}/terms` and `/api/needed-items` routes."""
 
 from __future__ import annotations
 
@@ -18,7 +18,10 @@ from app.groups.schemas import (
     CreateNeededItemRequest,
     CreateTermRequest,
     ModerationTermResponse,
+    MyTermResponse,
+    MyTermRole,
     NeededItemResponse,
+    TermPeriod,
     TermResponse,
     UpdateNeededItemRequest,
     UpdateTermRequest,
@@ -55,30 +58,38 @@ async def create_term(
     return await _term_response(db, term)
 
 
-@router.get("/api/terms", response_model=list[TermResponse])
-async def list_terms(
-    circle_group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
-) -> list[TermResponse]:
-    """`attendee_count`/`child_count` are filled only for the Circle's active
-    organizer; a caller without a profile is treated as a non-organizer."""
+async def _caller_party_id(db: AsyncSession, principal: Principal) -> uuid.UUID | None:
+    """`None` for a caller without a profile (e.g. an OAuth client)."""
     try:
-        caller_party_id: uuid.UUID | None = (await get_profile_by_principal(db, principal)).party_id
+        return (await get_profile_by_principal(db, principal)).party_id
     except EntityNotFoundException:
-        caller_party_id = None
+        return None
 
-    rows = await service.list_terms_with_counts(db, circle_group_id, caller_party_id)
-    locations = await service.get_locations_by_ids(
-        db, {term.location_id for term, _, _ in rows if term.location_id is not None}
-    )
-    responses = []
-    for term, attendee_count, child_count in rows:
-        response = TermResponse.model_validate(term)
-        response.attendee_count = attendee_count
-        response.child_count = child_count
-        if term.location_id is not None:
-            response.location = service.location_ref_response(locations.get(term.location_id))
-        responses.append(response)
-    return responses
+
+@router.get("/api/groups/mine/terms", response_model=Page[MyTermResponse])
+async def list_my_terms(
+    role: MyTermRole, db: DbSession, principal: ReadPrincipal, pagination: Pagination
+) -> Page[MyTermResponse]:
+    """The caller's terms for the panel, latest date first, one page at a
+    time. Registered (with this router) ahead of the `/api/groups/{group_id}/...`
+    routes."""
+    profile = await get_profile_by_principal(db, principal)
+    return await service.list_my_terms_page(db, profile.party_id, role, pagination)
+
+
+@router.get("/api/groups/{group_id}/terms", response_model=Page[TermResponse])
+async def list_group_terms(
+    group_id: uuid.UUID,
+    db: DbSession,
+    principal: ReadPrincipal,
+    pagination: Pagination,
+    period: TermPeriod | None = None,
+) -> Page[TermResponse]:
+    """A Circle's terms, one page at a time; without `period` every term,
+    latest first. `attendee_count`/`child_count` are filled only for the
+    Circle's active organizer."""
+    caller_party_id = await _caller_party_id(db, principal)
+    return await service.list_group_terms_page(db, group_id, caller_party_id, period, pagination)
 
 
 @router.get("/api/terms/moderation", response_model=Page[ModerationTermResponse])

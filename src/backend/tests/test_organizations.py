@@ -112,7 +112,7 @@ async def test_createMyOrganization_nameMatchingOrganizerRouteSegment_neverGetsR
 
 @pytest.mark.parametrize("slug", ["access", "terms", "group"])
 def test_reservedSlugs_organizerSubPaths_areReserved(slug: str) -> None:
-    # Sub-paths under `/api/groups/public/organizers/{slug}` and the
+    # Sub-paths under `/api/public/organizers/{slug}` and the
     # frontend `/:slug/terms` / `/:slug/group/...` routes must never be
     # handed out as slugs.
     assert slug in RESERVED_SLUGS
@@ -159,7 +159,7 @@ async def test_getPublicOrganization_byExistingSlug_returnsNameAndColors(
     slug = created.json()["slug"]
 
     # No auth header — this endpoint must be reachable unauthenticated.
-    response = await client.get(f"/api/organizations/public/{slug}")
+    response = await client.get(f"/api/public/organizations/{slug}")
 
     assert response.status_code == 200
     body = response.json()
@@ -169,7 +169,7 @@ async def test_getPublicOrganization_byExistingSlug_returnsNameAndColors(
 
 
 async def test_getPublicOrganization_unknownSlug_returns404(client: AsyncClient) -> None:
-    response = await client.get("/api/organizations/public/does-not-exist")
+    response = await client.get("/api/public/organizations/does-not-exist")
 
     assert response.status_code == 404
 
@@ -266,7 +266,7 @@ async def test_getOrganization_newOrganization_returnsClassicLayoutAndNoPreset(
     )
 
     mine = await client.get("/api/organizations/mine", headers=headers)
-    public = await client.get(f"/api/organizations/public/{created['slug']}")
+    public = await client.get(f"/api/public/organizations/{created['slug']}")
 
     assert mine.status_code == 200
     assert public.status_code == 200
@@ -316,7 +316,7 @@ async def test_updateOrganization_scheduleLayout_isAccepted(
     )
 
     assert response.status_code == 200
-    public = await client.get(f"/api/organizations/public/{created['slug']}")
+    public = await client.get(f"/api/public/organizations/{created['slug']}")
     assert public.json()["page_layout"] == "SCHEDULE"
 
 
@@ -403,7 +403,7 @@ async def test_getOrganization_storedUnknownLayout_publicResolvesClassicMineRetu
     organization.page_layout = "custom:7f3c"
     await db_session.commit()
 
-    public = await client.get(f"/api/organizations/public/{created['slug']}")
+    public = await client.get(f"/api/public/organizations/{created['slug']}")
     mine = await client.get("/api/organizations/mine", headers=headers)
 
     assert public.json()["page_layout"] == "CLASSIC"
@@ -462,7 +462,7 @@ async def test_updateOrganization_description_isPublicAndBlankClearsIt(
 
     assert response.status_code == 200
     assert response.json()["description"] == "Zajęcia muzyczne dla maluchów."
-    public = await client.get(f"/api/organizations/public/{created['slug']}")
+    public = await client.get(f"/api/public/organizations/{created['slug']}")
     assert public.json()["description"] == "Zajęcia muzyczne dla maluchów."
 
     cleared = await client.patch(url, json={"description": "   "}, headers=headers)

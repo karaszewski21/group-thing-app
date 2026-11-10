@@ -230,11 +230,11 @@ async def _take(
 @pytest.mark.parametrize(
     ("template", "prefix"),
     [
-        ("/api/inventory-items/{id}/details", "ivr-details"),
+        ("/api/public/items/{id}/details", "ivr-details"),
         ("/api/inventory-items/{id}/history", "ivr-history"),
         ("/api/inventory-items/{id}/balance", "ivr-balance"),
         ("/api/inventory-items/{id}", "ivr-item"),
-        ("/api/items/{id}/actions", "ivr-actions-read"),
+        ("/api/public/items/{id}/actions", "ivr-actions-read"),
     ],
 )
 async def test_privateItem_readPaths_strangerGets404_ownerMemberCounterpartyGet200(
@@ -264,8 +264,8 @@ async def test_privateItem_rsvpOnlyNonMember_gets404(
     world = await _world(client, db_session, "ivr-rsvp")
 
     for path in (
-        f"/api/inventory-items/{world.free}/details",
-        f"/api/items/{world.free}/actions",
+        f"/api/public/items/{world.free}/details",
+        f"/api/public/items/{world.free}/actions",
     ):
         assert await _status(client, path, world.rsvp_only) == 404, path
     response = await _take(
@@ -280,19 +280,19 @@ async def test_privateItem_lists_hiddenOnEventsPublicTermsOrganizerOwnerPage_sho
     world = await _world(client, db_session, "ivr-lists")
     hidden = (str(world.reserved), str(world.free))
 
-    event_page = await client.get(f"/api/events/{world.event}", headers=_auth(world.member))
+    event_page = await client.get(f"/api/public/events/{world.event}", headers=_auth(world.member))
     public_term = await client.get(
-        f"/api/groups/public/{world.public_circle}/access", headers=_auth(world.member)
+        f"/api/public/groups/{world.public_circle}/access", headers=_auth(world.member)
     )
     slug = await _organization_slug(client, world.owner, "Nutki ivr-lists")
     organizer_page = await client.get(
-        f"/api/groups/public/organizers/{slug}", headers=_auth(world.member)
+        f"/api/public/organizers/{slug}", headers=_auth(world.member)
     )
     owner_items = await client.get(
-        f"/api/groups/public/parties/{world.owner_party}/items", headers=_auth(world.member)
+        f"/api/public/parties/{world.owner_party}/items", headers=_auth(world.member)
     )
     private_term = await client.get(
-        f"/api/groups/public/{world.private_circle}/access", headers=_auth(world.member)
+        f"/api/public/groups/{world.private_circle}/access", headers=_auth(world.member)
     )
     browse = await client.get(
         "/api/term-item-listings/browse",
@@ -377,9 +377,13 @@ async def test_getItemActions_privateItem_contextsOnlyPrivateCircleTerms(
 ) -> None:
     world = await _world(client, db_session, "ivr-actions")
 
-    own = await client.get(f"/api/items/{world.free}/actions", headers=_auth(world.owner))
-    member = await client.get(f"/api/items/{world.free}/actions", headers=_auth(world.member))
-    public = await client.get(f"/api/items/{world.public}/actions", headers=_auth(world.owner))
+    own = await client.get(f"/api/public/items/{world.free}/actions", headers=_auth(world.owner))
+    member = await client.get(
+        f"/api/public/items/{world.free}/actions", headers=_auth(world.member)
+    )
+    public = await client.get(
+        f"/api/public/items/{world.public}/actions", headers=_auth(world.owner)
+    )
 
     assert own.status_code == 200 and member.status_code == 200, (own.text, member.text)
     assert own.json()["visibility"] == "PRIVATE"
@@ -410,7 +414,7 @@ async def test_privateItem_pendingPersonalProposal_proposerKeepsAccessUntilRejec
     made_private = await _put(client, owner, str(listed), {"mode": "SWAP", "visibility": "PRIVATE"})
     assert made_private.status_code == 200, made_private.text
 
-    as_proposer = await client.get(f"/api/items/{listed}/actions", headers=_auth(proposer))
+    as_proposer = await client.get(f"/api/public/items/{listed}/actions", headers=_auth(proposer))
     stranger_take = await _take(client, listed, stranger, {"kind": "PERSONAL"})
     proposer_chat = await client.post(
         "/api/conversations/item", json={"item_id": str(listed)}, headers=_auth(proposer)
@@ -419,7 +423,7 @@ async def test_privateItem_pendingPersonalProposal_proposerKeepsAccessUntilRejec
     assert as_proposer.status_code == 200, as_proposer.text
     assert as_proposer.json()["party_reservation"]["proposal_id"] == proposal["id"]
     assert as_proposer.json()["reservation"]["by_me"] is True
-    assert await _status(client, f"/api/items/{listed}/actions", stranger) == 404
+    assert await _status(client, f"/api/public/items/{listed}/actions", stranger) == 404
     assert stranger_take.status_code == 404, stranger_take.text
     assert proposer_chat.status_code == 201, proposer_chat.text
 
@@ -427,7 +431,7 @@ async def test_privateItem_pendingPersonalProposal_proposerKeepsAccessUntilRejec
         f"/api/swap-proposals/{proposal['id']}/reject", headers=_auth(owner)
     )
     assert rejected.status_code == 200, rejected.text
-    assert await _status(client, f"/api/items/{listed}/actions", proposer) == 404
+    assert await _status(client, f"/api/public/items/{listed}/actions", proposer) == 404
 
 
 async def test_privateItem_rsvpOnlyOwner_notListedOrOfferedOnPrivateTerm_memberOwnerStillListed(
@@ -462,11 +466,11 @@ async def test_privateItem_rsvpOnlyOwner_notListedOrOfferedOnPrivateTerm_memberO
         )
         assert response.status_code == 200, response.text
 
-    access = await client.get(f"/api/groups/public/{circle}/access", headers=_auth(member))
+    access = await client.get(f"/api/public/groups/{circle}/access", headers=_auth(member))
     browse = await client.get(
         "/api/term-item-listings/browse", params={"term_id": str(term)}, headers=_auth(member)
     )
-    actions = await client.get(f"/api/items/{private_item}/actions", headers=_auth(member))
+    actions = await client.get(f"/api/public/items/{private_item}/actions", headers=_auth(member))
     take = await _take(client, private_item, member, {"kind": "TERM", "id": str(term)})
 
     expected = {str(public_item), str(organizer_item)}
