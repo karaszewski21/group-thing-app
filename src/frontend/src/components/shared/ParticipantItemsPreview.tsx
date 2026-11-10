@@ -22,17 +22,6 @@ export interface ParticipantPreviewItem {
   reservation: ReservedByResponse | null;
 }
 
-/** "dodano dziś" / "dodano wczoraj" by calendar day, "tydzień temu" for the
- * second week, else dayjs' Polish relative time ("3 dni temu"). */
-function addedAgo(addedAt: string): string {
-  const added = dayjs.utc(addedAt).local();
-  const days = dayjs().startOf("day").diff(added.startOf("day"), "day");
-  if (days <= 0) return "dodano dziś";
-  if (days === 1) return "dodano wczoraj";
-  if (days < 7) return `${days} dni temu`;
-  if (days < 14) return "tydzień temu";
-  return added.fromNow();
-}
 
 /** One row, a single link to the item's product page under the
  * participant's party id (the page moves it to their Organization slug). */
@@ -55,7 +44,6 @@ function ItemRow({ item, partyId }: { item: ParticipantPreviewItem; partyId: str
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="block text-[15px] leading-snug wrap-break-word">{item.name}</span>{" "}
           <ItemTileBadges modes={item.modes} reservation={item.reservation} />{" "}
-          <small className="block text-xs text-ink-soft">{addedAgo(item.addedAt)}</small>
         </span>
         <span aria-hidden="true" className="shrink-0 text-ink-soft">
           ›

@@ -36,7 +36,7 @@ export function groupDetailsPath(groupId: string): string {
 }
 
 export function termAttendeesPath(termId: string): string {
-  return `/terms/${termId}`;
+  return `/terms/${termId}/attendees`;
 }
 
 export function groupEditPath(groupId: string): string {

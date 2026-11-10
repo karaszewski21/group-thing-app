@@ -86,8 +86,8 @@ const attendees: TermAttendeeResponse[] = [
 
 function renderPage() {
   return renderWithRoute(<TermAttendeesPage />, {
-    url: `/terms/${TERM_ID}`,
-    pattern: "/terms/:termId",
+    url: `/terms/${TERM_ID}/attendees`,
+    pattern: "/terms/:termId/attendees",
     routes: { "/messages/:id": <p>Wątek rozmowy</p> },
     wrapper: createQueryWrapper(),
   });

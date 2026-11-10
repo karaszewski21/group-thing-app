@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import GroupDetailsRoute from "../app/(site)/(panel)/groups/[groupId]/page";
 import InboxRoute from "../app/(site)/(panel)/messages/page";
 import OrganizationRoute from "../app/(site)/(panel)/organization/page";
-import TermAttendeesRoute from "../app/(site)/(panel)/terms/[termId]/page";
+import TermAttendeesRoute from "../app/(site)/(panel)/terms/[termId]/attendees/page";
 import ThreadRoute from "../app/(site)/(panel)/messages/[conversationId]/page";
 import { PanelGate } from "../features/panel/PanelGate";
 import { pageFor } from "./appRoutes";
@@ -25,7 +25,7 @@ describe("panel section pages", () => {
   it.each([
     ["/messages", "(site)/(panel)/messages", InboxRoute, "Skrzynka"],
     ["/groups/g7", "(site)/(panel)/groups/[groupId]", GroupDetailsRoute, "Grupa"],
-    ["/terms/t9", "(site)/(panel)/terms/[termId]", TermAttendeesRoute, "Zapisani"],
+    ["/terms/t9/attendees", "(site)/(panel)/terms/[termId]/attendees", TermAttendeesRoute, "Zapisani"],
     ["/organization", "(site)/(panel)/organization", OrganizationRoute, "Organizacja"],
   ])("%s is a panel page that renders its own view", (url, dir, Route, heading) => {
     expect(pageFor(url)?.dir).toBe(dir);

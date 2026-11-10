@@ -1415,7 +1415,7 @@ describe("AppPage — organizer term card signup chip", () => {
     const chip = await screen.findByRole("link", { name: chipName });
     expect(chip).toHaveTextContent("5 zapisów · 8 dzieci");
     expect(chip).toHaveAccessibleName("Zapisani na termin: 5 zapisów, 8 dzieci");
-    expect(chip).toHaveAttribute("href", `/terms/${TERM_ID}`);
+    expect(chip).toHaveAttribute("href", `/terms/${TERM_ID}/attendees`);
   });
 
   it("organizer card chip uses Polish plural forms (2 zapisy · 1 dziecko)", async () => {
@@ -1433,7 +1433,7 @@ describe("AppPage — organizer term card signup chip", () => {
     const chip = await screen.findByRole("link", { name: chipName });
     expect(chip).toHaveTextContent("Brak zapisów");
     expect(chip).not.toHaveTextContent("dzieci");
-    expect(chip).toHaveAttribute("href", `/terms/${TERM_ID}`);
+    expect(chip).toHaveAttribute("href", `/terms/${TERM_ID}/attendees`);
   });
 
   it("no chip when counts are null", async () => {

@@ -7,7 +7,7 @@ import { formatChildAges } from "../../utils/age";
 import { pluralPl } from "../../utils/plural";
 import { dayMonth, termPublicPath, termTime } from "../../utils/appHelpers";
 
-/** Organizer-only list of who signed up for one term (`/terms/:termId`), a
+/** Organizer-only list of who signed up for one term (`/terms/:termId/attendees`), a
  * panel view that loads its own data: the hook resolves the group from the
  * term itself. */
 export function TermAttendeesPage() {
