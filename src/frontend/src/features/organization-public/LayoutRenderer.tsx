@@ -1,20 +1,20 @@
 import { type ComponentType, type ReactNode } from "react";
 import { AboutBlock, isAboutEmpty } from "./blocks/AboutBlock";
 import { BlockSkeleton } from "../../components/shared/BlockSkeleton";
-import { CirclesGridBlock, isCirclesGridEmpty } from "./blocks/CirclesGridBlock";
 import { EmptyStateBlock } from "./blocks/EmptyStateBlock";
-import { ExchangeBoardBlock, isExchangeBoardEmpty } from "./blocks/ExchangeBoardBlock";
-import { ExchangeCountsBlock, isExchangeCountsEmpty } from "./blocks/ExchangeCountsBlock";
 import { GalleryBlock, isGalleryEmpty } from "./blocks/GalleryBlock";
 import { GhostBlock } from "./blocks/GhostBlock";
+import { GroupsGridBlock, isGroupsGridEmpty } from "./blocks/GroupsGridBlock";
 import { HeroBlock } from "./blocks/HeroBlock";
+import { isItemStatsEmpty, ItemStatsBlock } from "./blocks/ItemStatsBlock";
 import { LinkStackBlock } from "./blocks/LinkStackBlock";
-import { isNeededItemsEmpty, NeededItemsBlock } from "./blocks/NeededItemsBlock";
+import { isMeetingLinksEmpty, MeetingLinksBlock } from "./blocks/MeetingLinksBlock";
 import { isNextDateCtaEmpty, NextDateCtaBlock } from "./blocks/NextDateCtaBlock";
 import { isRecentItemsEmpty, RecentItemsBlock } from "./blocks/RecentItemsBlock";
 import { ShareBlock } from "./blocks/ShareBlock";
 import { isStatsEmpty, StatsBlock } from "./blocks/StatsBlock";
 import { isUpcomingDatesEmpty, UpcomingDatesBlock } from "./blocks/UpcomingDatesBlock";
+import { groupsOf } from "./layouts/layoutData";
 import type {
   BlockId,
   BlockProps,
@@ -45,29 +45,22 @@ const BLOCKS: Record<BlockId, BlockDefinition> = {
   stats: { Component: StatsBlock, directory: true, isEmpty: isStatsEmpty },
   "upcoming-dates": { Component: UpcomingDatesBlock, directory: true, isEmpty: isUpcomingDatesEmpty },
   "next-date-cta": { Component: NextDateCtaBlock, directory: true, isEmpty: isNextDateCtaEmpty },
-  "circles-grid": { Component: CirclesGridBlock, directory: true, isEmpty: isCirclesGridEmpty },
-  "exchange-counts": { Component: ExchangeCountsBlock, directory: true, isEmpty: isExchangeCountsEmpty },
-  "exchange-board": { Component: ExchangeBoardBlock, directory: true, isEmpty: isExchangeBoardEmpty },
-  "needed-items": { Component: NeededItemsBlock, directory: true, isEmpty: isNeededItemsEmpty },
+  "groups-grid": { Component: GroupsGridBlock, directory: true, isEmpty: isGroupsGridEmpty },
+  "item-stats": { Component: ItemStatsBlock, directory: true, isEmpty: isItemStatsEmpty },
   "recent-items": { Component: RecentItemsBlock, directory: true, isEmpty: isRecentItemsEmpty },
+  "meeting-links": { Component: MeetingLinksBlock, directory: true, isEmpty: isMeetingLinksEmpty },
 };
 
-const GRID_SKELETON_BLOCKS = new Set<BlockId>([
-  "stats",
-  "circles-grid",
-  "exchange-counts",
-  "exchange-board",
-  "recent-items",
-]);
+const GRID_SKELETON_BLOCKS = new Set<BlockId>(["stats", "groups-grid", "item-stats", "recent-items"]);
 
-/** Without a known circle count (loading or unavailable), only the first slot
+/** Without a known group count (loading or unavailable), only the first slot
  * of a block id matches, so a single skeleton or ghost stands for its variants. */
 function matchesWhen(slot: BlockSlot, index: number, slots: BlockSlot[], data: OrganizerPageData): boolean {
   if (!slot.when) return true;
   if (!data.directory) return slots.findIndex((other) => other.block === slot.block) === index;
-  const circles = data.directory.circles.length;
-  const { minCircles, maxCircles } = slot.when;
-  return (minCircles === undefined || circles >= minCircles) && (maxCircles === undefined || circles <= maxCircles);
+  const groups = groupsOf(data.directory).length;
+  const { minGroups, maxGroups } = slot.when;
+  return (minGroups === undefined || groups >= minGroups) && (maxGroups === undefined || groups <= maxGroups);
 }
 
 interface LayoutRendererProps {
@@ -95,16 +88,16 @@ export function LayoutRenderer({ layout, data, mode, heroAction }: LayoutRendere
       return <BlockSkeleton key={key} shape={GRID_SKELETON_BLOCKS.has(slot.block) ? "grid" : "rows"} />;
     }
     if (directory && data.directoryStatus === "unavailable") {
-      return owner ? <GhostBlock key={key} block={slot.block} unavailable /> : emptyState(true);
+      return owner ? <GhostBlock key={key} block={slot.block} slug={data.organization.slug} unavailable /> : emptyState(true);
     }
     if (isEmpty?.(data)) {
-      return owner ? <GhostBlock key={key} block={slot.block} /> : emptyState(false);
+      return owner ? <GhostBlock key={key} block={slot.block} slug={data.organization.slug} /> : emptyState(false);
     }
     if (Component) {
       const action = slot.block === "hero" ? heroAction : undefined;
       return <Component key={key} data={data} variant={slot.variant} mode={mode} heroAction={action} />;
     }
-    return owner ? <GhostBlock key={key} block={slot.block} /> : null;
+    return owner ? <GhostBlock key={key} block={slot.block} slug={data.organization.slug} /> : null;
   }
 
   return (

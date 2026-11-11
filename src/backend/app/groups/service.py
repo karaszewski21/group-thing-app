@@ -1,12 +1,12 @@
 """`app.groups` business logic: Circle CRUD, leadership transfer (strictly
 1:N), membership join/leave (N:N, per individual `GroupRole`), Term/
-NeededItem/Pledge, and the item-exchange bridge into `app.circulation`
+NeededItem/Pledge, and the item-exchange bridge into `app.inventory`
 (one-directional dependency only).
 
 This module is a flat re-export facade over the `domain/`, `application/`
 and `infrastructure/` layers; `app.groups.router` and the cross-slice
-consumers in `app.families` / `app.users` import every symbol they need
-from here.
+consumers in `app.families` / `app.pages` / `app.users` import every
+symbol they need from here.
 
 Ownership checks the coarse `AUTHORIZATION_MATRIX` can't express (only the
 active organizer of a Circle may create its Terms, only the pledging party
@@ -66,7 +66,7 @@ from app.groups.application.memberships import (
     list_memberships_for_party,
     list_term_attendees,
 )
-from app.groups.application.organizer_page import get_organizer_page, list_organizer_terms
+from app.groups.application.owner_items import owner_item_counts
 from app.groups.application.pledges import (
     create_pledge,
     get_pledge,
@@ -80,7 +80,11 @@ from app.groups.application.public_view import (
     list_my_attendances,
     list_my_pledges,
 )
-from app.groups.application.reserved_by import ReservedByNames, load_reserved_by_names
+from app.groups.application.reserved_by import (
+    ReservedByNames,
+    load_reserved_by_names,
+    resolve_viewer_party_id,
+)
 from app.groups.application.term_item_listings import (
     accept_swap_proposal,
     cancel_transaction,
@@ -88,6 +92,7 @@ from app.groups.application.term_item_listings import (
     list_browsable_term_item_listings,
     list_my_active_taken_term_item_listings,
     list_my_inventory_items,
+    list_my_inventory_items_page,
     list_my_term_item_listings,
     list_swap_proposals_for_my_item,
     propose_item_swap,
@@ -111,12 +116,20 @@ from app.groups.application.terms import (
     update_needed_item,
     update_term,
 )
+from app.groups.infrastructure.events_acl import (
+    author_slugs,
+    count_upcoming_authored_events,
+    list_upcoming_events_for_parties,
+)
 from app.groups.infrastructure.locations_acl import (
     get_location,
     get_locations_by_ids,
     location_ref_response,
 )
 from app.groups.infrastructure.repository import (
+    count_owner_available_items_by_mode,
+    count_owner_public_groups,
+    count_owner_public_terms,
     count_terms_by_group,
     has_active_attendance,
     has_active_membership,
@@ -124,9 +137,16 @@ from app.groups.infrastructure.repository import (
     list_chat_group_refs,
     list_chat_term_refs,
     list_current_organizer_party_ids,
+    list_group_upcoming_terms,
+    list_owner_listed_items_page,
+    list_owner_public_groups,
+    list_upcoming_public_terms_for_party,
     with_pending_proposer,
 )
-from app.groups.infrastructure.slug_resolver import resolve_organizer_slug
+from app.groups.infrastructure.slug_resolver import (
+    resolve_organizer_slug,
+    resolve_organizer_slugs,
+)
 
 __all__ = [
     "count_terms_by_group",
@@ -136,6 +156,7 @@ __all__ = [
     "accept_swap_proposal",
     "add_active_membership",
     "assign_leadership",
+    "author_slugs",
     "build_leadership_responses",
     "build_membership_responses",
     "can_view_item",
@@ -143,6 +164,10 @@ __all__ = [
     "cancel_transaction",
     "confirm_transaction",
     "count_open_event_reservations",
+    "count_owner_available_items_by_mode",
+    "count_owner_public_groups",
+    "count_owner_public_terms",
+    "count_upcoming_authored_events",
     "create_additional_circle",
     "create_circle",
     "create_needed_item",
@@ -162,7 +187,6 @@ __all__ = [
     "get_location",
     "get_locations_by_ids",
     "get_needed_item_view",
-    "get_organizer_page",
     "get_pledge",
     "get_public_circle_view",
     "get_term",
@@ -180,6 +204,7 @@ __all__ = [
     "list_current_organizer_party_ids",
     "list_group_member_party_ids",
     "list_group_members",
+    "list_group_upcoming_terms",
     "list_groups",
     "list_groups_for_moderation",
     "list_leaderships",
@@ -188,25 +213,32 @@ __all__ = [
     "list_my_active_taken_term_item_listings",
     "list_my_attendances",
     "list_my_inventory_items",
+    "list_my_inventory_items_page",
     "list_my_pledges",
     "list_my_term_item_listings",
     "list_needed_item_views",
     "list_needed_item_views_for_terms",
-    "list_organizer_terms",
+    "list_owner_listed_items_page",
+    "list_owner_public_groups",
     "list_pledges",
     "list_swap_proposals_for_my_item",
     "list_term_attendees",
     "list_terms",
     "list_terms_for_moderation",
+    "list_upcoming_events_for_parties",
+    "list_upcoming_public_terms_for_party",
     "list_group_terms_page",
     "list_my_terms_page",
     "location_ref_response",
+    "owner_item_counts",
     "propose_item_swap",
     "redeem_join_code",
     "regenerate_join_code",
     "reject_swap_proposal",
     "remove_leadership",
     "resolve_organizer_slug",
+    "resolve_organizer_slugs",
+    "resolve_viewer_party_id",
     "restore_group",
     "set_item_listing_preference",
     "soft_delete_group",

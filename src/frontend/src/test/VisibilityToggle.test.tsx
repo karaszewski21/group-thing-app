@@ -3,29 +3,27 @@ import { describe, expect, it, vi } from "vitest";
 import { VisibilityToggle } from "../features/items/VisibilityToggle";
 
 describe("VisibilityToggle", () => {
-  it("marks the current value pressed and calls back with the other one", () => {
+  it("an open lock is public and clicking it makes the item private", () => {
     const onChange = vi.fn();
     render(<VisibilityToggle value="PUBLIC" onChange={onChange} itemName="Rowerek" />);
 
-    const group = screen.getByRole("group", { name: "Widoczność: Rowerek" });
-    const pub = screen.getByRole("button", { name: "Publiczna" });
-    const priv = screen.getByRole("button", { name: "Prywatna" });
-    expect(group).toContainElement(pub);
-    expect(pub).toHaveAttribute("aria-pressed", "true");
-    expect(priv).toHaveAttribute("aria-pressed", "false");
-    expect(pub).toHaveAttribute("type", "button");
-    expect(priv).toHaveAttribute("type", "button");
+    const lock = screen.getByRole("button", { name: "Prywatna: Rowerek" });
+    expect(lock).toHaveAttribute("aria-pressed", "false");
+    expect(lock).toHaveAttribute("type", "button");
+    expect(lock).toHaveTextContent("");
 
-    fireEvent.click(priv);
+    fireEvent.click(lock);
     expect(onChange).toHaveBeenCalledWith("PRIVATE");
   });
 
-  it("clicking the current value does not call back", () => {
+  it("a closed lock is private and clicking it makes the item public", () => {
     const onChange = vi.fn();
     render(<VisibilityToggle value="PRIVATE" onChange={onChange} itemName="Rowerek" />);
 
-    expect(screen.getByRole("button", { name: "Prywatna" })).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Prywatna" }));
-    expect(onChange).not.toHaveBeenCalled();
+    const lock = screen.getByRole("button", { name: "Prywatna: Rowerek" });
+    expect(lock).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(lock);
+    expect(onChange).toHaveBeenCalledWith("PUBLIC");
   });
 });

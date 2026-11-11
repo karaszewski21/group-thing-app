@@ -9,12 +9,13 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
+from app.core.pagination import Pagination
 from app.db import get_db
 from app.groups import service
 from app.groups.application.term_item_listings import TermAlreadyResolvedException
@@ -23,8 +24,10 @@ from app.groups.schemas import (
     BrowseTermItemListingResponse,
     CancelTransactionResponse,
     ConfirmTransactionResponse,
+    ExchangeMode,
     ItemListingPreferenceResponse,
     MyInventoryItemResponse,
+    MyInventoryItemsPageResponse,
     SetItemListingPreferenceRequest,
     SwapProposalOfferResponse,
     SwapProposalResponse,
@@ -53,7 +56,7 @@ async def set_item_listing_preference(
     return ItemListingPreferenceResponse.model_validate(preference) if preference else None
 
 
-# Registered by `app.main` ahead of circulation's router, so the literal
+# Registered by `app.main` ahead of inventory's router, so the literal
 # `mine` segment is matched here before `GET /api/inventory-items/{item_id}`
 # could try to parse it as an `int`.
 @router.get("/api/inventory-items/mine", response_model=list[MyInventoryItemResponse])
@@ -61,6 +64,27 @@ async def list_my_inventory_items(
     db: DbSession, principal: ReadPrincipal, storage: Storage
 ) -> list[MyInventoryItemResponse]:
     return await service.list_my_inventory_items(db, principal, storage)
+
+
+@router.get("/api/inventory-items/mine/page", response_model=MyInventoryItemsPageResponse)
+async def list_my_inventory_items_page(
+    db: DbSession,
+    principal: ReadPrincipal,
+    storage: Storage,
+    pagination: Pagination,
+    mode: ExchangeMode | None = None,
+    q: Annotated[str | None, Query(max_length=100)] = None,
+) -> MyInventoryItemsPageResponse:
+    """`Moje rzeczy` page by page, newest first: `mode` keeps one listing
+    mode, `q` matches part of the name."""
+    return await service.list_my_inventory_items_page(
+        db,
+        principal,
+        pagination,
+        mode,
+        q.strip() or None if q else None,
+        storage,
+    )
 
 
 # Declared before `GET /api/term-item-listings/{item_id}/swap-proposals` so the

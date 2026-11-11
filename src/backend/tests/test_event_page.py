@@ -17,9 +17,9 @@ from PIL import Image
 from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from app.circulation.models import BalanceStatus
 from app.events.models import Event, EventAttendance, EventBanner
 from app.groups.models import ItemListingPreference
+from app.inventory.models import BalanceStatus
 from app.moderation.status import ModerationStatus
 from app.outbox.models import OutboxEntry
 from app.storage.outbox_listener import OBJECTS_DELETE

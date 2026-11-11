@@ -10,12 +10,23 @@ interface PersonalPickupSheetProps {
   mode: ExchangeMode;
   /** Reserves (GIFT) or continues to the swap picker (SWAP) for a personal pickup. */
   onConfirm: () => void;
+  /** Opens the ITEM chat with the owner without reserving. */
+  onMessage: () => void;
   onClose: () => void;
 }
 
 /** "Odbiorę osobiście": the owner's place by name, the address-in-chat
- * note and what happens next. The address is never shown here. */
-export function PersonalPickupSheet({ ownerName, itemName, locationName, mode, onConfirm, onClose }: PersonalPickupSheetProps) {
+ * note and what happens next, then reserving and writing to the owner as
+ * separate actions. The address is never shown here. */
+export function PersonalPickupSheet({
+  ownerName,
+  itemName,
+  locationName,
+  mode,
+  onConfirm,
+  onMessage,
+  onClose,
+}: PersonalPickupSheetProps) {
   return (
     <ModalSheet title="Odbiór osobisty" onClose={onClose}>
       <div className="rounded-2xl border border-line bg-paper p-3">
@@ -39,7 +50,14 @@ export function PersonalPickupSheet({ ownerName, itemName, locationName, mode, o
         )}
       </p>
       <button type="button" onClick={onConfirm} className={`${BTN_PRIMARY} ${BTN_LG} mt-4 block w-full text-center`}>
-        {`Rezerwuję i piszę do ${ownerName}`}
+        {mode === "SWAP" ? "Proponuję zamianę" : "Rezerwuję"}
+      </button>
+      <button
+        type="button"
+        onClick={onMessage}
+        className={`${BTN_GHOST} ${BTN_LG} mt-2.5 block w-full border-primary text-center text-primary-fg`}
+      >
+        {`💬 Piszę do ${ownerName}`}
       </button>
       <button type="button" onClick={onClose} className={`${BTN_GHOST} ${BTN_LG} mt-2.5 block w-full text-center text-ink`}>
         Anuluj

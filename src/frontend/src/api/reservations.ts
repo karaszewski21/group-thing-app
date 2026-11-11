@@ -9,7 +9,7 @@ export interface ReservationResponse {
   reservation_type: ReservationType;
   reserved_by_user_id: string;
   // Optional here (not on the actual backend response, which always sets
-  // it — see `circulation/schemas.py`'s `ReservationResponse.term_id`)
+  // it — see `inventory/schemas.py`'s `ReservationResponse.term_id`)
   // purely so pre-existing mocked `ReservationResponse` object literals in
   // `TermPage.test.tsx`/`AppPage.test.tsx` (written before this
   // field existed on the frontend type) keep compiling without an

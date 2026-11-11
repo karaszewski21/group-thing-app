@@ -1,6 +1,6 @@
 """Public cross-context functions messaging relies on: the groups chat
 audience (soft-deleted Circles included, ended memberships and withdrawn
-RSVPs excluded), the batched group/term/organizer refs, `circulation.
+RSVPs excluded), the batched group/term/organizer refs, `inventory.
 list_item_refs` and `users.list_chat_profiles_by_party_ids` — each batched
 lookup one statement for non-empty input and none for empty input."""
 
@@ -12,10 +12,10 @@ from datetime import datetime
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from app.circulation import service as circulation_service
-from app.circulation.models import InventoryItem
 from app.groups import service
 from app.groups.models import Group, GroupVisibility
+from app.inventory import service as inventory_service
+from app.inventory.models import InventoryItem
 from app.users import service as users_service
 from tests.conftest import count_queries, create_location, seed_legacy_guest
 from tests.test_organizer_page import _circle, _in_days, _term
@@ -156,11 +156,11 @@ async def test_listItemRefs_includesSoftDeleted_queryCountIndependentOfItemCount
     await db_session.commit()
 
     with count_queries(engine) as one_item:
-        single = await circulation_service.list_item_refs(db_session, [first])
+        single = await inventory_service.list_item_refs(db_session, [first])
     with count_queries(engine) as three_items:
-        refs = await circulation_service.list_item_refs(db_session, [first, second, third])
+        refs = await inventory_service.list_item_refs(db_session, [first, second, third])
     with count_queries(engine) as no_items:
-        assert await circulation_service.list_item_refs(db_session, []) == {}
+        assert await inventory_service.list_item_refs(db_session, []) == {}
 
     assert single == {first: ("Mcc gitara", None)}
     assert refs == {

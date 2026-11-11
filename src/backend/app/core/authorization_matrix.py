@@ -99,7 +99,7 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # through to the weaker rules below.
     (_methods("GET"), r"^/api/groups/moderation$", ("ADMIN",)),
     (_methods("POST"), r"^/api/groups/[^/]+/restore$", ("ADMIN",)),
-    # 26-47: app.party / app.circulation — added beyond spec.md's original 25
+    # 26-47: app.party / app.inventory — added beyond spec.md's original 25
     # rows for the Organizer/Circle/Family + Wypożyczalnia domain. Ownership
     # checks the matrix itself can't express (active organizer, own-family
     # guardian, reservation party, ...) are enforced in each vertical's
@@ -147,16 +147,19 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # Fine-grained inventory-item edit + soft-delete — ahead of rows 40-41's
     # blanket inventory-items requirements (first-match-wins). The owner check
     # (`inventory.owner_user_id == acting user`) lives in
-    # `app.circulation.service`; the matrix only gates it to EDIT.
+    # `app.inventory.service`; the matrix only gates it to EDIT.
     (_methods("PATCH", "DELETE"), r"^/api/inventory-items/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("GET"), r"^/api/inventory-items(/.*)?$", ("READ", "mcp:read")),  # 40
     (_methods("POST"), r"^/api/inventory-items(/.*)?$", ("EDIT", "mcp:edit")),  # 41
     (_methods("GET"), r"^/api/reservations(/.*)?$", ("READ", "mcp:read")),  # 42
     (_methods("GET"), r"^/api/circulation-transactions/[^/]+$", ("READ", "mcp:read")),  # 45
     (_methods("GET"), r"^/api/people(/.*)?$", ("READ", "mcp:read")),  # 46
-    # The caller's own profile edit and avatar; ownership is the principal itself.
-    (_methods("PATCH"), r"^/api/people/me$", ("EDIT", "mcp:edit")),
-    (_methods("POST", "DELETE"), r"^/api/people/me/avatar$", ("EDIT", "mcp:edit")),
+    # The caller's own profile edit, appearance and media; ownership is the
+    # principal itself.
+    (_methods("PATCH"), r"^/api/people/me(/appearance)?$", ("EDIT", "mcp:edit")),
+    (_methods("POST"), r"^/api/people/me/media$", ("EDIT", "mcp:edit")),
+    (_methods("PATCH"), r"^/api/people/me/media/order$", ("EDIT", "mcp:edit")),
+    (_methods("DELETE"), r"^/api/people/me/media/[^/]+$", ("EDIT", "mcp:edit")),
     # 47: public self-registration — the party-module counterpart to row 6's
     # `/api/auth/login`. No existing row matches this literal path, so it's
     # appended here rather than inserted next to row 6, to avoid renumbering

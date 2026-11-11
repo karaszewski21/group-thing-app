@@ -7,6 +7,7 @@ import { NOTIFICATIONS_KEY } from "../../hooks/useNotifications";
 import { subscribePendingActionResolved } from "../../components/layout/pending/pendingActionResolved";
 import { MY_PLEDGES_KEY } from "../../hooks/useMyPledges";
 import { NEEDED_ITEMS_KEY } from "../../hooks/useNeededItems";
+import { MY_ITEMS_PAGE_KEY } from "../../hooks/useMyItemsPage";
 import { MY_TERMS_KEY } from "../../hooks/useMyTerms";
 import { GROUP_TERMS_KEY } from "../../hooks/useNearestGroupTerm";
 import { TERM_KEY } from "../../hooks/useTerm";
@@ -58,7 +59,7 @@ import { EMPTY_EVENT_DRAFT, type EventDraft } from "../events/eventDraft";
 import { newTermDraft, type TermDraft } from "../terms/termDraft";
 import { useFirstTermStepper } from "../terms/hooks/useFirstTermStepper";
 import { createEmptyItemQuickAddValue, type ItemEditDraft, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
-import { defaultVisibility, GIFT_LIMIT_MESSAGE, ITEM_MODE_TO_RESERVATION_TYPE, MAX_GIFT_ITEMS, RESERVATION_TYPE_TO_ITEM_MODE, type GuestTermCard, type ItemMode, type ModalKind, type NewFamilyMember, capacityText, circleTermPath, parseCapacity } from "../../utils/appHelpers";
+import { defaultVisibility, ITEM_MODE_TO_RESERVATION_TYPE, RESERVATION_TYPE_TO_ITEM_MODE, type GuestTermCard, type ItemMode, type ModalKind, type NewFamilyMember, capacityText, circleTermPath, parseCapacity } from "../../utils/appHelpers";
 import { type View, viewPath } from "../../routing/paths";
 import { AppDataContext } from "./appDataStore";
 
@@ -258,6 +259,7 @@ function useAppDataValue() {
         queryClient.invalidateQueries({ queryKey: [MY_PLEDGES_KEY] }),
         queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
         queryClient.invalidateQueries({ queryKey: [MY_TERMS_KEY] }),
+        queryClient.invalidateQueries({ queryKey: [MY_ITEMS_PAGE_KEY] }),
         queryClient.invalidateQueries({ queryKey: [GROUP_TERMS_KEY] }),
         queryClient.invalidateQueries({ queryKey: [TERM_KEY] }),
       ]);
@@ -306,10 +308,12 @@ function useAppDataValue() {
       if (seq !== itemsSeqRef.current) return;
       setItems(myItems);
       setItemModes(itemModesFrom(myItems));
+      // The paged "Moje rzeczy" list re-reads which items it shows.
+      await queryClient.invalidateQueries({ queryKey: [MY_ITEMS_PAGE_KEY] });
     } catch {
       // Stale data stays on screen until the next refresh.
     }
-  }, []);
+  }, [queryClient]);
 
   // While any item's photos are in moderation, re-read the items every 10 s
   // so the "Zdjęcia w moderacji" pill and thumbnail update after approval. Runs only while the tab is visible;
@@ -341,7 +345,7 @@ function useAppDataValue() {
 
   useEffect(() => {
     if (!toast) return;
-    // Long server messages (e.g. the 409 about the gift limit) need
+    // Long server messages (e.g. a 409 conflict) need
     // more reading time than the short confirmations.
     const t = setTimeout(() => setToast(""), Math.max(2200, toast.length * 45));
     return () => clearTimeout(t);
@@ -461,10 +465,6 @@ function useAppDataValue() {
     const balance = await getInventoryItemBalance(itemId);
     if (ACTIVE_LOCK_BALANCE_STATUSES.includes(balance.status)) return;
     const next = itemModes[itemId] === mode ? null : mode;
-    if (next === "oddam" && items.filter((i) => itemModes[i.id] === "oddam").length >= MAX_GIFT_ITEMS) {
-      showToast(GIFT_LIMIT_MESSAGE);
-      return;
-    }
     setItemError(null);
     try {
       // Only the mode: the server keeps the item's current visibility.
@@ -476,10 +476,12 @@ function useAppDataValue() {
       itemsSeqRef.current++;
       setItemModes((prev) => ({ ...prev, [itemId]: next }));
       setItemVisibilityLocally(itemId, saved?.visibility ?? null);
+      // A mode filter may no longer match the item.
+      await queryClient.invalidateQueries({ queryKey: [MY_ITEMS_PAGE_KEY] });
     } catch (err) {
       // A toast, not `itemError`: that one renders below the whole list,
       // off-screen on a phone. The refresh resyncs the card with the server
-      // (e.g. after a gift-limit 409).
+      // (e.g. after a 409).
       showToast(serverMessageOr(err, "Nie udało się zapisać trybu — spróbuj ponownie"));
       void refreshItems();
     }
@@ -642,6 +644,7 @@ function useAppDataValue() {
     showToast("Usunięto");
     try {
       await deleteInventoryItem(itemId);
+      await queryClient.invalidateQueries({ queryKey: [MY_ITEMS_PAGE_KEY] });
     } catch {
       setItems((prev) => {
         const next = [...prev];

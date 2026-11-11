@@ -1,5 +1,6 @@
 import { Link } from "../../../routing/navigation";
 import dayjs from "../../../utils/dayjs";
+import { upcomingTermsOf } from "../layouts/layoutData";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
 import { DateTile } from "./DateTile";
 
@@ -7,13 +8,13 @@ const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus
 
 // eslint-disable-next-line react-refresh/only-export-components -- the renderer reads each block's isEmpty next to it
 export function isNextDateCtaEmpty(data: OrganizerPageData): boolean {
-  return (data.directory?.upcoming_dates.length ?? 0) === 0;
+  return upcomingTermsOf(data.directory).length === 0;
 }
 
 /** `card`: the owner's nearest term or event on a primary-soft panel — date
  * tile, name, full date, place and sign-up count — with a sign-up call to action. */
 export function NextDateCtaBlock({ data }: BlockProps) {
-  const date = data.directory?.upcoming_dates[0];
+  const [date] = upcomingTermsOf(data.directory);
   if (!date) return null;
   const isEvent = date.kind === "EVENT";
 

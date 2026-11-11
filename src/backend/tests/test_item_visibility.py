@@ -286,7 +286,7 @@ async def test_privateItem_lists_hiddenOnEventsPublicTermsOrganizerOwnerPage_sho
     )
     slug = await _organization_slug(client, world.owner, "Nutki ivr-lists")
     organizer_page = await client.get(
-        f"/api/public/organizers/{slug}", headers=_auth(world.member)
+        f"/api/public/organizations/{slug}/layout/EXCHANGE", headers=_auth(world.member)
     )
     owner_items = await client.get(
         f"/api/public/parties/{world.owner_party}/items", headers=_auth(world.member)

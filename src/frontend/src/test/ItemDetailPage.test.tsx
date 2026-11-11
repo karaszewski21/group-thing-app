@@ -565,6 +565,8 @@ describe("ItemDetailPage context actions", () => {
     listing_visibility: "PUBLIC",
     location_id: null,
     photos_moderation_pending: false,
+    balance_status: "AVAILABLE",
+    reservation_id: null,
   };
   const availableBalance: InventoryBalanceResponse = {
     id: "b1",
@@ -740,7 +742,7 @@ describe("ItemDetailPage context actions", () => {
     expect(itemReservationsApi.takeItem).not.toHaveBeenCalled();
   });
 
-  it("personal GIFT: the sheet reserves with PERSONAL and opens the ITEM chat", async () => {
+  it("personal GIFT: the sheet reserves with PERSONAL without opening the chat", async () => {
     vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
       itemActions({ location: LOCATION, personal_pickup_available: true }),
     );
@@ -749,7 +751,6 @@ describe("ItemDetailPage context actions", () => {
       product_name: "Wózek spacerowy Baby Jogger",
       context: null,
     });
-    conversationHook.openConversation.mockResolvedValue("conv-9");
     await renderPage(`/bartek/product/${ITEM_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: PERSONAL }));
@@ -762,42 +763,48 @@ describe("ItemDetailPage context actions", () => {
       "Zarezerwujemy dla Ciebie Wózek spacerowy Baby Jogger. Gdy odbierzesz rzecz, potwierdź przekazanie na tej stronie.",
     );
     expect(within(sheet).getByRole("button", { name: "Anuluj" })).toBeInTheDocument();
-    fireEvent.click(within(sheet).getByRole("button", { name: "Rezerwuję i piszę do Bartek K." }));
+    fireEvent.click(within(sheet).getByRole("button", { name: "Rezerwuję" }));
 
-    expect(await screen.findByText("Wątek rozmowy")).toBeInTheDocument();
+    expect(await screen.findByText("Zarezerwowano!")).toBeInTheDocument();
     expect(itemReservationsApi.takeItem).toHaveBeenCalledWith(ITEM_ID, {
       context: { kind: "PERSONAL" },
       reservation_type: "GIFT",
     });
-    expect(conversationHook.openConversation).toHaveBeenCalledWith({ kind: "ITEM", id: ITEM_ID });
+    expect(screen.queryByRole("dialog", { name: "Odbiór osobisty" })).not.toBeInTheDocument();
+    expect(conversationHook.openConversation).not.toHaveBeenCalled();
   });
 
-  it("personal: a chat failure keeps the reservation shown with a separate error", async () => {
-    vi.mocked(itemActionsApi.getItemActions)
-      .mockResolvedValueOnce(itemActions({ location: LOCATION, personal_pickup_available: true }))
-      .mockResolvedValue(
-        itemActions({
-          available: false,
-          location: LOCATION,
-          party_reservation: party({ can_confirm: true, can_cancel: true }),
-        }),
-      );
-    vi.mocked(itemReservationsApi.takeItem).mockResolvedValue({
-      item_id: ITEM_ID,
-      product_name: "Wózek spacerowy Baby Jogger",
-      context: null,
-    });
+  it("personal: \"Piszę do\" opens the ITEM chat without reserving", async () => {
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
+      itemActions({ location: LOCATION, personal_pickup_available: true }),
+    );
+    conversationHook.openConversation.mockResolvedValue("conv-9");
+    await renderPage(`/bartek/product/${ITEM_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: PERSONAL }));
+    const sheet = await screen.findByRole("dialog", { name: "Odbiór osobisty" });
+    fireEvent.click(within(sheet).getByRole("button", { name: "💬 Piszę do Bartek K." }));
+
+    expect(await screen.findByText("Wątek rozmowy")).toBeInTheDocument();
+    expect(conversationHook.openConversation).toHaveBeenCalledWith({ kind: "ITEM", id: ITEM_ID });
+    expect(itemReservationsApi.takeItem).not.toHaveBeenCalled();
+  });
+
+  it("personal: a \"Piszę do\" chat failure closes the sheet and shows the error", async () => {
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
+      itemActions({ location: LOCATION, personal_pickup_available: true }),
+    );
     conversationHook.openConversation.mockRejectedValue(new Error("Za dużo nowych rozmów — spróbuj później"));
     await renderPage(`/bartek/product/${ITEM_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: PERSONAL }));
     const sheet = await screen.findByRole("dialog", { name: "Odbiór osobisty" });
-    fireEvent.click(within(sheet).getByRole("button", { name: /^Rezerwuję i piszę do/ }));
+    fireEvent.click(within(sheet).getByRole("button", { name: /^💬 Piszę do/ }));
 
-    expect(await screen.findByRole("button", { name: "Potwierdzam przekazanie" })).toBeInTheDocument();
     expect(await screen.findByRole("alert")).toHaveTextContent("Za dużo nowych rozmów — spróbuj później");
+    expect(screen.queryByRole("dialog", { name: "Odbiór osobisty" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: CHAT })).toBeEnabled();
-    expect(screen.getByText("Zarezerwowano!")).toBeInTheDocument();
+    expect(itemReservationsApi.takeItem).not.toHaveBeenCalled();
   });
 
   it("personal SWAP: the sheet continues to the swap picker and proposes with PERSONAL", async () => {
@@ -807,7 +814,6 @@ describe("ItemDetailPage context actions", () => {
     vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([mySwapItem]);
     vi.mocked(inventoriesApi.getInventoryItemBalance).mockResolvedValue(availableBalance);
     vi.mocked(itemReservationsApi.proposeItemSwap).mockResolvedValue(proposal);
-    conversationHook.openConversation.mockResolvedValue("conv-9");
     await renderPage(`/bartek/product/${ITEM_ID}`);
 
     fireEvent.click(await screen.findByRole("button", { name: PERSONAL }));
@@ -815,17 +821,17 @@ describe("ItemDetailPage context actions", () => {
     expect(sheet).toHaveTextContent(
       "Zaproponujesz zamianę za Wózek spacerowy Baby Jogger. Gdy Bartek K. ją przyjmie i się wymienicie, potwierdźcie to na tej stronie.",
     );
-    fireEvent.click(within(sheet).getByRole("button", { name: /^Rezerwuję i piszę do/ }));
+    fireEvent.click(within(sheet).getByRole("button", { name: "Proponuję zamianę" }));
     const dialog = await screen.findByRole("dialog", {
       name: "Co proponujesz w zamian za „Wózek spacerowy Baby Jogger”?",
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Zaproponuj zamianę" }));
 
-    expect(await screen.findByText("Wątek rozmowy")).toBeInTheDocument();
-    expect(itemReservationsApi.proposeItemSwap).toHaveBeenCalledWith(ITEM_ID, {
+    await waitFor(() => expect(itemReservationsApi.proposeItemSwap).toHaveBeenCalledWith(ITEM_ID, {
       context: { kind: "PERSONAL" },
       offered_item_id: "m1",
-    });
+    }));
+    expect(conversationHook.openConversation).not.toHaveBeenCalled();
   });
 
   it("anonymous: the locality card, the context list and the reserve/chat buttons, each opening the login sheet", async () => {

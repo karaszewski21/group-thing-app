@@ -9,16 +9,20 @@ import type { EventDetailResponse } from "../api/events";
 import type { GroupAccessResponse } from "../api/groups";
 import type { ItemActionsResponse } from "../api/itemActions";
 import type { ItemDetailsResponse } from "../api/items";
+import type { PartyProfileResponse } from "../api/ownerItems";
+import type { UserProfileResponse } from "../api/people";
 import { AuthProvider } from "../auth/AuthContext";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { LoginPage } from "../features/auth/LoginPage";
-import { itemRouteElement, ownerRouteElement } from "./itemRoute";
+import { appearanceRouteElement, itemRouteElement, ownerRouteElement } from "./itemRoute";
 import { eventRouteElement } from "./eventRoute";
 import { termRouteElement } from "./termRoute";
 import { LandingPage } from "../features/landing/LandingPage";
 import { EVENT_KEY } from "../hooks/useEvent";
 import { ITEM_ACTIONS_KEY } from "../hooks/useItemActions";
 import { ITEM_DETAILS_KEY } from "../hooks/useItemDetail";
+import { MY_PROFILE_KEY } from "../hooks/useMyProfile";
+import { OWNER_ITEMS_KEY } from "../hooks/useOwnerItems";
 import { GROUP_ACCESS_KEY } from "../hooks/useTermAccess";
 import { system } from "../theme/system";
 import { makeItemLocation } from "./fixtures/locations";
@@ -116,6 +120,43 @@ const ITEM_ACTIONS: ItemActionsResponse = {
   personal_pickup_available: true,
 };
 
+const PARTY_ID = "0b6f3c1e-9a7d-4c2e-8f1a-2d3e4f5a6b7c";
+
+const PARTY_PROFILE: PartyProfileResponse = {
+  owner: { party_id: PARTY_ID, display_name: "Ania Kowalska", slug: null },
+  organization: null,
+  bio: "Oddaję ubranka po córce.",
+  page_layout: "BANNER",
+  palette_preset: null,
+  primary_color: null,
+  accent_color: null,
+  logo: null,
+  avatar: { url: "https://cdn.test/a.webp", thumb_url: "https://cdn.test/a-t.webp" },
+  cover: { url: "https://cdn.test/c.webp", thumb_url: "https://cdn.test/c-t.webp" },
+  gallery: [{ url: "https://cdn.test/g.webp", thumb_url: "https://cdn.test/g-t.webp" }],
+  nearest: null,
+  counts: { GIFT: 1, SWAP: 0 },
+  recent_items: [],
+  is_me: true,
+};
+
+const MY_PROFILE: UserProfileResponse = {
+  id: "profile-1",
+  party_id: PARTY_ID,
+  account_user_id: "user-1",
+  display_name: "Ania Kowalska",
+  email: null,
+  bio: "Oddaję ubranka po córce.",
+  created_at: "",
+  updated_at: "",
+  is_organizer: false,
+  page_layout: "BANNER",
+  palette_preset: null,
+  primary_color: null,
+  accent_color: null,
+  media: [],
+};
+
 /** An unsigned JWT-shaped token: the server render only decodes its claims. */
 const SESSION = `eyJhbGciOiJIUzI1NiJ9.${btoa(JSON.stringify({ sub: "ania@example.com", permissions: [], exp: 4_102_444_800 }))}.signature`;
 
@@ -149,7 +190,9 @@ afterEach(() => {
 
 const ORGANIZER_ITEM_ROUTE = await itemRouteElement("/zielony-krag/product/it-1");
 const ORGANIZATION_ROUTE = await ownerRouteElement("/zielony-krag");
-const PROFILE_ROUTE = await ownerRouteElement("/0b6f3c1e-9a7d-4c2e-8f1a-2d3e4f5a6b7c");
+const PROFILE_ROUTE = await ownerRouteElement(`/${PARTY_ID}`);
+const ORGANIZATION_APPEARANCE_ROUTE = await appearanceRouteElement("/zielony-krag/appearance");
+const PROFILE_APPEARANCE_ROUTE = await appearanceRouteElement(`/${PARTY_ID}/appearance`);
 const EVENT_ROUTE = await eventRouteElement(`/zielony-krag/event/${EVENT_ID}`);
 const TERM_ROUTE = await termRouteElement(`/ania/group/${GROUP_ID}/term/${TERM_ID}`);
 
@@ -186,10 +229,24 @@ describe("SSR safety", () => {
     { page: "organization page", url: "/zielony-krag", pattern: "/:slug", element: ORGANIZATION_ROUTE, text: null },
     {
       page: "party profile",
-      url: "/0b6f3c1e-9a7d-4c2e-8f1a-2d3e4f5a6b7c",
+      url: `/${PARTY_ID}`,
       pattern: "/:slug",
       element: PROFILE_ROUTE,
       text: null,
+    },
+    {
+      page: "organization appearance editor",
+      url: "/zielony-krag/appearance",
+      pattern: "/:slug/appearance",
+      element: ORGANIZATION_APPEARANCE_ROUTE,
+      text: "Wygląd strony",
+    },
+    {
+      page: "profile appearance editor",
+      url: `/${PARTY_ID}/appearance`,
+      pattern: "/:slug/appearance",
+      element: PROFILE_APPEARANCE_ROUTE,
+      text: "Wygląd strony",
     },
     {
       page: "organizer item page",
@@ -221,6 +278,27 @@ describe("SSR safety", () => {
 
     expect(html.length).toBeGreaterThan(0);
     if (text !== null) expect(html).toContain(text);
+  });
+
+  it("renders a loaded party profile and its owner's appearance editor for a cookie session", () => {
+    const client = createTestQueryClient();
+    client.setQueryData([OWNER_ITEMS_KEY, "profile", PARTY_ID, "ania@example.com"], PARTY_PROFILE);
+    // The server render stands in "server-session" for the cookie token it only has the claims of.
+    client.setQueryData([MY_PROFILE_KEY, "server-session"], MY_PROFILE);
+
+    const profile = renderOnServer(`/${PARTY_ID}`, "/:slug", <PublicLayout>{PROFILE_ROUTE}</PublicLayout>, client, SESSION);
+    expect(profile).toContain("Oddaję ubranka po córce.");
+    expect(profile).toContain(`href="/${PARTY_ID}/appearance"`);
+
+    const editor = renderOnServer(
+      `/${PARTY_ID}/appearance?tab=layout`,
+      "/:slug/appearance",
+      <PublicLayout>{PROFILE_APPEARANCE_ROUTE}</PublicLayout>,
+      client,
+      SESSION,
+    );
+    expect(editor).toContain("Układ strony");
+    expect(editor).toContain("Dla organizacji");
   });
 
   it("renders a loaded item page with the owner's location card for a cookie session", async () => {

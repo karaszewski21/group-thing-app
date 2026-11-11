@@ -7,9 +7,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.moderation.status import ModerationStatus
+from app.media.schemas import OwnerMediaResponse, PublicMediaResponse
 
-from .models import MediaKind
 from .page_layouts import PAGE_LAYOUT_KEYS, resolve_page_layout
 from .palettes import PALETTE_PRESET_KEYS
 
@@ -32,28 +31,8 @@ class OrganizationResponse(BaseModel):
     updated_at: datetime
 
 
-class PublicMediaResponse(BaseModel):
-    url: str
-    thumb_url: str
-
-
-class OwnerMediaResponse(BaseModel):
-    """APPROVED rows carry public CDN URLs, the rest presigned ones."""
-
-    id: uuid.UUID
-    kind: MediaKind
-    status: ModerationStatus
-    url: str
-    thumb_url: str
-    sort_order: int
-
-
 class MyOrganizationResponse(OrganizationResponse):
     media: list[OwnerMediaResponse]
-
-
-class ReorderOrganizationMediaRequest(BaseModel):
-    media_ids: list[uuid.UUID]
 
 
 class PublicOrganizationResponse(BaseModel):
@@ -74,6 +53,7 @@ class PublicOrganizationResponse(BaseModel):
     page_layout: str
     description: str | None
     logo: PublicMediaResponse | None = None
+    avatar: PublicMediaResponse | None = None
     cover: PublicMediaResponse | None = None
     gallery: list[PublicMediaResponse] = []
 

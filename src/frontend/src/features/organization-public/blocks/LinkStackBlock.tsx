@@ -1,7 +1,6 @@
 import { Link } from "../../../routing/navigation";
-import dayjs from "../../../utils/dayjs";
+import { pluralPl } from "../../../utils/plural";
 import type { BlockProps } from "../layouts/types";
-import { exchangeTotal, organizerTermPath } from "../organizerHelpers";
 import { ShareButton } from "./ShareButton";
 
 // The stack sits on the primary-colored LINKS page: the first action is a
@@ -12,37 +11,34 @@ const FILLED = "min-h-16 rounded-[22px] bg-paper text-ink shadow-md";
 const OUTLINED = "min-h-14 rounded-full border-[1.5px] border-on-primary/30 bg-on-primary/10 text-on-primary";
 const SKELETON_BAR = "h-14 w-full rounded-full bg-on-primary/20 animate-pulse motion-reduce:animate-none";
 
-interface DirectoryLink {
+interface StackLink {
   label: string;
+  hint: string;
   to: string;
 }
 
-/** LINKS button stack: the nearest term or event, all meetings, the owner's
- * items (else the exchange of the next term), then Share. It reads the
- * directory itself, so it shows its own loading bars and falls back to Share
- * alone when the directory is unavailable. */
+/** LINKS button stack built from the owner's stats: meetings and items,
+ * each with its count and only when it has something, then Share.
+ * It reads the stats itself, so it shows its own loading bars and falls back
+ * to Share alone when they are unavailable. */
 export function LinkStackBlock({ data }: BlockProps) {
   const { slug, name } = data.organization;
-  const directory = data.directory;
-  const links: DirectoryLink[] = [];
+  const stats = data.directory?.stats;
+  const links: StackLink[] = [];
 
-  if (directory) {
-    const [nearest] = directory.upcoming_dates;
-    if (nearest) {
+  if (stats) {
+    if (stats.meeting_count > 0) {
       links.push({
-        label: `${nearest.kind === "EVENT" ? "Najbliższe wydarzenie" : "Najbliższe zajęcia"} · ${dayjs(nearest.starts_at).format("dd D.MM HH:mm")}`,
-        to: nearest.path,
+        label: "Spotkania",
+        hint: `${stats.meeting_count} ${pluralPl(stats.meeting_count, "nadchodzące", "nadchodzące", "nadchodzących")}`,
+        to: `/${slug}/meetings`,
       });
-      links.push({ label: "Wszystkie spotkania", to: `/${slug}/meetings` });
     }
-    const { counts, items } = directory.exchange;
-    const itemCount = exchangeTotal(counts);
-    if (directory.recent_items.length > 0) {
-      links.push({ label: "Rzeczy do oddania i wymiany", to: `/${slug}/items` });
-    } else if (itemCount > 0 && items[0]) {
+    if (stats.item_count > 0) {
       links.push({
-        label: `Wymiana rzeczy (${itemCount})`,
-        to: organizerTermPath(slug, items[0].group_id, items[0].term_id),
+        label: "Rzeczy",
+        hint: `${stats.item_count} ${pluralPl(stats.item_count, "dostępna", "dostępne", "dostępnych")}`,
+        to: `/${slug}/items`,
       });
     }
   }
@@ -57,8 +53,9 @@ export function LinkStackBlock({ data }: BlockProps) {
         </div>
       )}
       {links.map((link, index) => (
-        <Link key={link.to + link.label} to={link.to} className={`${BUTTON} ${index === 0 ? FILLED : OUTLINED}`}>
+        <Link key={link.to} to={link.to} className={`${BUTTON} ${index === 0 ? FILLED : OUTLINED}`}>
           {link.label}
+          <span className="text-[13px] font-bold opacity-75">· {link.hint}</span>
         </Link>
       ))}
       <ShareButton

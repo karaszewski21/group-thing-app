@@ -1,7 +1,7 @@
 import { createContext, useContext } from "react";
 import type { OwnerItemsPageResponse } from "../../api/ownerItems";
 import type { OwnerRef, UseOwnerItemsResult } from "../../hooks/useOwnerItems";
-import type { ExchangeFilter } from "../organization-public/blocks/ExchangeBoardBlock";
+import type { ExchangeFilter } from "./blocks/ExchangeModeTabs";
 
 export type OwnerItemsFilter = Exclude<ExchangeFilter, "RESERVED">;
 

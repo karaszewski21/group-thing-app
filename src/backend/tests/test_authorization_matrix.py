@@ -214,7 +214,8 @@ def test_resolveRequirement_withoutJoinCodeRow_redeemFallsToRow27Edit() -> None:
 
 
 @pytest.mark.parametrize(
-    "path", ["/api/public/organizers/x", "/api/public/organizers/x/terms"]
+    "path",
+    ["/api/public/organizations/x/layout/CLASSIC", "/api/public/organizations/x/groups/y/terms"],
 )
 def test_resolveRequirement_getOrganizerPage_resolvesToPublic(path: str) -> None:
     assert resolve_requirement("GET", path) == "PUBLIC"

@@ -29,20 +29,14 @@ const TITLES: Partial<Record<ItemActionsView["kind"], string>> = { own: "Rezerwa
 /** "Jak chcesz odebrać?": one body per actions view. The reservation flow
  * (`useItemTake`) lives here, not in the "choose" body, because its swap
  * dialog, success sheet and toast must outlive the switch to "reserved"
- * that a successful reservation causes. A personal reservation opens the
- * ITEM chat; a chat failure shows under "Napisz o przedmiocie". The owner
+ * that a successful reservation causes. The personal pickup sheet's
+ * "Piszę do" opens the ITEM chat without reserving; a chat failure shows
+ * under "Napisz o przedmiocie". The owner
  * sees the section only for a reservation they take part in. */
 export function ItemPickupActions() {
-  const { item, view, isLoggedIn, actions, chat } = useItemPage();
+  const { item, view, isLoggedIn, actions } = useItemPage();
   const { toast, showToast } = useToast();
-  const take = useItemTake({
-    isLoggedIn,
-    refetch: actions.refetch,
-    showToast,
-    onReserved: (target) => {
-      if (target.kind === "PERSONAL") void chat.open({ kind: "ITEM", id: item.id });
-    },
-  });
+  const take = useItemTake({ isLoggedIn, refetch: actions.refetch, showToast });
   if (view.kind === "hidden" || view.kind === "unavailable") return null;
   if (view.kind === "own" && !view.partyReservation) return null;
 
@@ -153,7 +147,7 @@ function AnonymousActions() {
  * reaches keyboard and screen-reader users; only a running reservation
  * disables it natively. */
 function ChooseActions({ view, take }: { view: ChooseView; take: ItemTake }) {
-  const { item } = useItemPage();
+  const { item, chat } = useItemPage();
   const [sheet, setSheet] = useState<"personal" | "context" | null>(null);
   const personalHintId = useId();
   const contextHintId = useId();
@@ -211,6 +205,10 @@ function ChooseActions({ view, take }: { view: ChooseView; take: ItemTake }) {
           onConfirm={() => {
             setSheet(null);
             take.take(item.id, view.mode, { kind: "PERSONAL" });
+          }}
+          onMessage={() => {
+            setSheet(null);
+            void chat.open({ kind: "ITEM", id: item.id });
           }}
         />
       )}

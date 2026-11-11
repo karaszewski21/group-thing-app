@@ -18,14 +18,12 @@ from app.groups.router import (
     join_code,
     leaderships,
     memberships,
-    organizer_page,
     pledges,
     term_item_listings,
     terms,
 )
 
 router = APIRouter()
-router.include_router(organizer_page.router)
 # Registration order is load-bearing: terms.py's `/api/groups/mine/terms` and
 # circles.py's `/api/groups/mine/attendances` must resolve before the
 # `/api/groups/{group_id}/...` routes (FastAPI matches in registration order).

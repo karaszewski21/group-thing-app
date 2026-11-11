@@ -1,7 +1,7 @@
 "use client";
 
-import { ProfileView } from "../../../../features/account/ProfileView";
+import { MyProfileRedirect } from "../../../../features/profile-public/MyProfileRedirect";
 
 export default function Page() {
-  return <ProfileView />;
+  return <MyProfileRedirect />;
 }

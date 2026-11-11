@@ -23,12 +23,22 @@ export type View =
   | "add/event"
   | "add/hunting"
   | "messages"
-  | "organization"
-  | "organization/appearance";
+  | "organization";
 
 /** The URL of a panel view: `/` for home, `/<view>` otherwise. */
 export function viewPath(view: View): string {
   return view === "home" ? "/" : `/${view}`;
+}
+
+/** "Wygląd strony" of a public page (`/<slug>` or `/<party-id>`), optionally on one tab. */
+export function appearancePath(slug: string, tab?: "photos" | "layout" | "name"): string {
+  const path = `/${slug}/appearance`;
+  return tab ? `${path}?tab=${tab}` : path;
+}
+
+/** `/<slug>/appearance` needs a session too, though no prefix covers it. */
+export function isAppearancePath(pathname: string): boolean {
+  return /^\/[^/]+\/appearance\/?$/.test(pathname);
 }
 
 export function groupDetailsPath(groupId: string): string {
@@ -61,6 +71,11 @@ export function ownerPagePath(owner: { slug: string | null; party_id: string }):
 }
 
 /** The public event page, under the author's organizer slug (`EventResponse.author_slug`). */
+/** A public group's page with its upcoming terms. */
+export function groupTermsPath(organizerSlug: string, groupId: string): string {
+  return `/${organizerSlug}/group/${groupId}/terms`;
+}
+
 export function eventPath(organizerSlug: string, eventId: string): string {
   return `/${organizerSlug}/event/${eventId}`;
 }

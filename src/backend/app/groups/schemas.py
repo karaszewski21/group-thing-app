@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.circulation.models import ItemCondition, ItemListingStatus, ReservationType
+from app.inventory.models import BalanceStatus, ItemCondition, ItemListingStatus, ReservationType
 
 from .infrastructure.locations_acl import (
     LocalityResponse,
@@ -398,86 +398,9 @@ class GroupAccessResponse(BaseModel):
     access: GroupAccessDetails
 
 
-# --- Public organizer directory (`GET /api/public/organizers/{slug}`) --
-# Anonymous read model: explicit allowlisted fields only, never a person's
-# name, party id or child data.
+# --- Listing-time exchange modes, as shown on item cards and reservations.
 
 ExchangeMode = Literal["GIFT", "SWAP"]
-
-
-class OrganizerNextTermResponse(BaseModel):
-    id: uuid.UUID
-    occurs_on: datetime
-    attendee_count: int
-
-
-class OrganizerCircleResponse(BaseModel):
-    id: uuid.UUID
-    name: str
-    layout_mode: GroupLayoutMode
-    next_term: OrganizerNextTermResponse | None
-    # Terms in the 60-day window; `next_term` itself has no window.
-    upcoming_term_count: int
-
-
-class OrganizerTermResponse(BaseModel):
-    term_id: uuid.UUID
-    group_id: uuid.UUID
-    group_name: str
-    occurs_on: datetime
-    description: str | None
-    attendee_count: int
-
-
-class OrganizerExchangeCounts(BaseModel):
-    # GIFT/SWAP count available items only; RESERVED the reserved ones.
-    GIFT: int
-    SWAP: int
-    RESERVED: int
-
-
-class OrganizerExchangeItemResponse(BaseModel):
-    item_id: uuid.UUID
-    product_name: str
-    condition: str
-    mode: ExchangeMode
-    thumb_url: str | None
-    term_id: uuid.UUID
-    group_id: uuid.UUID
-    occurs_on: datetime
-    reservation: ReservedByResponse | None
-
-
-class OrganizerExchangeResponse(BaseModel):
-    # Over every eligible item; `items` is capped, so it may hold fewer.
-    counts: OrganizerExchangeCounts
-    items: list[OrganizerExchangeItemResponse]
-
-
-class OrganizerNeededItemResponse(BaseModel):
-    id: uuid.UUID
-    term_id: uuid.UUID
-    group_id: uuid.UUID
-    name: str
-    claimed: bool
-
-
-class OrganizerStatsResponse(BaseModel):
-    circle_count: int
-    upcoming_term_count: int
-    # `None` below 3 families, so a small group's families stay unidentifiable.
-    family_count: int | None
-
-
-class OwnerItemCardResponse(BaseModel):
-    item_id: uuid.UUID
-    product_name: str
-    condition: str
-    mode: ExchangeMode
-    thumb_url: str | None
-    # The listing preference's `created_at`, naive UTC like every audit timestamp.
-    added_at: datetime
-    reservation: ReservedByResponse | None
 
 
 class MyReservationResponse(BaseModel):
@@ -503,31 +426,8 @@ class MyReservationResponse(BaseModel):
     reserved_at: datetime
 
 
-class OwnerNearestDateResponse(BaseModel):
-    kind: Literal["TERM", "EVENT"]
-    id: uuid.UUID
-    name: str
-    # Naive Warsaw wall clock (`Term.occurs_on` / `Event.starts_at`).
-    starts_at: datetime
-    location_name: str | None
-    attendee_count: int
-    path: str
-
-
-class OrganizerPageResponse(BaseModel):
-    circles: list[OrganizerCircleResponse]
-    upcoming_terms: list[OrganizerTermResponse]
-    exchange: OrganizerExchangeResponse
-    needed_items: list[OrganizerNeededItemResponse]
-    stats: OrganizerStatsResponse
-    # Upcoming terms and events of the owner, earliest first (`list_owner_dates`).
-    upcoming_dates: list[OwnerNearestDateResponse]
-    recent_items: list[OwnerItemCardResponse]
-    # The first of `upcoming_dates`, only when `recent_items` is non-empty.
-    owner_nearest: OwnerNearestDateResponse | None
-
-
-# --- Public owner items page (`GET /api/public/{organizers/{slug},parties/{id}}/items`)
+# --- The owner summary and per-mode counts, shared by the item page and,
+# through `app.pages`' ACL, the owner pages.
 
 
 class OwnerSummaryResponse(BaseModel):
@@ -541,42 +441,6 @@ class OwnerItemCountsResponse(BaseModel):
     # Reserved items included, so GIFT + SWAP is every listed item.
     GIFT: int
     SWAP: int
-
-
-class OwnerItemsPageResponse(BaseModel):
-    owner: OwnerSummaryResponse
-    nearest: OwnerNearestDateResponse | None
-    # Over every listed item, ignoring the `mode` filter.
-    counts: OwnerItemCountsResponse
-    items: list[OwnerItemCardResponse]
-    total: int
-    page: int
-    size: int
-
-
-class OwnerMeetingsResponse(BaseModel):
-    """The owner meetings page (`/<org-slug>/meetings`, `/<party-id>/meetings`):
-    the owner's upcoming public terms and events, earliest first, at most
-    `OWNER_MEETINGS_LIMIT`."""
-
-    owner: OwnerSummaryResponse
-    meetings: list[OwnerNearestDateResponse]
-
-
-class PartyProfileResponse(BaseModel):
-    """The public profile of a person (`/<party-id>`). `owner.slug` is set
-    when they own an Organization, so the client can redirect to its page."""
-
-    owner: OwnerSummaryResponse
-    bio: str | None
-    # The approved avatar's thumbnail; never a pending or rejected one.
-    avatar_url: str | None
-    nearest: OwnerNearestDateResponse | None
-    counts: OwnerItemCountsResponse
-    # The newest listed items, at most `PROFILE_RECENT_ITEMS`.
-    recent_items: list[OwnerItemCardResponse]
-    # The viewer is this person (the "Załóż stronę organizatora" invite).
-    is_me: bool
 
 
 class CreateRsvpRequest(BaseModel):
@@ -755,13 +619,33 @@ class MyInventoryItemResponse(BaseModel):
     location_id: uuid.UUID | None
     photos_moderation_pending: bool
     thumb_url: str | None = None
+    # As `GET /api/inventory-items/{id}/balance` reports them.
+    balance_status: BalanceStatus
+    reservation_id: uuid.UUID | None
+
+
+class MyInventoryItemCountsResponse(BaseModel):
+    # Over every item at home, ignoring the `mode` and `q` filters.
+    ALL: int
+    GIFT: int
+    SWAP: int
+
+
+class MyInventoryItemsPageResponse(BaseModel):
+    """One page of `GET /api/inventory-items/mine/page`, newest first."""
+
+    counts: MyInventoryItemCountsResponse
+    items: list[MyInventoryItemResponse]
+    total: int
+    page: int
+    size: int
 
 
 class BrowseTermItemListingResponse(BaseModel):
     """One row of "Twoje wystawione rzeczy" (`list_my_term_item_listings`)
     or "Rzeczy od innych" (`list_browsable_term_item_listings`) — one
     `ItemListingPreference`, resolved against `term_id`, plus the cross-BC
-    display data (product name/condition from `app.circulation`/
+    display data (product name/condition from `app.inventory`/
     `app.product`, lister display name from `app.users`) and derived
     status (`resolved_reservation_id`/`taken_by_party_id`, from the item's
     own live `Reservation` history — see `_resolve_listing_status`; a

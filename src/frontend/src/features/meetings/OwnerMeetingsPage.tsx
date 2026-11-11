@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import type { OwnerRef } from "../../hooks/useOwnerItems";
 import { useOwnerMeetings } from "../../hooks/useOwnerMeetings";
 import { usePublicOrganization } from "../../hooks/usePublicOrganization";
-import { Navigate, notFound, useAppSearch } from "../../routing/navigation";
+import { notFound } from "../../routing/navigation";
 import { isPartyId } from "../../routing/paths";
 import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
 import { OwnerMeetingsLoadError, OwnerMeetingsPageContext } from "./OwnerMeetingsContext";
@@ -46,11 +46,8 @@ function OwnerMeetingsContent({
   children: ReactNode;
 }) {
   const meetings = useOwnerMeetings(ownerRef);
-  const search = useAppSearch();
-  const view = resolveOwnerMeetingsView({ ownerRef, search, organization, meetings });
+  const view = resolveOwnerMeetingsView({ organization, meetings });
   switch (view.kind) {
-    case "redirect":
-      return <Navigate to={view.to} replace />;
     case "content": {
       const frame = <OwnerMeetingsFrame>{children}</OwnerMeetingsFrame>;
       return (

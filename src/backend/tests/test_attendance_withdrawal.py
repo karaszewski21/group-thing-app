@@ -14,11 +14,11 @@ from datetime import date, timedelta
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import ReservationType
 from app.config import settings
 from app.core.auth_deps import Principal
 from app.core.security import decode_token
 from app.groups import service
+from app.inventory.models import ReservationType
 from tests.conftest import create_location, leaf_category_ids
 
 

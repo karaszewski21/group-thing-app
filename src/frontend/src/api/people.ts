@@ -1,13 +1,6 @@
 import type { LeadershipResponse } from "./groups";
 import { api } from "./client";
-import type { ModerationStatus } from "./products";
-
-/** The caller's own avatar (`/api/people/me` only). `url` is the 400 px
- * image: public once APPROVED, otherwise a short-lived signed link. */
-export interface AvatarResponse {
-  url: string;
-  status: ModerationStatus;
-}
+import type { OwnerMedia } from "./media";
 
 export interface UserProfileResponse {
   id: string;
@@ -22,8 +15,23 @@ export interface UserProfileResponse {
   /** Authoritative organizer status (active UserRole(ORGANIZATOR) grant) —
    * independent of whether the account currently leads any Circle. */
   is_organizer: boolean;
-  /** Set only on the caller's own profile, in any moderation status. */
-  avatar: AvatarResponse | null;
+  /** The public profile's effective layout key and theme. */
+  page_layout: string;
+  palette_preset: string | null;
+  primary_color: string | null;
+  accent_color: string | null;
+  /** Only on the caller's own profile: every image in any moderation status. */
+  media: OwnerMedia[];
+}
+
+/** A `PATCH` of the public profile's look: an omitted field stays, `null`
+ * clears it (a blank `bio` too). */
+export interface UpdateMyProfileAppearanceRequest {
+  page_layout?: string;
+  palette_preset?: string | null;
+  primary_color?: string | null;
+  accent_color?: string | null;
+  bio?: string | null;
 }
 
 export interface UpdateMyProfileRequest {
@@ -43,15 +51,10 @@ export function updateMyProfile(request: UpdateMyProfileRequest): Promise<UserPr
   return api.patch("/people/me", request);
 }
 
-/** Multipart upload; replaces the caller's avatar. */
-export function uploadMyAvatar(file: File): Promise<AvatarResponse> {
-  const body = new FormData();
-  body.append("file", file);
-  return api.upload("/people/me/avatar", body);
-}
-
-export function deleteMyAvatar(): Promise<void> {
-  return api.delete("/people/me/avatar");
+export function updateMyProfileAppearance(
+  request: UpdateMyProfileAppearanceRequest,
+): Promise<UserProfileResponse> {
+  return api.patch("/people/me/appearance", request);
 }
 
 export function getProfileByParty(partyId: string): Promise<UserProfileResponse> {

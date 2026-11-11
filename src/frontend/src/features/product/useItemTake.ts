@@ -42,18 +42,13 @@ async function fetchMySwapItems(): Promise<AvailableItem[]> {
     }));
 }
 
-interface UseItemTakeOptions extends TermActionDeps {
-  /** Runs once a take or a swap proposal succeeded, with its target. */
-  onReserved?: (target: TakeTarget) => void;
-}
-
 /** Reserving an item: `take(itemId, mode, target)` with a personal, term or
  * event `target`. A SWAP is always a proposal the owner accepts/rejects: the
  * first `take(itemId, "SWAP", target)` opens the swap picker (`swap`), and
  * its `confirm` submits in that target. The viewer's swap items load lazily
  * on the first swap attempt. A term or event take opens `takeSuccess`; a
  * personal one only toasts, as it has no date or place to show. */
-export function useItemTake({ isLoggedIn, refetch, showToast, onReserved }: UseItemTakeOptions) {
+export function useItemTake({ isLoggedIn, refetch, showToast }: TermActionDeps) {
   const queryClient = useQueryClient();
   const gate = useAccountGate(isLoggedIn);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
@@ -100,7 +95,6 @@ export function useItemTake({ isLoggedIn, refetch, showToast, onReserved }: UseI
       await proposeItemSwap(itemId, { context: contextRef(swapPick.target), offered_item_id: offeredItemId });
       closeSwapPicker();
       showToast("Zaproponowano zamianę! Szczegóły w Twoim panelu");
-      onReserved?.(swapPick.target);
       await refresh();
     } catch (err) {
       showToast(serverMessageOr(err, "Nie udało się zaproponować zamiany"));
@@ -120,7 +114,6 @@ export function useItemTake({ isLoggedIn, refetch, showToast, onReserved }: UseI
       if (target.kind === "PERSONAL") showToast("Zarezerwowano!");
       else setTakeSuccess({ itemId: taken.item_id, itemName: taken.product_name, target });
       closeSwapPicker();
-      onReserved?.(target);
       await refresh();
     } catch (err) {
       showToast(serverMessageOr(err, "Nie udało się wziąć tej rzeczy"));

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ModalSheet } from "../components/shared/ModalSheet";
 import { JoinByCodeSheet } from "../features/terms/modals/JoinByCodeSheet";
 import { getOpenSheetCount, subscribeOpenSheets, useRegisterOpenSheet } from "../components/shared/openSheets";
-import { UnsavedChangesDialog } from "../features/owner-page/editor/UnsavedChangesDialog";
+import { UnsavedChangesDialog } from "../features/editor/UnsavedChangesDialog";
 import { ModalSheet as AppModalSheet } from "../components/shared/appComponents";
 
 function Opener({ removeOpenerOnOpen = false }: { removeOpenerOnOpen?: boolean }) {

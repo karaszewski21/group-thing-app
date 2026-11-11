@@ -2,7 +2,7 @@
 roles played toward it (`FamilyRole`: guardian or child), and the
 membership relationship binding a role instance to a specific Family
 (`FamilyMembership`), which also carries the "primary contact" flag used
-as the identity bridge into `app.circulation` (a `Reservation.reserved_by`
+as the identity bridge into `app.inventory` (a `Reservation.reserved_by`
 must resolve to a single `User`, never a `Group`/Family).
 
 `family_memberships` lives in this module because it owns the invariant it

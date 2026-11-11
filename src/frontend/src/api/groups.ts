@@ -1,6 +1,5 @@
 import { api } from "./client";
 import type { LocationRefResponse, PublicLocationResponse } from "./locations";
-import type { OwnerItemCard, OwnerNearestDate } from "./ownerItems";
 import { pageParams, type Page } from "./pagination";
 
 /** The participant-visualization layout an organizer picks for their
@@ -290,99 +289,7 @@ export function createRsvp(groupId: string, request: CreateRsvpRequest): Promise
   return api.post(`/groups/${groupId}/rsvp`, request);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Public organizer directory (`/public/organizers/{slug}`)           */
-/* ------------------------------------------------------------------ */
-
-export interface OrganizerNextTerm {
-  id: string;
-  occurs_on: string;
-  attendee_count: number;
-}
-
-export interface OrganizerCircle {
-  id: string;
-  name: string;
-  layout_mode: GroupLayoutMode;
-  next_term: OrganizerNextTerm | null;
-  /** Terms in the 60-day window; `next_term` itself has no window. */
-  upcoming_term_count: number;
-}
-
-export interface OrganizerTerm {
-  term_id: string;
-  group_id: string;
-  group_name: string;
-  occurs_on: string;
-  description: string | null;
-  attendee_count: number;
-}
-
 export type ExchangeMode = "GIFT" | "SWAP";
-
-export interface OrganizerExchangeItem {
-  item_id: string;
-  product_name: string;
-  condition: string;
-  mode: ExchangeMode;
-  thumb_url: string | null;
-  term_id: string;
-  group_id: string;
-  occurs_on: string;
-  /** `null` while the item is available. */
-  reservation: ReservedByResponse | null;
-}
-
-/** GIFT/SWAP count available items only; RESERVED the reserved ones. */
-export type OrganizerExchangeCounts = Record<ExchangeMode | "RESERVED", number>;
-
-export interface OrganizerNeededItem {
-  id: string;
-  term_id: string;
-  group_id: string;
-  name: string;
-  claimed: boolean;
-}
-
-export interface OrganizerStats {
-  circle_count: number;
-  upcoming_term_count: number;
-  /** `null` below 3 families. */
-  family_count: number | null;
-}
-
-/** Mirrors `app.groups.schemas.OrganizerPageResponse`. */
-export interface OrganizerPageResponse {
-  circles: OrganizerCircle[];
-  upcoming_terms: OrganizerTerm[];
-  exchange: {
-    /** Over every eligible item; `items` is capped, so it may hold fewer. */
-    counts: OrganizerExchangeCounts;
-    items: OrganizerExchangeItem[];
-  };
-  needed_items: OrganizerNeededItem[];
-  stats: OrganizerStats;
-  /** The owner's upcoming public terms and events, earliest first (up to 6). */
-  upcoming_dates: OwnerNearestDate[];
-  /** The Organization owner's newest listed items (up to 6). */
-  recent_items: OwnerItemCard[];
-  /** The first of `upcoming_dates`, only when `recent_items` is non-empty. */
-  owner_nearest: OwnerNearestDate | null;
-}
-
-export function getOrganizerPage(slug: string): Promise<OrganizerPageResponse> {
-  return api.get(`/public/organizers/${encodeURIComponent(slug)}`);
-}
-
-export function getOrganizerTerms(
-  slug: string,
-  page: number,
-  groupId?: string,
-): Promise<Page<OrganizerTerm>> {
-  const organizer = `/public/organizers/${encodeURIComponent(slug)}`;
-  const path = groupId === undefined ? organizer : `${organizer}/groups/${encodeURIComponent(groupId)}`;
-  return api.get(`${path}/terms?${new URLSearchParams(pageParams(page))}`);
-}
 
 /* ------------------------------------------------------------------ */
 /*  A term's attendee list (authenticated organizer read)               */

@@ -8,7 +8,7 @@ import * as ownerItemsApi from "../api/ownerItems";
 import { useOwnerItems } from "../hooks/useOwnerItems";
 import { ownerItemsRouteElement } from "./itemRoute";
 import { createQueryWrapper } from "./queryClient";
-import { getTestLocation, getTestRouter, renderWithRoute } from "./renderWithRoute";
+import { getTestRouter, renderWithRoute } from "./renderWithRoute";
 
 const mockAuth: { token: string | null; username: string | null } = { token: null, username: null };
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
@@ -36,6 +36,7 @@ const ORGANIZATION: PublicOrganizationResponse = {
   palette_preset: null,
   description: null,
   logo: null,
+  avatar: null,
   cover: null,
   gallery: [],
 };
@@ -234,17 +235,15 @@ describe("OwnerItemsPage", () => {
     await waitFor(() => expect(ownerItemsApi.getOrganizationOwnerItems).toHaveBeenCalledTimes(2));
   });
 
-  it("redirects an organization owner's party URL to the slug URL, keeping the query", async () => {
-    vi.mocked(ownerItemsApi.getPartyOwnerItems).mockResolvedValue(ownerPage());
-    vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(ownerPage());
+  it("keeps a person's party URL on their own page", async () => {
+    vi.mocked(ownerItemsApi.getPartyOwnerItems).mockResolvedValue(
+      ownerPage({ owner: { party_id: PARTY_ID, display_name: "Ania", slug: null } }),
+    );
 
     await renderAt(`/${PARTY_ID}/items?event=e9`);
 
-    await waitFor(() => {
-      const { pathname, search } = getTestLocation();
-      expect(pathname + search).toBe(`/${SLUG}/items?event=e9`);
-    });
-    expect(getTestRouter().calls).toEqual([{ method: "replace", url: `/${SLUG}/items?event=e9`, scroll: true }]);
+    expect(await screen.findByRole("link", { name: "Rzecz i2" })).toHaveAttribute("href", `/${PARTY_ID}/product/i2`);
+    expect(getTestRouter().calls).toEqual([]);
   });
 
   it("ignores a ?term= on the page and links tiles to the plain product page", async () => {

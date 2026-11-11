@@ -99,8 +99,7 @@ const POZNAN = makeLocationResponse({
 });
 const MISSING_HINT = "Podaj nazwę, wybierz kategorię i lokalizację, aby zapisać.";
 
-const GIFT_LIMIT_MESSAGE =
-  "Możesz mieć maksymalnie 10 rzeczy do oddania. Wybierz „Zamienię” albo zapisz wersję roboczą.";
+const CONFLICT_MESSAGE = "Ustaw lokalizację przedmiotu, aby go wystawić";
 
 function category(id: string, name: string, parent_id: string | null, sort_order: number): Category {
   return {
@@ -131,6 +130,8 @@ function myItem(id: string, location_id: string | null, created_at: string): MyI
     listing_visibility: null,
     photos_moderation_pending: false,
     location_id,
+    balance_status: "AVAILABLE",
+    reservation_id: null,
   };
 }
 
@@ -510,9 +511,9 @@ describe("ItemCreateView", () => {
     expect(screen.getByLabelText("Dodaj zdjęcia")).toBeEnabled();
   });
 
-  it("shows the gift-limit 409 verbatim and keeps the form data", async () => {
+  it("shows a 409 verbatim and keeps the form data", async () => {
     vi.mocked(inventoriesApi.registerInventoryItem).mockRejectedValue(
-      new ApiError(409, "Conflict", { status: 409, error: "Conflict", message: GIFT_LIMIT_MESSAGE }),
+      new ApiError(409, "Conflict", { status: 409, error: "Conflict", message: CONFLICT_MESSAGE }),
     );
     await fillForm();
     fireEvent.change(screen.getByLabelText("Stan"), { target: { value: "NEW" } });
@@ -520,7 +521,7 @@ describe("ItemCreateView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Oddam" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(GIFT_LIMIT_MESSAGE);
+    expect(await screen.findByRole("alert")).toHaveTextContent(CONFLICT_MESSAGE);
     expect(productsApi.addProductPhoto).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Nazwa")).toHaveValue("Rowerek");
     expect(screen.getByLabelText("Stan")).toHaveValue("NEW");

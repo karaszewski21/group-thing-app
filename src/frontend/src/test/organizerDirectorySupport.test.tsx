@@ -1,16 +1,18 @@
 import { render, screen, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { describe, expect, it } from "vitest";
-import type { OrganizerPageResponse } from "../api/groups";
-import type { PublicOrganizationResponse } from "../api/organizations";
-import type { OwnerItemCard, OwnerNearestDate } from "../api/ownerItems";
+import type { OrganizationStats, PublicOrganizationResponse } from "../api/organizations";
 import { BlockSkeleton } from "../components/shared/BlockSkeleton";
 import { EmptyStateBlock } from "../features/organization-public/blocks/EmptyStateBlock";
 import { GhostBlock } from "../features/organization-public/blocks/GhostBlock";
 import { LayoutRenderer } from "../features/organization-public/LayoutRenderer";
 import { isRecommended, LAYOUT_REGISTRY } from "../features/organization-public/layouts/registry";
-import type { OrganizerPageData, PageLayoutDefinition } from "../features/organization-public/layouts/types";
-import dayjs from "../utils/dayjs";
+import type {
+  DirectoryStatus,
+  OrganizerPageData,
+  PageLayoutDefinition,
+} from "../features/organization-public/layouts/types";
+import { layoutStats } from "./organizationLayoutFixtures";
 import { renderWithRoute } from "./renderWithRoute";
 
 const organization: PublicOrganizationResponse = {
@@ -22,47 +24,10 @@ const organization: PublicOrganizationResponse = {
   palette_preset: null,
   description: null,
   logo: null,
+  avatar: null,
   cover: null,
   gallery: [],
 };
-
-function meeting(id: string, startsAt: string): OwnerNearestDate {
-  return {
-    kind: "TERM",
-    id,
-    name: "Orliki 2017",
-    starts_at: startsAt,
-    location_name: null,
-    attendee_count: 12,
-    path: `/akademia-orlik/group/g1/term/${id}`,
-  };
-}
-
-function item(id: string): OwnerItemCard {
-  return {
-    item_id: id,
-    product_name: `Rzecz ${id}`,
-    condition: "GOOD",
-    mode: "GIFT",
-    thumb_url: null,
-    added_at: "2026-10-01T10:00:00",
-    reservation: null,
-  };
-}
-
-function directory(overrides: Partial<OrganizerPageResponse> = {}): OrganizerPageResponse {
-  return {
-    circles: [],
-    upcoming_terms: [],
-    exchange: { counts: { GIFT: 0, SWAP: 0, RESERVED: 0 }, items: [] },
-    needed_items: [],
-    upcoming_dates: [],
-    recent_items: [],
-    owner_nearest: null,
-    stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
-    ...overrides,
-  };
-}
 
 function renderWithRouter(ui: ReactElement) {
   return renderWithRoute(ui, { url: "/" });
@@ -70,7 +35,7 @@ function renderWithRouter(ui: ReactElement) {
 
 describe("GhostBlock", () => {
   it("renders a directory ghost with its panel CTA, and the unavailable variant without one", () => {
-    const { unmount } = renderWithRouter(<GhostBlock block="upcoming-dates" />);
+    const { unmount } = renderWithRouter(<GhostBlock block="upcoming-dates" slug="rodzinny-grajdolek" />);
 
     expect(screen.getByText("Najbliższe spotkania")).toBeInTheDocument();
     expect(screen.getByText("Tu pokażemy Twoje najbliższe terminy i wydarzenia. Widzisz to tylko Ty.")).toBeInTheDocument();
@@ -79,7 +44,7 @@ describe("GhostBlock", () => {
     expect(cta).toHaveClass("min-h-[44px]");
     unmount();
 
-    renderWithRouter(<GhostBlock block="exchange-board" unavailable />);
+    renderWithRouter(<GhostBlock block="item-stats" slug="rodzinny-grajdolek" unavailable />);
 
     expect(screen.getByText("Wymiana rzeczy")).toBeInTheDocument();
     expect(screen.getByText("Nie udało się wczytać danych. Odwiedzający nie widzą tej sekcji.")).toBeInTheDocument();
@@ -125,31 +90,23 @@ describe("BlockSkeleton", () => {
 
 describe("isRecommended", () => {
   const layouts = Object.values(LAYOUT_REGISTRY);
-  const recommendedKeys = (data: OrganizerPageData) =>
-    layouts.filter((layout) => isRecommended(layout, data)).map((layout) => layout.key);
+  const recommendedKeys = (stats: OrganizationStats | null, status: DirectoryStatus = "ready") =>
+    layouts.filter((layout) => isRecommended(layout, stats, status)).map((layout) => layout.key);
 
-  it("shows no badge while loading and recommends LINKS when unavailable or with no dates and no items", () => {
-    expect(recommendedKeys({ organization, directory: null, directoryStatus: "loading" })).toEqual([]);
-    expect(recommendedKeys({ organization, directory: null, directoryStatus: "unavailable" })).toEqual(["LINKS"]);
-    expect(recommendedKeys({ organization, directory: directory(), directoryStatus: "ready" })).toEqual(["LINKS"]);
-    expect(
-      recommendedKeys({ organization, directory: directory({ recent_items: [item("i1")] }), directoryStatus: "ready" }),
-    ).toEqual([]);
+  it("shows no badge while loading and recommends LINKS when unavailable or with no meetings and no items", () => {
+    expect(recommendedKeys(null, "loading")).toEqual([]);
+    expect(recommendedKeys(null, "unavailable")).toEqual(["LINKS"]);
+    expect(recommendedKeys(layoutStats())).toEqual(["LINKS"]);
+    expect(recommendedKeys(layoutStats({ group_count: 2 }))).toEqual(["LINKS"]);
+    expect(recommendedKeys(layoutStats({ item_count: 1 }))).toEqual([]);
   });
 
-  it("recommends SCHEDULE for 3 dates within 14 days and EXCHANGE for many items with at most one date", () => {
-    const soon = (days: number) => dayjs().add(days, "day").format("YYYY-MM-DDTHH:mm:ss");
-    const busy = directory({ upcoming_dates: [meeting("t1", soon(1)), meeting("t2", soon(3)), meeting("t3", soon(5))] });
-    expect(recommendedKeys({ organization, directory: busy, directoryStatus: "ready" })).toEqual(["SCHEDULE"]);
-    const sparse = directory({ upcoming_dates: [meeting("t1", soon(1)), meeting("t2", soon(20)), meeting("t3", soon(30))] });
-    expect(recommendedKeys({ organization, directory: sparse, directoryStatus: "ready" })).toEqual([]);
-
-    const items = ["i1", "i2", "i3", "i4"].map(item);
-    const stocked = directory({ recent_items: items, upcoming_dates: [meeting("t1", soon(1))] });
-    expect(recommendedKeys({ organization, directory: stocked, directoryStatus: "ready" })).toEqual(["EXCHANGE"]);
-    expect(
-      recommendedKeys({ organization, directory: { ...busy, recent_items: items }, directoryStatus: "ready" }),
-    ).toEqual(["SCHEDULE"]);
+  it("recommends SCHEDULE from 3 meetings and EXCHANGE for 4+ items with at most one meeting", () => {
+    expect(recommendedKeys(layoutStats({ meeting_count: 3 }))).toEqual(["SCHEDULE"]);
+    expect(recommendedKeys(layoutStats({ meeting_count: 2 }))).toEqual([]);
+    expect(recommendedKeys(layoutStats({ item_count: 4, meeting_count: 1 }))).toEqual(["EXCHANGE"]);
+    expect(recommendedKeys(layoutStats({ item_count: 3, meeting_count: 0 }))).toEqual([]);
+    expect(recommendedKeys(layoutStats({ item_count: 9, meeting_count: 5 }))).toEqual(["SCHEDULE"]);
   });
 });
 
@@ -162,8 +119,8 @@ describe("LayoutRenderer directory rules", () => {
     frame: "column",
     blocks: [
       { block: "hero", variant: "cover" },
-      { block: "circles-grid", variant: "cards", when: { minCircles: 2 }, primary: true },
-      { block: "circles-grid", variant: "featured", when: { maxCircles: 1 }, primary: true },
+      { block: "groups-grid", variant: "cards", when: { minGroups: 2 }, primary: true },
+      { block: "groups-grid", variant: "featured", when: { maxGroups: 1 }, primary: true },
       { block: "footer" },
     ],
   };
@@ -180,7 +137,6 @@ describe("LayoutRenderer directory rules", () => {
     expect(container.querySelector('[aria-busy="true"]')).toBeNull();
     expect(screen.getAllByRole("heading", { name: "Brak informacji do pokazania" })).toHaveLength(1);
     expect(container.querySelector("[data-ghost]")).toBeNull();
-    expect(screen.getByText("Strona utworzona w Krąg grupy")).toBeInTheDocument();
 
     rerender(<LayoutRenderer layout={layout} data={unavailable} mode="owner-edit" />);
     const ghosts = container.querySelectorAll("[data-ghost]");

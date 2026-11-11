@@ -1,5 +1,5 @@
-"""The organizer page's cross-module reads: the organizations ACL owner
-lookup, the circulation and product bridges' batched lookups, and the
+"""The owner pages' cross-module reads: the pages organizations ACL owner
+lookup, the inventory and product bridges' batched lookups, and the
 `count_queries` helper the query-budget tests rely on. Seeding goes over
 HTTP plus direct `db_session` writes, as in `test_term_item_listings.py`."""
 
@@ -13,12 +13,13 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.auth.models import User
-from app.circulation.models import BalanceStatus, InventoryBalance, InventoryItem, ItemCondition
-from app.groups.infrastructure import circulation_bridge, organizations_acl, product_bridge
+from app.groups.infrastructure import inventory_bridge, product_bridge
+from app.inventory.models import BalanceStatus, InventoryBalance, InventoryItem, ItemCondition
 from app.moderation.status import ModerationStatus
 from app.organizations import service as organizations_service
 from app.organizations.models import OrganizationMembership, OrganizationRoleType
 from app.organizations.schemas import CreateOwnOrganizationRequest
+from app.pages.infrastructure import organizations_acl
 from app.product.models import ProductPhoto
 from tests.conftest import count_queries, create_location
 from tests.test_term_item_listings import _auth, _register, _resolve_product
@@ -159,9 +160,9 @@ async def test_listedItemsWithProductSelect_liveListableItems_availableOnlyViews
     available = await _item(db_session, available_id)
     item_ids = [available_id, reserved_id, in_transit_id, lent_id, deleted_id]
 
-    listed = circulation_bridge.listed_items_with_product_select().subquery()
+    listed = inventory_bridge.listed_items_with_product_select().subquery()
     rows = (await db_session.execute(select(listed).where(listed.c.item_id.in_(item_ids)))).all()
-    views = await circulation_bridge.list_available_items_with_product(db_session, item_ids)
+    views = await inventory_bridge.list_available_items_with_product(db_session, item_ids)
 
     assert {(row.item_id, row.balance_status) for row in rows} == {
         (available_id, BalanceStatus.AVAILABLE),
@@ -169,7 +170,7 @@ async def test_listedItemsWithProductSelect_liveListableItems_availableOnlyViews
         (in_transit_id, BalanceStatus.IN_TRANSIT),
     }
     assert views == {
-        available_id: circulation_bridge.AvailableItemView(
+        available_id: inventory_bridge.AvailableItemView(
             item_id=available_id,
             product_id=available.product_id,
             product_name="Mostek rower",
@@ -182,7 +183,7 @@ async def test_listAvailableItemsWithProduct_emptyInput_issuesNoStatements(
     engine: AsyncEngine, db_session: AsyncSession
 ) -> None:
     with count_queries(engine) as statements:
-        views = await circulation_bridge.list_available_items_with_product(db_session, [])
+        views = await inventory_bridge.list_available_items_with_product(db_session, [])
 
     assert views == {}
     assert statements == []

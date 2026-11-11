@@ -19,7 +19,6 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import ReservationType
 from app.config import settings
 from app.core.auth_deps import Principal
 from app.core.errors import BusinessConflictException
@@ -29,6 +28,7 @@ from app.groups.application import term_end_scan, term_item_listings
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.domain import swap_events
 from app.groups.models import Term
+from app.inventory.models import ReservationType
 from app.outbox.models import OutboxEntry
 from tests.conftest import create_location, leaf_category_ids
 from tests.test_term_item_listings import _propose_in_term, _take_in_term

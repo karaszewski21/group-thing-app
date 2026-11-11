@@ -15,9 +15,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AccessDeniedException, EntityNotFoundException
+from app.media import service as media_service
 from app.moderation.text_guard import TextField, check_text
 from app.party.models import PartyType
 from app.party.service import create_party
+from app.storage.service import ObjectStorage
 from app.users.models import UserRoleType
 from app.users.service import get_or_create_active_user_role
 
@@ -151,13 +153,19 @@ async def get_owner_party_id(db: AsyncSession, organization_id: uuid.UUID) -> uu
 
 
 async def create_own_organization(
-    db: AsyncSession, owner_party_id: uuid.UUID, data: CreateOwnOrganizationRequest
+    db: AsyncSession,
+    owner_party_id: uuid.UUID,
+    data: CreateOwnOrganizationRequest,
+    storage: ObjectStorage | None = None,
+    uploaded_by_user_id: uuid.UUID | None = None,
 ) -> Organization:
     """Self-service "create my organization": idempotent by design (per
     this module's 1:1 cardinality decision — see model docstrings) — a
     caller who already owns one gets that same Organization back rather
     than a second one, so the onboarding wizard's mandatory step can call
-    this safely even on a retry/resume."""
+    this safely even on a retry/resume. A new Organization starts with a copy
+    of the founder's profile media (`uploaded_by_user_id` given); their
+    colors and layout stay on the profile."""
     existing = await get_own_organization(db, owner_party_id)
     if existing is not None:
         return existing
@@ -179,12 +187,20 @@ async def create_own_organization(
     # unlock the panel's organizer views/actions exactly like creating a
     # Circle does, not require a separate Circle first.
     await get_or_create_active_user_role(db, owner_party_id, UserRoleType.ORGANIZATOR)
+    if uploaded_by_user_id is not None:
+        await db.flush()
+        await media_service.copy_media(
+            db, storage, owner_party_id, organization.party_id, uploaded_by_user_id
+        )
     await db.commit()
     return organization
 
 
 async def update_organization(
-    db: AsyncSession, organization_id: uuid.UUID, owner_party_id: uuid.UUID, data: UpdateOrganizationRequest
+    db: AsyncSession,
+    organization_id: uuid.UUID,
+    owner_party_id: uuid.UUID,
+    data: UpdateOrganizationRequest,
 ) -> Organization:
     """Only the Organization's own OWNER may update it — enforced here,
     not by the coarse matrix, per `standards/backend/security.md`. Applies

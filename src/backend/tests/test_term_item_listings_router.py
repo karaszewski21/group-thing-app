@@ -280,6 +280,8 @@ async def test_listMyInventoryItems_returnsOnlyCallersOwnWithModeAndReflectsClea
                 "location_id",
                 "photos_moderation_pending",
                 "thumb_url",
+                "balance_status",
+                "reservation_id",
             }
         )
     }

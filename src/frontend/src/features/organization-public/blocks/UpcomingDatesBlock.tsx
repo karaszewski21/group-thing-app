@@ -1,15 +1,15 @@
 import type { OwnerNearestDate } from "../../../api/ownerItems";
 import { Link } from "../../../routing/navigation";
 import dayjs from "../../../utils/dayjs";
+import { upcomingTermsOf } from "../layouts/layoutData";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
 import { DateTile } from "./DateTile";
 
-const COMPACT_LIMIT = 3;
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
 // eslint-disable-next-line react-refresh/only-export-components -- the renderer reads each block's isEmpty next to it
 export function isUpcomingDatesEmpty(data: OrganizerPageData): boolean {
-  return (data.directory?.upcoming_dates.length ?? 0) === 0;
+  return upcomingTermsOf(data.directory).length === 0;
 }
 
 function dateMeta(date: OwnerNearestDate): string {
@@ -19,14 +19,14 @@ function dateMeta(date: OwnerNearestDate): string {
   return meta.join(" · ");
 }
 
-/** The owner's upcoming terms and events, earliest first, each linking to its
+/** The owner's nearest terms and events, earliest first, each linking to its
  * page. `list` (default): date-tile rows with a link to all meetings.
  * `after-next`: the same rows without the first date, for a layout that
- * features it in `next-date-cta`. `compact`: up to three date chips. */
+ * features it in `next-date-cta`; only the link when nothing else is left. */
 export function UpcomingDatesBlock({ data, variant }: BlockProps) {
-  const all = data.directory?.upcoming_dates ?? [];
+  const all = upcomingTermsOf(data.directory);
   const dates = variant === "after-next" ? all.slice(1) : all;
-  if (dates.length === 0) return null;
+  if (all.length === 0) return null;
   const meetingsLink = (
     <Link
       to={`/${data.organization.slug}/meetings`}
@@ -36,27 +36,7 @@ export function UpcomingDatesBlock({ data, variant }: BlockProps) {
     </Link>
   );
 
-  if (variant === "compact") {
-    return (
-      <section className="px-6 pt-6">
-        <h2 className="mb-3 font-serif text-lg font-semibold text-ink">Najbliższe spotkania</h2>
-        <ul className="flex gap-2 overflow-x-auto pb-1">
-          {dates.slice(0, COMPACT_LIMIT).map((date) => (
-            <li key={`${date.kind}-${date.id}`} className="shrink-0">
-              <Link
-                to={date.path}
-                className={`flex min-h-[44px] items-center whitespace-nowrap rounded-full border border-line bg-paper px-4 text-[13px] font-bold text-ink ${FOCUS_RING}`}
-              >
-                {dayjs(date.starts_at).format("dd D MMM")}
-                <span aria-hidden="true">&nbsp;›</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-        {meetingsLink}
-      </section>
-    );
-  }
+  if (dates.length === 0) return <section className="px-6">{meetingsLink}</section>;
 
   return (
     <section className="px-6 pt-6">

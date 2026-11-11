@@ -12,16 +12,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
-from app.circulation.domain.item_privacy import (
+from app.groups import service as groups_service
+from app.groups.models import Term
+from app.inventory.domain.item_privacy import (
     OTHER_FAMILY_LABEL,
     ItemStatusCode,
     derive_status,
     label,
     reserver_label,
 )
-from app.circulation.models import BalanceStatus, InventoryItem, ReservationType
-from app.groups import service as groups_service
-from app.groups.models import Term
+from app.inventory.models import BalanceStatus, InventoryItem, ReservationType
 from app.moderation.status import ModerationStatus
 from app.product.models import Product, ProductPhoto
 from tests.conftest import leaf_category_ids

@@ -1,7 +1,7 @@
 "use client";
 
-import { OrganizationPage } from "../../../../features/owner-page/OrganizationPage";
+import { OrganizationFoundPage } from "../../../../features/organization-public/OrganizationFoundPage";
 
 export default function Page() {
-  return <OrganizationPage />;
+  return <OrganizationFoundPage />;
 }

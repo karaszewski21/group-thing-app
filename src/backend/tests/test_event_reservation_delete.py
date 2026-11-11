@@ -16,13 +16,13 @@ from httpx import AsyncClient
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import BalanceStatus, InventoryBalance, Reservation
 from app.events.infrastructure import groups_acl
 from app.events.models import Event
 from app.groups.application import term_item_listings
 from app.groups.application.reservation_context import load_for_reservation
 from app.groups.infrastructure import repository as groups_repository
 from app.groups.models import SwapProposal, SwapProposalStatus
+from app.inventory.models import BalanceStatus, InventoryBalance, Reservation
 from tests.test_event_item_reservations import (
     _attendees,
     _create_event,

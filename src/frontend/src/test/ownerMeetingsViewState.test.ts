@@ -13,6 +13,7 @@ const ORGANIZATION: PublicOrganizationResponse = {
   palette_preset: null,
   description: null,
   logo: null,
+  avatar: null,
   cover: null,
   gallery: [],
 };
@@ -51,13 +52,6 @@ describe("resolveOwnerMeetingsView", () => {
       meetingsRead(),
       { kind: "error", message: OWNER_MEETINGS_LOAD_ERROR },
     ],
-    [
-      "party URL of an organization owner",
-      PARTY_REF,
-      null,
-      meetingsRead({ owner: ORG_OWNER }),
-      { kind: "redirect", to: "/orlik/meetings?x=1" },
-    ],
     ["meetings loading", PARTY_REF, null, meetingsRead({ owner: null, loading: true }), { kind: "loading" }],
     ["meetings 404", PARTY_REF, null, meetingsRead({ owner: null, notFound: true }), { kind: "notFound" }],
     [
@@ -81,7 +75,7 @@ describe("resolveOwnerMeetingsView", () => {
       meetingsRead({ meetings: [] }),
       { kind: "content", owner: PERSON, meetings: [], organization: null },
     ],
-  ])("%s", (_name, ownerRef, organization, meetings, expected) => {
-    expect(resolveOwnerMeetingsView({ ownerRef, search: "?x=1", organization, meetings })).toEqual(expected);
+  ])("%s", (_name, _ownerRef, organization, meetings, expected) => {
+    expect(resolveOwnerMeetingsView({ organization, meetings })).toEqual(expected);
   });
 });

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { authPath } from "../auth/authPaths";
 import { INBOX_PATH, threadPath } from "../routing/messagesPaths";
 import {
+  appearancePath,
   eventEditPath,
   eventPath,
   familyMemberEditPath,
@@ -51,7 +52,6 @@ const PANEL = [
   "/messages",
   "/messages/:conversationId",
   "/organization",
-  "/organization/appearance",
 ];
 
 const ADMIN = [
@@ -79,8 +79,9 @@ const INVENTORY = [
   ...PANEL,
   "/:slug",
   "/:slug/items",
+  "/:slug/appearance",
   "/:slug/meetings",
-  "/:slug/terms",
+  "/:slug/group/:groupId/terms",
   "/:slug/product",
   "/:slug/product/:id",
   "/:slug/event/:eventId",
@@ -144,6 +145,8 @@ describe("App Router route manifest", () => {
       ownerPagePath({ slug: "zielony-krag", party_id: PARTY_ID }),
       ownerPagePath({ slug: null, party_id: PARTY_ID }),
       eventPath("zielony-krag", "ev-1"),
+      appearancePath("zielony-krag"),
+      appearancePath(PARTY_ID, "name").split("?")[0],
       INBOX_PATH,
       threadPath("c-1"),
       authPath("login").split("?")[0],

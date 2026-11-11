@@ -1,0 +1,29 @@
+app\circulation\application\inventory_items.py:203: error: Incompatible return value type (got "Mapped[UUID]", expected "UUID | None")  [return-value]
+app\plugin\router.py:129: error: Argument "entity_id" to "list_cross_type_objects" has incompatible type "int | None"; expected "UUID | None"  [arg-type]
+app\plugin\router.py:152: error: Argument "entity_id" to "list_per_type_objects" has incompatible type "int | None"; expected "UUID | None"  [arg-type]
+app\plugin\router.py:185: error: Argument "entity_id" to "put_object" has incompatible type "int | None"; expected "UUID | None"  [arg-type]
+app\organizations\service.py:110: error: Redundant cast to "UUID"  [redundant-cast]
+app\groups\application\term_item_listings.py:352: error: Incompatible return value type (got "tuple[Mapped[UUID], UUID]", expected "tuple[UUID | None, UUID | None]")  [return-value]
+app\groups\application\exchange_summary.py:77: error: No overload variant of "get" of "dict" matches argument type "UUID"  [call-overload]
+app\groups\application\exchange_summary.py:77: note: Possible overload variants:
+app\groups\application\exchange_summary.py:77: note:     def get(self, Mapped[UUID], None = ..., /) -> UUID | None
+app\groups\application\exchange_summary.py:77: note:     def get(self, Mapped[UUID], UUID, /) -> UUID
+app\groups\application\exchange_summary.py:77: note:     def [_T] get(self, Mapped[UUID], _T, /) -> UUID | _T
+app\groups\application\exchange_summary.py:246: error: No overload variant of "get" of "dict" matches argument types "UUID", "tuple[()]"  [call-overload]
+app\groups\application\exchange_summary.py:246: note: Possible overload variants:
+app\groups\application\exchange_summary.py:246: note:     def get(self, int, None = ..., /) -> list[UUID] | None
+app\groups\application\exchange_summary.py:246: note:     def get(self, int, list[UUID], /) -> list[UUID]
+app\groups\application\exchange_summary.py:246: note:     def [_T] get(self, int, _T, /) -> list[UUID] | _T
+app\groups\application\exchange_summary.py:247: error: No overload variant of "get" of "dict" matches argument types "UUID", "tuple[()]"  [call-overload]
+app\groups\application\exchange_summary.py:247: note: Possible overload variants:
+app\groups\application\exchange_summary.py:247: note:     def get(self, int, None = ..., /) -> list[UUID] | None
+app\groups\application\exchange_summary.py:247: note:     def get(self, int, list[UUID], /) -> list[UUID]
+app\groups\application\exchange_summary.py:247: note:     def [_T] get(self, int, _T, /) -> list[UUID] | _T
+app\groups\application\public_view.py:121: error: Key expression in dictionary comprehension has incompatible type "UUID"; expected type "int"  [misc]
+app\groups\application\public_view.py:132: error: Invalid index type "UUID" for "dict[int, tuple[str | None, str]]"; expected type "int"  [index]
+app\groups\application\public_view.py:163: error: Key expression in dictionary comprehension has incompatible type "UUID"; expected type "int"  [misc]
+app\groups\application\public_view.py:176: error: Invalid index type "UUID" for "dict[int, str]"; expected type "int"  [index]
+app\families\bootstrap.py:64: error: Incompatible return value type (got "tuple[Family, UUID]", expected "tuple[Family, int]")  [return-value]
+app\main.py:20: error: Skipping analyzing "apscheduler.schedulers.asyncio": module is installed, but missing library stubs or py.typed marker  [import-untyped]
+app\main.py:20: note: See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
+Found 15 errors in 8 files (checked 217 source files)

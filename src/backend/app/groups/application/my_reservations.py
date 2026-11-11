@@ -23,17 +23,17 @@ from app.users.service import get_profile_by_principal
 
 from ..domain.organizer_slug import derive_party_slug
 from ..infrastructure import (
-    circulation_bridge,
     events_acl,
+    inventory_bridge,
     organizations_acl,
     product_bridge,
     repository,
 )
 from ..schemas import ExchangeMode, MyReservationResponse
 
-_MODES: dict[circulation_bridge.ReservationType, ExchangeMode] = {
-    circulation_bridge.ReservationType.GIFT: "GIFT",
-    circulation_bridge.ReservationType.SWAP: "SWAP",
+_MODES: dict[inventory_bridge.ReservationType, ExchangeMode] = {
+    inventory_bridge.ReservationType.GIFT: "GIFT",
+    inventory_bridge.ReservationType.SWAP: "SWAP",
 }
 
 
@@ -50,9 +50,9 @@ class _Row:
     reserved_at: datetime
 
 
-def _is_incoming_offer(reservation: circulation_bridge.Reservation) -> bool:
+def _is_incoming_offer(reservation: inventory_bridge.Reservation) -> bool:
     return (
-        reservation.reservation_type == circulation_bridge.ReservationType.SWAP
+        reservation.reservation_type == inventory_bridge.ReservationType.SWAP
         and reservation.paired_reservation_id is None
     )
 
@@ -73,7 +73,7 @@ async def list_my_reservations(
             event_id=reservation.event_id,
             reserved_at=reservation.reserved_at,
         )
-        for reservation in await circulation_bridge.list_active_reservations_for_taker(
+        for reservation in await inventory_bridge.list_active_reservations_for_taker(
             db, cast(uuid.UUID, profile.account_user_id)
         )
         if reservation.reservation_type in _MODES and not _is_incoming_offer(reservation)
@@ -82,7 +82,7 @@ async def list_my_reservations(
     proposals = await repository.list_pending_swap_proposals_by_proposer(db, profile.party_id)
     proposer_legs = {
         cast(uuid.UUID, leg.id): leg
-        for leg in await circulation_bridge.list_reservations_by_ids(
+        for leg in await inventory_bridge.list_reservations_by_ids(
             db, {proposal.proposer_reservation_id for proposal, _ in proposals}
         )
     }
@@ -109,7 +109,7 @@ async def list_my_reservations(
 async def _build_responses(
     db: AsyncSession, rows: list[_Row], storage: ObjectStorage | None
 ) -> list[MyReservationResponse]:
-    products = await circulation_bridge.list_item_products(db, {row.item_id for row in rows})
+    products = await inventory_bridge.list_item_products(db, {row.item_id for row in rows})
 
     user_rows = await repository.list_profile_names_by_account_user_ids(
         db, {row.owner_user_id for row in rows if row.owner_user_id is not None}

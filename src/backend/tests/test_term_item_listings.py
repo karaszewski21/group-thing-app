@@ -26,20 +26,6 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.application import reservation_transitions
-from app.circulation.application.inventory import get_inventory
-from app.circulation.application.inventory_items import get_item, get_item_balance
-from app.circulation.models import (
-    BalanceStatus,
-    CirculationTransaction,
-    Inventory,
-    InventoryBalance,
-    InventoryItem,
-    MovementType,
-    Reservation,
-    ReservationStatus,
-    ReservationType,
-)
 from app.config import settings
 from app.core import clock
 from app.core.auth_deps import Principal
@@ -48,13 +34,27 @@ from app.core.security import decode_token
 from app.groups import service
 from app.groups.application import term_item_listings
 from app.groups.application.term_item_listings import TermAlreadyResolvedException
-from app.groups.infrastructure import circulation_bridge, repository
+from app.groups.infrastructure import inventory_bridge, repository
 from app.groups.models import SwapProposal, Term
 from app.groups.schemas import (
     BrowseTermItemListingResponse,
     ItemProposeRequest,
     ItemTakeRequest,
     ReservationContextRef,
+)
+from app.inventory.application import reservation_transitions
+from app.inventory.application.inventory import get_inventory
+from app.inventory.application.inventory_items import get_item, get_item_balance
+from app.inventory.models import (
+    BalanceStatus,
+    Inventory,
+    InventoryBalance,
+    InventoryItem,
+    InventoryTransaction,
+    MovementType,
+    Reservation,
+    ReservationStatus,
+    ReservationType,
 )
 from tests.conftest import create_location, leaf_category_ids
 from tests.ledger_assertions import assert_ledger_matches_projection, movements_for_item
@@ -706,7 +706,7 @@ async def test_confirmTransaction_swapCounterpartyConfirmsViaPairedLegId_succeed
     leg's id. This was broken by an earlier fix attempt that conflated
     `_resolve_transaction_holder_user_id`'s "counterparty for the race
     check" role with the unrelated "current physical holder to satisfy
-    `circulation_bridge.confirm_reservation`'s internal check" role,
+    `inventory_bridge.confirm_reservation`'s internal check" role,
     which caused the OPPOSITE bug (both parties always 403, regardless of
     which leg's id was used)."""
     org_token, _ = await _register(client, "ORGANIZER", "til.org19@example.com")
@@ -1514,7 +1514,7 @@ async def test_takeListing_swapOfferedItemNotAvailable_raisesBusinessConflict(
         )
 
 
-# --- Group 2: SWAP-mode enforcement + circulation-ledger audit -------------
+# --- Group 2: SWAP-mode enforcement + inventory-ledger audit -------------
 
 
 async def test_proposeSwap_offeredItemTaggedSwap_succeeds(
@@ -1609,7 +1609,7 @@ async def _account_user_id(client: AsyncClient, token: str) -> uuid.UUID:
 
 
 def _entry_lines(
-    transaction: CirculationTransaction,
+    transaction: InventoryTransaction,
 ) -> set[tuple[uuid.UUID, uuid.UUID | None, int, uuid.UUID | None]]:
     """`(item_id, inventory_id, quantity, reservation_id)` per entry."""
     return {
@@ -1689,7 +1689,7 @@ async def _accepted_swap_after_term(
         db_session, _principal(proposer_token), listed_item_id, offered_item_id, term_id
     )
     await service.accept_swap_proposal(db_session, _principal(lister_token), proposal.id)
-    proposer_reservation = await circulation_bridge.get_reservation(
+    proposer_reservation = await inventory_bridge.get_reservation(
         db_session, proposal.proposer_reservation_id
     )
 
@@ -1736,7 +1736,7 @@ async def test_confirmTransaction_giftFulfillment_postsGiftTransactionBetweenPer
 
     await service.confirm_transaction(db_session, _principal(taker_token), reservation_id)
 
-    taker_inventory = await circulation_bridge.find_personal_inventory(
+    taker_inventory = await inventory_bridge.find_personal_inventory(
         db_session, await _account_user_id(client, taker_token)
     )
     assert taker_inventory is not None
@@ -1874,7 +1874,7 @@ async def test_cancelExchange_failureInSecondLeg_leavesFirstLegUntouched(
     monkeypatch.setattr(reservation_transitions, "get_item_balance", failing_on_second_call)
 
     with pytest.raises(RuntimeError):
-        await circulation_bridge.cancel_exchange(
+        await inventory_bridge.cancel_exchange(
             db_session,
             [swap.proposer_reservation_id, swap.owner_reservation_id],
             lister_user_id,
@@ -1916,7 +1916,7 @@ async def test_fulfillExchange_unpairedLegs_raisesConflict(
 
     for reservation_ids in ([leg_id], [leg_id, leg_id]):
         with pytest.raises(BusinessConflictException):
-            await circulation_bridge.fulfill_exchange(db_session, reservation_ids, proposer_user_id)
+            await inventory_bridge.fulfill_exchange(db_session, reservation_ids, proposer_user_id)
 
     assert (await _fresh_reservation(db_session, leg_id)).status == ReservationStatus.CONFIRMED
 
@@ -1931,7 +1931,7 @@ async def test_fulfillExchange_nonPartyActor_raisesAccessDeniedWithoutStateChang
     transactions_before = len(await movements_for_item(db_session, swap.listed_item_id))
 
     with pytest.raises(AccessDeniedException):
-        await circulation_bridge.fulfill_exchange(
+        await inventory_bridge.fulfill_exchange(
             db_session,
             [swap.proposer_reservation_id, swap.owner_reservation_id],
             outsider_user_id,
@@ -1952,7 +1952,7 @@ async def test_cancelExchange_nonPartyActor_raisesAccessDeniedWithoutStateChange
     outsider_user_id = await _account_user_id(client, outsider_token)
 
     with pytest.raises(AccessDeniedException):
-        await circulation_bridge.cancel_exchange(
+        await inventory_bridge.cancel_exchange(
             db_session,
             [swap.owner_reservation_id, swap.proposer_reservation_id],
             outsider_user_id,
@@ -2114,7 +2114,7 @@ async def test_getItemBalance_inTransitStatus_stillReportsSameReservationId(
 
     # The item's owner (still the holder before fulfillment) confirms.
     lister_me = await client.get("/api/people/me", headers=_auth(lister_token))
-    await circulation_bridge.confirm_reservation(
+    await inventory_bridge.confirm_reservation(
         db_session, taken.resolved_reservation_id, uuid.UUID(lister_me.json()["account_user_id"])
     )
 

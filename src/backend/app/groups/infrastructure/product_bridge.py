@@ -4,7 +4,7 @@ product name for the term item-listing flows; needed items are plain names
 and no longer reference a product.
 
 `product_ids_with_unmoderated_photos` backs the informational "Moje rzeczy"
-pending flag. `first_approved_photo_by_product` backs the organizer page and term page
+pending flag. `first_approved_photo_by_product` backs the term page
 thumbnails; it returns entities only, the public URL is built by the
 caller."""
 

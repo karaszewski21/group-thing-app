@@ -28,7 +28,7 @@ from app.core.errors import (
 )
 from app.users.service import get_profile_by_party
 
-from ..infrastructure import circulation_bridge, events_acl, repository
+from ..infrastructure import events_acl, inventory_bridge, repository
 from ..infrastructure.slug_resolver import resolve_organizer_slug
 from ..models import GroupVisibility, ItemListingPreference, ItemVisibility, Term
 from ..schemas import ItemContextResponse, ReservationContextRef
@@ -37,8 +37,8 @@ from .circles import get_group_including_deleted
 from .terms import get_term, get_term_any
 
 _OPEN_STATUSES = (
-    circulation_bridge.ReservationStatus.PENDING,
-    circulation_bridge.ReservationStatus.CONFIRMED,
+    inventory_bridge.ReservationStatus.PENDING,
+    inventory_bridge.ReservationStatus.CONFIRMED,
 )
 
 
@@ -281,7 +281,7 @@ async def load_personal_context(db: AsyncSession, item_id: uuid.UUID) -> Persona
     if preference is None:
         raise EntityNotFoundException("ItemListingPreference", item_id)
     owner_party_id = preference.owner_party_id
-    if await circulation_bridge.get_item_live_location_id(db, item_id) is None:
+    if await inventory_bridge.get_item_live_location_id(db, item_id) is None:
         raise BusinessConflictException("Właściciel nie ustawił lokalizacji przedmiotu")
     owner = await get_profile_by_party(db, owner_party_id)
     return PersonalContext(
@@ -305,7 +305,7 @@ async def load_requested_context(
 
 
 async def load_for_reservation(
-    db: AsyncSession, reservation: circulation_bridge.Reservation, *, for_write: bool
+    db: AsyncSession, reservation: inventory_bridge.Reservation, *, for_write: bool
 ) -> ReservationContext | None:
     """The reservation's own context: personal for an open reservation with
     neither column, None for a terminal one (its event was deleted).

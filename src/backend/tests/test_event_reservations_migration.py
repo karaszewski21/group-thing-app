@@ -24,7 +24,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 import app.main  # noqa: F401 - registers every model's table for FK resolution
 from app.auth.models import User
 from app.category.models import Category
-from app.circulation.models import (
+from app.core.base_model import BaseEntity
+from app.inventory.models import (
     Inventory,
     InventoryItem,
     InventoryType,
@@ -33,7 +34,6 @@ from app.circulation.models import (
     ReservationStatus,
     ReservationType,
 )
-from app.core.base_model import BaseEntity
 from app.product.models import Product
 from tests.conftest import BACKEND_ROOT
 

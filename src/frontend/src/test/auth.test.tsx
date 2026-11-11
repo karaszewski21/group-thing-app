@@ -29,7 +29,6 @@ const mockUseAuth = vi.fn((): {
   permissions: string[];
   login: (email: string, password: string) => Promise<void>;
   register: (payload: {
-    role: "GUEST" | "ORGANIZER";
     email: string;
     password: string;
   }) => Promise<void>;
@@ -185,18 +184,18 @@ describe("LoginPage", () => {
 
     const registerTab = screen.getByRole("tab", { name: "Załóż konto" });
     expect(registerTab).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("button", { name: "Organizator" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Załóż konto" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Zaloguj się" }));
 
     expect(screen.getByRole("tab", { name: "Zaloguj się" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.queryByRole("button", { name: "Organizator" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Załóż konto" })).not.toBeInTheDocument();
     expect(screen.getByRole("tabpanel")).toContainElement(screen.getByLabelText(/hasło/i));
   });
 });
 
 describe("RegisterForm", () => {
-  it("posts register body as exactly {role, email, password}", async () => {
+  it("asks only for email and password and registers with exactly {email, password}", async () => {
     const mockRegister = vi.fn(async () => {});
     mockUseAuth.mockReturnValue({
       token: null as string | null,
@@ -212,20 +211,16 @@ describe("RegisterForm", () => {
     const { RegisterForm } = await import("../features/auth/RegisterForm");
     renderWithProviders(<RegisterForm onSwitchToLogin={onSwitchToLogin} />);
 
+    expect(screen.queryByRole("button", { name: "Gość" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Organizator" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Kim jesteś?")).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "new@example.com" } });
     fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "pass123" } });
     fireEvent.click(screen.getByRole("button", { name: /załóż konto/i }));
 
     await waitFor(() => {
-      expect(mockRegister).toHaveBeenCalledWith({
-        role: "GUEST",
-        email: "new@example.com",
-        password: "pass123",
-      });
+      expect(mockRegister).toHaveBeenCalledWith({ email: "new@example.com", password: "pass123" });
     });
-
-    const calledPayload = (mockRegister.mock.calls as unknown as Record<string, unknown>[][])[0][0];
-    expect(Object.keys(calledPayload).sort()).toEqual(["email", "password", "role"]);
   });
 
   it("renders the duplicate-email error message with a /login link", async () => {
@@ -257,7 +252,7 @@ describe("RegisterForm", () => {
     expect(onSwitchToLogin).toHaveBeenCalledTimes(1);
   });
 
-  it("registers with the chosen role and leaves the redirect to the page's AuthGuard", async () => {
+  it("leaves the redirect after registering to the page's AuthGuard", async () => {
     const mockRegister = vi.fn(async () => {});
     mockUseAuth.mockReturnValue({
       token: null as string | null,
@@ -278,7 +273,7 @@ describe("RegisterForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /załóż konto/i }));
 
     await waitFor(() => {
-      expect(mockRegister).toHaveBeenCalledWith({ role: "GUEST", email: "new@example.com", password: "pass123" });
+      expect(mockRegister).toHaveBeenCalledWith({ email: "new@example.com", password: "pass123" });
     });
     expect(getTestRouter().calls).toEqual([]);
   });
@@ -323,6 +318,31 @@ describe("AuthContext", () => {
     await waitFor(() => {
       expect(screen.getByTestId("token")).toHaveTextContent("none");
     });
+  });
+  it("register posts a GUEST account to /api/auth/register", async () => {
+    const payload = btoa(JSON.stringify({ sub: "new", permissions: [], exp: Math.floor(Date.now() / 1000) + 3600 }));
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ token: `eyJhbGciOiJIUzI1NiJ9.${payload}.signature` }), { status: 200 }),
+    );
+    mockUseAuth.mockImplementation(realUseAuth);
+
+    function TestConsumer() {
+      const { register } = mockUseAuth();
+      return <button onClick={() => void register({ email: "new@example.com", password: "pass123" })}>Register</button>;
+    }
+
+    render(
+      <ChakraProvider value={system}>
+        <RealAuthProvider initialSession={null}>
+          <TestConsumer />
+        </RealAuthProvider>
+      </ChakraProvider>, { wrapper: createQueryWrapper() },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Register" }));
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledWith("/api/auth/register", expect.anything()));
+    const init = mockFetch.mock.calls.find(([url]) => url === "/api/auth/register")![1] as RequestInit;
+    expect(JSON.parse(init.body as string)).toEqual({ role: "GUEST", email: "new@example.com", password: "pass123" });
   });
 });
 

@@ -1,8 +1,8 @@
-"""`GET /api/public/organizers/{slug}`: the anonymous organizer
-directory read model. Covers the response contract (and the absence of any
-identity field), circle qualification, the 404 / empty cases, the 60-day
-window, the `family_count` threshold, exchange eligibility and thumbnails,
-and the needed items' `claimed` flag.
+"""`GET /api/public/organizations/{slug}/layout/{layout}`: the anonymous
+organization page, one read per layout. Covers each layout's response
+contract (and the absence of any identity field), the own-only stats, the
+404 / 400 / empty cases, and the lists' limits and order. Other test files
+import the helpers defined here.
 
 Data is built over HTTP plus direct `db_session` writes, following
 `test_public_term.py` / `test_term_item_listings.py`."""
@@ -10,32 +10,27 @@ Data is built over HTTP plus direct `db_session` writes, following
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, time, timedelta
-from typing import Any
+from datetime import datetime, timedelta
+from typing import Any, get_args
 
 from httpx import AsyncClient
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import BalanceStatus
 from app.core import clock
-from app.groups import service
 from app.groups.models import (
-    GroupRole,
-    GroupRoleType,
+    Group,
     ItemListingPreference,
     Leadership,
-    TermAttendance,
 )
-from app.moderation.status import ModerationStatus
+from app.inventory.models import BalanceStatus
 from app.organizations.models import Organization, OrganizationMembership
+from app.organizations.page_layouts import PAGE_LAYOUT_KEYS
+from app.pages.domain.page_content import PageLayout
 from tests.conftest import create_location
 from tests.test_organizer_bridges import (
-    _item,
-    _photo,
     _register_items,
     _set_balance,
-    _uploader_id,
 )
 from tests.test_term_item_listings import _auth, _register, _rsvp
 
@@ -116,14 +111,6 @@ async def _listed_items(
     return item_ids
 
 
-async def _page(client: AsyncClient, slug: str) -> dict[str, Any]:
-    response = await client.get(f"/api/public/organizers/{slug}")
-    assert response.status_code == 200, response.text
-    assert response.headers["cache-control"] == "public, max-age=0, s-maxage=60"
-    body: dict[str, Any] = response.json()
-    return body
-
-
 def _keys(value: Any) -> set[str]:
     if isinstance(value, dict):
         return set(value) | {key for child in value.values() for key in _keys(child)}
@@ -136,129 +123,130 @@ def _in_days(days: int) -> datetime:
     return (clock.local_now() + timedelta(days=days)).replace(microsecond=0)
 
 
-async def test_getOrganizerPage_populatedDirectory_matchesContractWithoutIdentityKeys(
+async def _layout(client: AsyncClient, slug: str, layout: str) -> dict[str, Any]:
+    response = await client.get(f"/api/public/organizations/{slug}/layout/{layout}")
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "public, max-age=0, s-maxage=60"
+    body: dict[str, Any] = response.json()
+    assert body["layout"] == layout
+    return body
+
+
+async def _event(client: AsyncClient, token: str, name: str, days: int) -> str:
+    # Events keep whole minutes.
+    event = await client.post(
+        "/api/events",
+        json={
+            "location_id": await create_location(client, _auth(token)),
+            "name": name,
+            "starts_at": _in_days(days).replace(second=0).isoformat(),
+        },
+        headers=_auth(token),
+    )
+    assert event.status_code == 201, event.text
+    return str(event.json()["id"])
+
+
+DATE_KEYS = {"kind", "id", "name", "starts_at", "location_name", "attendee_count", "path"}
+ITEM_KEYS = {"item_id", "product_name", "condition", "mode", "thumb_url", "added_at", "reservation"}
+
+
+async def test_getOrganizationLayout_eachLayout_onlyItsPropsWithoutIdentityKeys(
     client: AsyncClient,
 ) -> None:
-    owner_token, _ = await _register(client, "ORGANIZER", "op.shape.owner@example.com")
+    owner_token, _ = await _register(client, "ORGANIZER", "ol.shape.owner@example.com")
     slug = await _organization_slug(client, owner_token, "Kształtne Nutki")
     group_id = await _circle(client, owner_token, "Nutki")
     occurs_on = _in_days(3)
-    term_id = await _term(client, owner_token, group_id, occurs_on, "Rytmika w parku")
-    await _needed_item(client, owner_token, term_id, "Op bębenek")
-    await _listed_items(client, owner_token, ("Op rowerek", "GIFT"))
-    guest_token, _ = await _register(client, "GUEST", "op.shape.guest@example.com")
+    term_id = await _term(client, owner_token, group_id, occurs_on)
+    await _listed_items(client, owner_token, ("Ol rowerek", "GIFT"))
+    guest_token, _ = await _register(client, "GUEST", "ol.shape.guest@example.com")
     await _rsvp(client, guest_token, group_id, term_id)
+    stats = {"group_count": 1, "item_count": 1, "meeting_count": 1}
 
-    body = await _page(client, slug)
+    classic = await _layout(client, slug, "CLASSIC")
+    links = await _layout(client, slug, "LINKS")
+    schedule = await _layout(client, slug, "SCHEDULE")
+    exchange = await _layout(client, slug, "EXCHANGE")
 
-    assert set(body) == {
-        "circles",
-        "upcoming_terms",
-        "exchange",
-        "needed_items",
-        "stats",
-        "upcoming_dates",
-        "recent_items",
-        "owner_nearest",
-    }
-    [circle] = body["circles"]
-    assert set(circle) == {"id", "name", "layout_mode", "next_term", "upcoming_term_count"}
-    assert circle["name"] == "Nutki" and circle["layout_mode"] == "CIRCLE"
-    assert circle["next_term"] == {
-        "id": str(term_id),
-        "occurs_on": occurs_on.isoformat(),
-        "attendee_count": 1,
-    }
-    [term] = body["upcoming_terms"]
-    assert set(term) == {
-        "term_id",
-        "group_id",
-        "group_name",
-        "occurs_on",
-        "description",
-        "attendee_count",
-    }
-    assert term["group_name"] == "Nutki" and term["description"] == "Rytmika w parku"
-    assert term["attendee_count"] == 1
-    assert set(body["exchange"]) == {"counts", "items"}
-    assert body["exchange"]["counts"] == {"GIFT": 1, "SWAP": 0, "RESERVED": 0}
-    [item] = body["exchange"]["items"]
-    assert set(item) == {
-        "item_id",
-        "product_name",
-        "condition",
-        "mode",
-        "thumb_url",
-        "term_id",
-        "group_id",
-        "occurs_on",
-        "reservation",
-    }
-    [needed] = body["needed_items"]
-    assert set(needed) == {"id", "term_id", "group_id", "name", "claimed"}
-    assert body["stats"] == {"circle_count": 1, "upcoming_term_count": 1, "family_count": None}
-    assert _keys(body) & FORBIDDEN_KEYS == set()
+    assert set(classic) == {"layout", "stats", "upcoming_terms", "items"}
+    assert classic["stats"] == stats
+    [date] = classic["upcoming_terms"]
+    assert set(date) == DATE_KEYS and date["attendee_count"] == 1
+    assert date["path"] == f"/{slug}/group/{group_id}/term/{term_id}"
+    assert set(classic["items"][0]) == ITEM_KEYS
+    assert links == {"layout": "LINKS", "stats": stats}
+    assert set(schedule) == {"layout", "stats", "upcoming_terms", "groups", "item_stats"}
+    assert schedule["groups"] == [
+        {
+            "id": str(group_id),
+            "name": "Nutki",
+            "layout_mode": "CIRCLE",
+            "next_term": {
+                "id": str(term_id),
+                "occurs_on": occurs_on.isoformat(),
+                "attendee_count": 1,
+            },
+            "upcoming_term_count": 1,
+        }
+    ]
+    assert schedule["item_stats"] == {"GIFT": 1, "SWAP": 0}
+    assert set(exchange) == {"layout", "stats", "items", "term_links"}
+    assert exchange["term_links"] == [
+        {"kind": "TERM", "starts_at": occurs_on.isoformat(), "path": date["path"]}
+    ]
+    for body in (classic, links, schedule, exchange):
+        assert _keys(body) & FORBIDDEN_KEYS == set()
 
 
-async def test_getOrganizerPage_privateOrRevokedCircles_excludedFromEveryField(
+async def test_getOrganizationLayout_stats_ownGroupsTermsEventsAndAvailableItemsOnly(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    owner_token, owner_party_id = await _register(client, "ORGANIZER", "op.priv.owner@example.com")
-    slug = await _organization_slug(client, owner_token, "Prywatne Nutki")
+    owner_token, _ = await _register(client, "ORGANIZER", "ol.own.owner@example.com")
+    slug = await _organization_slug(client, owner_token, "Własne Nutki")
     public_id = await _circle(client, owner_token, "Publiczny")
     private_id = await _circle(client, owner_token, "Prywatny", "PRIVATE")
     revoked_id = await _circle(client, owner_token, "Odwołany")
     public_term = await _term(client, owner_token, public_id, _in_days(4))
     for group_id in (private_id, revoked_id):
-        hidden_term = await _term(client, owner_token, group_id, _in_days(2))
-        await _needed_item(client, owner_token, hidden_term, f"Op ukryte {group_id}")
+        await _term(client, owner_token, group_id, _in_days(2))
     leadership = (
         await db_session.execute(select(Leadership).where(Leadership.to_group_id == revoked_id))
     ).scalar_one()
     leadership.valid_to = clock.local_now().date()
     await db_session.flush()
+    own_event = await _event(client, owner_token, "Ol własny piknik", 6)
+    # Dates the owner only attends never count.
+    other_token, _ = await _register(client, "ORGANIZER", "ol.own.other@example.com")
+    other_group = await _circle(client, other_token, "Cudzy")
+    other_term = await _term(client, other_token, other_group, _in_days(1))
+    await _rsvp(client, owner_token, other_group, other_term)
+    other_event = await _event(client, other_token, "Ol cudzy piknik", 2)
+    attend = await client.post(f"/api/events/{other_event}/attendances", headers=_auth(owner_token))
+    assert attend.status_code == 201, attend.text
+    _, reserved_id, _ = await _listed_items(
+        client, owner_token, ("Ol wolna", "GIFT"), ("Ol zajęta", "GIFT"), ("Ol zamiana", "SWAP")
+    )
+    await _set_balance(db_session, reserved_id, BalanceStatus.RESERVED)
 
-    body = await _page(client, slug)
+    schedule = await _layout(client, slug, "SCHEDULE")
 
-    assert [c["id"] for c in body["circles"]] == [str(public_id)]
-    assert [t["term_id"] for t in body["upcoming_terms"]] == [str(public_term)]
-    assert body["needed_items"] == []
-    assert body["stats"]["circle_count"] == 1 and body["stats"]["upcoming_term_count"] == 1
-
-    other_token, other_party_id = await _register(client, "ORGANIZER", "op.priv.other@example.com")
-    other_slug = await _organization_slug(client, other_token, "Odwołana Rola")
-    other_group = await _circle(client, other_token, "Krąg z odwołaną rolą")
-    await _term(client, other_token, other_group, _in_days(1))
-    role = (
-        await db_session.execute(
-            select(GroupRole).where(
-                GroupRole.party_id == other_party_id,
-                GroupRole.role_type == GroupRoleType.ORGANIZATOR,
-            )
-        )
-    ).scalar_one()
-    role.valid_to = clock.local_now().date()
-    await db_session.flush()
-
-    other_body = await _page(client, other_slug)
-
-    assert other_body["circles"] == [] and other_body["upcoming_terms"] == []
-    assert owner_party_id != other_party_id
+    assert schedule["stats"] == {"group_count": 1, "item_count": 2, "meeting_count": 2}
+    assert schedule["item_stats"] == {"GIFT": 1, "SWAP": 1}
+    assert [group["id"] for group in schedule["groups"]] == [str(public_id)]
+    assert [date["id"] for date in schedule["upcoming_terms"]] == [str(public_term), own_event]
 
 
-async def test_getOrganizerPage_unknownPseudoOwnerlessOrEmpty_returns404OrEmpty(
+async def test_getOrganizationLayout_unknownSlugOwnerlessOrLayout_404Or400_emptyOrganization(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    missing = await client.get("/api/public/organizers/nie-ma-takiej")
+    base = "/api/public/organizations"
+    missing = await client.get(f"{base}/nie-ma-takiej/layout/CLASSIC")
     assert missing.status_code == 404
     assert "cache-control" not in missing.headers
-    assert (await client.get("/api/public/organizers/k-0123456789ab")).status_code == 404
+    assert (await client.get(f"{base}/k-0123456789ab/layout/LINKS")).status_code == 404
 
-    access = await client.get("/api/public/organizers/access")
-    assert access.status_code == 404
-    assert "Organization" in access.json()["message"]
-
-    ownerless_token, _ = await _register(client, "ORGANIZER", "op.404.ownerless@example.com")
+    ownerless_token, _ = await _register(client, "ORGANIZER", "ol.404.ownerless@example.com")
     ownerless_slug = await _organization_slug(client, ownerless_token, "Bez Właściciela")
     membership = (
         await db_session.execute(
@@ -269,369 +257,165 @@ async def test_getOrganizerPage_unknownPseudoOwnerlessOrEmpty_returns404OrEmpty(
     ).scalar_one()
     membership.valid_to = clock.local_now().date()
     await db_session.flush()
-    assert (await client.get(f"/api/public/organizers/{ownerless_slug}")).status_code == 404
+    assert (await client.get(f"{base}/{ownerless_slug}/layout/CLASSIC")).status_code == 404
 
-    empty_token, _ = await _register(client, "ORGANIZER", "op.404.empty@example.com")
+    empty_token, _ = await _register(client, "ORGANIZER", "ol.404.empty@example.com")
     empty_slug = await _organization_slug(client, empty_token, "Pusta Strona")
+    for layout in ("custom", "classic", "FOOTER"):
+        assert (await client.get(f"{base}/{empty_slug}/layout/{layout}")).status_code == 400
 
-    assert await _page(client, empty_slug) == {
-        "circles": [],
+    zero = {"group_count": 0, "item_count": 0, "meeting_count": 0}
+    assert await _layout(client, empty_slug, "CLASSIC") == {
+        "layout": "CLASSIC",
+        "stats": zero,
         "upcoming_terms": [],
-        "exchange": {"counts": {"GIFT": 0, "SWAP": 0, "RESERVED": 0}, "items": []},
-        "needed_items": [],
-        "stats": {"circle_count": 0, "upcoming_term_count": 0, "family_count": None},
-        "upcoming_dates": [],
-        "recent_items": [],
-        "owner_nearest": None,
+        "items": [],
+    }
+    assert await _layout(client, empty_slug, "SCHEDULE") == {
+        "layout": "SCHEDULE",
+        "stats": zero,
+        "upcoming_terms": [],
+        "groups": [],
+        "item_stats": {"GIFT": 0, "SWAP": 0},
+    }
+    assert await _layout(client, empty_slug, "EXCHANGE") == {
+        "layout": "EXCHANGE",
+        "stats": zero,
+        "items": [],
+        "term_links": [],
     }
 
 
-async def test_getOrganizerPage_timeWindow_pastAndFarTermsOutOfWindowButFarStaysNext(
-    client: AsyncClient,
-) -> None:
-    owner_token, _ = await _register(client, "ORGANIZER", "op.window.owner@example.com")
-    slug = await _organization_slug(client, owner_token, "Okno Czasowe")
-    near_id = await _circle(client, owner_token, "Zzz bliski")
-    far_id = await _circle(client, owner_token, "Aaa daleki")
-    await _term(client, owner_token, near_id, _in_days(-1))
-    near_term = await _term(client, owner_token, near_id, _in_days(10))
-    await _term(client, owner_token, near_id, _in_days(70))
-    far_term = await _term(client, owner_token, far_id, _in_days(90))
-
-    body = await _page(client, slug)
-
-    near, far = body["circles"]
-    assert (near["id"], far["id"]) == (str(near_id), str(far_id))
-    assert near["next_term"]["id"] == str(near_term) and near["upcoming_term_count"] == 1
-    assert far["next_term"]["id"] == str(far_term) and far["upcoming_term_count"] == 0
-    assert far["next_term"]["attendee_count"] == 0
-    assert [t["term_id"] for t in body["upcoming_terms"]] == [str(near_term)]
-    assert body["stats"]["upcoming_term_count"] == 1
-
-
-async def test_getOrganizerPage_familyCount_nullBelowThreeAndOwnerFamilyExcluded(
+async def test_getOrganizationLayout_limits_nearestDatesNewestItemsAndNewestGroups(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    owner_token, owner_party_id = await _register(
-        client, "ORGANIZER", "op.family.owner@example.com"
-    )
-    slug = await _organization_slug(client, owner_token, "Rodzinne Nutki")
-    group_id = await _circle(client, owner_token, "Rodziny")
-    await service.add_active_membership(db_session, group_id, owner_party_id)
-    for index in range(2):
-        _, party_id = await _register(client, "GUEST", f"op.family.g{index}@example.com")
-        await service.add_active_membership(db_session, group_id, party_id)
-
-    assert (await _page(client, slug))["stats"]["family_count"] is None
-
-    _, third_party_id = await _register(client, "GUEST", "op.family.g2@example.com")
-    await service.add_active_membership(db_session, group_id, third_party_id)
-
-    assert (await _page(client, slug))["stats"]["family_count"] == 3
-
-
-async def test_getOrganizerPage_exchange_onlyEligibleListedItemsDedupedToNearestTermReservedCounted(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    owner_token, _ = await _register(client, "ORGANIZER", "op.ex.owner@example.com")
-    slug = await _organization_slug(client, owner_token, "Wymienne Nutki")
-    first_group = await _circle(client, owner_token, "Pierwszy")
-    second_group = await _circle(client, owner_token, "Drugi")
-    first_term = await _term(client, owner_token, first_group, _in_days(3))
-    later_first_term = await _term(client, owner_token, first_group, _in_days(10))
-    second_term = await _term(client, owner_token, second_group, _in_days(5))
-
-    owner_item, reserved_item = await _listed_items(
-        client, owner_token, ("Op ex rower", "GIFT"), ("Op ex zajęty", "SWAP")
-    )
-    await _set_balance(db_session, reserved_item, BalanceStatus.RESERVED)
-
-    attendee_token, _ = await _register(client, "GUEST", "op.ex.attendee@example.com")
-    await _rsvp(client, attendee_token, second_group, second_term)
-    [attendee_item] = await _listed_items(client, attendee_token, ("Op ex lalka", "SWAP"))
-
-    withdrawn_token, _ = await _register(client, "GUEST", "op.ex.withdrawn@example.com")
-    attendance_id = await _rsvp(client, withdrawn_token, first_group, first_term)
-    await _listed_items(client, withdrawn_token, ("Op ex wycofany", "SWAP"))
-    attendance = await db_session.get(TermAttendance, attendance_id)
-    assert attendance is not None
-    attendance.withdrawn_at = datetime.now()
-    await db_session.flush()
-
-    later_token, _ = await _register(client, "GUEST", "op.ex.later@example.com")
-    await _rsvp(client, later_token, first_group, later_first_term)
-    await _listed_items(client, later_token, ("Op ex późniejszy", "GIFT"))
-
-    exchange = (await _page(client, slug))["exchange"]
-
-    assert exchange["counts"] == {"GIFT": 1, "SWAP": 1, "RESERVED": 1}
-    assert [
-        (i["item_id"], i["term_id"], i["group_id"], i["mode"], i["product_name"], i["condition"])
-        for i in exchange["items"]
-    ] == [
-        (str(owner_item), str(first_term), str(first_group), "GIFT", "Op ex rower", "GOOD"),
-        (str(reserved_item), str(first_term), str(first_group), "SWAP", "Op ex zajęty", "GOOD"),
-        (str(attendee_item), str(second_term), str(second_group), "SWAP", "Op ex lalka", "GOOD"),
+    owner_token, _ = await _register(client, "ORGANIZER", "ol.limit.owner@example.com")
+    slug = await _organization_slug(client, owner_token, "Limity")
+    group_ids = [await _circle(client, owner_token, f"Ol grupa {index}") for index in range(5)]
+    term_ids = [
+        await _term(client, owner_token, group_id, _in_days(10 - index))
+        for index, group_id in enumerate(group_ids)
     ]
-    assert [i["reservation"] for i in exchange["items"]] == [
-        None,
-        {"by_name": None, "by_me": False},
-        None,
-    ]
-
-
-async def test_getOrganizerPage_thumbUrl_onlyFromApprovedPhotoAndNullWithoutStorage(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    owner_token, _ = await _register(client, "ORGANIZER", "op.thumb.owner@example.com")
-    slug = await _organization_slug(client, owner_token, "Zdjęciowe Nutki")
-    group_id = await _circle(client, owner_token, "Zdjęcia")
-    await _term(client, owner_token, group_id, _in_days(2))
-    approved_item, pending_item = await _listed_items(
-        client, owner_token, ("Op thumb aparat", "GIFT"), ("Op thumb bęben", "SWAP")
-    )
-    uploader = await _uploader_id(db_session)
-    approved_product = (await _item(db_session, approved_item)).product_id
-    pending_product = (await _item(db_session, pending_item)).product_id
-    db_session.add_all(
-        [
-            _photo(approved_product, uploader, "op-second", ModerationStatus.APPROVED, 2),
-            _photo(approved_product, uploader, "op-first", ModerationStatus.APPROVED, 1),
-            _photo(pending_product, uploader, "op-pending", ModerationStatus.PENDING, 0),
-        ]
-    )
-    await db_session.flush()
-
-    items = (await _page(client, slug))["exchange"]["items"]
-
-    thumbs = {i["item_id"]: i["thumb_url"] for i in items}
-    assert thumbs == {
-        str(approved_item): "https://cdn.test/op-first/w400.webp",
-        str(pending_item): None,
-    }
-
-    without_storage = await service.get_organizer_page(db_session, slug, None)
-
-    assert [i.thumb_url for i in without_storage.exchange.items] == [None, None]
-
-
-async def test_getOrganizerPage_neededItems_claimedFlagLiveItemsOfNextTermsOnly(
-    client: AsyncClient,
-) -> None:
-    owner_token, _ = await _register(client, "ORGANIZER", "op.need.owner@example.com")
-    slug = await _organization_slug(client, owner_token, "Potrzebne Nutki")
-    group_id = await _circle(client, owner_token, "Potrzeby")
-    next_term = await _term(client, owner_token, group_id, _in_days(2))
-    later_term = await _term(client, owner_token, group_id, _in_days(9))
-    claimed_id = await _needed_item(client, owner_token, next_term, "Op need ażur")
-    open_id = await _needed_item(client, owner_token, next_term, "Op need balon")
-    deleted_id = await _needed_item(client, owner_token, next_term, "Op need cymbałki")
-    await _needed_item(client, owner_token, later_term, "Op need dzwonek")
-    deleted = await client.delete(f"/api/needed-items/{deleted_id}", headers=_auth(owner_token))
-    assert deleted.status_code == 204
-    guest_token, _ = await _register(client, "GUEST", "op.need.guest@example.com")
-    await _rsvp(client, guest_token, group_id, next_term)
-    pledge = await client.post(
-        "/api/pledges", json={"needed_item_id": str(claimed_id)}, headers=_auth(guest_token)
-    )
-    assert pledge.status_code == 201
-
-    body = await _page(client, slug)
-
-    assert body["needed_items"] == [
-        {
-            "id": str(claimed_id),
-            "term_id": str(next_term),
-            "group_id": str(group_id),
-            "name": "Op need ażur",
-            "claimed": True,
-        },
-        {
-            "id": str(open_id),
-            "term_id": str(next_term),
-            "group_id": str(group_id),
-            "name": "Op need balon",
-            "claimed": False,
-        },
-    ]
-    assert _keys(body) & FORBIDDEN_KEYS == set()
-
-
-async def test_getOrganizerPage_circleOrder_nextTermThenNameNullsLastAndEarlierTodayExcluded(
-    client: AsyncClient,
-) -> None:
-    owner_token, _ = await _register(client, "ORGANIZER", "op.order.owner@example.com")
-    slug = await _organization_slug(client, owner_token, "Uporządkowane Nutki")
-    soon_id = await _circle(client, owner_token, "Ccc wkrótce")
-    later_b_id = await _circle(client, owner_token, "Bbb później")
-    later_a_id = await _circle(client, owner_token, "Aaa później")
-    today_id = await _circle(client, owner_token, "Aab dziś rano")
-    empty_id = await _circle(client, owner_token, "Aaa pusty")
-    soon_term = await _term(client, owner_token, soon_id, _in_days(2))
-    later = _in_days(5)
-    later_b_term = await _term(client, owner_token, later_b_id, later)
-    later_a_term = await _term(client, owner_token, later_a_id, later)
-    await _term(client, owner_token, today_id, datetime.combine(clock.local_now().date(), time.min))
-
-    body = await _page(client, slug)
-
-    assert [c["id"] for c in body["circles"]] == [
-        str(soon_id),
-        str(later_a_id),
-        str(later_b_id),
-        str(empty_id),
-        str(today_id),
-    ]
-    earlier_today = body["circles"][-1]
-    assert earlier_today["next_term"] is None and earlier_today["upcoming_term_count"] == 0
-    assert [t["term_id"] for t in body["upcoming_terms"]] == [
-        str(soon_term),
-        *sorted([str(later_a_term), str(later_b_term)]),
-    ]
-    assert body["stats"] == {"circle_count": 5, "upcoming_term_count": 3, "family_count": None}
-
-
-async def test_getOrganizerPage_manyCircles_cappedAt30CirclesAnd10UpcomingTerms(
-    client: AsyncClient,
-) -> None:
-    owner_token, _ = await _register(client, "ORGANIZER", "op.limit.owner@example.com")
-    slug = await _organization_slug(client, owner_token, "Liczne Nutki")
-    circle_ids = []
-    term_ids = []
-    for index in range(31):
-        circle_ids.append(await _circle(client, owner_token, f"Krąg {index:02d}"))
-        term_ids.append(await _term(client, owner_token, circle_ids[-1], _in_days(index + 1)))
-
-    body = await _page(client, slug)
-
-    assert [c["id"] for c in body["circles"]] == [str(c) for c in circle_ids[:30]]
-    assert [t["term_id"] for t in body["upcoming_terms"]] == [str(t) for t in term_ids[:10]]
-    assert body["stats"]["circle_count"] == 30
-    assert body["stats"]["upcoming_term_count"] == 30
-
-
-async def test_getOrganizerPage_attendeeOnSeveralNextTerms_itemPlacedOnEarliestTermIdTieBreak(
-    client: AsyncClient,
-) -> None:
-    owner_token, _ = await _register(client, "ORGANIZER", "op.dedup.owner@example.com")
-    slug = await _organization_slug(client, owner_token, "Zdublowane Nutki")
-    late_group = await _circle(client, owner_token, "Aaa późny")
-    tied_groups = [
-        await _circle(client, owner_token, "Mmm równy"),
-        await _circle(client, owner_token, "Zzz równy"),
-    ]
-    late_term = await _term(client, owner_token, late_group, _in_days(6))
-    tied_day = _in_days(2)
-    tied_terms = {
-        await _term(client, owner_token, group_id, tied_day): group_id for group_id in tied_groups
-    }
-    attendee_token, _ = await _register(client, "GUEST", "op.dedup.attendee@example.com")
-    await _rsvp(client, attendee_token, late_group, late_term)
-    for term_id, group_id in tied_terms.items():
-        await _rsvp(client, attendee_token, group_id, term_id)
-    [item_id] = await _listed_items(client, attendee_token, ("Op dedup klocki", "SWAP"))
-
-    exchange = (await _page(client, slug))["exchange"]
-
-    earliest_term = min(tied_terms)
-    assert exchange["counts"] == {"GIFT": 0, "SWAP": 1, "RESERVED": 0}
-    [item] = exchange["items"]
-    assert (item["item_id"], item["term_id"], item["group_id"], item["occurs_on"]) == (
-        str(item_id),
-        str(earliest_term),
-        str(tied_terms[earliest_term]),
-        tied_day.isoformat(),
-    )
-
-
-async def test_getOrganizerPage_manyItemsAndNeeds_itemsCappedAt12NeedsAt5InCodePointOrderWithFullCounts(
-    client: AsyncClient,
-) -> None:
-    owner_token, _ = await _register(client, "ORGANIZER", "op.cap.owner@example.com")
-    slug = await _organization_slug(client, owner_token, "Pełne Nutki")
-    group_id = await _circle(client, owner_token, "Pełny")
-    term_id = await _term(client, owner_token, group_id, _in_days(2))
-    names = [f"Op cap A{index:02d}" for index in range(11)] + ["Op cap Ćma", "Op cap Da"]
-    modes = ["GIFT" if index < 10 else "SWAP" for index in range(len(names))]
-    item_ids = await _listed_items(client, owner_token, *zip(names, modes, strict=True))
-    for index in range(6):
-        await _needed_item(client, owner_token, term_id, f"Op cap potrzeba {index:02d}")
-
-    body = await _page(client, slug)
-
-    assert body["exchange"]["counts"] == {"GIFT": 10, "SWAP": 3, "RESERVED": 0}
-    by_name = dict(zip(names, item_ids, strict=True))
-    assert [i["item_id"] for i in body["exchange"]["items"]] == [
-        str(by_name[name]) for name in sorted(names)[:12]
-    ]
-    assert "Op cap Ćma" not in {i["product_name"] for i in body["exchange"]["items"]}
-    assert [n["name"] for n in body["needed_items"]] == [
-        f"Op cap potrzeba {index:02d}" for index in range(5)
-    ]
-
-
-async def test_getOrganizerPage_noCircles_recentItemsSixNewestAndOwnerNearestEvent(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    owner_token, _ = await _register(client, "ORGANIZER", "op.recent.owner@example.com")
-    slug = await _organization_slug(client, owner_token, "Świeże Nutki")
+    created = datetime(2026, 1, 1, 12, 0)
+    for index, group_id in enumerate(group_ids):
+        await db_session.execute(
+            update(Group)
+            .where(Group.id == group_id)
+            .values(created_at=created + timedelta(days=index))
+        )
     item_ids = await _listed_items(
-        client, owner_token, *((f"Op recent {index}", "GIFT") for index in range(7))
+        client, owner_token, *((f"Ol rzecz {index}", "GIFT") for index in range(9))
     )
-    added = datetime(2026, 10, 1, 12, 0)
     for index, item_id in enumerate(item_ids):
         await db_session.execute(
             update(ItemListingPreference)
             .where(ItemListingPreference.item_id == item_id)
-            .values(created_at=added + timedelta(hours=index))
+            .values(created_at=created + timedelta(hours=index))
         )
     await db_session.commit()
-    # Events keep whole minutes.
-    starts_at = _in_days(4).replace(second=0)
-    event = await client.post(
-        "/api/events",
-        json={
-            "location_id": await create_location(client, _auth(owner_token)),
-            "name": "Op recent piknik",
-            "starts_at": starts_at.isoformat(),
-        },
-        headers=_auth(owner_token),
-    )
-    assert event.status_code == 201, event.text
+    newest_items = [str(item_id) for item_id in reversed(item_ids)]
+    nearest_terms = [str(term_id) for term_id in reversed(term_ids)]
 
-    body = await _page(client, slug)
+    classic = await _layout(client, slug, "CLASSIC")
+    schedule = await _layout(client, slug, "SCHEDULE")
+    exchange = await _layout(client, slug, "EXCHANGE")
 
-    assert body["circles"] == [] and body["exchange"]["items"] == []
-    assert [i["item_id"] for i in body["recent_items"]] == [
-        str(item_id) for item_id in reversed(item_ids[1:])
+    assert [date["id"] for date in classic["upcoming_terms"]] == nearest_terms[:4]
+    assert [item["item_id"] for item in classic["items"]] == newest_items[:4]
+    assert [date["id"] for date in schedule["upcoming_terms"]] == nearest_terms[:4]
+    assert [group["id"] for group in schedule["groups"]] == [
+        str(group_id) for group_id in reversed(group_ids[1:])
     ]
-    assert set(body["recent_items"][0]) == {
-        "item_id",
-        "product_name",
-        "condition",
-        "mode",
-        "thumb_url",
-        "added_at",
-        "reservation",
-    }
-    nearest = body["owner_nearest"]
-    assert nearest["kind"] == "EVENT" and nearest["id"] == event.json()["id"]
-    assert nearest["path"] == f"/{slug}/event/{event.json()['id']}"
-    assert nearest["starts_at"] == starts_at.isoformat()
-    assert body["upcoming_dates"] == [nearest]
-    assert _keys(body) & FORBIDDEN_KEYS == set()
+    assert [item["item_id"] for item in exchange["items"]] == newest_items[:8]
+    assert [link["path"].rsplit("/", 1)[1] for link in exchange["term_links"]] == nearest_terms[:2]
+    assert exchange["stats"] == {"group_count": 5, "item_count": 9, "meeting_count": 5}
 
 
-async def test_getOrganizerPage_noListedItems_ownerNearestNotComputed(
+def test_pageLayoutPathParam_matchesPageLayoutKeys() -> None:
+    assert set(get_args(PageLayout)) == PAGE_LAYOUT_KEYS
+
+
+async def _group_terms(client: AsyncClient, slug: str, group_id: uuid.UUID) -> dict[str, Any]:
+    response = await client.get(f"/api/public/organizations/{slug}/groups/{group_id}/terms")
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "public, max-age=0, s-maxage=60"
+    body: dict[str, Any] = response.json()
+    return body
+
+
+async def test_getOrganizationGroupTerms_group_tileAndUpcomingTermsEarliestFirst(
     client: AsyncClient,
 ) -> None:
-    owner_token, _ = await _register(client, "ORGANIZER", "op.recent.empty@example.com")
-    slug = await _organization_slug(client, owner_token, "Bez Rzeczy")
-    group_id = await _circle(client, owner_token, "Op bez rzeczy")
-    await _term(client, owner_token, group_id, _in_days(2))
+    owner_token, owner_party_id = await _register(client, "ORGANIZER", "ogt.owner@example.com")
+    slug = await _organization_slug(client, owner_token, "Grupowe Nutki")
+    group_id = await _circle(client, owner_token, "Maluchy")
+    await _term(client, owner_token, group_id, _in_days(-1))
+    later = await _term(client, owner_token, group_id, _in_days(9))
+    sooner_on = _in_days(2)
+    sooner = await _term(client, owner_token, group_id, sooner_on, "Rytmika w parku")
+    guest_token, _ = await _register(client, "GUEST", "ogt.guest@example.com")
+    await _rsvp(client, guest_token, group_id, sooner)
 
-    body = await _page(client, slug)
+    body = await _group_terms(client, slug, group_id)
 
-    assert body["recent_items"] == [] and body["owner_nearest"] is None
-    [date] = body["upcoming_dates"]
-    assert date["kind"] == "TERM" and date["path"].startswith(f"/{slug}/group/{group_id}/term/")
+    assert set(body) == {"owner", "group", "terms"}
+    assert body["owner"] == {
+        "party_id": str(owner_party_id),
+        "display_name": "Grupowe Nutki",
+        "slug": slug,
+    }
+    assert body["group"] == {
+        "id": str(group_id),
+        "name": "Maluchy",
+        "layout_mode": "CIRCLE",
+        "next_term": {"id": str(sooner), "occurs_on": sooner_on.isoformat(), "attendee_count": 1},
+        "upcoming_term_count": 2,
+    }
+    first, second = body["terms"]
+    assert set(first) == {
+        "id",
+        "occurs_on",
+        "description",
+        "location_name",
+        "attendee_count",
+        "path",
+    }
+    assert (first["id"], first["description"], first["attendee_count"]) == (
+        str(sooner),
+        "Rytmika w parku",
+        1,
+    )
+    assert first["path"] == f"/{slug}/group/{group_id}/term/{sooner}"
+    assert first["location_name"]
+    assert second["id"] == str(later)
+    # `owner` is the Organization itself; the group and its terms name no person.
+    assert _keys({"group": body["group"], "terms": body["terms"]}) & FORBIDDEN_KEYS == set()
+
+
+async def test_getOrganizationGroupTerms_notOwnersPublicGroup_404_invalidId_400_emptyGroup(
+    client: AsyncClient,
+) -> None:
+    owner_token, _ = await _register(client, "ORGANIZER", "ogt404.owner@example.com")
+    slug = await _organization_slug(client, owner_token, "Strzeżone Nutki")
+    private_id = await _circle(client, owner_token, "Prywatna", "PRIVATE")
+    empty_id = await _circle(client, owner_token, "Bez terminów")
+    other_token, _ = await _register(client, "ORGANIZER", "ogt404.other@example.com")
+    other_slug = await _organization_slug(client, other_token, "Inne Nutki")
+    other_group = await _circle(client, other_token, "Cudza")
+    base = "/api/public/organizations"
+
+    for path in (
+        f"{base}/{slug}/groups/{private_id}/terms",
+        f"{base}/{slug}/groups/{other_group}/terms",
+        f"{base}/{slug}/groups/{uuid.uuid4()}/terms",
+        f"{base}/nie-ma-takiej/groups/{empty_id}/terms",
+    ):
+        missing = await client.get(path)
+        assert missing.status_code == 404, path
+        assert "cache-control" not in missing.headers
+    assert (await client.get(f"{base}/{slug}/groups/nie-uuid/terms")).status_code == 400
+    assert (await _group_terms(client, other_slug, other_group))["terms"] == []
+
+    empty = await _group_terms(client, slug, empty_id)
+    assert empty["terms"] == []
+    assert empty["group"]["next_term"] is None and empty["group"]["upcoming_term_count"] == 0

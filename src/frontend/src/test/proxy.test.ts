@@ -42,6 +42,22 @@ describe("proxy", () => {
     expect(resolveProxy(request({ pathname: "/meetings", hasSession: true }), BACKEND)).toEqual({ kind: "next" });
   });
 
+  it("redirects the removed /:slug/terms agenda to the meetings, or with group_id to that group's page", () => {
+    expect(resolveProxy(request({ pathname: "/rodzinny-grajdolek/terms" }), BACKEND)).toEqual({
+      kind: "redirect",
+      location: "/rodzinny-grajdolek/meetings",
+    });
+    expect(
+      resolveProxy(request({ pathname: "/rodzinny-grajdolek/terms/", search: "?group_id=g-1&page=2" }), BACKEND),
+    ).toEqual({ kind: "redirect", location: "/rodzinny-grajdolek/group/g-1/terms" });
+    expect(resolveProxy(request({ pathname: "/rodzinny-grajdolek/group/g-1/terms" }), BACKEND)).toEqual({
+      kind: "next",
+    });
+    expect(resolveProxy(request({ pathname: "/terms/t-1/edit", hasSession: true }), BACKEND)).toEqual({
+      kind: "next",
+    });
+  });
+
   it("leaves /add public and gates /add/product", () => {
     expect(resolveProxy(request({ pathname: "/add" }), BACKEND)).toEqual({ kind: "next" });
     expect(resolveProxy(request({ pathname: "/add/product" }), BACKEND)).toEqual({
@@ -52,6 +68,24 @@ describe("proxy", () => {
 
   it.each(["/groupsx", "/login", "/product/123", "/some-org", "/some-org/event/1"])(
     "does not gate %s",
+    (pathname) => {
+      expect(resolveProxy(request({ pathname }), BACKEND)).toEqual({ kind: "next" });
+    },
+  );
+
+  it.each(["/muzyczne-skrzaty/appearance", "/0b6f3c1e-9a7d-4c2e-8f1a-2d3e4f5a6b7c/appearance"])(
+    "gates the page editor %s without a cookie and keeps its tab in returnTo",
+    (pathname) => {
+      expect(resolveProxy(request({ pathname, search: "?tab=name" }), BACKEND)).toEqual({
+        kind: "redirect",
+        location: `/login?returnTo=${encodeURIComponent(`${pathname}?tab=name`)}`,
+      });
+      expect(resolveProxy(request({ pathname, hasSession: true }), BACKEND)).toEqual({ kind: "next" });
+    },
+  );
+
+  it.each(["/muzyczne-skrzaty/appearances", "/muzyczne-skrzaty/appearance/x", "/muzyczne-skrzaty/items"])(
+    "does not gate the owner page path %s",
     (pathname) => {
       expect(resolveProxy(request({ pathname }), BACKEND)).toEqual({ kind: "next" });
     },

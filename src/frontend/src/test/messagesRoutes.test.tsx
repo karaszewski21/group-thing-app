@@ -19,7 +19,7 @@ vi.mock("../features/messages/InboxPage", () => ({ InboxPage: () => <h1>Skrzynka
 vi.mock("../features/messages/ThreadPage", () => ({ ThreadPage: () => <h1>Rozmowa</h1> }));
 vi.mock("../features/groups/GroupDetailsPage", () => ({ GroupDetailsPage: () => <h1>Grupa</h1> }));
 vi.mock("../features/meetings/TermAttendeesPage", () => ({ TermAttendeesPage: () => <h1>Zapisani</h1> }));
-vi.mock("../features/owner-page/OrganizationPage", () => ({ OrganizationPage: () => <h1>Organizacja</h1> }));
+vi.mock("../features/organization-public/OrganizationFoundPage", () => ({ OrganizationFoundPage: () => <h1>Organizacja</h1> }));
 
 describe("panel section pages", () => {
   it.each([

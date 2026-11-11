@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Verification — read-only app/pages module (public owner pages)</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.tile.crit b { color:var(--crit); } .tile.warn b { color:var(--warn); } .tile.info b { color:var(--info); } .tile.ok b { color:var(--ok); }
+
+header .meta { color:var(--dim); font-size:13px; }
+.verdict { display:flex; align-items:center; gap:16px; flex-wrap:wrap; border-radius:var(--radius);
+  padding:14px 18px; margin:14px 0; background:var(--warn-soft); border:1px solid var(--warn); }
+.verdict .v { font-size:18px; font-weight:700; color:var(--warn); }
+.verdict .counts { display:flex; gap:6px; flex-wrap:wrap; }
+.verdict .note { color:var(--text); font-size:13px; flex-basis:100%; }
+.tldr ul { margin:6px 0; padding-left:20px; }
+.tldr h3 { font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); margin:14px 0 4px; }
+.toc { font-size:13px; color:var(--dim); margin:8px 0 4px; }
+.status-warn { color:var(--warn); font-weight:600; }
+.grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; }
+.grid2 .card { margin:0; }
+.checklist { list-style:none; padding-left:0; margin:0; }
+.checklist li::before { content:"\2713  "; color:var(--ok); font-weight:700; }
+.tablewrap { overflow-x:auto; }
+td.loc code { word-break:break-word; }
+tr.row-warning td:first-child { border-left:3px solid var(--warn); }
+tr.row-info td:first-child { border-left:3px solid var(--info); }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">&larr; Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a>
+  <a href="../implementation/implementation-plan.html">Plan</a>
+  <span class="here">Verification</span>
+  <a href="implementation-verification.md" target="_blank" rel="noopener" class="md">md twin &#8599;</a>
+</nav>
+
+<header>
+  <span class="badge">Implementation Verification</span>
+  <h1>Implementation Verification: read-only <code>app/pages</code> module (public owner pages)</h1>
+  <div class="meta">Task: 2026-11-11-pages-module-owner-pages &middot; Source: <a href="implementation-verification.md" target="_blank" rel="noopener">implementation-verification.md</a></div>
+</header>
+
+<div class="verdict">
+  <span class="v">&#9888;&#65039; Passed with Issues</span>
+  <span class="counts">
+    <span class="sev critical">0 critical</span>
+    <span class="sev warning">2 warning</span>
+    <span class="sev info">13 info</span>
+  </span>
+  <span class="note">Deduplicated across the six checks. No item blocks acceptance. Production readiness: <b class="pass">GO</b>.</span>
+</div>
+
+<div class="tiles">
+  <div class="tile crit"><b>0</b><span>critical</span></div>
+  <div class="tile warn"><b>2</b><span>warnings</span></div>
+  <div class="tile info"><b>13</b><span>info</span></div>
+  <div class="tile ok"><b>48/48</b><span>plan steps</span></div>
+  <div class="tile ok"><b>1206/1208</b><span>tests passed</span></div>
+</div>
+
+<section class="tldr card">
+  <h3>TL;DR</h3>
+  <ul>
+    <li>Verdict: <b>&#9888;&#65039; Passed with Issues</b>. 0 critical, 2 warnings, 13 info (deduplicated across the six checks). No item blocks acceptance.</li>
+    <li>Plan 48/48 steps (100%). Test suite 1206/1208 passed (99.8%); both failures are pre-existing on the untouched tree and are stale test expectations, not defects.</li>
+    <li>No behaviour drift. The moved code matches the deleted groups code, OpenAPI is identical except the 7 tags (<code>groups</code> &rarr; <code>pages</code>), statement budgets are unchanged, and ruff/mypy equal the baseline. Production readiness: GO.</li>
+    <li>The boundary guard works: four injected violations made the three guard tests fail.</li>
+  </ul>
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li><span class="sev warning">W1</span>pages receives raw groups repository rows (unpacked by position) and a groups <code>Select</code> from <code>listed_items()</code>. A column reorder in groups would silently break pages. This is accepted for a behaviour-preserving move; it is a follow-up candidate.</li>
+    <li><span class="sev warning">W2</span>three route docstrings were moved verbatim and are stale or garbled (they name <code>get_organizer_page</code> and <code>owner_items.get_party_profile</code>, and repeat "PUBLIC row"). Fixing them changes three OpenAPI descriptions, which the spec's acceptance rule forbids, so this needs the user's consent.</li>
+    <li>Two pre-existing test failures remain. The reality check found both expectations stale (the owner-items test creates a term with a place, so a non-null <code>location_name</code> is correct; the migration test expects a column renamed by a later migration). Follow-up task.</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents:
+  <a href="#overall">Overall Assessment</a> &middot;
+  <a href="#issues">Issues</a> &middot;
+  <a href="#summary">Executive Summary</a> &middot;
+  <a href="#plan">Plan</a> &middot;
+  <a href="#tests">Tests</a> &middot;
+  <a href="#standards">Standards &amp; Docs</a> &middot;
+  <a href="#reviews">Optional Reviews</a> &middot;
+  <a href="#recommendations">Recommendations</a> &middot;
+  <a href="#checklist">Checklist</a>
+</nav>
+
+<main>
+
+<h2 id="overall">Overall Assessment</h2>
+<div class="card tablewrap">
+<table>
+  <thead><tr><th>Dimension</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>Implementation plan</td><td class="pass">&#9989; 100%</td></tr>
+    <tr><td>Tests</td><td class="pass">&#9989; 99.83%, 0 regressions</td></tr>
+    <tr><td>Standards</td><td class="pass">&#9989; Compliant</td></tr>
+    <tr><td>Documentation</td><td class="pass">&#9989; Complete</td></tr>
+    <tr><td>Code review</td><td class="status-warn">&#9888;&#65039; 1 warning</td></tr>
+    <tr><td>Pragmatic review</td><td class="status-warn">&#9888;&#65039; 2 warnings (one shared with code review)</td></tr>
+    <tr><td>Production readiness</td><td class="pass">&#9989; GO</td></tr>
+    <tr><td>Reality check</td><td class="pass">&#9989; Ready</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="issues">Issues Requiring Attention</h2>
+<div class="card tablewrap">
+<table>
+  <thead><tr><th>#</th><th>Severity</th><th>Source</th><th>Description</th><th>Location</th><th>Fixable</th></tr></thead>
+  <tbody>
+    <tr class="row-warning"><td>1</td><td><span class="sev warning">warning</span></td><td>code_review, pragmatic</td><td>Raw groups rows (unpacked by position) and the groups <code>Select</code> from <code>listed_items()</code> cross the boundary. 7 of the 14 new facade exports are repository-level queries.</td><td class="loc"><code>pages/application/organization_page.py:101-125, 181-199</code>; <code>owner_pages.py:79-81, 129-155</code>; <code>groups/application/owner_items.py:21</code></td><td>no (follow-up)</td></tr>
+    <tr class="row-warning"><td>2</td><td><span class="sev warning">warning</span></td><td>pragmatic, code_review, production, completeness</td><td>Three stale or garbled route docstrings, published as OpenAPI descriptions.</td><td class="loc"><code>pages/router/owner_pages.py:39-41, 59-61, 77-79</code></td><td>yes, with consent (changes OpenAPI descriptions)</td></tr>
+    <tr class="row-info"><td>3</td><td><span class="sev info">info</span></td><td>test_suite, reality</td><td>Pre-existing stale expectation <code>location_name: None</code>.</td><td class="loc"><code>tests/test_owner_items_page.py:208</code></td><td>yes (follow-up)</td></tr>
+    <tr class="row-info"><td>4</td><td><span class="sev info">info</span></td><td>test_suite, reality</td><td>Pre-existing stale migration expectation <code>group_id</code>.</td><td class="loc"><code>tests/test_terms_circle_occurs_on_index_migration.py</code></td><td>yes (follow-up)</td></tr>
+    <tr class="row-info"><td>5</td><td><span class="sev info">info</span></td><td>code_review, reality, completeness</td><td>No test checks that each <code>&lt;x&gt;_acl.py</code> imports only <code>app.&lt;x&gt;</code>; all six were checked by hand.</td><td class="loc"><code>tests/test_pages_boundary.py</code></td><td>yes</td></tr>
+    <tr class="row-info"><td>6</td><td><span class="sev info">info</span></td><td>completeness</td><td><code>Organization</code> is still in the groups <code>organizations_acl.__all__</code> but unused by other groups modules.</td><td class="loc"><code>groups/infrastructure/organizations_acl.py</code></td><td>yes (optional)</td></tr>
+    <tr class="row-info"><td>7</td><td><span class="sev info">info</span></td><td>reality</td><td><code>pages/schemas.py</code> embeds groups-owned DTOs (re-exported through <code>groups_acl</code>); accepted by the spec.</td><td class="loc"><code>pages/schemas.py:15-22</code></td><td>later step</td></tr>
+    <tr class="row-info"><td>8</td><td><span class="sev info">info</span></td><td>code_review, reality</td><td>Events reach pages through <code>groups.service</code>; accepted detour until <code>exchange</code> is extracted.</td><td class="loc"><code>groups/service.py:119-123</code></td><td>later step</td></tr>
+    <tr class="row-info"><td>9</td><td><span class="sev info">info</span></td><td>code_review</td><td><code>merge_upcoming_dates</code> does not validate <code>limit</code>; all callers pass positive constants.</td><td class="loc"><code>pages/domain/owner_dates.py:17-25</code></td><td>yes</td></tr>
+    <tr class="row-info"><td>10</td><td><span class="sev info">info</span></td><td>code_review</td><td>The guard reads only static imports (<code>importlib</code>/<code>__import__</code> bypass it); there are no dynamic imports today.</td><td class="loc"><code>tests/test_pages_boundary.py:29-40</code></td><td>no</td></tr>
+    <tr class="row-info"><td>11</td><td><span class="sev info">info</span></td><td>code_review</td><td><code>test_organizer_bridges.py</code> now effectively tests <code>organizations.service</code> through a re-export.</td><td class="loc"><code>tests/test_organizer_bridges.py:22</code></td><td>no</td></tr>
+    <tr class="row-info"><td>12</td><td><span class="sev info">info</span></td><td>pragmatic</td><td><code>get_owner_nearest</code> and <code>person_summary</code> are module-internal and could take a <code>_</code> prefix.</td><td class="loc"><code>pages/application/owner_pages.py</code></td><td>yes (cosmetic)</td></tr>
+    <tr class="row-info"><td>13</td><td><span class="sev info">info</span></td><td>pragmatic</td><td>Small ACL files, the <code>links.py</code> helpers, the generic Protocol and the router split are borderline ceremony but justified.</td><td class="loc"><code>app/pages/*</code></td><td>no</td></tr>
+    <tr class="row-info"><td>14</td><td><span class="sev info">info</span></td><td>production</td><td>OpenAPI tag change (<code>groups</code> &rarr; <code>pages</code>); mention it in the PR.</td><td class="loc">OpenAPI</td><td>no</td></tr>
+    <tr class="row-info"><td>15</td><td><span class="sev info">info</span></td><td>completeness</td><td>Work-log Standards Reading Log placeholder; LF endings in edited files (git normalises on commit).</td><td class="loc"><code>implementation/work-log.md:9-12</code></td><td>yes</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="summary">Executive Summary</h2>
+<div class="card">
+  The extraction does what step 1 of the module-boundary refactor asked. The seven public owner-page routes are served only from <code>app/pages</code>, <code>app/groups</code> holds none of the page code, and only <code>app/main.py</code> imports <code>app.pages</code>. URLs, response shapes, cache headers and the DB schema are unchanged, and no migration was added. The remaining findings concern coupling that the spec accepted on purpose, plus cosmetics.
+</div>
+
+<h2 id="plan">Implementation Plan Verification <span class="badge">completeness-report.md</span></h2>
+<div class="card">
+  <ul>
+    <li>48/48 steps checked (56/56 checkboxes including group headers). Spot checks found code for every group.</li>
+    <li>The control searches return nothing for <code>party_leads_public_circle</code>, <code>has_authored_event</code>, <code>application.organizer_page</code>, <code>router.organizer_page</code> and <code>\b_counts\(</code>. The only importer of <code>app.pages</code> outside it is <code>app/main.py:48</code>.</li>
+    <li><code>groups.service.__all__</code> differs from HEAD by exactly &minus;2 / +14 names.</li>
+  </ul>
+  <a href="completeness-report.md" target="_blank" rel="noopener">completeness-report.md &#8599;</a>
+</div>
+
+<h2 id="tests">Test Suite Results <span class="badge">test-suite-results.md</span></h2>
+<div class="grid2">
+  <div class="card">
+    <table>
+      <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>Command</td><td><code>uv run python -m pytest</code> (src/backend)</td></tr>
+        <tr><td>Total</td><td>1208</td></tr>
+        <tr><td>Passed</td><td class="pass">1206 (99.83%)</td></tr>
+        <tr><td>Failed</td><td>2 (both pre-existing, identical to <code>pytest-before.txt</code>)</td></tr>
+        <tr><td>Regressions</td><td class="pass">0</td></tr>
+        <tr><td>New tests</td><td>6 (3 <code>test_pages_domain.py</code>, 3 <code>test_pages_boundary.py</code>)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <b>The two pre-existing failures</b>
+    <ul>
+      <li><code>tests/test_owner_items_page.py::test_getOwnerItems_nearest_privateCircleTermExcludedPublicTermWithPath</code>: <code>location_name</code> returns a place label but the test expects None. The expectation is stale.</li>
+      <li><code>tests/test_terms_circle_occurs_on_index_migration.py::test_migration0053_downgradeUpgrade_roundTrip</code>: the test expects <code>group_id</code>, but the column is now <code>circle_group_id</code>. The expectation is stale.</li>
+    </ul>
+    <a href="test-suite-results.md" target="_blank" rel="noopener">test-suite-results.md &#8599;</a>
+  </div>
+</div>
+
+<h2 id="standards">Standards Compliance &amp; Documentation</h2>
+<div class="grid2">
+  <div class="card">
+    <b>Standards</b> <span class="pass">&#9989; Compliant</span>
+    <p>11 applicable standards, 11 followed, no gaps. They cover the ACL rule (backend/models.md), personalised cache headers (security.md), the domain clock (time.md, with the guard extended to <code>app/pages</code>), statement counts (queries.md), api.md, minimal-implementation, commenting, coding-style, conventions and backend-testing.</p>
+  </div>
+  <div class="card">
+    <b>Documentation</b> <span class="pass">&#9989; Complete</span>
+    <p>The work-log has an entry for every group plus a final entry. <code>architecture.md</code>, <code>standards/backend/time.md</code> and <code>INDEX.md</code> carry the edits from the spec, and no stale <code>organizer_page</code> path remains. One cosmetic gap: the work-log's "Standards Reading Log" placeholder was never filled; standards are recorded per group entry instead.</p>
+  </div>
+</div>
+
+<h2 id="reviews">Optional Reviews</h2>
+<div class="card tablewrap">
+<table>
+  <thead><tr><th>Review</th><th>Result</th><th>Report</th></tr></thead>
+  <tbody>
+    <tr><td>Code review</td><td>0 critical / 1 warning / 6 info. No behaviour drift after diffing against <code>git show HEAD:</code> sources.</td><td><a href="code-review-report.md" target="_blank" rel="noopener">code-review-report.md &#8599;</a></td></tr>
+    <tr><td>Pragmatic review</td><td>Appropriate (Medium complexity). 0 / 2 / 6. Nothing speculative; groups &minus;898/+70 lines.</td><td><a href="pragmatic-review.md" target="_blank" rel="noopener">pragmatic-review.md &#8599;</a></td></tr>
+    <tr><td>Production readiness</td><td><b class="pass">GO</b>. 0 blockers, 0 concerns, 3 info. No config, env, migration or dependency change; nothing reads OpenAPI tags.</td><td><a href="production-readiness-report.md" target="_blank" rel="noopener">production-readiness-report.md &#8599;</a></td></tr>
+    <tr><td>Reality check</td><td><span class="pass">&#9989; Ready / Complete.</span> Fresh OpenAPI baseline from <code>git archive HEAD</code> equals <code>openapi-before.json</code>; guard mutation test confirms it fails on violations.</td><td><a href="reality-check.md" target="_blank" rel="noopener">reality-check.md &#8599;</a></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="recommendations">Recommendations</h2>
+<div class="card">
+  <ol>
+    <li>Accept as is. Neither warning is a defect of this move: W1 is coupling the spec accepted, and W2 is constrained by the OpenAPI acceptance rule.</li>
+    <li>Optionally fix the three docstrings (W2) now, if the user accepts three OpenAPI description changes.</li>
+    <li>Open a follow-up for the two stale test expectations and, when the <code>exchange</code> step starts, for typed groups read results (W1) and a pages <code>events_acl</code>.</li>
+  </ol>
+</div>
+
+<h2 id="checklist">Verification Checklist</h2>
+<div class="card">
+  <ul class="checklist">
+    <li>Completeness checker run</li>
+    <li>Full test suite run (test-suite-runner)</li>
+    <li>Code review, pragmatic review, production readiness, reality check run</li>
+    <li>All six reports present on disk</li>
+    <li>Roadmap: none exists (<code>.maister/docs/project/roadmap.md</code> absent), so there was nothing to update</li>
+  </ul>
+</div>
+
+</main>
+</body>
+</html>

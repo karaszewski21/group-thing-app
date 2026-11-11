@@ -1,33 +1,37 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { usePartyProfile } from "../../hooks/usePartyProfile";
-import { Navigate, notFound } from "../../routing/navigation";
+import { notFound } from "../../routing/navigation";
+import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
+import { ProfileLayoutRenderer } from "./layouts/ProfileLayoutRenderer";
 import { PartyProfileLoadError, PartyProfilePageContext } from "./PartyProfileContext";
-import { PartyProfileFrame, PartyProfileSkeleton } from "./PartyProfileSkeleton";
+import { PartyProfileColumn, PartyProfileSkeleton } from "./PartyProfileSkeleton";
 import { resolvePartyProfileView } from "./partyProfileViewState";
 
-/** `/:partyId`: a person's public profile with a fixed layout. Shows exactly
- * one screen per `resolvePartyProfileView` state and gives the blocks passed
- * as `children` (composed in the route's `page.tsx`) their data through
- * `PartyProfilePageContext`. A person who owns an Organization is redirected
- * to its page. */
-export function PartyProfilePage({ partyId, children }: { partyId: string; children: ReactNode }) {
+/** `/:partyId`: a person's public profile in the layout and colors they
+ * chose. Shows exactly one screen per `resolvePartyProfileView` state and
+ * gives the layout's blocks their data through `PartyProfilePageContext`.
+ * It stays the person's page when they also own an Organization. */
+export function PartyProfilePage({ partyId }: { partyId: string }) {
   const profile = usePartyProfile(partyId);
   const view = resolvePartyProfileView(profile);
   switch (view.kind) {
     case "loading":
       return <PartyProfileSkeleton />;
-    case "redirect":
-      return <Navigate to={view.to} replace />;
     case "notFound":
       return notFound();
     case "error":
       throw new PartyProfileLoadError(view.message);
     case "content":
       return (
-        <PartyProfilePageContext.Provider value={{ profile: view.profile }}>
-          <PartyProfileFrame>{children}</PartyProfileFrame>
+        <PartyProfilePageContext.Provider
+          value={{ profile: view.profile, hasTerms: view.hasTerms, hasItems: view.hasItems }}
+        >
+          <OrganizerThemeScope theme={view.profile}>
+            <PartyProfileColumn>
+              <ProfileLayoutRenderer layoutKey={view.profile.page_layout} />
+            </PartyProfileColumn>
+          </OrganizerThemeScope>
         </PartyProfilePageContext.Provider>
       );
   }

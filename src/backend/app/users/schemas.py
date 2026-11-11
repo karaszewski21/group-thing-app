@@ -10,7 +10,12 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.moderation.status import ModerationStatus
+from app.media.schemas import OwnerMediaResponse
+from app.organizations.palettes import PALETTE_PRESET_KEYS
+
+from .profile_layouts import PROFILE_PAGE_LAYOUT_KEYS, resolve_profile_page_layout
+
+_HEX_COLOR_REGEX = r"^#[0-9a-fA-F]{6}$"
 
 # Basic `local-part@domain.tld` shape check — not a full RFC 5322
 # validator, just enough to fail fast on obviously malformed input per
@@ -29,14 +34,6 @@ def normalize_email(value: str) -> str:
     return value.strip().lower()
 
 
-class AvatarResponse(BaseModel):
-    """The caller's own avatar. `url` is the public CDN link once approved,
-    otherwise a short-lived signed link (the owner still sees it)."""
-
-    url: str
-    status: ModerationStatus
-
-
 class UserProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -53,8 +50,19 @@ class UserProfileResponse(BaseModel):
     # organizer status independent of Circle/Leadership ownership (a
     # freshly-registered ORGANIZER with no circle yet is still one).
     is_organizer: bool = False
-    # Filled only on the caller's own profile (`/api/people/me`).
-    avatar: AvatarResponse | None = None
+    # The public profile's appearance; `page_layout` is the effective key.
+    page_layout: str
+    palette_preset: str | None
+    primary_color: str | None
+    accent_color: str | None
+    # Filled only on the caller's own profile (`/api/people/me`): every
+    # avatar, cover and gallery row in any moderation status.
+    media: list[OwnerMediaResponse] = []
+
+    @field_validator("page_layout", mode="before")
+    @classmethod
+    def _effective_page_layout(cls, value: str | None) -> str:
+        return resolve_profile_page_layout(value)
 
 
 class UpdateMyProfileRequest(BaseModel):
@@ -64,6 +72,44 @@ class UpdateMyProfileRequest(BaseModel):
 
     display_name: str = Field(min_length=1, max_length=255)
     bio: str | None = Field(default=None, max_length=1000)
+
+
+class UpdateMyProfileAppearanceRequest(BaseModel):
+    """A `PATCH` of the caller's public profile appearance ("Wygląd strony"):
+    an omitted field stays unchanged, an explicit `null` clears
+    `palette_preset` / `primary_color` / `accent_color` / `bio` (a blank `bio`
+    clears it too). `page_layout` cannot be cleared, so `null` is rejected
+    (400). Unknown keys are rejected too. The service applies exactly the
+    fields present in `model_fields_set`."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    page_layout: str | None = None
+    palette_preset: str | None = None
+    primary_color: str | None = Field(default=None, pattern=_HEX_COLOR_REGEX)
+    accent_color: str | None = Field(default=None, pattern=_HEX_COLOR_REGEX)
+    bio: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("page_layout")
+    @classmethod
+    def _known_page_layout(cls, value: str | None) -> str:
+        if value is None:
+            raise ValueError("must not be null")
+        if value not in PROFILE_PAGE_LAYOUT_KEYS:
+            raise ValueError("unknown page layout")
+        return value
+
+    @field_validator("palette_preset")
+    @classmethod
+    def _known_palette_preset(cls, value: str | None) -> str | None:
+        if value is not None and value not in PALETTE_PRESET_KEYS:
+            raise ValueError("unknown palette preset")
+        return value
+
+    @field_validator("bio")
+    @classmethod
+    def _blank_bio_clears(cls, value: str | None) -> str | None:
+        return value or None
 
 
 class UserRoleResponse(BaseModel):

@@ -4,14 +4,14 @@ import { useMyReservations } from "../../hooks/useMyReservations";
 import { pluralPl } from "../../utils/plural";
 import { ListCard } from "../../components/shared/appComponents";
 import { BuildingIcon, LogoutIcon } from "../../components/shared/appIcons";
-import { viewPath } from "../../routing/paths";
+import { appearancePath, viewPath } from "../../routing/paths";
 import { MOCK_WANTS } from "../../utils/mocks";
 import { useAppData } from "../panel/appDataStore";
 
 const SECTION_LABEL = "mb-2.5 text-[13px] font-extrabold tracking-[.12em] text-ink-soft uppercase";
 
 export function AccountView() {
-  const { organizationSlug, items, myGroups, logout } = useAppData();
+  const { profile, organizationSlug, items, myGroups, logout } = useAppData();
   const { data: organization } = useMyOrganization();
   const { data: reservations, loading: reservationsLoading } = useMyReservations();
 
@@ -19,7 +19,7 @@ export function AccountView() {
     <>
       <ListCard
         rows={[
-          { label: "Dane profilowe", to: viewPath("profile") },
+          { label: "Mój profil", to: profile ? `/${profile.party_id}` : viewPath("profile") },
           { label: "Moje lokalizacje", to: viewPath("places") },
           { label: "Mój dom", to: viewPath("family") },
           { label: "Moje grupy", meta: myGroups.length > 0 ? String(myGroups.length) : "brak", to: viewPath("groups") },
@@ -90,8 +90,8 @@ export function AccountView() {
             </Link>
             <ListCard
               rows={[
-                { label: "Wygląd strony", to: viewPath("organization/appearance") },
-                { label: "Dane organizacji", to: "/organization" },
+                { label: "Wygląd strony", to: appearancePath(organizationSlug) },
+                { label: "Nazwa organizacji", to: appearancePath(organizationSlug, "name") },
               ]}
             />
           </div>

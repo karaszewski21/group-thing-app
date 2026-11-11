@@ -19,10 +19,10 @@ from httpx import AsyncClient, Response
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import InventoryItem
 from app.config import settings
 from app.groups import service as groups_service
 from app.groups.models import Group
+from app.inventory.models import InventoryItem
 from app.messaging.application import messages
 from app.messaging.infrastructure import repository
 from app.messaging.models import Message

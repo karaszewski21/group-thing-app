@@ -1,4 +1,4 @@
-"""Circulation context readers for event reservations: `GET
+"""Inventory context readers for event reservations: `GET
 /api/reservations/{id}`, the item history's context date and the
 `_for_events` selects next to their term siblings."""
 
@@ -12,10 +12,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
-from app.circulation import service as circulation_service
-from app.circulation.models import ReservationType
 from app.core import clock
-from app.groups.infrastructure import circulation_bridge
+from app.groups.infrastructure import inventory_bridge
+from app.inventory import service as inventory_service
+from app.inventory.models import ReservationType
 from tests.conftest import create_location
 from tests.test_event_item_reservations import _listed_items, _sign_up, _take
 from tests.test_term_item_listings import (
@@ -75,7 +75,7 @@ async def _reserve(
     event_id: uuid.UUID | None = None,
     reservation_type: ReservationType = ReservationType.GIFT,
 ) -> uuid.UUID:
-    reservation = await circulation_service.create_reservation(
+    reservation = await inventory_service.create_reservation(
         db,
         item_id=item_id,
         reservation_type=reservation_type,
@@ -118,7 +118,7 @@ async def test_getItemHistory_fulfilledEventGift_showsEventStartsAt(
     item_id = await _register_personal_item(client, owner_token, "Sanki")
     taker_user_id = await _user_id(db_session, taker_token)
     reservation_id = await _reserve(db_session, item_id, taker_user_id, event_id=event_id)
-    await circulation_service.fulfill_exchange(db_session, [reservation_id], taker_user_id)
+    await inventory_service.fulfill_exchange(db_session, [reservation_id], taker_user_id)
 
     response = await client.get(
         f"/api/inventory-items/{item_id}/history", headers=_auth(taker_token)
@@ -162,23 +162,23 @@ async def test_forEventsSelects_mixedContexts_returnOnlyTheirOwnContextRows(
         reservation_type=ReservationType.SWAP,
     )
 
-    hand_over_events = await circulation_bridge.list_active_hand_over_reservations_for_events(
+    hand_over_events = await inventory_bridge.list_active_hand_over_reservations_for_events(
         db_session, [event_id]
     )
-    hand_over_terms = await circulation_bridge.list_active_hand_over_reservations_for_terms(
+    hand_over_terms = await inventory_bridge.list_active_hand_over_reservations_for_terms(
         db_session, [term_id]
     )
     event_ids = set(
         (
-            await db_session.execute(circulation_bridge.reservation_ids_for_event_select(event_id))
+            await db_session.execute(inventory_bridge.reservation_ids_for_event_select(event_id))
         ).scalars()
     )
     term_ids = set(
         (
-            await db_session.execute(circulation_bridge.reservation_ids_for_term_select(term_id))
+            await db_session.execute(inventory_bridge.reservation_ids_for_term_select(term_id))
         ).scalars()
     )
-    open_for_event = await circulation_bridge.list_open_reservations_for_event(db_session, event_id)
+    open_for_event = await inventory_bridge.list_open_reservations_for_event(db_session, event_id)
 
     assert [r.id for r in hand_over_events] == [event_gift]
     assert [r.id for r in hand_over_terms] == [term_gift]

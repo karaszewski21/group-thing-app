@@ -9,7 +9,7 @@ import type { SwapProposalResponse } from "../api/termItemListings";
 import { EVENT_KEY } from "../hooks/useEvent";
 import { ITEM_ACTIONS_KEY } from "../hooks/useItemActions";
 import { ITEM_DETAILS_KEY } from "../hooks/useItemDetail";
-import { ORGANIZER_PAGE_KEY } from "../hooks/useOrganizerPage";
+import { ORGANIZATION_LAYOUT_KEY } from "../hooks/useOrganizationLayout";
 import { OWNER_ITEMS_KEY } from "../hooks/useOwnerItems";
 import { createQueryWrapper, createTestQueryClient } from "./queryClient";
 
@@ -58,6 +58,8 @@ const mySwapItem: MyInventoryItemResponse = {
   listing_visibility: "PUBLIC",
   location_id: null,
   photos_moderation_pending: false,
+  balance_status: "AVAILABLE",
+  reservation_id: null,
 };
 
 const available: InventoryBalanceResponse = {
@@ -76,7 +78,6 @@ function renderTake({ isLoggedIn = true, client = createTestQueryClient() } = {}
     isLoggedIn,
     refetch: vi.fn().mockResolvedValue(undefined),
     showToast: vi.fn(),
-    onReserved: vi.fn(),
   };
   const view = renderHook(() => useItemTake(deps), { wrapper: createQueryWrapper(client) });
   return { ...view, deps };
@@ -89,13 +90,13 @@ beforeEach(() => {
 });
 
 describe("useItemTake", () => {
-  it("a personal GIFT takes with the PERSONAL context, toasts and reports it via onReserved, without a success sheet", async () => {
+  it("a personal GIFT takes with the PERSONAL context, toasts, without a success sheet", async () => {
     vi.mocked(itemReservationsApi.takeItem).mockResolvedValue(personalTake);
     const { result, deps } = renderTake();
 
     act(() => result.current.take("i1", "GIFT", { kind: "PERSONAL" }));
 
-    await waitFor(() => expect(deps.onReserved).toHaveBeenCalledWith({ kind: "PERSONAL" }));
+    await waitFor(() => expect(deps.showToast).toHaveBeenCalled());
     expect(itemReservationsApi.takeItem).toHaveBeenCalledWith("i1", {
       context: { kind: "PERSONAL" },
       reservation_type: "GIFT",
@@ -104,19 +105,19 @@ describe("useItemTake", () => {
     expect(result.current.takeSuccess).toBeNull();
   });
 
-  it("a failed take does not call onReserved", async () => {
+  it("a failed take toasts the error and opens no success sheet", async () => {
     vi.mocked(itemReservationsApi.takeItem).mockRejectedValue(new Error("boom"));
     const { result, deps } = renderTake();
 
     act(() => result.current.take("i1", "GIFT", { kind: "PERSONAL" }));
 
-    await waitFor(() => expect(deps.showToast).toHaveBeenCalled());
-    expect(deps.onReserved).not.toHaveBeenCalled();
+    await waitFor(() => expect(deps.showToast).toHaveBeenCalledWith("Nie udało się wziąć tej rzeczy"));
+    expect(result.current.takeSuccess).toBeNull();
   });
 
   it("a TERM target sends the term's kind and id", async () => {
     vi.mocked(itemReservationsApi.takeItem).mockResolvedValue(termTake);
-    const { result, deps } = renderTake();
+    const { result } = renderTake();
 
     act(() => result.current.take("i1", "GIFT", TERM));
 
@@ -126,7 +127,6 @@ describe("useItemTake", () => {
       reservation_type: "GIFT",
     });
     expect(result.current.takeSuccess).toEqual({ itemId: "i1", itemName: "Kurtka", target: TERM });
-    expect(deps.onReserved).toHaveBeenCalledWith(TERM);
   });
 
   it("SWAP opens the picker, then proposes with the chosen item and the context", async () => {
@@ -135,7 +135,6 @@ describe("useItemTake", () => {
 
     act(() => result.current.take("i1", "SWAP", TERM));
     await waitFor(() => expect(result.current.swap.itemId).toBe("i1"));
-    expect(deps.onReserved).not.toHaveBeenCalled();
     expect(result.current.swap.availableItems).toEqual([{ id: "m1", productName: "Blender", condition: "GOOD" }]);
     expect(itemReservationsApi.proposeItemSwap).not.toHaveBeenCalled();
 
@@ -149,7 +148,6 @@ describe("useItemTake", () => {
     );
     await waitFor(() => expect(deps.showToast).toHaveBeenCalledWith("Zaproponowano zamianę! Szczegóły w Twoim panelu"));
     expect(result.current.swap.itemId).toBeNull();
-    expect(deps.onReserved).toHaveBeenCalledWith(TERM);
     expect(itemReservationsApi.takeItem).not.toHaveBeenCalled();
   });
 
@@ -169,7 +167,7 @@ describe("useItemTake", () => {
         [ITEM_DETAILS_KEY],
         [OWNER_ITEMS_KEY],
         [EVENT_KEY],
-        [ORGANIZER_PAGE_KEY],
+        [ORGANIZATION_LAYOUT_KEY],
         ["notifications"],
         ["groupAccess"],
       ]),

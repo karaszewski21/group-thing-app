@@ -13,8 +13,8 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.infrastructure.ledger import MovementLeg, post_movement
-from app.circulation.models import InventoryItem, MovementType
+from app.inventory.infrastructure.ledger import MovementLeg, post_movement
+from app.inventory.models import InventoryItem, MovementType
 from tests.conftest import create_location, leaf_category_ids
 from tests.test_event_item_reservations import _listed_items
 from tests.test_personal_pickup import _propose, _reservations, _set_location

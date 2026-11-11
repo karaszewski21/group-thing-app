@@ -1,6 +1,6 @@
 """`GET /api/inventory-items/{id}/history`: the privacy-labelled movement
 timeline — newest first, server-built descriptions, no ids and never the
-raw `CirculationTransaction.description`."""
+raw `InventoryTransaction.description`."""
 
 from __future__ import annotations
 
@@ -12,9 +12,9 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import ReservationType
 from app.groups import service as groups_service
 from app.groups.models import Term
+from app.inventory.models import ReservationType
 from tests.test_term_item_listings import (
     _accepted_swap_after_term,
     _auth,

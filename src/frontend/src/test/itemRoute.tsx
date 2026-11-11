@@ -11,6 +11,12 @@ import OwnerMeetingsRoutePage from "../app/(site)/[slug]/meetings/page";
 import OwnerRouteError from "../app/(site)/[slug]/error";
 import OwnerRouteNotFound from "../app/(site)/[slug]/not-found";
 import OwnerRoutePage from "../app/(site)/[slug]/page";
+import AppearanceRouteError from "../app/(site)/[slug]/appearance/error";
+import AppearanceRouteNotFound from "../app/(site)/[slug]/appearance/not-found";
+import AppearanceRoutePage from "../app/(site)/[slug]/appearance/page";
+import GroupTermsRouteError from "../app/(site)/[slug]/group/[groupId]/terms/error";
+import GroupTermsRouteNotFound from "../app/(site)/[slug]/group/[groupId]/terms/not-found";
+import GroupTermsRoutePage from "../app/(site)/[slug]/group/[groupId]/terms/page";
 import { RouteBoundary } from "./routeBoundary";
 
 /** `/:slug/product/:id` as Next renders it: the route's `page.tsx` block
@@ -48,6 +54,17 @@ export async function ownerMeetingsRouteElement(url: string): Promise<ReactEleme
   );
 }
 
+/** `/:slug/group/:groupId/terms` as Next renders it, like `itemRouteElement`. */
+export async function groupTermsRouteElement(url: string): Promise<ReactElement> {
+  const [, slug = "", , groupId = ""] = new URL(url, "http://localhost").pathname.split("/");
+  const page = await GroupTermsRoutePage({ params: Promise.resolve({ slug, groupId }) });
+  return (
+    <RouteBoundary NotFound={GroupTermsRouteNotFound} ErrorPage={GroupTermsRouteError}>
+      {page}
+    </RouteBoundary>
+  );
+}
+
 /** `/:slug` (an Organization's page or a person's profile) as Next renders
  * it, like `itemRouteElement`. */
 export async function ownerRouteElement(url: string): Promise<ReactElement> {
@@ -55,6 +72,18 @@ export async function ownerRouteElement(url: string): Promise<ReactElement> {
   const page = await OwnerRoutePage({ params: Promise.resolve({ slug }) });
   return (
     <RouteBoundary NotFound={OwnerRouteNotFound} ErrorPage={OwnerRouteError}>
+      {page}
+    </RouteBoundary>
+  );
+}
+
+/** `/:slug/appearance` (an Organization's or a person's "Wygląd strony") as
+ * Next renders it, like `itemRouteElement`. */
+export async function appearanceRouteElement(url: string): Promise<ReactElement> {
+  const [, slug = ""] = new URL(url, "http://localhost").pathname.split("/");
+  const page = await AppearanceRoutePage({ params: Promise.resolve({ slug }) });
+  return (
+    <RouteBoundary NotFound={AppearanceRouteNotFound} ErrorPage={AppearanceRouteError}>
       {page}
     </RouteBoundary>
   );

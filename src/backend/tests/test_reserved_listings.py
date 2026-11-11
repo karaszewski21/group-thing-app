@@ -16,11 +16,11 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from app.circulation.models import BalanceStatus, InventoryItem, ItemCondition, ReservationType
 from app.core import clock
 from app.groups import service
-from app.groups.infrastructure import circulation_bridge, repository
+from app.groups.infrastructure import inventory_bridge, repository
 from app.groups.models import SwapProposal, SwapProposalStatus
+from app.inventory.models import BalanceStatus, InventoryItem, ItemCondition, ReservationType
 from tests.conftest import count_queries, create_location
 from tests.test_item_visibility import _world as _private_world
 from tests.test_organizer_bridges import _register_items
@@ -84,7 +84,7 @@ async def test_listedItemsSelect_includesReservedAndInTransitWithReserver_exclud
     taker_user_id = await _account_user_id(client, taker_token)
     await _take_in_term(db_session, _principal(taker_token), reserved_id, term_id)
     in_transit = await _take_in_term(db_session, _principal(taker_token), in_transit_id, term_id)
-    await circulation_bridge.confirm_reservation(
+    await inventory_bridge.confirm_reservation(
         db_session,
         cast(uuid.UUID, in_transit.resolved_reservation_id),
         await _account_user_id(client, lister_token),
@@ -95,7 +95,7 @@ async def test_listedItemsSelect_includesReservedAndInTransitWithReserver_exclud
     deleted.deleted_at = datetime.utcnow()
     await db_session.flush()
 
-    listed = circulation_bridge.listed_items_with_product_select().subquery()
+    listed = inventory_bridge.listed_items_with_product_select().subquery()
     rows = (await db_session.execute(select(listed).where(listed.c.item_id.in_(item_ids)))).all()
 
     by_item = {row.item_id: row for row in rows}
@@ -297,7 +297,7 @@ async def _route_reservations(
     if route == "event":
         url = f"/api/public/events/{world['event_id']}"
     elif route == "organizer":
-        url = f"/api/public/organizers/{world['slug']}"
+        url = f"/api/public/organizations/{world['slug']}/layout/EXCHANGE"
     else:
         url = f"/api/public/organizers/{world['slug']}/items"
     response = await client.get(url, headers=_headers(token))
@@ -305,10 +305,6 @@ async def _route_reservations(
     body = response.json()
     if route == "event":
         return _reservations(body["participants"][0]["items"])
-    if route == "organizer":
-        exchange = _reservations(body["exchange"]["items"])
-        assert _reservations(body["recent_items"]) == exchange
-        return exchange
     return _reservations(body["items"])
 
 
@@ -362,19 +358,22 @@ async def test_reservedBy_offeredItem_labelsListingOwner_pendingProposalLabelsPr
     }
 
 
-async def test_counts_organizerAvailableOnlyPlusReserved_ownerIncludesReservedEqualsItemsTotal(
+async def test_counts_organizationLayoutAvailableOnly_ownerIncludesReservedEqualsItemsTotal(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     world = await _owner_world(client, db_session, "rb-counts", ("rb-counts zamiana", "SWAP"))
     [swap_id] = world["extra_ids"]
     base = f"/api/public/organizers/{world['slug']}"
+    layout = f"/api/public/organizations/{world['slug']}/layout"
 
-    exchange = (await client.get(base)).json()["exchange"]
+    exchange = (await client.get(f"{layout}/EXCHANGE")).json()
+    schedule = (await client.get(f"{layout}/SCHEDULE")).json()
     owner_items = (await client.get(f"{base}/items")).json()
     gifts = (await client.get(f"{base}/items?mode=GIFT")).json()
     actions = (await client.get(f"/api/public/items/{swap_id}/actions")).json()
 
-    assert exchange["counts"] == {"GIFT": 1, "SWAP": 1, "RESERVED": 1}
+    assert exchange["stats"]["item_count"] == 2
+    assert schedule["item_stats"] == {"GIFT": 1, "SWAP": 1}
     assert {uuid.UUID(item["item_id"]) for item in exchange["items"]} == {
         world["free_id"],
         world["taken_id"],
@@ -396,7 +395,7 @@ async def test_cacheHeaders_anonymousPublic_authenticatedPrivateNoStore_invalidT
     slug = await _organization_slug(client, owner_token, f"Nagłówki {route}")
     await _listed_items(client, owner_token, (f"rb-cache {route}", "GIFT"))
     url = {
-        "organizer": f"/api/public/organizers/{slug}",
+        "organizer": f"/api/public/organizations/{slug}/layout/CLASSIC",
         "organizer_items": f"/api/public/organizers/{slug}/items",
         "party_items": f"/api/public/parties/{owner_party_id}/items",
     }[route]

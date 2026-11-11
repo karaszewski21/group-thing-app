@@ -149,7 +149,7 @@ Store geographic coordinates as `Numeric(9, 6)` (`Location.lat`/`lng`, typed `Ma
 When one bounded context needs another (e.g. `app.groups` → `app.locations`), a single `app/<bc>/infrastructure/<other>_acl.py` is the only module of the consuming BC that imports the other BC, and the other BC imports nothing back. The ACL must not import its own BC's `..schemas`: the schemas import the response types the ACL re-exports, so importing back is a cycle.
 
 - Validation re-uses the owning BC's ownership check (`get_owned_location` = `app.locations.service.get_own_location`: 404 for missing or soft-deleted before 403 for a foreign owner).
-- Loading exposes `get_<x>(db, id)` and batched `get_<x>s_by_ids(db, ids)` (one `IN` query, soft-deleted rows included) plus narrow response mappers (`location_ref_response`, `public_location_response`). The ACL delegates to the owning BC's loaders (`load_location`/`load_locations_by_ids`, see **Required Relationships Behind Module Loaders**), so the rows it hands out are fully loaded. Consumers: `app/groups/`, `app/events/` and `app/circulation/infrastructure/locations_acl.py`.
+- Loading exposes `get_<x>(db, id)` and batched `get_<x>s_by_ids(db, ids)` (one `IN` query, soft-deleted rows included) plus narrow response mappers (`location_ref_response`, `public_location_response`). The ACL delegates to the owning BC's loaders (`load_location`/`load_locations_by_ids`, see **Required Relationships Behind Module Loaders**), so the rows it hands out are fully loaded. Consumers: `app/groups/`, `app/events/` and `app/inventory/infrastructure/locations_acl.py`.
 - READ-level embeds (endpoints any logged-in user may call) use a narrow reference shape — `LocationRefResponse`: `id`, `locality`, `label`, `formatted_address`, `google_place_id`, `deleted_at`; no owner party id, no coordinates. Public pages use `PublicLocationResponse` (no ids, no timestamps). The full `LocationResponse` is returned only by the owner's own `/api/locations` endpoints.
 - Re-sending an unchanged reference id (or, for a Term, the Circle's own `default_location_id`) is not re-validated, so a soft-deleted or handed-over reference survives an unrelated save; only a newly assigned id goes through the ownership check.
 
@@ -167,7 +167,7 @@ if (
 
 `categories.parent_id` is a self-FK (`fk_categories_parent_id_categories`, `ON DELETE RESTRICT`) declared as a plain FK id column with no `relationship()`. `external_id` is a nullable unique integer holding the Vinted catalog id (`uq_categories_external_id`). Names are unique per parent (`uq_categories_parent_id_name`) plus a partial unique root index (`uq_categories_root_name … WHERE parent_id IS NULL`); the business key for `__eq__`/`__hash__` is `(parent_id, name)`. Products may only use leaf categories — enforced by `require_leaf_category` in `app/category/service.py`.
 
-`inventory_items.listing_status` (`ItemListingStatus` DRAFT/ACTIVE, VARCHAR(20) via `_enum_column`) mirrors whether an `item_listing_preferences` row exists and is written only in lockstep with it; the groups BC writes it through `app/groups/infrastructure/circulation_bridge.py`. Reference: `app/category/models.py`, `app/circulation/models.py`.
+`inventory_items.listing_status` (`ItemListingStatus` DRAFT/ACTIVE, VARCHAR(20) via `_enum_column`) mirrors whether an `item_listing_preferences` row exists and is written only in lockstep with it; the groups BC writes it through `app/groups/infrastructure/inventory_bridge.py`. Reference: `app/category/models.py`, `app/inventory/models.py`.
 
 ---
 

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MyItemsView } from "../features/items/MyItemsView";
 import * as appDataStore from "../features/panel/appDataStore";
 import type { AppDataContextValue } from "../features/panel/AppDataContext";
-import type { InventoryBalanceResponse, MyInventoryItemResponse } from "../api/inventories";
+import type { MyInventoryItemResponse } from "../api/inventories";
 import type { ReservationDetailResponse } from "../api/reservations";
 import type { NotificationKind } from "../api/notifications";
 import { api, ApiError } from "../api/client";
@@ -15,6 +15,12 @@ import * as reservationsApi from "../api/reservations";
 // above does NOT stub — only `api.get` is replaced there. Mock these two
 // directly instead, keeping every other export (incl. `getReservation`,
 // which DOES go through the mocked `api.get`) real.
+vi.mock("../hooks/useMyItemsPage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../hooks/useMyItemsPage")>();
+  const { useFakeMyItemsPage } = await import("./myItemsPageMock");
+  return { ...actual, useMyItemsPage: useFakeMyItemsPage };
+});
+
 vi.mock("../api/reservations", async () => {
   const actual =
     await vi.importActual<typeof import("../api/reservations")>("../api/reservations");
@@ -28,32 +34,20 @@ vi.mock("../features/panel/appDataStore", async () => {
   return { ...actual, useAppData: vi.fn() };
 });
 
-// `getInventoryItemBalances` (api/inventories.ts) calls the sibling
-// `getInventoryItemBalance` from within the SAME module, so mocking that
-// export via `vi.mock("../api/inventories", ...)` would not intercept the
-// internal call (ESM same-module self-references bypass a mocked export
-// binding). Mocking `api.get` at the `../api/client` layer instead — a
-// genuine cross-module boundary — reliably intercepts every balance fetch.
+// The reservation reads (`getReservation`) go through `api.get`; mocking it
+// at the `../api/client` layer routes them to the fixtures below.
 vi.mock("../api/client", async () => {
   const actual = await vi.importActual<typeof import("../api/client")>("../api/client");
   return { ...actual, api: { ...actual.api, get: vi.fn() } };
 });
 
-function mockBalance(
-  itemId: string,
-  status: InventoryBalanceResponse["status"],
+/** `it` with the lock the server reports on each item at home. */
+function withBalance(
+  it: MyInventoryItemResponse,
+  status: MyInventoryItemResponse["balance_status"],
   reservationId: string | null = null,
-): InventoryBalanceResponse {
-  return {
-    id: itemId,
-    item_id: itemId,
-    status,
-    reserved_at: null,
-    lent_at: null,
-    returned_at: null,
-    due_date: null,
-    reservation_id: reservationId,
-  };
+): MyInventoryItemResponse {
+  return { ...it, balance_status: status, reservation_id: reservationId };
 }
 
 // Term/Group ids are UUID strings (spec R29).
@@ -85,22 +79,15 @@ function mockReservation(
 }
 
 /** Routes `api.get` (the shared cross-module mock boundary — see the
- * comment above `vi.mock("../api/client", ...)`) to the balance/
- * reservation fixtures by URL substring, so the Bug #4c term-end
- * resolution effect (`getInventoryItemBalances` -> `getReservation`) each
- * land on the right fixture. A reservation id mapped to `null` fails its
- * fetch. `GET /terms/{id}` always answers 404, as it does for a
- * soft-deleted group's Term — the view must not depend on it. */
-function mockApiGetRouter(fixtures: {
-  balances: InventoryBalanceResponse[];
-  reservations?: Record<string, ReservationDetailResponse | null>;
-}) {
+ * comment above `vi.mock("../api/client", ...)`) to the reservation
+ * fixtures by URL substring, so the Bug #4c term-end resolution effect
+ * (`getReservation` per locked item) lands on the right fixture. A
+ * reservation id mapped to `null` fails its fetch. `GET /terms/{id}` always
+ * answers 404, as it does for a soft-deleted group's Term — the view must
+ * not depend on it. */
+function mockApiGetRouter(fixtures: { reservations?: Record<string, ReservationDetailResponse | null> }) {
   vi.mocked(api.get).mockImplementation((path: unknown) => {
     const p = String(path);
-    if (p.includes("/balance")) {
-      const balance = fixtures.balances.find((b) => p.includes(`/${b.item_id}/`));
-      if (balance) return Promise.resolve(balance);
-    }
     const reservationId = p.match(/\/reservations\/([^/?]+)$/)?.[1];
     if (reservationId && fixtures.reservations && reservationId in fixtures.reservations) {
       const reservation = fixtures.reservations[reservationId];
@@ -130,6 +117,8 @@ const item: MyInventoryItemResponse = {
   listing_status: "DRAFT",
   photos_moderation_pending: false,
   location_id: "loc-1",
+  balance_status: "AVAILABLE",
+  reservation_id: null,
 };
 
 const pendingItem: MyInventoryItemResponse = { ...item, photos_moderation_pending: true };
@@ -156,7 +145,6 @@ function renderView() {
 
 describe("MyItemsView — item card links to the item page", () => {
   it("links the card under the user's own prefix, here a party id", async () => {
-    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
     vi.mocked(appDataStore.useAppData).mockReturnValue(
       makeContextValue({ ownSlug: "p-ania" }),
     );
@@ -167,16 +155,9 @@ describe("MyItemsView — item card links to the item page", () => {
       "href",
       `/p-ania/product/${item.id}`,
     );
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
   });
 
   it("links the card to /:slug/product/:id, edit to the panel, and has no inline editors", async () => {
-    // MyItemsView always fires its balance-fetch effect for every mounted
-    // item (see the badge describe block below), so `api.get` needs a
-    // valid response here too — otherwise the unconfigured mock resolves
-    // to `undefined` and crashes `getInventoryItemBalances`' `.map` in an
-    // unhandled rejection that surfaces (mis-attributed) in a later test.
-    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
     vi.mocked(appDataStore.useAppData).mockReturnValue(makeContextValue());
 
     renderView();
@@ -194,9 +175,6 @@ describe("MyItemsView — item card links to the item page", () => {
     expect(screen.queryByLabelText("Typ rzeczy")).toBeNull();
     expect(screen.queryByLabelText("Stan rzeczy")).toBeNull();
     expect(screen.getByText("Stan: Dobry")).toBeInTheDocument();
-    // Let the balance-fetch effect settle before the test (and its mocks)
-    // tear down, so the state update lands inside this test's act() scope.
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
   });
 });
 
@@ -206,9 +184,8 @@ describe("MyItemsView — passive lock/pending balance badge", () => {
   });
 
   it("renders 'czeka na potwierdzenie' for an item with a RESERVED balance", async () => {
-    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "RESERVED"));
     vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue(),
+      makeContextValue({ items: [withBalance(item, "RESERVED")] }),
     );
 
     renderView();
@@ -218,9 +195,8 @@ describe("MyItemsView — passive lock/pending balance badge", () => {
   });
 
   it("renders 'zablokowane' for an item with an IN_TRANSIT balance", async () => {
-    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "IN_TRANSIT"));
     vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue(),
+      makeContextValue({ items: [withBalance(item, "IN_TRANSIT")] }),
     );
 
     renderView();
@@ -230,21 +206,18 @@ describe("MyItemsView — passive lock/pending balance badge", () => {
   });
 
   it("renders no badge for an AVAILABLE item", async () => {
-    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
     vi.mocked(appDataStore.useAppData).mockReturnValue(
       makeContextValue(),
     );
 
     renderView();
 
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("does not render any new action button for a locked (IN_TRANSIT) item", async () => {
-    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "IN_TRANSIT"));
     vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue(),
+      makeContextValue({ items: [withBalance(item, "IN_TRANSIT")] }),
     );
 
     renderView();
@@ -268,9 +241,8 @@ describe("MyItemsView — mode toggle buttons locked while a reservation is acti
   }
 
   it("disables the two mode toggle buttons (native + aria-disabled) for a RESERVED item", async () => {
-    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "RESERVED"));
     vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue(),
+      makeContextValue({ items: [withBalance(item, "RESERVED")] }),
     );
 
     renderView();
@@ -283,9 +255,8 @@ describe("MyItemsView — mode toggle buttons locked while a reservation is acti
   });
 
   it("disables the two mode toggle buttons (native + aria-disabled) for an IN_TRANSIT item", async () => {
-    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "IN_TRANSIT"));
     vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue(),
+      makeContextValue({ items: [withBalance(item, "IN_TRANSIT")] }),
     );
 
     renderView();
@@ -298,26 +269,6 @@ describe("MyItemsView — mode toggle buttons locked while a reservation is acti
   });
 
   it("leaves the two mode toggle buttons enabled for an AVAILABLE item", async () => {
-    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
-    vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue(),
-    );
-
-    renderView();
-
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
-    for (const button of modeToggleButtons()) {
-      expect(button).not.toBeDisabled();
-      expect(button).not.toHaveAttribute("aria-disabled", "true");
-    }
-  });
-
-  it("leaves the two mode toggle buttons enabled when the item has no balance entry yet (undefined)", () => {
-    // Balance fetch left pending (never resolved) — `itemBalances` stays
-    // `{}`, so `itemBalances[it.id]` is `undefined` for the whole test,
-    // matching the "no balance entry yet" state without needing to await
-    // an unhandled rejection.
-    vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
     vi.mocked(appDataStore.useAppData).mockReturnValue(
       makeContextValue(),
     );
@@ -340,11 +291,10 @@ describe("MyItemsView — post-term-end fallback buttons (Bug #4c)", () => {
 
   it("renders 'Odebrał' and 'Anuluj wymianę', full-word-labeled, immediately after the badge, when locked AND the term has ended", async () => {
     mockApiGetRouter({
-      balances: [mockBalance(item.id, "IN_TRANSIT", "55")],
       reservations: { "55": mockReservation("55", ENDED_TERM_ID, "2020-01-01T10:00:00") }, // long past
     });
     vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue(),
+      makeContextValue({ items: [withBalance(item, "IN_TRANSIT", "55")] }),
     );
 
     renderView();
@@ -375,11 +325,10 @@ describe("MyItemsView — post-term-end fallback buttons (Bug #4c)", () => {
 
   it("does not render the new buttons when locked but the term has NOT yet ended (Mockup 3)", async () => {
     mockApiGetRouter({
-      balances: [mockBalance(item.id, "RESERVED", "56")],
       reservations: { "56": mockReservation("56", FUTURE_TERM_ID, "2999-01-01T10:00:00") }, // far future
     });
     vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue(),
+      makeContextValue({ items: [withBalance(item, "RESERVED", "56")] }),
     );
 
     renderView();
@@ -394,11 +343,6 @@ describe("MyItemsView — post-term-end fallback buttons (Bug #4c)", () => {
     const deletedGroupItem = { ...item, id: "11", product_name: "Hulajnoga" };
     const failingItem = { ...item, id: "12", product_name: "Fotelik" };
     mockApiGetRouter({
-      balances: [
-        mockBalance(item.id, "IN_TRANSIT", "55"),
-        mockBalance(deletedGroupItem.id, "IN_TRANSIT", "57"),
-        mockBalance(failingItem.id, "IN_TRANSIT", "58"),
-      ],
       reservations: {
         "55": mockReservation("55", ENDED_TERM_ID, "2020-01-01T10:00:00"),
         // Its Term's group is soft-deleted: `GET /terms/{id}` answers 404,
@@ -408,7 +352,13 @@ describe("MyItemsView — post-term-end fallback buttons (Bug #4c)", () => {
       },
     });
     vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue({ items: [item, deletedGroupItem, failingItem] }),
+      makeContextValue({
+        items: [
+          withBalance(item, "IN_TRANSIT", "55"),
+          withBalance(deletedGroupItem, "IN_TRANSIT", "57"),
+          withBalance(failingItem, "IN_TRANSIT", "58"),
+        ],
+      }),
     );
 
     renderView();
@@ -420,11 +370,10 @@ describe("MyItemsView — post-term-end fallback buttons (Bug #4c)", () => {
 
   it("offers the giver of an ended GIFT only 'Anuluj wymianę' — the recipient confirms receipt", async () => {
     mockApiGetRouter({
-      balances: [mockBalance(item.id, "IN_TRANSIT", "55")],
       reservations: { "55": mockReservation("55", ENDED_TERM_ID, "2020-01-01T10:00:00", item.id, "GIFT") },
     });
     vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue(),
+      makeContextValue({ items: [withBalance(item, "IN_TRANSIT", "55")] }),
     );
 
     renderView();
@@ -434,14 +383,12 @@ describe("MyItemsView — post-term-end fallback buttons (Bug #4c)", () => {
   });
 
   it("does not render the new buttons for an AVAILABLE item (no active reservation)", async () => {
-    mockApiGetRouter({ balances: [mockBalance(item.id, "AVAILABLE", null)] });
     vi.mocked(appDataStore.useAppData).mockReturnValue(
       makeContextValue(),
     );
 
     renderView();
 
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
     expect(screen.queryByRole("button", { name: "Odebrał" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Anuluj wymianę" })).not.toBeInTheDocument();
   });
@@ -449,7 +396,6 @@ describe("MyItemsView — post-term-end fallback buttons (Bug #4c)", () => {
   it("'Odebrał' calls confirmTransaction with the tile's reservation id only, then refreshes panel data", async () => {
     const load = vi.fn().mockResolvedValue(undefined);
     mockApiGetRouter({
-      balances: [mockBalance(item.id, "IN_TRANSIT", "55")],
       reservations: { "55": mockReservation("55", ENDED_TERM_ID, "2020-01-01T10:00:00") },
     });
     vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue({
@@ -458,7 +404,7 @@ describe("MyItemsView — post-term-end fallback buttons (Bug #4c)", () => {
       already_resolved: false,
     });
     vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue({ load }),
+      makeContextValue({ load, items: [withBalance(item, "IN_TRANSIT", "55")] }),
     );
 
     renderView();
@@ -475,7 +421,6 @@ describe("MyItemsView — post-term-end fallback buttons (Bug #4c)", () => {
   it("'Anuluj wymianę' calls cancelTransaction with the tile's reservation id only, then refreshes panel data", async () => {
     const load = vi.fn().mockResolvedValue(undefined);
     mockApiGetRouter({
-      balances: [mockBalance(item.id, "IN_TRANSIT", "55")],
       reservations: { "55": mockReservation("55", ENDED_TERM_ID, "2020-01-01T10:00:00") },
     });
     vi.mocked(reservationsApi.cancelTransaction).mockResolvedValue({
@@ -484,7 +429,7 @@ describe("MyItemsView — post-term-end fallback buttons (Bug #4c)", () => {
       already_resolved: false,
     });
     vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue({ load }),
+      makeContextValue({ load, items: [withBalance(item, "IN_TRANSIT", "55")] }),
     );
 
     renderView();
@@ -509,7 +454,6 @@ describe("MyItemsView — photos in moderation do not block the mode toggles", (
   }
 
   it("pending → toggles enabled with no hint, the pill and the edit link stay", async () => {
-    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
     const setItemMode = vi.fn();
     vi.mocked(appDataStore.useAppData).mockReturnValue(
       makeContextValue({ items: [pendingItem], setItemMode }),
@@ -517,7 +461,6 @@ describe("MyItemsView — photos in moderation do not block the mode toggles", (
 
     renderView();
 
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
     for (const button of modeToggleButtons()) {
       expect(button).toBeEnabled();
       expect(button).not.toHaveAttribute("aria-describedby");
@@ -534,11 +477,10 @@ describe("MyItemsView — photos in moderation do not block the mode toggles", (
 
   it("locked + pending → both pills, lock pill first, toggles disabled by the lock only", async () => {
     mockApiGetRouter({
-      balances: [mockBalance(item.id, "IN_TRANSIT", "55")],
       reservations: { "55": mockReservation("55", ENDED_TERM_ID, "2020-01-01T10:00:00") },
     });
     vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue({ items: [pendingItem] }),
+      makeContextValue({ items: [withBalance(pendingItem, "IN_TRANSIT", "55")] }),
     );
 
     renderView();
@@ -553,12 +495,10 @@ describe("MyItemsView — photos in moderation do not block the mode toggles", (
   });
 
   it("not pending → toggles enabled, no pill", async () => {
-    vi.mocked(api.get).mockResolvedValue(mockBalance(item.id, "AVAILABLE"));
     vi.mocked(appDataStore.useAppData).mockReturnValue(makeContextValue());
 
     renderView();
 
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
     for (const button of modeToggleButtons()) expect(button).toBeEnabled();
     expect(screen.queryByText("Zdjęcia w moderacji")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Zobacz zdjęcia →" })).not.toBeInTheDocument();
@@ -585,47 +525,22 @@ describe("NotificationKind — frontend union matches backend enum", () => {
   });
 });
 
-describe("MyItemsView — gift limit", () => {
+describe("MyItemsView — no gift limit", () => {
   const items = Array.from({ length: 11 }, (_, index) => ({
     ...item,
     id: String(index + 1),
     product_name: `Rzecz ${index + 1}`,
   }));
 
-  beforeEach(() => {
-    vi.mocked(api.get).mockReset();
-    vi.mocked(api.get).mockImplementation((path: unknown) =>
-      Promise.resolve(mockBalance(String(path).split("/")[3] ?? "", "AVAILABLE")),
-    );
-  });
-
-  it("shows the count and allows Oddam while under the limit", async () => {
-    vi.mocked(appDataStore.useAppData).mockReturnValue(
-      makeContextValue({ items, itemModes: { "1": "oddam" } }),
-    );
-
-    renderView();
-
-    expect(screen.getByText("Do oddania: 1/10")).toBeInTheDocument();
-    for (const button of screen.getAllByRole("button", { name: "Oddam" })) {
-      expect(button).toBeEnabled();
-    }
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
-  });
-
-  it("at 10 gift items disables Oddam on the others with an explanation, keeping un-gifting and other modes", async () => {
+  it("keeps Oddam enabled on every item however many are already gifted", async () => {
     const itemModes = Object.fromEntries(items.slice(0, 10).map((i) => [i.id, "oddam" as const]));
     vi.mocked(appDataStore.useAppData).mockReturnValue(makeContextValue({ items, itemModes }));
 
     renderView();
 
-    const hint = screen.getByText(/Do oddania: 10\/10/);
-    expect(hint).toHaveTextContent("Możesz mieć maksymalnie 10 rzeczy do oddania. Zdejmij „Oddam” z innej rzeczy.");
-    const giftButtons = screen.getAllByRole("button", { name: "Oddam" });
-    expect(giftButtons.slice(0, 10).every((button) => !(button as HTMLButtonElement).disabled)).toBe(true);
-    expect(giftButtons[10]).toBeDisabled();
-    expect(giftButtons[10]).toHaveAccessibleDescription(hint.textContent!);
-    expect(screen.getAllByRole("button", { name: "Zamienię" })[10]).toBeEnabled();
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    expect(screen.queryByText(/Do oddania/)).not.toBeInTheDocument();
+    for (const button of screen.getAllByRole("button", { name: "Oddam" })) {
+      expect(button).toBeEnabled();
+    }
   });
 });

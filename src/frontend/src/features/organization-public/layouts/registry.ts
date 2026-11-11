@@ -1,5 +1,5 @@
-import dayjs from "../../../utils/dayjs";
-import type { OrganizerPageData, PageLayoutDefinition } from "./types";
+import type { OrganizationStats, PageLayoutKey } from "../../../api/organizations";
+import type { DirectoryStatus, PageLayoutDefinition } from "./types";
 
 // Served from `public/` at the site root.
 const classicThumbnail = "/assets/layouts/classic.svg";
@@ -7,26 +7,23 @@ const linksThumbnail = "/assets/layouts/links.svg";
 const scheduleThumbnail = "/assets/layouts/schedule.svg";
 const exchangeThumbnail = "/assets/layouts/exchange.svg";
 
-const SCHEDULE_MIN_DATES = 3;
-const SCHEDULE_HORIZON_DAYS = 14;
+const SCHEDULE_MIN_MEETINGS = 3;
 const EXCHANGE_MIN_ITEMS = 4;
-const EXCHANGE_MAX_DATES = 1;
-
-function datesWithinHorizon(data: OrganizerPageData): number {
-  const horizon = dayjs().add(SCHEDULE_HORIZON_DAYS, "day");
-  return data.directory?.upcoming_dates.filter((date) => dayjs(date.starts_at).isBefore(horizon)).length ?? 0;
-}
+const EXCHANGE_MAX_MEETINGS = 1;
 
 /** Public organization page layouts: a balanced default, a link card, one
  * for organizers who mostly run terms and events, and one for organizers
- * with many items and few meetings. Keys must stay in sync with
- * PAGE_LAYOUT_KEYS in src/backend/app/organizations/page_layouts.py
- * (enforced by organizerKeyParity.test.ts). */
-export const LAYOUT_REGISTRY: Record<string, PageLayoutDefinition> = {
+ * with many items and few meetings. Each block reads only the props the
+ * backend sends for its layout (`OrganizationLayoutResponse`), so a block
+ * placed in a layout must be one whose data that layout's response carries.
+ * Keys must stay in sync with PAGE_LAYOUT_KEYS in
+ * src/backend/app/organizations/page_layouts.py (enforced by
+ * organizerKeyParity.test.ts). */
+export const LAYOUT_REGISTRY: Record<PageLayoutKey, PageLayoutDefinition> = {
   CLASSIC: {
     key: "CLASSIC",
     label: "Klasyczny",
-    description: "Opis, najbliższe spotkania i rzeczy.",
+    description: "Opis, najbliższe spotkania i ostatnie rzeczy.",
     thumbnail: { src: classicThumbnail, alt: "Szkic układu Klasyczny" },
     frame: "column",
     blocks: [
@@ -36,7 +33,7 @@ export const LAYOUT_REGISTRY: Record<string, PageLayoutDefinition> = {
       { block: "about" },
       { block: "gallery", variant: "grid" },
       { block: "upcoming-dates", variant: "list", primary: true },
-      { block: "exchange-counts", variant: "tiles3" },
+      { block: "recent-items" },
       { block: "footer" },
     ],
   },
@@ -53,9 +50,7 @@ export const LAYOUT_REGISTRY: Record<string, PageLayoutDefinition> = {
       { block: "gallery", variant: "on-primary" },
       { block: "footer", variant: "on-primary" },
     ],
-    recommendWhen: (data) =>
-      data.directoryStatus === "unavailable" ||
-      (data.directory?.upcoming_dates.length === 0 && data.directory.recent_items.length === 0),
+    recommendWhen: (stats) => stats === null || (stats.meeting_count === 0 && stats.item_count === 0),
   },
   SCHEDULE: {
     key: "SCHEDULE",
@@ -65,16 +60,17 @@ export const LAYOUT_REGISTRY: Record<string, PageLayoutDefinition> = {
     frame: "column",
     blocks: [
       { block: "hero", variant: "compact" },
+      { block: "stats" },
       { block: "next-date-cta", variant: "card", primary: true },
       { block: "upcoming-dates", variant: "after-next" },
-      { block: "circles-grid", variant: "cards", when: { minCircles: 2 } },
-      { block: "circles-grid", variant: "featured", when: { maxCircles: 1 } },
+      { block: "groups-grid", variant: "cards", when: { minGroups: 2 } },
+      { block: "groups-grid", variant: "featured", when: { maxGroups: 1 } },
+      { block: "item-stats" },
       { block: "about" },
       { block: "gallery", variant: "grid" },
-      { block: "exchange-counts", variant: "tiles3" },
       { block: "footer" },
     ],
-    recommendWhen: (data) => datesWithinHorizon(data) >= SCHEDULE_MIN_DATES,
+    recommendWhen: (stats) => (stats?.meeting_count ?? 0) >= SCHEDULE_MIN_MEETINGS,
   },
   EXCHANGE: {
     key: "EXCHANGE",
@@ -84,31 +80,35 @@ export const LAYOUT_REGISTRY: Record<string, PageLayoutDefinition> = {
     frame: "column",
     blocks: [
       { block: "hero", variant: "compact" },
+      { block: "stats" },
       { block: "recent-items", variant: "featured", primary: true },
-      { block: "exchange-board", variant: "grid2" },
-      { block: "needed-items", variant: "list" },
-      { block: "upcoming-dates", variant: "compact" },
+      { block: "meeting-links" },
       { block: "about" },
       { block: "gallery", variant: "grid" },
       { block: "footer" },
     ],
-    recommendWhen: (data) =>
-      (data.directory?.recent_items.length ?? 0) >= EXCHANGE_MIN_ITEMS &&
-      (data.directory?.upcoming_dates.length ?? 0) <= EXCHANGE_MAX_DATES,
+    recommendWhen: (stats) =>
+      stats !== null && stats.item_count >= EXCHANGE_MIN_ITEMS && stats.meeting_count <= EXCHANGE_MAX_MEETINGS,
   },
 };
 
-export const FALLBACK_LAYOUT = "CLASSIC";
+export const FALLBACK_LAYOUT: PageLayoutKey = "CLASSIC";
 
 /** The effective layout for a stored key; mirrors the backend's
  * `resolve_page_layout` (unknown keys degrade to CLASSIC). */
 export function resolveLayout(key?: string | null): PageLayoutDefinition {
-  return key != null && Object.hasOwn(LAYOUT_REGISTRY, key) ? LAYOUT_REGISTRY[key] : LAYOUT_REGISTRY[FALLBACK_LAYOUT];
+  return key != null && Object.hasOwn(LAYOUT_REGISTRY, key)
+    ? LAYOUT_REGISTRY[key as PageLayoutKey]
+    : LAYOUT_REGISTRY[FALLBACK_LAYOUT];
 }
 
-/** Whether the editor shows the "Polecany" badge: never while the directory
- * loads, so badges do not flicker in once it arrives. */
-export function isRecommended(layout: PageLayoutDefinition, data: OrganizerPageData): boolean {
-  if (data.directoryStatus === "loading") return false;
-  return layout.recommendWhen?.(data) ?? false;
+/** Whether the editor shows the "Polecany" badge: never while the stats
+ * load, so badges do not flicker in once they arrive. */
+export function isRecommended(
+  layout: PageLayoutDefinition,
+  stats: OrganizationStats | null,
+  status: DirectoryStatus,
+): boolean {
+  if (status === "loading") return false;
+  return layout.recommendWhen?.(status === "ready" ? stats : null) ?? false;
 }

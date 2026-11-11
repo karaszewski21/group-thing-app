@@ -1,5 +1,5 @@
 """The reserved badge (`ReservedByResponse`) of every item list and of
-`/actions`. Reserved state is resolved groups-side because circulation
+`/actions`. Reserved state is resolved groups-side because inventory
 cannot see `SwapProposal`: an item is reserved while its balance is
 RESERVED/IN_TRANSIT (named after its newest active reservation's
 `reserved_by_user_id`, the party who would receive it) or a PROPOSED swap
@@ -23,12 +23,12 @@ from app.core.auth_deps import Principal
 from app.core.errors import EntityNotFoundException
 from app.users.service import get_profile_by_principal
 
-from ..infrastructure import circulation_bridge, repository
+from ..infrastructure import inventory_bridge, repository
 from ..schemas import ReservedByResponse
 
 _IN_FLIGHT = (
-    circulation_bridge.BalanceStatus.RESERVED,
-    circulation_bridge.BalanceStatus.IN_TRANSIT,
+    inventory_bridge.BalanceStatus.RESERVED,
+    inventory_bridge.BalanceStatus.IN_TRANSIT,
 )
 
 
@@ -55,7 +55,7 @@ class ReservedByNames:
 
     def reservation(
         self,
-        balance_status: circulation_bridge.BalanceStatus,
+        balance_status: inventory_bridge.BalanceStatus,
         reserved_by_user_id: uuid.UUID | None,
         proposer_party_id: uuid.UUID | None,
     ) -> ReservedByResponse | None:

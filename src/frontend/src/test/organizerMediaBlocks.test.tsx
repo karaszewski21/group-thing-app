@@ -1,19 +1,16 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { getTestLocation, getTestRouter, renderWithRoute } from "./renderWithRoute";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as groupsApi from "../api/groups";
-import type { PublicMedia, PublicOrganizationResponse } from "../api/organizations";
+import type { PublicMedia } from "../api/media";
+import type { PublicOrganizationResponse } from "../api/organizations";
 import { GalleryBlock } from "../features/organization-public/blocks/GalleryBlock";
 import { HeroBlock } from "../features/organization-public/blocks/HeroBlock";
 import { LayoutRenderer } from "../features/organization-public/LayoutRenderer";
 import { LAYOUT_REGISTRY, resolveLayout } from "../features/organization-public/layouts/registry";
 import type { OrganizerPageData, RenderMode } from "../features/organization-public/layouts/types";
 import { createQueryWrapper } from "./queryClient";
+import { classicLayout } from "./organizationLayoutFixtures";
 
-vi.mock("../api/groups", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../api/groups")>()),
-  getOrganizerTerms: vi.fn(),
-}));
 
 const SLUG = "rodzinny-grajdolek";
 const NAME = "Rodzinny Grajdołek";
@@ -34,20 +31,12 @@ function pageData(overrides: Partial<PublicOrganizationResponse> = {}): Organize
       palette_preset: "SUN",
       description: null,
       logo: null,
+      avatar: null,
       cover: null,
       gallery: [],
       ...overrides,
     },
-    directory: {
-      circles: [],
-      upcoming_terms: [],
-      exchange: { counts: { GIFT: 0, SWAP: 0, RESERVED: 0 }, items: [] },
-      needed_items: [],
-      upcoming_dates: [],
-      recent_items: [],
-      owner_nearest: null,
-      stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
-    },
+    directory: classicLayout(),
     directoryStatus: "ready",
   };
 }
@@ -62,7 +51,6 @@ function renderLayout(key: string, data: OrganizerPageData, mode: RenderMode = "
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(groupsApi.getOrganizerTerms).mockReturnValue(new Promise(() => {}));
 });
 
 afterEach(cleanup);
@@ -228,10 +216,10 @@ describe("LayoutRenderer gallery slot", () => {
       within(ghost).getByText("Dodaj do 3 zdjęć — odwiedzający zobaczą je po sprawdzeniu. Widzisz to tylko Ty."),
     ).toBeInTheDocument();
     const cta = within(ghost).getByRole("link", { name: "Dodaj zdjęcia →" });
-    expect(cta).toHaveAttribute("href", "/organization/appearance?tab=photos");
+    expect(cta).toHaveAttribute("href", "/rodzinny-grajdolek/appearance?tab=photos");
 
     fireEvent.click(cta);
-    expect(getTestLocation()).toEqual({ pathname: "/organization/appearance", search: "?tab=photos" });
-    expect(getTestRouter().calls.at(-1)).toMatchObject({ method: "push", url: "/organization/appearance?tab=photos" });
+    expect(getTestLocation()).toEqual({ pathname: "/rodzinny-grajdolek/appearance", search: "?tab=photos" });
+    expect(getTestRouter().calls.at(-1)).toMatchObject({ method: "push", url: "/rodzinny-grajdolek/appearance?tab=photos" });
   });
 });

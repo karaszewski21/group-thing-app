@@ -30,16 +30,17 @@ const APPROVED: ModerationQueueEntry = {
 
 const AVATAR: ModerationQueueEntry = {
   ...APPROVED,
-  subject_type: "AVATAR",
+  subject_type: "MEDIA",
   subject_id: "avatar-1",
   product_id: null,
   product_name: "Anna Nowak",
   photo_url: "https://cdn.example/a/w400.webp",
+  media_kind: "AVATAR",
 };
 
 const ORG_LOGO: ModerationQueueEntry = {
   ...APPROVED,
-  subject_type: "ORGANIZATION_MEDIA",
+  subject_type: "MEDIA",
   subject_id: "media-1",
   product_id: null,
   product_name: "Rodzinny Grajdołek",
@@ -143,21 +144,21 @@ describe("PhotoModerationPage", () => {
     expect(moderationApi.deleteModerationPhoto).not.toHaveBeenCalled();
   });
 
-  it("photos_organizationMedia_titlesWithOrganizationAndKind", async () => {
+  it("photos_pageMedia_titlesWithOwnerAndKind", async () => {
     vi.mocked(moderationApi.getModerationPhotos).mockResolvedValue(
       pageOf([ORG_LOGO, { ...ORG_LOGO, subject_id: "media-2", media_kind: "GALLERY" }]),
     );
     renderPage();
 
-    expect(await screen.findByText("Organization · Rodzinny Grajdołek · Logo")).toBeInTheDocument();
-    expect(screen.getByText("Organization · Rodzinny Grajdołek · Gallery")).toBeInTheDocument();
-    expect(screen.getByAltText("Photo of Organization · Rodzinny Grajdołek · Logo")).toHaveAttribute(
+    expect(await screen.findByText("Page · Rodzinny Grajdołek · Logo")).toBeInTheDocument();
+    expect(screen.getByText("Page · Rodzinny Grajdołek · Gallery")).toBeInTheDocument();
+    expect(screen.getByAltText("Photo of Page · Rodzinny Grajdołek · Logo")).toHaveAttribute(
       "src",
       ORG_LOGO.photo_url,
     );
   });
 
-  it("photos_decideOrganizationMedia_sendsOrganizationMediaSubject", async () => {
+  it("photos_decidePageMedia_sendsMediaSubject", async () => {
     vi.mocked(moderationApi.getModerationPhotos).mockResolvedValue(pageOf([ORG_LOGO]));
     vi.mocked(moderationApi.decideModeration).mockResolvedValue(undefined);
     renderPage();
@@ -166,18 +167,18 @@ describe("PhotoModerationPage", () => {
 
     await waitFor(() =>
       expect(moderationApi.decideModeration).toHaveBeenCalledWith({
-        subject_type: "ORGANIZATION_MEDIA",
+        subject_type: "MEDIA",
         subject_id: "media-1",
         outcome: "APPROVED",
       }),
     );
   });
 
-  it("photos_photoAndAvatar_keepExistingTitles", async () => {
+  it("photos_photoAndProfileAvatar_titledByProductAndPageKind", async () => {
     vi.mocked(moderationApi.getModerationPhotos).mockResolvedValue(pageOf([APPROVED, AVATAR]));
     renderPage();
 
     expect(await screen.findByText("Wózek spacerowy")).toBeInTheDocument();
-    expect(screen.getByText("Avatar · Anna Nowak")).toBeInTheDocument();
+    expect(screen.getByText("Page · Anna Nowak · Avatar")).toBeInTheDocument();
   });
 });

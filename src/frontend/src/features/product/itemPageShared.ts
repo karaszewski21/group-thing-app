@@ -1,4 +1,4 @@
-export const MAX_PRODUCT_PHOTOS = 10;
+export const MAX_PRODUCT_PHOTOS = 3;
 export const PRODUCT_DESCRIPTION_MAX = 2000;
 
 /** Photo files the backend accepts (it re-encodes them to WebP). */

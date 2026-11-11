@@ -77,11 +77,6 @@ export const ITEM_MODE_TONE: Record<ItemMode, string> = {
   "zamienię": "bg-accent-soft text-accent-fg",
 };
 
-/** How many items may be set to "oddam" at once. The backend also enforces it (409 on the listing PUT). */
-export const MAX_GIFT_ITEMS = 10;
-
-export const GIFT_LIMIT_MESSAGE = `Możesz mieć maksymalnie ${MAX_GIFT_ITEMS} rzeczy do oddania. Zdejmij „Oddam” z innej rzeczy.`;
-
 /** `ItemMode` <-> backend `ReservationType` — the Panel's "Moje rzeczy"
  * mode toggle persists as a standing `ItemListingPreference.mode`
  * (`/api/item-listing-preferences`), `GIFT` or `SWAP`. */

@@ -1,6 +1,7 @@
 import { api } from "./client";
 import type { ExchangeMode, ReservedByResponse } from "./groups";
 import { pageParams } from "./pagination";
+import type { PublicMediaSet } from "./media";
 
 /** Mirrors `app.groups.schemas.OwnerItemCardResponse`. */
 export interface OwnerItemCard {
@@ -72,15 +73,24 @@ export function getPartyOwnerItems(
   return api.get(`/public/parties/${encodeURIComponent(partyId)}/items?${query(page, mode)}`);
 }
 
+/** An Organization a person owns: a separate page, linked from the profile. */
+export interface OrganizationLink {
+  name: string;
+  slug: string;
+}
+
 /** Mirrors `app.groups.schemas.PartyProfileResponse`: a person's public
- * profile behind `/<party-id>`. */
-export interface PartyProfileResponse {
-  /** `slug` is set when the person owns an Organization: the client then
-   * redirects to its page. */
+ * profile behind `/<party-id>`, always the person (`owner.slug` is `null`);
+ * an Organization they own is linked through `organization`. */
+export interface PartyProfileResponse extends PublicMediaSet {
   owner: OwnerItemsPageResponse["owner"];
+  organization: OrganizationLink | null;
   bio: string | null;
-  /** The approved avatar's thumbnail, else `null`. */
-  avatar_url: string | null;
+  /** The effective layout key and the theme the person chose. */
+  page_layout: string;
+  palette_preset: string | null;
+  primary_color: string | null;
+  accent_color: string | null;
   nearest: OwnerNearestDate | null;
   counts: Record<ExchangeMode, number>;
   /** The newest listed items, at most 6. */

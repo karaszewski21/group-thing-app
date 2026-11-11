@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { PublicMedia } from "../../../api/organizations";
+import type { PublicMedia } from "../../../api/media";
 import { familyInitials } from "../../../components/shared/Avatar";
 import { isValidImageUrl } from "../../../utils/url";
 import type { BlockProps } from "../layouts/types";

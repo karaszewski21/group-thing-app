@@ -9,21 +9,23 @@ from fastapi import APIRouter, Depends, File, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
-from app.core.errors import EntityNotFoundException
+from app.core.errors import AccessDeniedException, EntityNotFoundException
 from app.db import get_db
+from app.media import service as media
+from app.media.models import MediaKind
+from app.media.schemas import OwnerMediaResponse, ReorderMediaRequest
 from app.storage.images import MAX_UPLOAD_BYTES
 from app.storage.service import ObjectStorage, get_storage
+from app.users.models import UserProfile
 from app.users.service import get_profile_by_principal
 
-from . import media, service
-from .models import MediaKind
+from . import service
+from .models import Organization
 from .schemas import (
     CreateOwnOrganizationRequest,
     MyOrganizationResponse,
     OrganizationResponse,
-    OwnerMediaResponse,
     PublicOrganizationResponse,
-    ReorderOrganizationMediaRequest,
     UpdateOrganizationRequest,
 )
 
@@ -33,6 +35,18 @@ DbSession = Annotated[AsyncSession, Depends(get_db)]
 ReadPrincipal = Annotated[Principal, Depends(require_any("READ", "mcp:read"))]
 EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
 Storage = Annotated[ObjectStorage | None, Depends(get_storage)]
+
+
+async def _require_owned(
+    db: AsyncSession, principal: Principal, organization_id: uuid.UUID
+) -> tuple[Organization, UserProfile]:
+    """404 for an unknown Organization before 403 for someone else's."""
+    profile = await get_profile_by_principal(db, principal)
+    organization = await service.get_organization(db, organization_id)
+    own = await service.get_own_organization(db, profile.party_id)
+    if own is None or own.id != organization.id:
+        raise AccessDeniedException("You do not own this Organization")
+    return organization, profile
 
 
 @router.get("/api/public/organizations/{slug}", response_model=PublicOrganizationResponse)
@@ -47,11 +61,8 @@ async def get_public_organization(
     if organization is None:
         raise EntityNotFoundException("Organization", slug)
     response = PublicOrganizationResponse.model_validate(organization)
-    if storage is None:
-        return response
-    return response.model_copy(
-        update=await media.load_public_media(db, storage, cast(uuid.UUID, organization.id))
-    )
+    public_media = await media.load_public_media(db, storage, organization.party_id)
+    return response.model_copy(update=dict(public_media))
 
 
 @router.get("/api/organizations/mine", response_model=MyOrganizationResponse)
@@ -63,9 +74,7 @@ async def get_my_organization(
     if organization is None:
         raise EntityNotFoundException("Organization", profile.party_id)
     owner_media = (
-        []
-        if storage is None
-        else await media.load_owner_media(db, storage, cast(uuid.UUID, organization.id))
+        [] if storage is None else await media.load_owner_media(db, storage, organization.party_id)
     )
     return MyOrganizationResponse(
         **OrganizationResponse.model_validate(organization).model_dump(), media=owner_media
@@ -78,10 +87,12 @@ async def get_my_organization(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_my_organization(
-    body: CreateOwnOrganizationRequest, db: DbSession, principal: EditPrincipal
+    body: CreateOwnOrganizationRequest, db: DbSession, principal: EditPrincipal, storage: Storage
 ) -> OrganizationResponse:
     profile = await get_profile_by_principal(db, principal)
-    organization = await service.create_own_organization(db, profile.party_id, body)
+    organization = await service.create_own_organization(
+        db, profile.party_id, body, storage, profile.account_user_id
+    )
     return OrganizationResponse.model_validate(organization)
 
 
@@ -110,11 +121,19 @@ async def upload_organization_media(
     storage: Storage,
     file: Annotated[UploadFile, File()],
 ) -> OwnerMediaResponse:
-    """Multipart upload (`file`) of the logo, the cover or a gallery photo.
+    """Multipart upload (`file`) of the avatar, the cover or a gallery photo.
     Reads at most one byte past the limit, so an oversized upload is refused
     without buffering it all."""
+    organization, profile = await _require_owned(db, principal, organization_id)
     data = await file.read(MAX_UPLOAD_BYTES + 1)
-    return await media.upload_media(db, storage, principal, organization_id, kind, data)
+    return await media.upload_media(
+        db,
+        storage,
+        organization.party_id,
+        cast(uuid.UUID, profile.account_user_id),
+        kind,
+        data,
+    )
 
 
 @router.patch(
@@ -122,12 +141,13 @@ async def upload_organization_media(
 )
 async def reorder_organization_media(
     organization_id: uuid.UUID,
-    body: ReorderOrganizationMediaRequest,
+    body: ReorderMediaRequest,
     db: DbSession,
     principal: EditPrincipal,
     storage: Storage,
 ) -> list[OwnerMediaResponse]:
-    return await media.reorder_gallery(db, storage, principal, organization_id, body.media_ids)
+    organization, _ = await _require_owned(db, principal, organization_id)
+    return await media.reorder_gallery(db, storage, organization.party_id, body.media_ids)
 
 
 @router.delete(
@@ -138,4 +158,5 @@ async def reorder_organization_media(
 async def delete_organization_media(
     organization_id: uuid.UUID, media_id: uuid.UUID, db: DbSession, principal: EditPrincipal
 ) -> None:
-    await media.delete_media(db, principal, organization_id, media_id)
+    organization, _ = await _require_owned(db, principal, organization_id)
+    await media.delete_media(db, organization.party_id, media_id)

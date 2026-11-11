@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { authPath } from "./auth/authPaths";
-import { PROTECTED_PREFIXES } from "./routing/paths";
+import { isAppearancePath, PROTECTED_PREFIXES } from "./routing/paths";
 
 export interface ProxyRequest {
   method: string;
@@ -16,9 +16,19 @@ export type ProxyDecision =
   | { kind: "rewrite"; destination: string };
 
 function isProtected(pathname: string): boolean {
+  if (isAppearancePath(pathname)) return true;
   return PROTECTED_PREFIXES.some((prefix) =>
     prefix.endsWith("/") ? pathname.startsWith(prefix) : pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
+}
+
+/** The removed `/:slug/terms` agenda: a `group_id` link opens that group's
+ * page, anything else the Organization's meetings. */
+function removedAgendaRedirect(pathname: string, search: string): string | null {
+  const match = /^\/([^/]+)\/terms\/?$/.exec(pathname);
+  if (!match) return null;
+  const groupId = new URLSearchParams(search).get("group_id");
+  return groupId ? `/${match[1]}/group/${encodeURIComponent(groupId)}/terms` : `/${match[1]}/meetings`;
 }
 
 export function resolveProxy(
@@ -26,6 +36,8 @@ export function resolveProxy(
   backendUrl: string,
 ): ProxyDecision {
   if (pathname === "/home") return { kind: "redirect", location: `/${search}` };
+  const removedAgenda = removedAgendaRedirect(pathname, search);
+  if (removedAgenda) return { kind: "redirect", location: removedAgenda };
   if (pathname === "/" && hasSession) return { kind: "rewrite", destination: `/home${search}` };
   // The GET is the consent page; the form POST belongs to the backend.
   if (pathname === "/oauth2/authorize" && method === "POST") {

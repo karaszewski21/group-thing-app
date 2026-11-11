@@ -11,9 +11,9 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import InventoryItem, ReservationType
 from app.groups import service
 from app.groups.models import Group
+from app.inventory.models import InventoryItem, ReservationType
 from app.product.models import Product
 from app.users.models import UserProfile
 from tests.conftest import create_location
