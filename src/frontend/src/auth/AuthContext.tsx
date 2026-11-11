@@ -13,7 +13,6 @@ import {
 } from "./session";
 
 export interface RegisterPayload {
-  role: "GUEST" | "ORGANIZER";
   email: string;
   password: string;
 }
@@ -129,7 +128,7 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          role: payload.role,
+          role: "GUEST",
           email: payload.email,
           password: payload.password,
         }),
