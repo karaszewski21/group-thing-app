@@ -22,6 +22,7 @@ from sqlalchemy import (
     Select,
     String,
     and_,
+    case,
     column,
     func,
     or_,
@@ -201,6 +202,59 @@ async def list_items_for_inventory_with_product_name(
         )
     )
     return [(item, name) for item, name in result.all()]
+
+
+def inventory_items_with_product_select(inventory_id: uuid.UUID) -> Select[Any]:
+    """`(id, inventory_id, home_inventory_id, product_id, product_name,
+    condition, added_at, created_at, updated_at, listing_status, location_id,
+    balance_status, reservation_id)` of every live item in `inventory_id`.
+    `balance_status` is `None` for an item without a balance row;
+    `reservation_id` is the newest PENDING/CONFIRMED reservation while the
+    balance is RESERVED or IN_TRANSIT, as `GET /inventory-items/{id}/balance`
+    reports it. Unexecuted, so another context can filter, count and page it
+    in its own statements."""
+    active_reservation = cast(
+        "ScalarSelect[uuid.UUID | None]",
+        (
+            select(Reservation.id)
+            .where(
+                Reservation.item_id == InventoryItem.id,
+                Reservation.status.in_((ReservationStatus.PENDING, ReservationStatus.CONFIRMED)),
+            )
+            .order_by(Reservation.reserved_at.desc(), Reservation.id.desc())
+            .limit(1)
+            .correlate(InventoryItem)
+            .scalar_subquery()
+        ),
+    )
+    return (
+        select(
+            InventoryItem.id.label("id"),
+            InventoryItem.inventory_id.label("inventory_id"),
+            InventoryItem.home_inventory_id.label("home_inventory_id"),
+            InventoryItem.product_id.label("product_id"),
+            Product.name.label("product_name"),
+            InventoryItem.condition.label("condition"),
+            InventoryItem.added_at.label("added_at"),
+            InventoryItem.created_at.label("created_at"),
+            InventoryItem.updated_at.label("updated_at"),
+            InventoryItem.listing_status.label("listing_status"),
+            InventoryItem.location_id.label("location_id"),
+            InventoryBalance.status.label("balance_status"),
+            case(
+                (
+                    InventoryBalance.status.in_(
+                        (BalanceStatus.RESERVED, BalanceStatus.IN_TRANSIT)
+                    ),
+                    active_reservation,
+                ),
+                else_=None,
+            ).label("reservation_id"),
+        )
+        .join(Product, Product.id == InventoryItem.product_id)
+        .outerjoin(InventoryBalance, InventoryBalance.item_id == InventoryItem.id)
+        .where(InventoryItem.inventory_id == inventory_id, InventoryItem.deleted_at.is_(None))
+    )
 
 
 @dataclass(frozen=True)

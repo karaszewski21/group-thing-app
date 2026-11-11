@@ -85,7 +85,7 @@ def get_shared_description(
     return fallback
 
 
-MAX_PRODUCT_PHOTOS = 10
+MAX_PRODUCT_PHOTOS = 3
 
 
 class ProductHasInventoryItemsException(BusinessConflictException):

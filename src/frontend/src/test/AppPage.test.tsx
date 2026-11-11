@@ -74,23 +74,47 @@ vi.mock("../api/groups", () => ({
   updateGroup: vi.fn(),
 }));
 
-vi.mock("../api/inventories", () => ({
+vi.mock("../api/inventories", () => {
+  const getMyInventoryItems = vi.fn();
+  return {
   getInventories: vi.fn(),
   getInventoryItemBalance: vi.fn(),
-  getMyInventoryItems: vi.fn(),
+  getMyInventoryItems,
+  // A plain function, so it survives `vi.resetAllMocks()`: the server's
+  // "Moje rzeczy" page over the latest list `getMyInventoryItems` resolved
+  // with, read without calling it so call-count assertions and queued
+  // `mock*Once` values hold. The panel re-reads the page after every list.
+  getMyInventoryItemsPage: async (
+    { mode, q }: { mode: string | null; q: string },
+    page: number,
+    size = 5,
+  ) => {
+    const settled = getMyInventoryItems.mock.settledResults.filter((r) => r.type === "fulfilled");
+    const all: inventoriesApi.MyInventoryItemResponse[] = settled.at(-1)?.value ?? [];
+    const matching = all.filter(
+      (it) => (mode === null || it.listing_mode === mode) && it.product_name.toLowerCase().includes(q.toLowerCase()),
+    );
+    return {
+      items: matching.slice((page - 1) * size, page * size),
+      total: matching.length,
+      page,
+      size,
+      counts: {
+        ALL: all.length,
+        GIFT: all.filter((it) => it.listing_mode === "GIFT").length,
+        SWAP: all.filter((it) => it.listing_mode === "SWAP").length,
+      },
+    };
+  },
   updateInventoryItem: vi.fn(),
   deleteInventoryItem: vi.fn(),
-  // Added alongside Group 7's own additions below: MyItemsView.tsx (Group 8)
-  // already calls this on every "Moje rzeczy" render — without it, every
-  // "inventory item edit/delete" test below fails on an unrelated "no
-  // export defined on the mock" error the moment that view mounts.
-  getInventoryItemBalances: vi.fn().mockResolvedValue({}),
   // MyItemsView.tsx reads this constant directly (not through a function
   // call) to decide whether a tile's mode toggles are locked — the mock
   // factory below replaces the whole module, so the constant must be
   // re-exported here too, not just the mocked functions.
   ACTIVE_LOCK_BALANCE_STATUSES: ["RESERVED", "IN_TRANSIT"],
-}));
+  };
+});
 
 vi.mock("../api/itemListingPreferences", () => ({
   setItemListingPreference: vi.fn(),
@@ -464,7 +488,6 @@ function mockGuestDefaults() {
   vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
   vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
-  vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
   vi.mocked(familiesApi.getMyFamilies).mockResolvedValue([]);
   vi.mocked(familiesApi.getMembershipsForFamily).mockResolvedValue([]);
   vi.mocked(familiesApi.getGuardians).mockResolvedValue([]);
@@ -486,7 +509,6 @@ function mockOrganizerDefaults() {
   ]);
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
   vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([]);
-  vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({});
   vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroup);
   mockTerms([]);
   vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
@@ -1800,6 +1822,8 @@ describe("AppPage — inventory item edit/delete", () => {
     listing_status: "DRAFT" as const,
     location_id: null,
     photos_moderation_pending: false,
+    balance_status: "AVAILABLE",
+    reservation_id: null,
   };
 
   function mockItems() {
@@ -1862,6 +1886,8 @@ describe("AppPage — mode toggle errors and photo-moderation poll", () => {
     listing_status: "DRAFT" as const,
     location_id: null,
     photos_moderation_pending: false,
+    balance_status: "AVAILABLE",
+    reservation_id: null,
   };
 
   beforeEach(() => {
@@ -2358,14 +2384,15 @@ describe("AppPage — MyItemsView post-term-end fallback buttons (Bug #4c, full 
     listing_status: "DRAFT" as const,
     location_id: null,
     photos_moderation_pending: false,
+    balance_status: "AVAILABLE",
+    reservation_id: null,
   };
 
   it("the tile's own 'Odebrał' fallback confirms the transaction and silently refreshes the panel", async () => {
     mockGuestDefaults();
-    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([lockedItem]);
-    vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({
-      [lockedItem.id]: { status: "IN_TRANSIT", reservationId: "88" },
-    });
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([
+      { ...lockedItem, balance_status: "IN_TRANSIT", reservation_id: "88" },
+    ]);
     vi.mocked(reservationsApi.getReservation).mockResolvedValue({
       id: "88",
       item_id: lockedItem.id,
@@ -2423,6 +2450,8 @@ describe("AppPage — MyItemsView swap accept success sheet", () => {
     listing_status: "ACTIVE" as const,
     location_id: null,
     photos_moderation_pending: false,
+    balance_status: "AVAILABLE",
+    reservation_id: null,
   };
 
   const offer = (id: string, name: string): termItemListingsApi.SwapProposalOfferResponse => ({

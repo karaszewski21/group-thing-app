@@ -67,6 +67,7 @@ from app.circulation.application.reservations import (
 from app.circulation.infrastructure.repository import (
     AvailableItemView,
     find_item_live_location_id,
+    inventory_items_with_product_select,
     list_item_products,
     list_item_refs,
     list_reservations_by_ids,
@@ -108,6 +109,7 @@ __all__ = [
     "list_active_hand_over_reservations_for_terms",
     "list_active_reservations_for_taker",
     "list_available_items_with_product",
+    "inventory_items_with_product_select",
     "list_inventories",
     "list_item_products",
     "list_item_refs",

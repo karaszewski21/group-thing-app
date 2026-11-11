@@ -934,6 +934,70 @@ async def shares_private_circle(
     return bool(await db.scalar(select(shared)))
 
 
+def _my_items(party_id: uuid.UUID, items: Select[Any]) -> Subquery:
+    """`items` (circulation's inventory-items select) plus the party's own
+    listing `mode` and `visibility`, both `None` without a preference.
+    PRIVATE preferences count: this is the owner's view of their items."""
+    inventory_items = items.subquery("inventory_items")
+    return (
+        select(
+            inventory_items,
+            ItemListingPreference.mode.label("mode"),
+            ItemListingPreference.visibility.label("visibility"),
+        )
+        .outerjoin(
+            ItemListingPreference,
+            and_(
+                ItemListingPreference.item_id == inventory_items.c.id,
+                ItemListingPreference.owner_party_id == party_id,
+            ),
+        )
+        .subquery("my_items")
+    )
+
+
+async def count_my_items_by_mode(
+    db: AsyncSession, party_id: uuid.UUID, items: Select[Any]
+) -> dict[str | None, int]:
+    """Listing mode (`None` for items without one) -> number of the party's
+    items."""
+    my_items = _my_items(party_id, items)
+    result = await db.execute(select(my_items.c.mode, func.count()).group_by(my_items.c.mode))
+    return {mode: count for mode, count in result.all()}
+
+
+async def list_my_items(
+    db: AsyncSession,
+    party_id: uuid.UUID,
+    items: Select[Any],
+    *,
+    mode: str | None = None,
+    name_query: str | None = None,
+    offset: int = 0,
+    limit: int | None = None,
+) -> tuple[list[Row[Any]], int]:
+    """The party's items, optionally of one listing `mode` and with
+    `name_query` in the product name (case-insensitive, `%`/`_` literal),
+    newest first, then id; with the number of matching items."""
+    my_items = _my_items(party_id, items)
+    conditions: list[ColumnElement[bool]] = []
+    if mode is not None:
+        conditions.append(my_items.c.mode == mode)
+    if name_query:
+        conditions.append(my_items.c.product_name.icontains(name_query, autoescape=True))
+    total = (
+        await db.execute(select(func.count()).select_from(my_items).where(*conditions))
+    ).scalar_one()
+    query = (
+        select(my_items)
+        .where(*conditions)
+        .order_by(my_items.c.created_at.desc(), my_items.c.id)
+        .offset(offset)
+        .limit(limit)
+    )
+    return list((await db.execute(query)).all()), total
+
+
 def with_pending_proposer(listed_items: Select[Any]) -> Select[Any]:
     """`listed_items` (circulation's listed-items select, reserved items
     included) plus `proposer_party_id`: the proposer of the oldest still

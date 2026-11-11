@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.circulation.models import ItemCondition, ItemListingStatus, ReservationType
+from app.circulation.models import BalanceStatus, ItemCondition, ItemListingStatus, ReservationType
 from app.media.schemas import PublicMediaResponse
 
 from .infrastructure.locations_acl import (
@@ -771,6 +771,26 @@ class MyInventoryItemResponse(BaseModel):
     location_id: uuid.UUID | None
     photos_moderation_pending: bool
     thumb_url: str | None = None
+    # As `GET /api/inventory-items/{id}/balance` reports them.
+    balance_status: BalanceStatus
+    reservation_id: uuid.UUID | None
+
+
+class MyInventoryItemCountsResponse(BaseModel):
+    # Over every item at home, ignoring the `mode` and `q` filters.
+    ALL: int
+    GIFT: int
+    SWAP: int
+
+
+class MyInventoryItemsPageResponse(BaseModel):
+    """One page of `GET /api/inventory-items/mine/page`, newest first."""
+
+    counts: MyInventoryItemCountsResponse
+    items: list[MyInventoryItemResponse]
+    total: int
+    page: int
+    size: int
 
 
 class BrowseTermItemListingResponse(BaseModel):

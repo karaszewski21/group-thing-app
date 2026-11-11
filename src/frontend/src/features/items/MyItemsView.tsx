@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "../../routing/navigation";
 import {
   ACTIVE_LOCK_BALANCE_STATUSES,
-  getInventoryItemBalances,
   type BalanceStatus,
-  type ItemBalanceSummary,
+  type MyInventoryItemResponse,
+  type MyItemsModeFilter,
 } from "../../api/inventories";
+import { useLoadMoreOnScroll } from "../../hooks/useLoadMoreOnScroll";
+import { useMyItemsPage } from "../../hooks/useMyItemsPage";
 import { serverMessageOr } from "../../api/problem";
 import { cancelTransaction, confirmTransaction, getReservation } from "../../api/reservations";
 import {
@@ -16,8 +18,14 @@ import {
   type SwapProposalOfferResponse,
 } from "../../api/termItemListings";
 import { CONDITION_LABELS } from "../../utils/productCategory";
-import { BoxIcon, PencilIcon, TrashIcon } from "../../components/shared/appIcons";
-import { capitalize, GIFT_LIMIT_MESSAGE, ITEM_MODES, MAX_GIFT_ITEMS, type ItemMode } from "../../utils/appHelpers";
+import { BoxIcon, CloseIcon, PencilIcon, SearchIcon, TrashIcon } from "../../components/shared/appIcons";
+import {
+  capitalize,
+  ITEM_MODE_TO_RESERVATION_TYPE,
+  ITEM_MODES,
+  RESERVATION_TYPE_TO_ITEM_MODE,
+  type ItemMode,
+} from "../../utils/appHelpers";
 import { useAppData } from "../panel/appDataStore";
 import { SafeImage } from "../product/ItemGallery";
 import { itemEditPath, itemPagePath } from "../product/useItemRoutes";
@@ -75,7 +83,7 @@ function StatusPill({ label }: { label: string }) {
 
 export function MyItemsView() {
   const {
-    items,
+    items: panelItems,
     itemModes,
     itemError,
     ownSlug,
@@ -85,27 +93,41 @@ export function MyItemsView() {
     load,
   } = useAppData();
 
-  // Per-item lock/pending status — kept local to this view (not lifted into
-  // AppDataContext) since nothing else needs it, per
-  // `standards/frontend/components.md`'s "keep state as close to where
-  // it's used as possible". One bounded fetch per `items` change (a single
-  // `Promise.all` round-trip, not a per-item call inside the render loop —
-  // see `api/inventories.ts`'s `getInventoryItemBalances`), not on every
-  // render.
-  const [itemBalances, setItemBalances] = useState<Record<string, ItemBalanceSummary>>({});
-  useEffect(() => {
-    if (items.length === 0) {
-      setItemBalances({});
-      return;
-    }
-    let cancelled = false;
-    void getInventoryItemBalances(items.map((it) => it.id)).then((balances) => {
-      if (!cancelled) setItemBalances(balances);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [items]);
+  const [filter, setFilter] = useState<ItemMode | null>(null);
+  const [query, setQuery] = useState("");
+  const paged = useMyItemsPage(
+    filter ? (ITEM_MODE_TO_RESERVATION_TYPE[filter] as MyItemsModeFilter) : null,
+    query,
+  );
+  const { counts, hasNextPage, fetchingNextPage, nextPageError, fetchNextPage } = paged;
+  const loadMore = useCallback(() => void fetchNextPage(), [fetchNextPage]);
+  const sentinel = useLoadMoreOnScroll(
+    loadMore,
+    !paged.loading && hasNextPage && !fetchingNextPage && nextPageError === null,
+  );
+
+  // The page decides which items show and in what order; the panel's copy
+  // of an item, updated at once by every save and photo poll, wins.
+  const panelById = useMemo(() => new Map(panelItems.map((it) => [it.id, it])), [panelItems]);
+  const items = useMemo(
+    () => paged.items.map((it) => panelById.get(it.id) ?? it),
+    [paged.items, panelById],
+  );
+  const modeOf = (it: MyInventoryItemResponse): ItemMode | null =>
+    panelById.has(it.id)
+      ? (itemModes[it.id] ?? null)
+      : ((it.listing_mode && RESERVATION_TYPE_TO_ITEM_MODE[it.listing_mode]) ?? null);
+
+  // Each item carries its lock (`balance_status`) and active reservation.
+  const itemsById = new Map(items.map((it) => [it.id, it]));
+  const lockedReservationIdsKey = Array.from(
+    new Set(
+      items
+        .filter((it) => ACTIVE_LOCK_BALANCE_STATUSES.includes(it.balance_status))
+        .map((it) => it.reservation_id)
+        .filter((id): id is string => id !== null),
+    ),
+  ).join(",");
 
   // Bug #4c: whether the active reservation's Term has already occurred,
   // keyed by `reservationId` — mirrors `TermPage.tsx`'s
@@ -119,14 +141,7 @@ export function MyItemsView() {
   // waiting for its proposal's accept is released only by a reject.
   const [reservationTermInfo, setReservationTermInfo] = useState<Record<string, ReservationTermInfo>>({});
   useEffect(() => {
-    const lockedReservationIds = Array.from(
-      new Set(
-        Object.values(itemBalances)
-          .filter((b) => ACTIVE_LOCK_BALANCE_STATUSES.includes(b.status))
-          .map((b) => b.reservationId)
-          .filter((id): id is string => id !== null),
-      ),
-    );
+    const lockedReservationIds = lockedReservationIdsKey === "" ? [] : lockedReservationIdsKey.split(",");
     if (lockedReservationIds.length === 0) {
       setReservationTermInfo({});
       return;
@@ -150,9 +165,8 @@ export function MyItemsView() {
     return () => {
       cancelled = true;
     };
-  }, [itemBalances]);
+  }, [lockedReservationIdsKey]);
 
-  const [filter, setFilter] = useState<ItemMode | null>(null);
   const [actionBusyItemId, setActionBusyItemId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -164,7 +178,7 @@ export function MyItemsView() {
   const [acceptBusyProposalId, setAcceptBusyProposalId] = useState<string | null>(null);
   const [acceptedSwap, setAcceptedSwap] = useState<AcceptedSwap | null>(null);
   const [personalSwapAccepted, setPersonalSwapAccepted] = useState(false);
-  const swapItemIds = items.filter((it) => itemModes[it.id] === "zamienię").map((it) => it.id);
+  const swapItemIds = items.filter((it) => modeOf(it) === "zamienię").map((it) => it.id);
   const swapItemIdsKey = swapItemIds.join(",");
 
   useEffect(() => {
@@ -222,20 +236,20 @@ export function MyItemsView() {
   /** Confirm/cancel are open once the term has passed (personal: at once),
    * never on an unpaired SWAP leg. */
   function canSettle(itemId: string): boolean {
-    const reservationId = itemBalances[itemId]?.reservationId;
+    const reservationId = itemsById.get(itemId)?.reservation_id;
     if (reservationId == null) return false;
     const info = reservationTermInfo[reservationId];
     return info !== undefined && info.hasEnded && !info.isUnpairedSwap;
   }
 
   function isGift(itemId: string): boolean {
-    const reservationId = itemBalances[itemId]?.reservationId;
+    const reservationId = itemsById.get(itemId)?.reservation_id;
     if (reservationId == null) return false;
     return reservationTermInfo[reservationId]?.isGift === true;
   }
 
   async function handleConfirmReceipt(itemId: string) {
-    const reservationId = itemBalances[itemId]?.reservationId;
+    const reservationId = itemsById.get(itemId)?.reservation_id;
     if (reservationId == null) return;
     setActionError(null);
     setActionBusyItemId(itemId);
@@ -250,7 +264,7 @@ export function MyItemsView() {
   }
 
   async function handleCancelTransaction(itemId: string) {
-    const reservationId = itemBalances[itemId]?.reservationId;
+    const reservationId = itemsById.get(itemId)?.reservation_id;
     if (reservationId == null) return;
     setActionError(null);
     setActionBusyItemId(itemId);
@@ -264,13 +278,7 @@ export function MyItemsView() {
     }
   }
 
-  const giftCount = items.filter((i) => itemModes[i.id] === "oddam").length;
-  const giftLimitReached = giftCount >= MAX_GIFT_ITEMS;
-  const shownItems = filter ? items.filter((it) => itemModes[it.id] === filter) : items;
-  const filterChip = (on: boolean, tone: string) =>
-    `min-h-10 rounded-full px-3.5 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
-      on ? "bg-ink text-on-ink" : tone
-    }`;
+  const hasAnyItem = counts.ALL > 0;
 
   return (
     <div>
@@ -280,38 +288,64 @@ export function MyItemsView() {
         </p>
       )}
 
-      {items.length > 0 && (
-        <div role="group" aria-label="Filtruj rzeczy" className="mb-3 flex flex-wrap gap-2">
-          <button type="button" aria-pressed={filter === null} onClick={() => setFilter(null)} className={filterChip(filter === null, "bg-paper text-ink border-[1.5px] border-line")}>
-            Wszystkie {items.length}
-          </button>
-          {ITEM_MODES.map((m) => {
-            const count = items.filter((it) => itemModes[it.id] === m).length;
-            return (
+      {paged.error && (
+        <p role="alert" className="mb-3 text-center text-[13px] font-semibold text-danger">
+          Nie udało się wczytać rzeczy — {paged.error}
+        </p>
+      )}
+
+      {hasAnyItem && (
+        <div role="search" aria-label="Filtruj rzeczy" className="mb-3 flex gap-2">
+          <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-full border-[1.5px] border-line bg-paper pr-1 pl-3.5 focus-within:border-primary">
+            <SearchIcon />
+            <label htmlFor="my-items-search" className="sr-only">
+              Szukaj po nazwie
+            </label>
+            <input
+              id="my-items-search"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Szukaj po nazwie"
+              className="h-10 min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-soft [&::-webkit-search-cancel-button]:hidden"
+            />
+            {query && (
               <button
-                key={m}
                 type="button"
-                aria-pressed={filter === m}
-                onClick={() => setFilter(filter === m ? null : m)}
-                className={filterChip(filter === m, MODE_TONE[m])}
+                onClick={() => setQuery("")}
+                aria-label="Wyczyść wyszukiwanie"
+                className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-cream text-ink"
               >
-                {capitalize(m)} {count}
+                <CloseIcon />
               </button>
-            );
-          })}
+            )}
+          </div>
+          <label htmlFor="my-items-mode" className="sr-only">
+            Tryb
+          </label>
+          <select
+            id="my-items-mode"
+            value={filter ?? ""}
+            onChange={(e) => setFilter(e.target.value === "" ? null : (e.target.value as ItemMode))}
+            className="min-h-11 flex-none rounded-full border-[1.5px] border-line bg-paper px-3.5 text-sm font-bold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          >
+            <option value="">Wszystkie ({counts.ALL})</option>
+            {ITEM_MODES.map((m) => (
+              <option key={m} value={m}>
+                {capitalize(m)} ({counts[ITEM_MODE_TO_RESERVATION_TYPE[m] as MyItemsModeFilter]})
+              </option>
+            ))}
+          </select>
         </div>
       )}
 
-      <p
-        id="gift-limit-hint"
-        className={`mb-3 text-[13px] ${giftLimitReached ? "font-bold text-ink" : "text-ink-soft"}`}
-      >
-        Do oddania: {giftCount}/{MAX_GIFT_ITEMS}
-        {giftLimitReached && <> — {GIFT_LIMIT_MESSAGE}</>}
-      </p>
-
       <div className="flex flex-col gap-3">
-        {items.length === 0 && (
+        {paged.loading && (
+          <p role="status" className="py-6 text-center text-[15px] text-ink-soft">
+            Wczytywanie rzeczy…
+          </p>
+        )}
+        {!paged.loading && !paged.error && !hasAnyItem && (
           <section className="flex flex-col items-center gap-2.5 rounded-[26px] border-2 border-dashed border-line-strong bg-paper px-5.5 py-7 text-center">
             <svg aria-hidden="true" width="112" height="112" viewBox="0 0 112 112">
               <circle cx="56" cy="56" r="44" className="fill-primary-soft" />
@@ -343,10 +377,15 @@ export function MyItemsView() {
             </Link>
           </section>
         )}
-        {shownItems.map((it) => {
-          const mode = itemModes[it.id] ?? null;
-          const locked = ACTIVE_LOCK_BALANCE_STATUSES.includes(itemBalances[it.id]?.status ?? "AVAILABLE");
-          const badgeLabel = lockBadgeLabel(itemBalances[it.id]?.status);
+        {hasAnyItem && !paged.loading && items.length === 0 && (
+          <p role="status" className="py-6 text-center text-[15px] text-ink-soft">
+            Brak rzeczy pasujących do filtra.
+          </p>
+        )}
+        {items.map((it) => {
+          const mode = modeOf(it);
+          const locked = ACTIVE_LOCK_BALANCE_STATUSES.includes(it.balance_status);
+          const badgeLabel = lockBadgeLabel(it.balance_status);
           // Informational only: pending photos dash the card border; the mode stays selectable.
           const photosPending = it.photos_moderation_pending === true;
           return (
@@ -430,16 +469,13 @@ export function MyItemsView() {
               <div className="relative z-10 mt-3 flex gap-1.5">
                 {ITEM_MODES.map((m) => {
                   const on = mode === m;
-                  const overGiftLimit = m === "oddam" && !on && giftLimitReached;
-                  const disabled = locked || overGiftLimit;
                   return (
                     <button
                       key={m}
                       onClick={() => void setItemMode(it.id, m)}
                       aria-pressed={on}
-                      disabled={disabled}
-                      aria-disabled={disabled}
-                      aria-describedby={overGiftLimit ? "gift-limit-hint" : undefined}
+                      disabled={locked}
+                      aria-disabled={locked}
                       className={`min-h-9 flex-1 rounded-full px-2 text-[13px] font-extrabold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                         on ? MODE_TONE[m] : "border-[1.5px] border-dashed border-line-strong text-ink-soft hover:text-ink"
                       }`}
@@ -453,16 +489,16 @@ export function MyItemsView() {
 
               <div className="relative z-10 mt-2">
                 {mode ? (
-                  <>
+                  <div className="flex items-center gap-2">
                     <VisibilityToggle
                       value={it.listing_visibility ?? "PUBLIC"}
                       onChange={(v) => void setItemVisibility(it.id, mode, v)}
                       itemName={it.product_name}
                     />
                     {it.listing_visibility === "PRIVATE" && (
-                      <p className="mt-1 text-xs text-ink-soft">{PRIVATE_HINT}</p>
+                      <p className="text-xs text-ink-soft">{PRIVATE_HINT}</p>
                     )}
-                  </>
+                  </div>
                 ) : (
                   <p className="text-xs text-ink-soft">{NO_MODE_HINT}</p>
                 )}
@@ -494,6 +530,26 @@ export function MyItemsView() {
             </div>
           );
         })}
+        {hasNextPage && <div ref={sentinel} aria-hidden="true" className="h-px" />}
+        {fetchingNextPage && (
+          <p role="status" className="text-center text-[13px] text-ink-soft">
+            Wczytywanie kolejnych rzeczy…
+          </p>
+        )}
+        {nextPageError && (
+          <div className="flex flex-col items-center gap-1.5">
+            <p role="alert" className="text-center text-xs font-semibold text-danger">
+              Nie udało się wczytać kolejnych rzeczy
+            </p>
+            <button
+              type="button"
+              onClick={() => void fetchNextPage()}
+              className="min-h-11 rounded-full border-[1.5px] border-line bg-paper px-4 text-sm font-bold text-ink hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            >
+              Spróbuj ponownie
+            </button>
+          </div>
+        )}
         {itemError && <p className="mt-2 text-[13px] font-semibold text-danger">{itemError}</p>}
       </div>
 

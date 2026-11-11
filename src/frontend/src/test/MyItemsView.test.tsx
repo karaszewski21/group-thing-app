@@ -5,7 +5,6 @@ import { MyItemsView } from "../features/items/MyItemsView";
 import * as appDataStore from "../features/panel/appDataStore";
 import type { AppDataContextValue } from "../features/panel/AppDataContext";
 import * as authContext from "../auth/AuthContext";
-import * as inventoriesApi from "../api/inventories";
 import type { MyInventoryItemResponse } from "../api/inventories";
 import * as reservationsApi from "../api/reservations";
 import type { ReservationDetailResponse, ReservationType } from "../api/reservations";
@@ -14,6 +13,13 @@ import type { AcceptedSwapProposalResponse, SwapProposalOfferResponse } from "..
 import { api } from "../api/client";
 import { setItemListingPreference } from "../api/itemListingPreferences";
 import { createQueryWrapper } from "./queryClient";
+import { myItemsPageMock, pageResult, resetMyItemsPageMock } from "./myItemsPageMock";
+
+vi.mock("../hooks/useMyItemsPage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../hooks/useMyItemsPage")>();
+  const { useFakeMyItemsPage } = await import("./myItemsPageMock");
+  return { ...actual, useMyItemsPage: useFakeMyItemsPage };
+});
 
 vi.mock("../features/panel/appDataStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../features/panel/appDataStore")>();
@@ -23,14 +29,6 @@ vi.mock("../features/panel/appDataStore", async (importOriginal) => {
 vi.mock("../auth/AuthContext", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../auth/AuthContext")>();
   return { ...actual, useAuth: vi.fn() };
-});
-
-vi.mock("../api/inventories", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../api/inventories")>();
-  return {
-    ...actual,
-    getInventoryItemBalances: vi.fn(),
-  };
 });
 
 vi.mock("../api/reservations", async (importOriginal) => {
@@ -58,6 +56,8 @@ const item: MyInventoryItemResponse = {
   listing_status: "ACTIVE",
   photos_moderation_pending: false,
   location_id: "loc-1",
+  balance_status: "AVAILABLE",
+  reservation_id: null,
 };
 
 /** A future-dated term reservation would hide the buttons; `personal_pickup`
@@ -97,8 +97,14 @@ function setup({
     token: "test-token",
     username: "me",
   } as ReturnType<typeof authContext.useAuth>);
+  // A reservation locks the first fixture item, as the server reports it.
+  const shownItems = items.map((it) =>
+    reservation && it.id === item.id
+      ? { ...it, balance_status: "RESERVED" as const, reservation_id: reservation.id }
+      : it,
+  );
   vi.mocked(appDataStore.useAppData).mockReturnValue({
-    items,
+    items: shownItems,
     itemModes,
     itemError: null,
     setItemMode: vi.fn(),
@@ -106,11 +112,6 @@ function setup({
     handleDeleteItem: vi.fn(),
     load: vi.fn().mockResolvedValue(undefined),
   } as unknown as AppDataContextValue);
-  vi.mocked(inventoriesApi.getInventoryItemBalances).mockResolvedValue({
-    [item.id]: reservation
-      ? { status: "RESERVED", reservationId: reservation.id }
-      : { status: "AVAILABLE", reservationId: null },
-  });
   if (reservation) vi.mocked(reservationsApi.getReservation).mockResolvedValue(reservation);
   vi.mocked(termItemListingsApi.getSwapProposalsForItem).mockResolvedValue([]);
 }
@@ -130,7 +131,7 @@ describe("MyItemsView — no inventory location card", () => {
 
     expect(await screen.findByText(item.product_name)).toBeInTheDocument();
     expect(screen.queryByText("Gdzie są moje rzeczy?")).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("combobox")).toEqual([screen.getByRole("combobox", { name: "Tryb" })]);
   });
 });
 
@@ -261,9 +262,9 @@ describe("MyItemsView — item visibility", () => {
     });
     renderWithProviders();
 
-    const group = await screen.findByRole("group", { name: `Widoczność: ${item.product_name}` });
-    expect(within(group).getByRole("button", { name: "Publiczna" })).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(within(group).getByRole("button", { name: "Prywatna" }));
+    const lock = await screen.findByRole("button", { name: `Prywatna: ${item.product_name}` });
+    expect(lock).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(lock);
 
     const { setItemVisibility, setItemMode } = vi.mocked(appDataStore.useAppData)();
     expect(setItemVisibility).toHaveBeenCalledWith(item.id, "zamienię", "PRIVATE");
@@ -289,8 +290,7 @@ describe("MyItemsView — item visibility", () => {
     renderWithProviders();
 
     expect(await screen.findByText(NO_MODE_HINT)).toBeInTheDocument();
-    expect(screen.queryByRole("group", { name: `Widoczność: ${item.product_name}` })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Prywatna" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: `Prywatna: ${item.product_name}` })).not.toBeInTheDocument();
   });
 
   it("a private item shows its hint", async () => {
@@ -301,7 +301,7 @@ describe("MyItemsView — item visibility", () => {
     renderWithProviders();
 
     expect(await screen.findByText(PRIVATE_HINT)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Prywatna" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: `Prywatna: ${item.product_name}` })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByText(NO_MODE_HINT)).not.toBeInTheDocument();
   });
 
@@ -339,5 +339,77 @@ describe("MyItemsView — cancelling a personal reservation", () => {
     await waitFor(() => expect(reservationsApi.cancelTransaction).toHaveBeenCalledWith("res-1"));
     const { load } = vi.mocked(appDataStore.useAppData).mock.results[0].value as AppDataContextValue;
     await waitFor(() => expect(load).toHaveBeenCalledWith({ silent: true }));
+  });
+});
+
+describe("MyItemsView — filter bar", () => {
+  const scooter: MyInventoryItemResponse = { ...item, id: "item-2", product_name: "Hulajnoga", listing_mode: "SWAP" };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    resetMyItemsPageMock();
+  });
+
+  it("the select shows the server counts and asks for one mode", async () => {
+    setup({ items: [item, scooter], itemModes: { [scooter.id]: "zamienię" } });
+    myItemsPageMock.result = pageResult([item, scooter], { counts: { ALL: 12, GIFT: 4, SWAP: 7 } });
+    renderWithProviders();
+
+    const select = await screen.findByRole("combobox", { name: "Tryb" });
+    expect(within(select).getByRole("option", { name: "Wszystkie (12)" })).toBeInTheDocument();
+    expect(within(select).getByRole("option", { name: "Oddam (4)" })).toBeInTheDocument();
+    expect(within(select).getByRole("option", { name: "Zamienię (7)" })).toBeInTheDocument();
+    expect(myItemsPageMock.calls.at(-1)).toEqual([null, ""]);
+
+    fireEvent.change(select, { target: { value: "zamienię" } });
+
+    expect(myItemsPageMock.calls.at(-1)).toEqual(["SWAP", ""]);
+  });
+
+  it("the search passes the typed name together with the mode and clears it", async () => {
+    setup();
+    renderWithProviders();
+
+    fireEvent.change(await screen.findByRole("combobox", { name: "Tryb" }), { target: { value: "oddam" } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Szukaj po nazwie" }), {
+      target: { value: "Rower" },
+    });
+    expect(myItemsPageMock.calls.at(-1)).toEqual(["GIFT", "Rower"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Wyczyść wyszukiwanie" }));
+    expect(myItemsPageMock.calls.at(-1)).toEqual(["GIFT", ""]);
+  });
+
+  it("an empty filtered page keeps the bar and says nothing matches", async () => {
+    setup();
+    myItemsPageMock.result = pageResult([], { counts: { ALL: 3, GIFT: 0, SWAP: 3 } });
+    renderWithProviders();
+
+    expect(await screen.findByText("Brak rzeczy pasujących do filtra.")).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Szukaj po nazwie" })).toBeInTheDocument();
+    expect(screen.queryByText("Nie masz jeszcze żadnej rzeczy")).not.toBeInTheDocument();
+  });
+
+  it("without any item shows the empty state and no filter bar", async () => {
+    setup({ items: [] });
+    renderWithProviders();
+
+    expect(await screen.findByText("Nie masz jeszcze żadnej rzeczy")).toBeInTheDocument();
+    expect(screen.queryByRole("search", { name: "Filtruj rzeczy" })).not.toBeInTheDocument();
+  });
+
+  it("a failed next page offers a retry", async () => {
+    setup();
+    const fetchNextPage = vi.fn().mockResolvedValue(undefined);
+    myItemsPageMock.result = pageResult([item], {
+      hasNextPage: true,
+      nextPageError: "Błąd serwera",
+      fetchNextPage,
+    });
+    renderWithProviders();
+
+    expect(await screen.findByText("Nie udało się wczytać kolejnych rzeczy")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
+    expect(fetchNextPage).toHaveBeenCalled();
   });
 });

@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from typing import cast
+from typing import Any, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import Row, Select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
@@ -35,6 +35,7 @@ from app.core.errors import (
     BusinessConflictException,
     EntityNotFoundException,
 )
+from app.core.pagination import PageParams
 from app.storage.service import ObjectStorage
 from app.users.models import UserProfile
 from app.users.service import (
@@ -57,10 +58,13 @@ from ..models import (
 from ..schemas import (
     AcceptedSwapProposalResponse,
     BrowseTermItemListingResponse,
+    ExchangeMode,
     ItemProposeRequest,
     ItemTakeRequest,
     ItemTakeResponse,
+    MyInventoryItemCountsResponse,
     MyInventoryItemResponse,
+    MyInventoryItemsPageResponse,
     PublicItemListingResponse,
     SwapProposalOfferResponse,
     SwapProposalResponse,
@@ -83,14 +87,6 @@ _ACTIVE_RESERVATION_STATUSES = (
     circulation_bridge.ReservationStatus.PENDING,
     circulation_bridge.ReservationStatus.CONFIRMED,
 )
-
-MAX_GIFT_ITEMS = 10
-_GIFT_LIMIT_MESSAGE = f"Możesz mieć maksymalnie {MAX_GIFT_ITEMS} rzeczy do oddania. "
-GIFT_LIMIT_ON_REGISTER_MESSAGE = (
-    _GIFT_LIMIT_MESSAGE + "Wybierz „Zamienię” albo zapisz wersję roboczą."
-)
-GIFT_LIMIT_ON_SET_MESSAGE = _GIFT_LIMIT_MESSAGE + "Zdejmij „Oddam” z innej rzeczy."
-
 
 class TermAlreadyResolvedException(BusinessConflictException):
     """Raised by `confirm_transaction` when the *other* party to a
@@ -124,27 +120,6 @@ async def _require_own_available_personal_item(
     return item
 
 
-async def _require_gift_capacity(
-    db: AsyncSession, owner_party_id: uuid.UUID, item_id: uuid.UUID, message: str
-) -> None:
-    """One COUNT of the owner's GIFT preferences other than `item_id`'s own,
-    shared by register and set. A soft limit: two concurrent requests can
-    both pass it."""
-    gifts = (
-        await db.execute(
-            select(func.count())
-            .select_from(ItemListingPreference)
-            .where(
-                ItemListingPreference.owner_party_id == owner_party_id,
-                ItemListingPreference.mode == circulation_bridge.ReservationType.GIFT.value,
-                ItemListingPreference.item_id != item_id,
-            )
-        )
-    ).scalar_one()
-    if gifts >= MAX_GIFT_ITEMS:
-        raise BusinessConflictException(message)
-
-
 async def list_registered_item(
     db: AsyncSession,
     item: circulation_bridge.InventoryItem,
@@ -160,8 +135,6 @@ async def list_registered_item(
         raise AccessDeniedException
     profile = await get_profile_by_account_user_id(db, inventory.owner_user_id)
     item_id = cast(uuid.UUID, item.id)
-    if mode == circulation_bridge.ReservationType.GIFT:
-        await _require_gift_capacity(db, profile.party_id, item_id, GIFT_LIMIT_ON_REGISTER_MESSAGE)
     db.add(ItemListingPreference(item_id=item_id, owner_party_id=profile.party_id, mode=mode.value))
     await db.flush()
 
@@ -178,8 +151,7 @@ async def set_item_listing_preference(
     DRAFT in the same commit. A `None` `visibility` keeps the row's current
     one, and a new row starts PUBLIC. Ownership-only check (no availability
     requirement) — unlike taking a listing, expressing intent to gift/swap
-    an item shouldn't be blocked by its current balance. Setting GIFT is
-    refused at `MAX_GIFT_ITEMS`. A first listing (DRAFT to ACTIVE) needs the
+    an item shouldn't be blocked by its current balance. A first listing (DRAFT to ACTIVE) needs the
     item's live location; changing an existing listing never does, so a
     deleted place leaves listings as they are. The item row is read under
     FOR UPDATE, so concurrent status writes serialize against this one."""
@@ -204,9 +176,6 @@ async def set_item_listing_preference(
     if existing is None and await circulation_bridge.get_item_live_location_id(db, item_id) is None:
         raise BusinessConflictException("Ustaw lokalizację przedmiotu, aby go wystawić")
 
-    if mode == circulation_bridge.ReservationType.GIFT:
-        await _require_gift_capacity(db, profile.party_id, item_id, GIFT_LIMIT_ON_SET_MESSAGE)
-
     if existing is not None:
         existing.mode = mode.value
         existing.owner_party_id = profile.party_id
@@ -229,30 +198,43 @@ async def set_item_listing_preference(
     return preference
 
 
-async def list_my_inventory_items(
-    db: AsyncSession, principal: Principal, storage: ObjectStorage | None = None
-) -> list[MyInventoryItemResponse]:
-    """The caller's items physically in their PERSONAL inventory, with each
-    item's standing listing mode, used by
-    `Moje rzeczy` to list items and seed each mode toggle on load. Items
-    whose product has a photo in moderation are flagged (one batched query,
-    informational only — it does not block listing). With `storage`, each item
-    carries its product's first approved photo as `thumb_url` (one more
-    batched query)."""
+async def _my_inventory_rows(
+    db: AsyncSession,
+    principal: Principal,
+    *,
+    mode: ExchangeMode | None = None,
+    name_query: str | None = None,
+    pagination: PageParams | None = None,
+) -> tuple[uuid.UUID, Select[Any] | None, list[Row[Any]], int]:
+    """`(party_id, items_select, rows, total)` of the caller's items at home;
+    `items_select` is `None` and the rows empty without a PERSONAL inventory."""
     profile = await get_profile_by_principal(db, principal)
     inventory = await circulation_bridge.find_personal_inventory(
         db, cast(uuid.UUID, profile.account_user_id)
     )
     if inventory is None:
-        return []
-    rows = await circulation_bridge.list_items_with_product_name(db, cast(uuid.UUID, inventory.id))
-    preferences = {
-        pref.item_id: pref
-        for pref in await repository.list_item_listing_preferences_for_party(
-            db, profile.party_id, include_private=True
-        )
-    }
-    product_ids = {item.product_id for item, _ in rows}
+        return profile.party_id, None, [], 0
+    items = circulation_bridge.inventory_items_with_product_select(cast(uuid.UUID, inventory.id))
+    rows, total = await repository.list_my_items(
+        db,
+        profile.party_id,
+        items,
+        mode=mode,
+        name_query=name_query,
+        offset=pagination.offset if pagination is not None else 0,
+        limit=pagination.size if pagination is not None else None,
+    )
+    return profile.party_id, items, rows, total
+
+
+async def _my_inventory_item_responses(
+    db: AsyncSession, rows: list[Row[Any]], storage: ObjectStorage | None
+) -> list[MyInventoryItemResponse]:
+    """Items whose product has a photo in moderation are flagged (one
+    batched query, informational only — it does not block listing). With
+    `storage`, each item carries its product's first approved photo as
+    `thumb_url` (one more batched query)."""
+    product_ids = {row.product_id for row in rows}
     pending = await product_bridge.product_ids_with_unmoderated_photos(db, product_ids)
     photos = (
         await product_bridge.first_approved_photo_by_product(db, product_ids)
@@ -261,29 +243,70 @@ async def list_my_inventory_items(
     )
     return [
         MyInventoryItemResponse(
-            id=cast(uuid.UUID, item.id),
-            inventory_id=item.inventory_id,
-            home_inventory_id=item.home_inventory_id,
-            product_id=item.product_id,
-            product_name=product_name,
-            condition=item.condition,
-            added_at=item.added_at,
-            created_at=item.created_at,
-            updated_at=item.updated_at,
-            listing_mode=preference.mode if preference else None,
-            listing_visibility=preference.visibility if preference else None,
-            listing_status=item.listing_status,
-            location_id=item.location_id,
-            photos_moderation_pending=item.product_id in pending,
+            id=row.id,
+            inventory_id=row.inventory_id,
+            home_inventory_id=row.home_inventory_id,
+            product_id=row.product_id,
+            product_name=row.product_name,
+            condition=row.condition,
+            added_at=row.added_at,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+            listing_mode=row.mode,
+            listing_visibility=row.visibility,
+            listing_status=row.listing_status,
+            location_id=row.location_id,
+            photos_moderation_pending=row.product_id in pending,
             thumb_url=(
-                storage.public_url(photos[item.product_id].thumb_key)
-                if storage is not None and item.product_id in photos
+                storage.public_url(photos[row.product_id].thumb_key)
+                if storage is not None and row.product_id in photos
                 else None
             ),
+            balance_status=row.balance_status or circulation_bridge.BalanceStatus.AVAILABLE,
+            reservation_id=row.reservation_id,
         )
-        for item, product_name in rows
-        for preference in [preferences.get(cast(uuid.UUID, item.id))]
+        for row in rows
     ]
+
+
+async def list_my_inventory_items(
+    db: AsyncSession, principal: Principal, storage: ObjectStorage | None = None
+) -> list[MyInventoryItemResponse]:
+    """The caller's items physically in their PERSONAL inventory, newest
+    first, with each item's standing listing mode, used by the panel to seed
+    each mode toggle on load."""
+    _, _, rows, _ = await _my_inventory_rows(db, principal)
+    return await _my_inventory_item_responses(db, rows, storage)
+
+
+async def list_my_inventory_items_page(
+    db: AsyncSession,
+    principal: Principal,
+    pagination: PageParams,
+    mode: ExchangeMode | None,
+    name_query: str | None,
+    storage: ObjectStorage | None = None,
+) -> MyInventoryItemsPageResponse:
+    """One page of `list_my_inventory_items`, optionally of one listing mode
+    and with `name_query` in the name, plus the per-mode counts over every
+    item at home."""
+    party_id, items, rows, total = await _my_inventory_rows(
+        db, principal, mode=mode, name_query=name_query, pagination=pagination
+    )
+    counts = (
+        await repository.count_my_items_by_mode(db, party_id, items) if items is not None else {}
+    )
+    return MyInventoryItemsPageResponse(
+        counts=MyInventoryItemCountsResponse(
+            ALL=sum(counts.values()),
+            GIFT=counts.get(circulation_bridge.ReservationType.GIFT.value, 0),
+            SWAP=counts.get(circulation_bridge.ReservationType.SWAP.value, 0),
+        ),
+        items=await _my_inventory_item_responses(db, rows, storage),
+        total=total,
+        page=pagination.page,
+        size=pagination.size,
+    )
 
 
 async def _takeable_preferences(

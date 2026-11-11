@@ -1,6 +1,6 @@
 """`/api/products/{product_id}/photos`: the catalog product's gallery, shared
 by every inventory item of that product — multipart upload (sanitized to
-WebP in two sizes, EXIF stripped, stored in object storage), the 10-photo
+WebP in two sizes, EXIF stripped, stored in object storage), the 3-photo
 limit and duplicates, remove with dense renumbering and file deletion via
 the outbox, reorder by exact permutation; mutations only for owners of an
 item of the product; with moderation on, new photos stay private and are
@@ -135,7 +135,7 @@ async def test_addProductPhoto_invalidOrTooLargeFile_returns400WithoutStoring(
     assert fake_storage.objects == {}
 
 
-async def test_addProductPhoto_eleventhOrDuplicate_returns409WithPolishMessage(
+async def test_addProductPhoto_fourthOrDuplicate_returns409WithPolishMessage(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     token, _ = await _register(client, "GUEST", "pph.a2@example.com")
@@ -147,12 +147,12 @@ async def test_addProductPhoto_eleventhOrDuplicate_returns409WithPolishMessage(
     assert duplicate.status_code == 409
     assert duplicate.json()["message"] == "To zdjęcie jest już w galerii"
 
-    for seed in range(1, 10):
+    for seed in range(1, 3):
         await _add_photo(client, token, product_id, seed)
-    eleventh = await _upload(client, token, product_id, _image(10))
-    assert eleventh.status_code == 409
-    assert eleventh.json()["message"] == "Osiągnięto limit 10 zdjęć"
-    assert len(await _list_photos(client, token, product_id)) == 10
+    fourth = await _upload(client, token, product_id, _image(3))
+    assert fourth.status_code == 409
+    assert fourth.json()["message"] == "Osiągnięto limit 3 zdjęć"
+    assert len(await _list_photos(client, token, product_id)) == 3
 
 
 async def test_productPhotoRoutes_unknownProduct_return404(

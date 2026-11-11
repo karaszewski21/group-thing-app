@@ -1,7 +1,7 @@
 """`InventoryItem.listing_status` in lockstep with `ItemListingPreference`:
 register with an optional `listing_mode` (one commit, PERSONAL inventory
-only), `PUT /api/item-listing-preferences/{id}` set/clear, the 10-item gift
-limit on both paths, and a confirmed GIFT arriving at its new owner as a
+only), `PUT /api/item-listing-preferences/{id}` set/clear, no cap on gift
+listings on either path, and a confirmed GIFT arriving at its new owner as a
 draft. The invariant checked throughout: ACTIVE exactly when a pref row
 exists."""
 
@@ -27,14 +27,6 @@ from tests.test_term_item_listings import (
     _resolve_product,
     _rsvp,
     _take_in_term,
-)
-
-REGISTER_LIMIT_MESSAGE = (
-    "Możesz mieć maksymalnie 10 rzeczy do oddania. "
-    "Wybierz „Zamienię” albo zapisz wersję roboczą."
-)
-PUT_LIMIT_MESSAGE = (
-    "Możesz mieć maksymalnie 10 rzeczy do oddania. Zdejmij „Oddam” z innej rzeczy."
 )
 
 
@@ -161,9 +153,7 @@ async def test_setPreference_setThenClear_flipsActiveThenDraft(client: AsyncClie
     assert await _mine(client, token) == {item_id: (None, "DRAFT")}
 
 
-async def test_registerItem_eleventhGift_returns409AndPersistsNothing(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_registerItem_eleventhGift_isAccepted(client: AsyncClient) -> None:
     token, _ = await _register(client, "GUEST", "ils.limit1@example.com")
     inventory_id = await _inventory(client, token)
     product_id = await _resolve_product(client, token, "Książka ILS")
@@ -173,17 +163,11 @@ async def test_registerItem_eleventhGift_returns409AndPersistsNothing(
 
     eleventh = await _post_item(client, token, inventory_id, product_id, "GIFT")
 
-    assert eleventh["status"] == 409, eleventh["body"]
-    assert eleventh["body"]["message"] == REGISTER_LIMIT_MESSAGE
-    await db_session.rollback()
-    assert await _item_count(db_session, inventory_id) == 10
-    swap = await _post_item(client, token, inventory_id, product_id, "SWAP")
-    assert swap["status"] == 201, swap["body"]
+    assert eleventh["status"] == 201, eleventh["body"]
+    assert (await _mine(client, token))[eleventh["body"]["id"]] == ("GIFT", "ACTIVE")
 
 
-async def test_setPreference_eleventhGift_returns409AndKeepsDraft(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_setPreference_eleventhGift_isAccepted(client: AsyncClient) -> None:
     token, _ = await _register(client, "GUEST", "ils.limit2@example.com")
     inventory_id = await _inventory(client, token)
     product_id = await _resolve_product(client, token, "Piłka ILS")
@@ -196,10 +180,8 @@ async def test_setPreference_eleventhGift_returns409AndKeepsDraft(
         f"/api/item-listing-preferences/{item_id}", json={"mode": "GIFT"}, headers=_auth(token)
     )
 
-    assert response.status_code == 409, response.text
-    assert response.json()["message"] == PUT_LIMIT_MESSAGE
-    await db_session.rollback()
-    assert (await _mine(client, token))[item_id] == (None, "DRAFT")
+    assert response.status_code == 200, response.text
+    assert (await _mine(client, token))[item_id] == ("GIFT", "ACTIVE")
 
 
 async def test_confirmTransaction_gift_itemIsDraftAtNewOwner(
@@ -280,34 +262,3 @@ async def test_listingInvariant_registerSetClearConfirmSequence_activeExactlyWhe
         draft_id: ("GIFT", "ACTIVE"),
     }
     assert await _mine(client, taker_token) == {gift_id: (None, "DRAFT")}
-
-
-async def test_setPreference_atGiftLimit_ownGiftIsNotCountedAndSwapFreesASlot(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    token, _ = await _register(client, "GUEST", "ils.limit3@example.com")
-    inventory_id = await _inventory(client, token)
-    product_id = await _resolve_product(client, token, "Kubek ILS")
-    gift_ids = []
-    for _ in range(10):
-        created = await _post_item(client, token, inventory_id, product_id, "GIFT")
-        assert created["status"] == 201, created["body"]
-        gift_ids.append(created["body"]["id"])
-    draft_id = (await _post_item(client, token, inventory_id, product_id, None))["body"]["id"]
-
-    async def put(item_id: str, mode: str) -> int:
-        response = await client.put(
-            f"/api/item-listing-preferences/{item_id}", json={"mode": mode}, headers=_auth(token)
-        )
-        return response.status_code
-
-    assert await put(gift_ids[0], "GIFT") == 200
-    assert await put(gift_ids[0], "SWAP") == 200
-    assert await put(draft_id, "GIFT") == 200
-    assert await put(gift_ids[0], "GIFT") == 409
-    await db_session.rollback()
-
-    mine = await _mine(client, token)
-    assert mine[gift_ids[0]] == ("SWAP", "ACTIVE")
-    assert mine[draft_id] == ("GIFT", "ACTIVE")
-    assert sum(1 for mode, _ in mine.values() if mode == "GIFT") == 10

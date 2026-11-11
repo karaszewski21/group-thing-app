@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Collection, Sequence
+from typing import Any
 
 from sqlalchemy import Select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,6 +65,7 @@ __all__ = [
     "list_item_products",
     "list_items_with_product_name",
     "listed_items_with_product_select",
+    "inventory_items_with_product_select",
     "list_open_reservations_for_event",
     "list_product_names_for_items",
     "list_reservations",
@@ -152,6 +154,11 @@ def listed_items_with_product_select() -> ListedItemsSelect:
     item, unexecuted, for a list read to join."""
     return circulation_service.listed_items_with_product_select()
 
+
+def inventory_items_with_product_select(inventory_id: uuid.UUID) -> Select[Any]:
+    """Every live item in `inventory_id` with its product name and stored
+    fields, unexecuted, for `Moje rzeczy` to filter and page."""
+    return circulation_service.inventory_items_with_product_select(inventory_id)
 
 
 async def fulfill_exchange(

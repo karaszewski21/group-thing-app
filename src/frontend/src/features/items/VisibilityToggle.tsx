@@ -1,12 +1,9 @@
+import { Lock, LockOpen } from "lucide-react";
 import type { ItemVisibility } from "../../api/itemListingPreferences";
 
-const OPTIONS: { value: ItemVisibility; icon: string; label: string }[] = [
-  { value: "PUBLIC", icon: "🌍", label: "Publiczna" },
-  { value: "PRIVATE", icon: "🔒", label: "Prywatna" },
-];
-
-/** The "🌍 Publiczna / 🔒 Prywatna" segmented control of one listed item.
- * Calls back only on a change; the caller saves it with the item's mode. */
+/** Icon-only visibility switch of one listed item: an open lock is public,
+ * a closed one private. Pressed means private; the caller saves the change
+ * with the item's mode. */
 export function VisibilityToggle({
   value,
   onChange,
@@ -18,31 +15,21 @@ export function VisibilityToggle({
   itemName: string;
   disabled?: boolean;
 }) {
+  const isPrivate = value === "PRIVATE";
+  const Icon = isPrivate ? Lock : LockOpen;
   return (
-    <div
-      role="group"
-      aria-label={`Widoczność: ${itemName}`}
-      className="inline-flex overflow-hidden rounded-xl border border-line-strong text-[13px] font-extrabold"
+    <button
+      type="button"
+      aria-pressed={isPrivate}
+      aria-label={`Prywatna: ${itemName}`}
+      title={isPrivate ? "Prywatna — kliknij, aby upublicznić" : "Publiczna — kliknij, aby ukryć"}
+      disabled={disabled}
+      onClick={() => onChange(isPrivate ? "PUBLIC" : "PRIVATE")}
+      className={`flex h-9 w-9 flex-none items-center justify-center rounded-full border-[1.5px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:opacity-60 ${
+        isPrivate ? "border-ink bg-ink text-on-ink" : "border-line bg-paper text-ink-soft hover:text-ink"
+      }`}
     >
-      {OPTIONS.map((o) => {
-        const on = value === o.value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            aria-pressed={on}
-            disabled={disabled}
-            onClick={() => {
-              if (!on) onChange(o.value);
-            }}
-            className={`min-h-9 px-3 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:opacity-60 ${
-              on ? "bg-ink text-on-ink" : "bg-paper text-ink-soft hover:text-ink"
-            }`}
-          >
-            <span aria-hidden="true">{o.icon}</span> {o.label}
-          </button>
-        );
-      })}
-    </div>
+      <Icon aria-hidden="true" size={16} strokeWidth={2.4} />
+    </button>
   );
 }

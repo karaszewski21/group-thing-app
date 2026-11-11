@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { pageParams, type Page } from "./pagination";
 import type { ItemVisibility, ListingMode } from "./itemListingPreferences";
 import type { ProductResponse } from "./products";
 import type { ReservationType } from "./reservations";
@@ -50,6 +51,10 @@ export interface MyInventoryItemResponse extends InventoryItemResponse {
   thumb_url?: string | null;
   /** The item's place (owner only), or `null` without one. */
   location_id: string | null;
+  /** As `GET /inventory-items/{id}/balance` reports them: the item's
+   * balance and, while it is RESERVED or IN_TRANSIT, its active reservation. */
+  balance_status: BalanceStatus;
+  reservation_id: string | null;
 }
 
 export interface CreateInventoryItemRequest {
@@ -98,6 +103,32 @@ export function getMyInventoryItems(): Promise<MyInventoryItemResponse[]> {
   return api.get("/inventory-items/mine");
 }
 
+/** Per-mode counts over every item at home, ignoring the page filters. */
+export interface MyInventoryItemCounts {
+  ALL: number;
+  GIFT: number;
+  SWAP: number;
+}
+
+export interface MyInventoryItemsPage extends Page<MyInventoryItemResponse> {
+  counts: MyInventoryItemCounts;
+}
+
+export type MyItemsModeFilter = "GIFT" | "SWAP";
+
+/** One page of "Moje rzeczy", newest first: `mode` keeps one listing mode,
+ * `q` matches part of the name. */
+export function getMyInventoryItemsPage(
+  { mode, q }: { mode: MyItemsModeFilter | null; q: string },
+  page: number,
+  size?: number,
+): Promise<MyInventoryItemsPage> {
+  const params = new URLSearchParams(pageParams(page, size));
+  if (mode) params.set("mode", mode);
+  if (q) params.set("q", q);
+  return api.get(`/inventory-items/mine/page?${params}`);
+}
+
 export function getInventoryItem(id: string): Promise<InventoryItemResponse> {
   return api.get(`/inventory-items/${id}`);
 }
@@ -119,26 +150,6 @@ export function getInventoryItemBalance(itemId: string): Promise<InventoryBalanc
  * per-status label mapping. */
 export const ACTIVE_LOCK_BALANCE_STATUSES: readonly BalanceStatus[] = ["RESERVED", "IN_TRANSIT"];
 
-/** One bounded fan-out over the existing single-item balance endpoint,
- * keyed by item id — there is no bulk `/inventory-items/balances` route on
- * the backend (out of scope to add one here), so this is the narrowest
- * "not looped one-call-at-a-time inside the render path" shape available:
- * a single `Promise.all` round-trip the caller awaits once, per
- * `standards/backend/queries.md`'s N+1 principle applied to this
- * component's own data-fetching. */
-export interface ItemBalanceSummary {
-  status: BalanceStatus;
-  reservationId: string | null;
-}
-
-export async function getInventoryItemBalances(
-  itemIds: string[],
-): Promise<Record<string, ItemBalanceSummary>> {
-  const balances = await Promise.all(itemIds.map((id) => getInventoryItemBalance(id)));
-  return Object.fromEntries(
-    balances.map((b) => [b.item_id, { status: b.status, reservationId: b.reservation_id }]),
-  );
-}
 
 export interface UpdateInventoryItemRequest {
   condition?: ItemCondition;
