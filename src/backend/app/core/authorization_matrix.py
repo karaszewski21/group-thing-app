@@ -99,7 +99,7 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # through to the weaker rules below.
     (_methods("GET"), r"^/api/groups/moderation$", ("ADMIN",)),
     (_methods("POST"), r"^/api/groups/[^/]+/restore$", ("ADMIN",)),
-    # 26-47: app.party / app.circulation — added beyond spec.md's original 25
+    # 26-47: app.party / app.inventory — added beyond spec.md's original 25
     # rows for the Organizer/Circle/Family + Wypożyczalnia domain. Ownership
     # checks the matrix itself can't express (active organizer, own-family
     # guardian, reservation party, ...) are enforced in each vertical's
@@ -147,7 +147,7 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # Fine-grained inventory-item edit + soft-delete — ahead of rows 40-41's
     # blanket inventory-items requirements (first-match-wins). The owner check
     # (`inventory.owner_user_id == acting user`) lives in
-    # `app.circulation.service`; the matrix only gates it to EDIT.
+    # `app.inventory.service`; the matrix only gates it to EDIT.
     (_methods("PATCH", "DELETE"), r"^/api/inventory-items/[^/]+$", ("EDIT", "mcp:edit")),
     (_methods("GET"), r"^/api/inventory-items(/.*)?$", ("READ", "mcp:read")),  # 40
     (_methods("POST"), r"^/api/inventory-items(/.*)?$", ("EDIT", "mcp:edit")),  # 41

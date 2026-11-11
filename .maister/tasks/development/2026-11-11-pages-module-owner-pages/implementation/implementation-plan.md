@@ -50,19 +50,19 @@ Paths in this plan are relative to the repo root unless they start with `app/` o
 **Files to Modify:** `TASK/verification/dump_openapi.py`, `TASK/verification/openapi-before.json`, `TASK/verification/ruff-check-before.txt`, `TASK/verification/ruff-format-before.txt`, `TASK/verification/mypy-before.txt`, `TASK/verification/pytest-before.txt`
 **Estimated Steps:** 6
 
-- [ ] 1.0 Record the state of the untouched tree
-  - [ ] 1.1 Write `TASK/verification/dump_openapi.py`
+- [x] 1.0 Record the state of the untouched tree
+  - [x] 1.1 Write `TASK/verification/dump_openapi.py`
     - Imports `app.main.app`, writes `app.openapi()` as JSON to the path given as argument, key order kept (no `sort_keys`)
     - The script lives outside `src/backend`, so it puts the current working directory on `sys.path` before the import; it is run from `src/backend`
     - No server, no DB (the lifespan does not run). Prints nothing but the output path
-  - [ ] 1.2 Run it once: `openapi-before.json`
+  - [x] 1.2 Run it once: `openapi-before.json`
     - Note the number of `components.schemas` entries (expected 205) and the seven operationIds (table in `TASK/analysis/gap-analysis.md` section 3)
-  - [ ] 1.3 Record `ruff-check-before.txt` (`uv run python -m ruff check`) and `ruff-format-before.txt` (`uv run python -m ruff format --check`)
+  - [x] 1.3 Record `ruff-check-before.txt` (`uv run python -m ruff check`) and `ruff-format-before.txt` (`uv run python -m ruff format --check`)
     - A non-zero exit code is expected here; the output is the record
-  - [ ] 1.4 Record `mypy-before.txt` (`uv run python -m mypy app`)
-  - [ ] 1.5 Record `pytest-before.txt` (`uv run python -m pytest`, whole suite, summary lines kept)
+  - [x] 1.4 Record `mypy-before.txt` (`uv run python -m mypy app`)
+  - [x] 1.5 Record `pytest-before.txt` (`uv run python -m pytest`, whole suite, summary lines kept)
     - Any test failing here is listed by name; it is not a regression later
-  - [ ] 1.6 Confirm the baselines
+  - [x] 1.6 Confirm the baselines
     - Five output files exist; counts written into the group report (expected 69 / 50 / 15 errors in 8 files; the recorded files are the reference if the numbers differ)
     - `git status` shows no change under `src/`
 
@@ -76,13 +76,13 @@ Paths in this plan are relative to the repo root unless they start with `app/` o
 **Files to Modify:** `src/backend/app/groups/application/owner_items.py`, `src/backend/app/groups/application/organizer_page.py`, `src/backend/app/groups/service.py`, `src/backend/app/groups/infrastructure/events_acl.py`
 **Estimated Steps:** 5
 
-- [ ] 2.0 Expose through `groups.service` what pages will call
-  - [ ] 2.1 Regression net (no new tests)
+- [x] 2.0 Expose through `groups.service` what pages will call
+  - [x] 2.1 Regression net (no new tests)
     - Proof for this group is the whole existing suite; confirm in `pytest-before.txt` which tests were green
-  - [ ] 2.2 Rename `_counts` → `owner_item_counts` in `owner_items.py`
+  - [x] 2.2 Rename `_counts` → `owner_item_counts` in `owner_items.py`
     - Definition and every caller; find callers with the regex `\b_counts\(` over `src/backend/app` and `src/backend/tests` (`organizer_page.py` is listed above in case it calls it)
     - `count_owner_items` now calls `owner_item_counts`
-  - [ ] 2.3 Add the 14 exports to `groups/service.py` (import + `__all__` entry each; spec table "groups/service.py")
+  - [x] 2.3 Add the 14 exports to `groups/service.py` (import + `__all__` entry each; spec table "groups/service.py")
     - from `application/owner_items.py`: `listed_items`, `owner_item_counts`
     - from `application/reserved_by.py`: `resolve_viewer_party_id`
     - from `infrastructure/repository.py`: `count_owner_available_items_by_mode`, `count_owner_public_groups`, `count_owner_public_terms`, `list_group_upcoming_terms`, `list_owner_listed_items_page`, `list_owner_public_groups`, `list_upcoming_public_terms_for_party`
@@ -90,8 +90,8 @@ Paths in this plan are relative to the repo root unless they start with `app/` o
     - from `infrastructure/events_acl.py` (new import): `author_slugs`, `count_upcoming_authored_events`, `list_upcoming_events_for_parties`
     - Do not remove `get_organization_layout` / `get_organization_group_terms` yet (Group 5)
     - Do not export `owner_summary`, `count_owner_items`, `count_owner_listed_items_by_mode`, `UpcomingEvent`
-  - [ ] 2.4 Add `count_upcoming_authored_events` to `__all__` in `groups/infrastructure/events_acl.py` (sorted position)
-  - [ ] 2.5 Check
+  - [x] 2.4 Add `count_upcoming_authored_events` to `__all__` in `groups/infrastructure/events_acl.py` (sorted position)
+  - [x] 2.5 Check
     - `uv run python -m pytest` — whole suite, same result as `pytest-before.txt`
     - `ruff check` / `ruff format --check` on the four files: no finding and no unformatted file absent from the baselines
     - `uv run python -m mypy app`: same errors as `mypy-before.txt`
@@ -107,30 +107,30 @@ Paths in this plan are relative to the repo root unless they start with `app/` o
 **Files to Modify:** `src/backend/tests/test_pages_domain.py`, `src/backend/app/pages/__init__.py`, `src/backend/app/pages/schemas.py`, `src/backend/app/pages/domain/__init__.py`, `src/backend/app/pages/domain/page_content.py`, `src/backend/app/pages/domain/links.py`, `src/backend/app/pages/domain/owner_dates.py`, `src/backend/app/pages/infrastructure/__init__.py`, `src/backend/app/pages/infrastructure/groups_acl.py`, `src/backend/app/pages/infrastructure/organizations_acl.py`, `src/backend/app/pages/infrastructure/users_acl.py`, `src/backend/app/pages/infrastructure/media_acl.py`, `src/backend/app/pages/infrastructure/product_acl.py`, `src/backend/app/pages/infrastructure/locations_acl.py`
 **Estimated Steps:** 6
 
-- [ ] 3.0 Build the lower layers of `app/pages` (not registered)
-  - [ ] 3.1 Write the 3 tests of `tests/test_pages_domain.py` (no DB, no client)
+- [x] 3.0 Build the lower layers of `app/pages` (not registered)
+  - [x] 3.1 Write the 3 tests of `tests/test_pages_domain.py` (no DB, no client)
     - `merge_upcoming_dates` with a term and an event at the same `starts_at` returns the term first
     - `merge_upcoming_dates` returns the earliest `limit` entries across both inputs, earliest first
     - `term_path` and `event_path` return exactly `/{slug}/group/{group_id}/term/{term_id}` and `/{slug}/event/{event_id}`
     - Names in the project form `test_<operation>_<scenario>_<expected>`; explicit, fully typed fixtures
-  - [ ] 3.2 Create the package skeleton
+  - [x] 3.2 Create the package skeleton
     - `app/pages/__init__.py`: module docstring only (what the context is, read-only, the boundary rule), form of `app/events/__init__.py`
     - `domain/__init__.py`, `infrastructure/__init__.py`: empty
-  - [ ] 3.3 Write the six ACLs (spec table "ACLs in `app/pages/infrastructure/`")
+  - [x] 3.3 Write the six ACLs (spec table "ACLs in `app/pages/infrastructure/`")
     - Each: `from __future__ import annotations`, the docstring form given in the spec, imports, sorted `__all__`, no function bodies
     - `groups_acl.py`: 15 names from `app.groups.service`, 4 from `app.groups.schemas`, `GroupLayoutMode` from `app.groups.models`
     - `locations_acl.py`: `load_locations_by_ids` imported under the alias `get_locations_by_ids`
     - Template: `app/events/infrastructure/product_acl.py`, `organizations_acl.py`, `groups_acl.py`
-  - [ ] 3.4 Write the three domain modules
+  - [x] 3.4 Write the three domain modules
     - `page_content.py`: `PageLayout` (stays a `Literal`) and the eight caps, values copied from AP:47, 49-54 and OI:297, 345
     - `links.py`: `term_path(slug, group_id, term_id)`, `event_path(slug, event_id)`, output byte-identical to the f-strings at AP:197, OI:172, OI:186
     - `owner_dates.py`: `def merge_upcoming_dates[D: _HasStartsAt](terms: Sequence[D], events: Sequence[D], limit: int) -> list[D]`, private `Protocol` `_HasStartsAt` with a read-only `starts_at: datetime` property; body = stable sort of `[*terms, *events]` by `starts_at`, cut to `limit`
     - Docstring form of `app/groups/domain/organizer_slug.py` ("… No `db`, no cross-context imports."); no `app.*` import at all
-  - [ ] 3.5 Write `app/pages/schemas.py`
+  - [x] 3.5 Write `app/pages/schemas.py`
     - 17 classes + the `OrganizationLayoutResponse` alias copied verbatim from `app/groups/schemas.py:409-608` (names, field order, defaults, comments, class docstrings); list in spec "Schema split"
     - Module-level imports (not under `TYPE_CHECKING`) of `ExchangeMode`, `GroupLayoutMode`, `OwnerItemCountsResponse`, `OwnerSummaryResponse`, `ReservedByResponse` from `.infrastructure.groups_acl` and `PublicMediaResponse` from `.infrastructure.media_acl`
     - The groups copies stay in place until Group 5
-  - [ ] 3.6 Check
+  - [x] 3.6 Check
     - `uv run python -m pytest tests/test_pages_domain.py` — 3 pass
     - `import app.pages.schemas` succeeds
     - `ruff check` and `ruff format --check` pass on `app/pages` and on the new test file alone; `mypy app` shows no error in `app/pages`
@@ -147,27 +147,27 @@ Paths in this plan are relative to the repo root unless they start with `app/` o
 **Files to Modify:** `src/backend/app/pages/application/__init__.py`, `src/backend/app/pages/application/owner_pages.py`, `src/backend/app/pages/application/organization_page.py`, `src/backend/app/pages/router/__init__.py`, `src/backend/app/pages/router/organization_page.py`, `src/backend/app/pages/router/owner_pages.py`
 **Estimated Steps:** 5
 
-- [ ] 4.0 Build the upper layers of `app/pages` (not registered)
-  - [ ] 4.1 Regression net (no new tests)
+- [x] 4.0 Build the upper layers of `app/pages` (not registered)
+  - [x] 4.1 Regression net (no new tests)
     - The five page files still exercise the old groups routes in this group: `tests/test_organizer_page.py`, `test_organizer_page_queries.py`, `test_owner_items_page.py`, `test_owner_meetings.py`, `test_party_profile.py`
-  - [ ] 4.2 Write `application/owner_pages.py` (empty `application/__init__.py` first)
+  - [x] 4.2 Write `application/owner_pages.py` (empty `application/__init__.py` first)
     - 14 functions from OI in the order of the spec's tree table (`resolve_organization_owner` … `get_party_owner_meetings`); function docstrings verbatim
     - Call sites remapped per spec "Call-site mapping": `repository.X` / `events_acl.X` → `groups_acl.X`; `listed_items()` → `groups_acl.listed_items()`; `owner_item_counts`, `resolve_viewer_party_id`, `load_reserved_by_names`, `resolve_organizer_slugs` → `groups_acl.…`; `product_bridge.first_approved_photo_by_product` → `product_acl.…`; locations, organizations, users, media through the pages ACLs
     - `list_owner_dates`: same signature and statement sequence (terms, events, places, term slugs, event slugs); links through `term_path` / `event_path`; returns `merge_upcoming_dates(term_dates, event_dates, limit)`
     - `now = clock.local_now()` stays a module-attribute call via `from app.core import clock`
     - Caps come from `..domain.page_content`
     - New module docstring: what the module builds, foreign reads through `groups_acl` and the other pages ACLs
-  - [ ] 4.3 Write `application/organization_page.py`
+  - [x] 4.3 Write `application/organization_page.py`
     - `_resolve_owner`, `_stats`, `_recent_items`, `_groups`, `get_organization_layout`, `get_organization_group_terms` from AP; function docstrings verbatim
     - `owner_items.<page function>` → `owner_pages.<same name>` with `from . import owner_pages`; group-terms link through `term_path`
     - New module docstring, same rule as 4.2
-  - [ ] 4.4 Write the router
+  - [x] 4.4 Write the router
     - `router/organization_page.py`: `router = APIRouter(tags=["pages"])`, `DbSession`, `Storage`, `get_organization_layout`, `get_organization_group_terms`; `PageLayout` imported at module level from `..domain.page_content`
     - `router/owner_pages.py`: `router = APIRouter(tags=["pages"])`, five routes in the order `get_organization_owner_items`, `get_party_owner_items`, `get_party_profile`, `get_organization_owner_meetings`, `get_party_owner_meetings`; `ExchangeMode` imported at module level from `..infrastructure.groups_acl`
     - Paths, function names, parameter order, defaults, `response_model`s, route docstrings, `set_personalised_cache_headers(response, principal)` after the call (layout, both items routes, profile) and `PUBLIC_CACHE_CONTROL` (group terms, both meetings routes) verbatim from RP
     - `router/__init__.py`: plain `APIRouter()`, includes `organization_page.router` then `owner_pages.router` (pattern of `app/groups/router/__init__.py`)
     - Do not touch `app/main.py`
-  - [ ] 4.5 Check
+  - [x] 4.5 Check
     - `uv run python -c "import app.pages.router"` succeeds
     - `ruff check` and `ruff format --check` pass on `app/pages`; `mypy app` equals `mypy-before.txt` (no error in `app/pages`)
     - The five page files from 4.1 pass (old routes still serve them)
@@ -185,35 +185,35 @@ Paths in this plan are relative to the repo root unless they start with `app/` o
 
 Steps 5.2–5.8 are one unit. Do not run tests, stop or hand over between them; a half-done switch either renames OpenAPI components or leaves the tree unimportable.
 
-- [ ] 5.0 Serve the seven routes from `app/pages` only
-  - [ ] 5.1 Regression net (no new tests)
+- [x] 5.0 Serve the seven routes from `app/pages` only
+  - [x] 5.1 Regression net (no new tests)
     - Files that must pass after the switch, assertions untouched: `tests/test_organizer_page.py`, `test_organizer_page_queries.py` (budgets 6/14/13/14, 17, 5), `test_owner_items_page.py`, `test_owner_meetings.py`, `test_party_profile.py`, `test_reserved_listings.py`, `test_item_visibility.py`, `test_organizer_bridges.py`, `test_event_reservations_migration.py`, `test_domain_clock_guard.py`
     - Check `ruff-format-before.txt` for each file in "Files to Modify"; listed files are hand-edited only
-  - [ ] 5.2 `app/main.py`
+  - [x] 5.2 `app/main.py`
     - `from app.pages.router import router as pages_router` in alphabetical position (after `app.outbox`)
     - `app.include_router(pages_router)` directly before `app.include_router(groups_router)`
-  - [ ] 5.3 Groups router
+  - [x] 5.3 Groups router
     - `groups/router/__init__.py`: remove `organizer_page` from the import and the include
     - Delete `groups/router/organizer_page.py` and `groups/application/organizer_page.py`
-  - [ ] 5.4 `groups/service.py`
+  - [x] 5.4 `groups/service.py`
     - Remove the import and the `__all__` entries of `get_organization_layout`, `get_organization_group_terms`
     - Module docstring: add `app.pages` to the list of cross-slice consumers
-  - [ ] 5.5 `groups/application/owner_items.py`
+  - [x] 5.5 `groups/application/owner_items.py`
     - Keep four functions: `listed_items`, `owner_item_counts`, `count_owner_items`, `owner_summary`; delete the page-building functions and the two caps
     - Remaining imports: `uuid`, `Any`, `Select`, `AsyncSession`, `UserProfile`, `circulation_bridge`, `organizations_acl`, `repository`, `OwnerItemCountsResponse`, `OwnerSummaryResponse`
     - Module docstring rewritten for this content (spec, "Changes in `app/groups`"); `item_actions.py` is not edited
-  - [ ] 5.6 `groups/schemas.py`
+  - [x] 5.6 `groups/schemas.py`
     - Remove the 17 moved classes and the `OrganizationLayoutResponse` alias; keep `ReservedByResponse`, `ExchangeMode`, `MyReservationResponse`, `OwnerSummaryResponse`, `OwnerItemCountsResponse`
     - Remove the `PublicMediaResponse` import; remove `Annotated` from the `typing` import only if ruff F401 reports it
     - Rewrite the two section comments (402-404, 544) for the names that stay
-  - [ ] 5.7 `groups/infrastructure/organizations_acl.py`
+  - [x] 5.7 `groups/infrastructure/organizations_acl.py`
     - Remove `get_organization_by_slug`, `get_owner_party_id` (functions and `__all__` entries); docstring loses the organizer-page clause
     - Before deleting, confirm by search that no module under `app/groups` still calls them
-  - [ ] 5.8 Three test import edits (imports only, placed where isort puts them)
+  - [x] 5.8 Three test import edits (imports only, placed where isort puts them)
     - `tests/test_organizer_page.py`: `PageLayout` from `app.pages.domain.page_content`
     - `tests/test_party_profile.py`: `PROFILE_RECENT_ITEMS` from `app.pages.domain.page_content`
     - `tests/test_organizer_bridges.py`: `organizations_acl` from `app.pages.infrastructure`; `circulation_bridge`, `product_bridge` stay from `app.groups.infrastructure`; module docstring names the pages organizations ACL
-  - [ ] 5.9 Check
+  - [x] 5.9 Check
     - `uv run python -m pytest` on the ten files listed in 5.1 — all pass
     - Quick OpenAPI check with `dump_openapi.py` to a scratch file: 205 components, none starting with `app__pages__`, `app__groups__schemas__ReservedByResponse` present (the full comparison is Group 8)
     - `ruff check` / `ruff format --check` on the touched files against the baselines (a misplaced import is a new `I001`); `mypy app` equals `mypy-before.txt`
@@ -231,21 +231,21 @@ Steps 5.2–5.8 are one unit. Do not run tests, stop or hand over between them; 
 **Files to Modify:** `src/backend/tests/test_pages_boundary.py`, `src/backend/tests/test_domain_clock_guard.py`, `src/backend/app/groups/infrastructure/repository.py`, `src/backend/app/groups/infrastructure/events_acl.py`, `src/backend/app/groups/infrastructure/product_bridge.py`
 **Estimated Steps:** 5
 
-- [ ] 6.0 Remove dead code and enforce the boundary
-  - [ ] 6.1 Write the 3 tests of `tests/test_pages_boundary.py` and extend the clock guard
+- [x] 6.0 Remove dead code and enforce the boundary
+  - [x] 6.1 Write the 3 tests of `tests/test_pages_boundary.py` and extend the clock guard
     - AST scan over `src/backend/app`, shape of `test_guardedPackages_noHostClockCalls`; absolute imports, `from app import pages` and relative imports all resolved to a dotted module name; a module matches a package by whole dotted segments (one shared match function)
     - `test_appModules_importingPages_onlyMain` — allowlist is exactly `app/main.py`
     - `test_pagesModules_outsideInfrastructure_importOnlyAllowedPackages` — `app.core`, `app.db`, `app.storage`, `app.pages`; for `app/pages/domain/` only `app.pages.domain`
     - `test_pagesAcls_importingPagesSchemas_none`
     - `tests/test_domain_clock_guard.py`: add `_APP_ROOT / "pages"` to `_GUARDED_DIRS`; module docstring "the groups, events and pages packages"
-  - [ ] 6.2 Delete `party_leads_public_circle` from `groups/infrastructure/repository.py`
+  - [x] 6.2 Delete `party_leads_public_circle` from `groups/infrastructure/repository.py`
     - Hand edit; the file is unformatted at baseline — only the deleted lines may change, no `ruff format`, no format-on-save
-  - [ ] 6.3 `groups/infrastructure/events_acl.py`
+  - [x] 6.3 `groups/infrastructure/events_acl.py`
     - Delete `has_authored_event` and its `__all__` entry
     - Docstring: the upcoming-events reads serve `app.pages` through `groups.service`
     - Keep the `exists` import (still used by `_account_attends`); remove it only if ruff reports it unused
-  - [ ] 6.4 `groups/infrastructure/product_bridge.py` docstring: term page thumbnails only
-  - [ ] 6.5 Check
+  - [x] 6.4 `groups/infrastructure/product_bridge.py` docstring: term page thumbnails only
+  - [x] 6.5 Check
     - `uv run python -m pytest tests/test_pages_boundary.py tests/test_domain_clock_guard.py tests/test_event_reservations_migration.py tests/test_organizer_page_queries.py tests/test_organizer_bridges.py` — all pass
     - Plain-text searches over `src/backend/app` return nothing: `party_leads_public_circle`, `has_authored_event`
     - ruff on the two test files alone is clean; `repository.py` shows no finding absent from the baseline and its diff contains deletions only
@@ -261,18 +261,18 @@ Steps 5.2–5.8 are one unit. Do not run tests, stop or hand over between them; 
 **Files to Modify:** `.maister/docs/project/architecture.md`, `.maister/docs/standards/backend/time.md`, `.maister/docs/INDEX.md`
 **Estimated Steps:** 5
 
-- [ ] 7.0 Bring the project documentation in line with the new module
-  - [ ] 7.1 Locate the passages (no tests for documentation)
+- [x] 7.0 Bring the project documentation in line with the new module
+  - [x] 7.1 Locate the passages (no tests for documentation)
     - The spec gives line numbers (architecture.md 201, 208, 210, 211, 231, 238, 304-306; time.md 9; INDEX.md 23, 77); find each passage by its text, because lines may have shifted
-  - [ ] 7.2 `architecture.md`
+  - [x] 7.2 `architecture.md`
     - New section `## Public pages (app/pages/)` after the Events section, before `## Messaging`: the seven routes, the layers with the three domain modules, the six ACLs, the two import rules with the guard test's name (`tests/test_pages_boundary.py`), the groups facade as the source of owner-page SQL, events read through groups as an accepted detour until the `exchange` module is extracted
     - Replace the four old groups paths with the pages paths; `PageLayout` in `app/pages/domain/page_content.py`
     - "Import discipline": one sentence on the groups `events_acl` reads exported through `groups.service` for `app.pages`
     - "the 7 public reads" → 8, adding `GET /api/public/parties/{party_id}`; leave the `Vary` wording of that sentence as it is
     - Package tree: one `pages/` entry after `events/`
-  - [ ] 7.3 `standards/backend/time.md`: the guard covers `app/groups/application`, `app/groups/router`, `app/events` and `app/pages`
-  - [ ] 7.4 `INDEX.md`: the architecture summary names `app/pages` (the seven reads, the boundary, the guard test); the Domain Clock entry's guard directory list gains `app/events` and `app/pages`
-  - [ ] 7.5 Check
+  - [x] 7.3 `standards/backend/time.md`: the guard covers `app/groups/application`, `app/groups/router`, `app/events` and `app/pages`
+  - [x] 7.4 `INDEX.md`: the architecture summary names `app/pages` (the seven reads, the boundary, the guard test); the Domain Clock entry's guard directory list gains `app/events` and `app/pages`
+  - [x] 7.5 Check
     - Every path and name written into the three files exists in the tree after Group 5 (and Group 6 for the test file name)
     - No other passage of the three files changed
 
@@ -285,30 +285,30 @@ Steps 5.2–5.8 are one unit. Do not run tests, stop or hand over between them; 
 **Files to Modify:** `TASK/verification/openapi-after.json`, `TASK/verification/compare_openapi.py`, `TASK/verification/ruff-check-after.txt`, `TASK/verification/ruff-format-after.txt`, `TASK/verification/mypy-after.txt`, `TASK/verification/pytest-after.txt`
 **Estimated Steps:** 7
 
-- [ ] 8.0 Prove the refactor preserved behaviour
-  - [ ] 8.1 Review the tests of this feature
+- [x] 8.0 Prove the refactor preserved behaviour
+  - [x] 8.1 Review the tests of this feature
     - The 6 new tests and the regression inventory in `TASK/analysis/codebase-analysis.md`; confirm that the diff of existing test files is exactly three import edits, one `_GUARDED_DIRS` entry and two module docstrings
     - Add no test by default; if a gap specific to this feature is found, add at most 10 and report each one
-  - [ ] 8.2 `uv run python -m pytest` — whole suite, output to `pytest-after.txt`
+  - [x] 8.2 `uv run python -m pytest` — whole suite, output to `pytest-after.txt`
     - Same result as `pytest-before.txt` plus the 6 new tests; watch the five page files, `test_organizer_bridges.py`, `test_domain_clock_guard.py`, `test_event_reservations_migration.py::test_importEventsAcl_doesNotLoadEventsService`, the two new files
-  - [ ] 8.3 `uv run python -m mypy app` → `mypy-after.txt`
+  - [x] 8.3 `uv run python -m mypy app` → `mypy-after.txt`
     - The same 15 errors in the same 8 files; none in `app/pages`; the only error in a touched file is the `apscheduler` import-untyped one in `app/main.py`
-  - [ ] 8.4 ruff → `ruff-check-after.txt`, `ruff-format-after.txt` (same shell and redirection as Group 1)
+  - [x] 8.4 ruff → `ruff-check-after.txt`, `ruff-format-after.txt` (same shell and redirection as Group 1)
     - No finding absent from the baseline (by file and rule code); no unformatted file absent from the baseline
     - Every new file passes both commands when run on it alone
     - No file on the baseline unformatted list was reformatted (its diff holds only the planned lines)
-  - [ ] 8.5 OpenAPI comparison
+  - [x] 8.5 OpenAPI comparison
     - `dump_openapi.py` → `openapi-after.json`; write `compare_openapi.py` (reads the two files, prints pass/fail per condition)
     - After setting the tags of the seven operations back to `groups` in the "after" document, the two documents are deep-equal
     - `list(before["paths"]) == list(after["paths"])` as a separate assertion
     - The seven operationIds equal the table in `TASK/analysis/gap-analysis.md` section 3
     - Exactly these seven operations are tagged `pages`, with no other tag
     - 205 components, none starting with `app__pages__`, `app__groups__schemas__ReservedByResponse` present
-  - [ ] 8.6 Control searches over `src/backend/app`
+  - [x] 8.6 Control searches over `src/backend/app`
     - Nothing for: `party_leads_public_circle`, `has_authored_event`, `application.organizer_page`, `router.organizer_page`, regex `\b_counts\(`
     - `owner_item_counts(` is present
     - Import-line regexes `^\s*(from|import)\s+app\.pages` and `^\s*from\s+app\s+import\s+.*\bpages\b` match outside `app/pages/` only in `app/main.py`
-  - [ ] 8.7 Walk the spec's nine Success Criteria and record each as met or not met
+  - [x] 8.7 Walk the spec's nine Success Criteria and record each as met or not met
     - Includes `groups.service.__all__` −2 / +14, no migration file added, and `git status` / `git log` showing that nothing was committed
 
 **Acceptance Criteria:**

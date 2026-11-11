@@ -1,0 +1,891 @@
+E501 Line too long (105 > 100)
+  --> alembic\versions\0002_seed_dev_users.py:84:101
+   |
+82 |             ).bindparams(username=username)
+83 |         )
+84 |         op.execute(sa.text("DELETE FROM users WHERE username = :username").bindparams(username=username))
+   |                                                                                                     ^^^^^
+
+E501 Line too long (105 > 100)
+  --> alembic\versions\0003_party_schema.py:84:101
+   |
+82 |         sa.ForeignKeyConstraint(["user_id"], ["users.id"], name="fk_party_people_user_id_users"),
+83 |         sa.ForeignKeyConstraint(
+84 |             ["family_group_id"], ["party_groups.id"], name="fk_party_people_family_group_id_party_groups"
+   |                                                                                                     ^^^^^
+85 |         ),
+86 |     )
+   |
+
+E501 Line too long (105 > 100)
+  --> alembic\versions\0003_party_schema.py:88:101
+   |
+86 |     )
+87 |     _own_sequence(_PARTY_PERSON_SEQ, "party_people")
+88 |     op.create_index("ix_party_people_family_group_id", "party_people", ["family_group_id"], unique=False)
+   |                                                                                                     ^^^^^
+89 |
+90 |     # --- party_leaderships --------------------------------------------------
+   |
+
+E501 Line too long (110 > 100)
+   --> alembic\versions\0003_party_schema.py:113:101
+    |
+111 |     _own_sequence(_PARTY_LEADERSHIP_SEQ, "party_leaderships")
+112 |     op.create_index(
+113 |         "ix_party_leaderships_organizer_person_id", "party_leaderships", ["organizer_person_id"], unique=False
+    |                                                                                                     ^^^^^^^^^^
+114 |     )
+115 |     # Enforces cardinality 1:N at the DB level: at most one currently-active
+    |
+
+E501 Line too long (110 > 100)
+   --> alembic\versions\0003_party_schema.py:138:101
+    |
+136 |         sa.PrimaryKeyConstraint("id", name="pk_party_memberships"),
+137 |         sa.ForeignKeyConstraint(
+138 |             ["family_group_id"], ["party_groups.id"], name="fk_party_memberships_family_group_id_party_groups"
+    |                                                                                                     ^^^^^^^^^^
+139 |         ),
+140 |         sa.ForeignKeyConstraint(
+    |
+
+E501 Line too long (110 > 100)
+   --> alembic\versions\0003_party_schema.py:141:101
+    |
+139 |         ),
+140 |         sa.ForeignKeyConstraint(
+141 |             ["circle_group_id"], ["party_groups.id"], name="fk_party_memberships_circle_group_id_party_groups"
+    |                                                                                                     ^^^^^^^^^^
+142 |         ),
+143 |     )
+    |
+
+E501 Line too long (115 > 100)
+   --> alembic\versions\0003_party_schema.py:145:101
+    |
+143 |     )
+144 |     _own_sequence(_PARTY_MEMBERSHIP_SEQ, "party_memberships")
+145 |     op.create_index("ix_party_memberships_family_group_id", "party_memberships", ["family_group_id"], unique=False)
+    |                                                                                                     ^^^^^^^^^^^^^^^
+146 |     op.create_index("ix_party_memberships_circle_group_id", "party_memberships", ["circle_group_id"], unique=False)
+    |
+
+E501 Line too long (115 > 100)
+   --> alembic\versions\0003_party_schema.py:146:101
+    |
+144 |     _own_sequence(_PARTY_MEMBERSHIP_SEQ, "party_memberships")
+145 |     op.create_index("ix_party_memberships_family_group_id", "party_memberships", ["family_group_id"], unique=False)
+146 |     op.create_index("ix_party_memberships_circle_group_id", "party_memberships", ["circle_group_id"], unique=False)
+    |                                                                                                     ^^^^^^^^^^^^^^^
+147 |
+148 |     # --- terms ------------------------------------------------------------
+    |
+
+E501 Line too long (110 > 100)
+   --> alembic\versions\0003_party_schema.py:199:101
+    |
+197 |         ),
+198 |         sa.ForeignKeyConstraint(
+199 |             ["pledged_by_person_id"], ["party_people.id"], name="fk_pledges_pledged_by_person_id_party_people"
+    |                                                                                                     ^^^^^^^^^^
+200 |         ),
+201 |     )
+    |
+
+E501 Line too long (105 > 100)
+   --> alembic\versions\0003_party_schema.py:204:101
+    |
+202 |     _own_sequence(_PLEDGE_SEQ, "pledges")
+203 |     op.create_index("ix_pledges_needed_item_id", "pledges", ["needed_item_id"], unique=False)
+204 |     op.create_index("ix_pledges_pledged_by_person_id", "pledges", ["pledged_by_person_id"], unique=False)
+    |                                                                                                     ^^^^^
+
+E501 Line too long (105 > 100)
+  --> alembic\versions\0004_circulation_schema.py:70:101
+   |
+68 |         sa.PrimaryKeyConstraint("id", name="pk_accounts"),
+69 |         sa.UniqueConstraint("code", name="uq_accounts_code"),
+70 |         sa.ForeignKeyConstraint(["owner_user_id"], ["users.id"], name="fk_accounts_owner_user_id_users"),
+   |                                                                                                     ^^^^^
+71 |     )
+72 |     _own_sequence(_ACCOUNT_SEQ, "accounts")
+   |
+
+E501 Line too long (108 > 100)
+   --> alembic\versions\0004_circulation_schema.py:101:101
+    |
+ 99 |         sa.Column("updated_at", sa.TIMESTAMP(), nullable=False),
+100 |         sa.PrimaryKeyConstraint("id", name="pk_inventories"),
+101 |         sa.ForeignKeyConstraint(["owner_user_id"], ["users.id"], name="fk_inventories_owner_user_id_users"),
+    |                                                                                                     ^^^^^^^^
+102 |     )
+103 |     _own_sequence(_INVENTORY_SEQ, "inventories")
+    |
+
+E501 Line too long (105 > 100)
+   --> alembic\versions\0004_circulation_schema.py:128:101
+    |
+126 |     )
+127 |     _own_sequence(_INVENTORY_ITEM_SEQ, "inventory_items")
+128 |     op.create_index("ix_inventory_items_inventory_id", "inventory_items", ["inventory_id"], unique=False)
+    |                                                                                                     ^^^^^
+129 |     op.create_index("ix_inventory_items_product_id", "inventory_items", ["product_id"], unique=False)
+    |
+
+E501 Line too long (101 > 100)
+   --> alembic\versions\0004_circulation_schema.py:129:101
+    |
+127 |     _own_sequence(_INVENTORY_ITEM_SEQ, "inventory_items")
+128 |     op.create_index("ix_inventory_items_inventory_id", "inventory_items", ["inventory_id"], unique=False)
+129 |     op.create_index("ix_inventory_items_product_id", "inventory_items", ["product_id"], unique=False)
+    |                                                                                                     ^
+130 |
+131 |     # --- inventory_balances -----------------------------------------------
+    |
+
+E501 Line too long (101 > 100)
+   --> alembic\versions\0004_circulation_schema.py:147:101
+    |
+145 |         sa.UniqueConstraint("item_id", name="uq_inventory_balances_item_id"),
+146 |         sa.ForeignKeyConstraint(
+147 |             ["item_id"], ["inventory_items.id"], name="fk_inventory_balances_item_id_inventory_items"
+    |                                                                                                     ^
+148 |         ),
+149 |     )
+    |
+
+E501 Line too long (113 > 100)
+   --> alembic\versions\0004_circulation_schema.py:182:101
+    |
+180 |     _own_sequence(_RESERVATION_SEQ, "reservations")
+181 |     op.create_index("ix_reservations_item_id", "reservations", ["item_id"], unique=False)
+182 |     op.create_index("ix_reservations_reserved_by_user_id", "reservations", ["reserved_by_user_id"], unique=False)
+    |                                                                                                     ^^^^^^^^^^^^^
+183 |
+184 |     # --- circulation_transactions -----------------------------------------
+    |
+
+E501 Line too long (105 > 100)
+   --> alembic\versions\0004_circulation_schema.py:196:101
+    |
+194 |         sa.Column("updated_at", sa.TIMESTAMP(), nullable=False),
+195 |         sa.PrimaryKeyConstraint("id", name="pk_circulation_transactions"),
+196 |         sa.UniqueConstraint("transaction_number", name="uq_circulation_transactions_transaction_number"),
+    |                                                                                                     ^^^^^
+197 |     )
+198 |     _own_sequence(_CIRCULATION_TRANSACTION_SEQ, "circulation_transactions")
+    |
+
+E501 Line too long (117 > 100)
+   --> alembic\versions\0004_circulation_schema.py:224:101
+    |
+222 |     )
+223 |     _own_sequence(_CIRCULATION_ENTRY_SEQ, "circulation_entries")
+224 |     op.create_index("ix_circulation_entries_transaction_id", "circulation_entries", ["transaction_id"], unique=False)
+    |                                                                                                     ^^^^^^^^^^^^^^^^^
+225 |     op.create_index("ix_circulation_entries_account_id", "circulation_entries", ["account_id"], unique=False)
+    |
+
+E501 Line too long (109 > 100)
+   --> alembic\versions\0004_circulation_schema.py:225:101
+    |
+223 |     _own_sequence(_CIRCULATION_ENTRY_SEQ, "circulation_entries")
+224 |     op.create_index("ix_circulation_entries_transaction_id", "circulation_entries", ["transaction_id"], unique=False)
+225 |     op.create_index("ix_circulation_entries_account_id", "circulation_entries", ["account_id"], unique=False)
+    |                                                                                                     ^^^^^^^^^
+
+E501 Line too long (105 > 100)
+  --> alembic\versions\0005_seed_emission_account.py:36:101
+   |
+34 |     op.execute(
+35 |         sa.text(
+36 |             "INSERT INTO accounts (id, code, name, account_type, owner_user_id, created_at, updated_at) "
+   |                                                                                                     ^^^^^
+37 |             "VALUES (nextval('account_seq'), :code, :name, 'SYSTEM_EMISSION', NULL, now(), now()) "
+38 |             "ON CONFLICT (code) DO NOTHING"
+   |
+
+E501 Line too long (109 > 100)
+  --> alembic\versions\0007_circulation_product_cleanup_data.py:37:101
+   |
+35 |     op.execute("DELETE FROM circulation_entries")
+36 |     op.execute("DELETE FROM circulation_transactions")
+37 |     op.execute("UPDATE pledges SET resolved_reservation_id = NULL WHERE resolved_reservation_id IS NOT NULL")
+   |                                                                                                     ^^^^^^^^^
+38 |     op.execute("DELETE FROM reservations")
+39 |     op.execute("DELETE FROM inventory_balances")
+   |
+
+E501 Line too long (110 > 100)
+  --> alembic\versions\0010_seed_dev_user_profiles.py:77:101
+   |
+75 |                 "INSERT INTO user_profiles "
+76 |                 "(id, party_id, account_user_id, display_name, email, created_at, updated_at) "
+77 |                 "VALUES (nextval('user_profile_seq'), :party_id, :user_id, :display_name, NULL, now(), now())"
+   |                                                                                                     ^^^^^^^^^^
+78 |             ),
+79 |             {"party_id": person_party_id, "user_id": user_id, "display_name": display_name},
+   |
+
+E501 Line too long (113 > 100)
+  --> alembic\versions\0010_seed_dev_user_profiles.py:84:101
+   |
+82 |         bind.execute(
+83 |             sa.text(
+84 |                 "INSERT INTO user_roles (id, party_id, role_type, valid_from, valid_to, created_at, updated_at) "
+   |                                                                                                     ^^^^^^^^^^^^^
+85 |                 "VALUES (nextval('user_role_seq'), :party_id, 'USER', CURRENT_DATE, NULL, now(), now())"
+86 |             ),
+   |
+
+E501 Line too long (104 > 100)
+  --> alembic\versions\0010_seed_dev_user_profiles.py:85:101
+   |
+83 |             sa.text(
+84 |                 "INSERT INTO user_roles (id, party_id, role_type, valid_from, valid_to, created_at, updated_at) "
+85 |                 "VALUES (nextval('user_role_seq'), :party_id, 'USER', CURRENT_DATE, NULL, now(), now())"
+   |                                                                                                     ^^^^
+86 |             ),
+87 |             {"party_id": person_party_id},
+   |
+
+E501 Line too long (115 > 100)
+   --> alembic\versions\0010_seed_dev_user_profiles.py:109:101
+    |
+107 |         family_role_id = bind.execute(
+108 |             sa.text(
+109 |                 "INSERT INTO family_roles (id, party_id, role_type, valid_from, valid_to, created_at, updated_at) "
+    |                                                                                                     ^^^^^^^^^^^^^^^
+110 |                 "VALUES (nextval('family_role_seq'), :party_id, 'GUARDIAN', CURRENT_DATE, NULL, now(), now()) "
+111 |                 "RETURNING id"
+    |
+
+E501 Line too long (111 > 100)
+   --> alembic\versions\0010_seed_dev_user_profiles.py:110:101
+    |
+108 |             sa.text(
+109 |                 "INSERT INTO family_roles (id, party_id, role_type, valid_from, valid_to, created_at, updated_at) "
+110 |                 "VALUES (nextval('family_role_seq'), :party_id, 'GUARDIAN', CURRENT_DATE, NULL, now(), now()) "
+    |                                                                                                     ^^^^^^^^^^^
+111 |                 "RETURNING id"
+112 |             ),
+    |
+
+E501 Line too long (117 > 100)
+   --> alembic\versions\0010_seed_dev_user_profiles.py:119:101
+    |
+117 |             sa.text(
+118 |                 "INSERT INTO family_memberships "
+119 |                 "(id, from_role_id, to_family_id, is_primary_contact, valid_from, valid_to, created_at, updated_at) "
+    |                                                                                                     ^^^^^^^^^^^^^^^^^
+120 |                 "VALUES (nextval('family_membership_seq'), :role_id, :family_id, true, CURRENT_DATE, NULL, now(), now())"
+121 |             ),
+    |
+
+E501 Line too long (121 > 100)
+   --> alembic\versions\0010_seed_dev_user_profiles.py:120:101
+    |
+118 |                 "INSERT INTO family_memberships "
+119 |                 "(id, from_role_id, to_family_id, is_primary_contact, valid_from, valid_to, created_at, updated_at) "
+120 |                 "VALUES (nextval('family_membership_seq'), :role_id, :family_id, true, CURRENT_DATE, NULL, now(), now())"
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^
+121 |             ),
+122 |             {"role_id": family_role_id, "family_id": family_id},
+    |
+
+E501 Line too long (102 > 100)
+  --> alembic\versions\0033_inventory_personal_virtual_uniqueness.py:62:101
+   |
+60 |             bind.execute(
+61 |                 sa.text(
+62 |                     "UPDATE inventory_items SET inventory_id = :keep_id WHERE inventory_id = :drop_id"
+   |                                                                                                     ^^
+63 |                 ),
+64 |                 {"keep_id": keep_id, "drop_id": drop_id},
+   |
+
+E501 Line too long (102 > 100)
+   --> alembic\versions\0041_baseentity_id_uuid.py:238:101
+    |
+236 |     ),
+237 |     ("fk_reservations_term_id_terms", "reservations", "term_id", "terms"),
+238 |     ("fk_swap_proposals_proposer_party_id_parties", "swap_proposals", "proposer_party_id", "parties"),
+    |                                                                                                     ^^
+239 |     ("fk_term_attendances_party_id_parties", "term_attendances", "party_id", "parties"),
+240 |     ("fk_term_attendances_term_id_terms", "term_attendances", "term_id", "terms"),
+    |
+
+E501 Line too long (104 > 100)
+   --> app\circulation\application\inventory_items.py:171:101
+    |
+171 | async def get_item_with_product_name(db: AsyncSession, item_id: uuid.UUID) -> tuple[InventoryItem, str]:
+    |                                                                                                     ^^^^
+172 |     """Joined read backing `GET /api/inventory-items/{id}`'s response."""
+173 |     row = await repository.get_item_with_product_name(db, item_id)
+    |
+
+E501 Line too long (102 > 100)
+   --> app\circulation\application\inventory_items.py:213:101
+    |
+211 |     preferences) — never the raw `inventory_id`, which reflects current
+212 |     *physical* location, not legal ownership, during a loan."""
+213 |     permanent_id = item.home_inventory_id if item.home_inventory_id is not None else item.inventory_id
+    |                                                                                                     ^^
+214 |     return await get_inventory(db, permanent_id)
+    |
+
+E501 Line too long (101 > 100)
+   --> app\circulation\infrastructure\repository.py:177:101
+    |
+177 | async def list_items_for_inventory(db: AsyncSession, inventory_id: uuid.UUID) -> list[InventoryItem]:
+    |                                                                                                     ^
+178 |     result = await db.execute(
+179 |         select(InventoryItem).where(
+    |
+
+E501 Line too long (103 > 100)
+   --> app\circulation\infrastructure\repository.py:472:101
+    |
+472 | async def list_active_reservations_for_item(db: AsyncSession, item_id: uuid.UUID) -> list[Reservation]:
+    |                                                                                                     ^^^
+473 |     """Every `PENDING`/`CONFIRMED` reservation for `item_id` — same query
+474 |     shape as `list_active_reservations_for_taker`, scoped by item instead of
+    |
+
+E501 Line too long (105 > 100)
+   --> app\circulation\router.py:168:101
+    |
+167 | @router.get("/api/inventory-items/{item_id}", response_model=InventoryItemResponse)
+168 | async def get_item(item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> InventoryItemResponse:
+    |                                                                                                     ^^^^^
+169 |     await item_visibility.require_item_visible_to(db, item_id, principal)
+170 |     item, product_name = await service.get_item_with_product_name(db, item_id)
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> app\families\bootstrap.py:4:1
+   |
+ 2 |   two account-creating entry points (`create_family`, `create_own_family`)."""
+ 3 |
+ 4 | / from __future__ import annotations
+ 5 | |
+ 6 | | import uuid
+ 7 | |
+ 8 | | from datetime import date
+ 9 | | from typing import cast
+10 | |
+11 | | from sqlalchemy.ext.asyncio import AsyncSession
+12 | |
+13 | | from app.party.models import PartyType
+14 | | from app.party.service import create_party
+15 | | from app.users.service import create_account_and_profile
+16 | |
+17 | | from .models import Family, FamilyMembership, FamilyRole, FamilyRoleType
+18 | | from .repository import list_families_for_guardian_party
+19 | | from .schemas import CreateFamilyRequest
+   | |________________________________________^
+help: Organize imports
+  |
+6 | import uuid
+  -
+7 | from datetime import date
+  |
+
+E501 Line too long (107 > 100)
+  --> app\families\bootstrap.py:67:101
+   |
+67 | async def create_solo_family_for_party(db: AsyncSession, party_id: uuid.UUID, display_name: str) -> Family:
+   |                                                                                                     ^^^^^^^
+68 |     """Ensures `party_id` has a resolvable solo Family, creating one named
+69 |     `"Rodzina {display_name}"` if none exists yet — the automatic-bootstrap
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> app\families\guardians.py:6:1
+   |
+ 4 |   `standards/backend/security.md`."""
+ 5 |
+ 6 | / from __future__ import annotations
+ 7 | |
+ 8 | | import uuid
+ 9 | |
+10 | | from datetime import date
+11 | | from typing import cast
+12 | |
+13 | | from sqlalchemy import func, select
+14 | | from sqlalchemy.ext.asyncio import AsyncSession
+15 | |
+16 | | from app.core.errors import (
+17 | |     AccessDeniedException,
+18 | |     BusinessConflictException,
+19 | |     EntityNotFoundException,
+20 | | )
+21 | | from app.users.service import create_account_and_profile, get_profile_by_party
+22 | |
+23 | | from .models import Family, FamilyMembership, FamilyRole, FamilyRoleType
+24 | | from .repository import get_family
+25 | | from .schemas import AddGuardianRequest, GuardianResponse
+   | |_________________________________________________________^
+help: Organize imports
+  |
+8 | import uuid
+  -
+9 | from datetime import date
+  |
+
+E501 Line too long (111 > 100)
+  --> app\families\guardians.py:82:101
+   |
+82 | async def _require_family_guardian(db: AsyncSession, family_id: uuid.UUID, caller_party_id: uuid.UUID) -> None:
+   |                                                                                                     ^^^^^^^^^^^
+83 |     """Verbatim body of the guardian-authz check shared by `rename_family`
+84 |     and `remove_family_member`: the caller must hold an active GUARDIAN
+   |
+
+E501 Line too long (103 > 100)
+   --> app\families\guardians.py:159:101
+    |
+158 | async def remove_family_member(
+159 |     db: AsyncSession, family_id: uuid.UUID, family_membership_id: uuid.UUID, caller_party_id: uuid.UUID
+    |                                                                                                     ^^^
+160 | ) -> None:
+161 |     """Soft-closes one member's `FamilyMembership` (sets `valid_to` to
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> app\families\members.py:4:1
+   |
+ 2 |   in a batch against the calling guardian's Family."""
+ 3 |
+ 4 | / from __future__ import annotations
+ 5 | |
+ 6 | | import uuid
+ 7 | |
+ 8 | | from datetime import date
+ 9 | | from typing import cast
+10 | |
+11 | | from sqlalchemy.ext.asyncio import AsyncSession
+12 | |
+13 | | from app.party.models import PartyType
+14 | | from app.party.service import create_party
+15 | | from app.users.models import UserProfile
+16 | | from app.users.service import get_profile_by_party
+17 | |
+18 | | from .bootstrap import bootstrap_family_for_party
+19 | | from .models import Family, FamilyMembership, FamilyRole, FamilyRoleType
+20 | | from .repository import list_families_for_guardian_party
+21 | | from .schemas import CreateLightweightMemberRequest
+   | |___________________________________________________^
+help: Organize imports
+  |
+6 | import uuid
+  -
+7 | from datetime import date
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> app\families\primary_contact.py:4:1
+   |
+ 2 |   don't delete", never an in-place flip of the flag."""
+ 3 |
+ 4 | / from __future__ import annotations
+ 5 | |
+ 6 | | import uuid
+ 7 | |
+ 8 | | from datetime import date
+ 9 | |
+10 | | from sqlalchemy import select
+11 | | from sqlalchemy.ext.asyncio import AsyncSession
+12 | |
+13 | | from app.core.errors import EntityNotFoundException
+14 | |
+15 | | from .guardians import get_family_for_guardian
+16 | | from .models import FamilyMembership
+   | |____________________________________^
+help: Organize imports
+  |
+6 | import uuid
+  -
+7 | from datetime import date
+  |
+
+E501 Line too long (102 > 100)
+  --> app\families\repository.py:77:101
+   |
+77 | async def list_guardian_memberships(db: AsyncSession, family_id: uuid.UUID) -> list[FamilyMembership]:
+   |                                                                                                     ^^
+78 |     result = await db.execute(
+79 |         select(FamilyMembership)
+   |
+
+E501 Line too long (104 > 100)
+  --> app\families\repository.py:86:101
+   |
+86 | async def list_group_memberships_for_family(db: AsyncSession, family_id: uuid.UUID) -> list[Membership]:
+   |                                                                                                     ^^^^
+87 |     """Aggregates active Circle memberships across every guardian/child in
+88 |     this Family (decision: each family member joins a Circle individually,
+   |
+
+E501 Line too long (102 > 100)
+   --> app\families\router.py:119:101
+    |
+118 | @router.get("/api/families/{family_id}", response_model=FamilyResponse)
+119 | async def get_family(family_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> FamilyResponse:
+    |                                                                                                     ^^
+120 |     profile = await get_profile_by_principal(db, principal)
+121 |     family = await service.get_family_for_guardian(db, family_id, profile.party_id)
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> app\groups\application\attendance.py:8:1
+   |
+ 6 |   `_require_pledging_party` with `withdraw_pledge`."""
+ 7 |
+ 8 | / from __future__ import annotations
+ 9 | |
+10 | | import uuid
+11 | |
+12 | | from datetime import datetime
+13 | |
+14 | | from sqlalchemy.ext.asyncio import AsyncSession
+15 | |
+16 | | from app.core.auth_deps import Principal
+17 | | from app.core.errors import AccessDeniedException, EntityNotFoundException
+18 | | from app.users.service import get_profile_by_principal
+19 | |
+20 | | from ..infrastructure import repository
+21 | | from ..models import TermAttendance
+22 | | from .circles import _group_role_party_id, get_current_leadership
+   | |_________________________________________________________________^
+help: Organize imports
+   |
+10 | import uuid
+   -
+11 | from datetime import datetime
+   |
+
+E501 Line too long (109 > 100)
+  --> app\groups\application\attendance.py:25:101
+   |
+25 | async def _is_term_organizer(db: AsyncSession, term_circle_group_id: uuid.UUID, party_id: uuid.UUID) -> bool:
+   |                                                                                                     ^^^^^^^^^
+26 |     """Whether `party_id` is the current organizer of the Circle that owns
+27 |     this Term — the organizer never RSVPs to their own Term (no
+   |
+
+E501 Line too long (104 > 100)
+  --> app\groups\application\circles.py:65:101
+   |
+65 | async def create_own_circle(db: AsyncSession, organizer_party_id: uuid.UUID, circle_name: str) -> Group:
+   |                                                                                                     ^^^^
+66 |     """Self-service 'become an Organizer': creates a brand-new Circle and
+67 |     assigns `organizer_party_id` as its leader in one call. Idempotent by
+   |
+
+E501 Line too long (105 > 100)
+   --> app\groups\application\circles.py:289:101
+    |
+287 |     role = await get_or_create_active_group_role(db, organizer_party_id, GroupRoleType.ORGANIZATOR)
+288 |     leadership = Leadership(
+289 |         from_role_id=cast(uuid.UUID, role.id), to_group_id=group_id, valid_from=valid_from, valid_to=None
+    |                                                                                                     ^^^^^
+290 |     )
+291 |     db.add(leadership)
+    |
+
+E501 Line too long (103 > 100)
+   --> app\groups\application\circles.py:348:101
+    |
+348 | async def list_active_leaderships_for_party(db: AsyncSession, party_id: uuid.UUID) -> list[Leadership]:
+    |                                                                                                     ^^^
+349 |     """Every Circle `party_id` currently, actively leads."""
+350 |     role_ids = await repository.list_organizer_role_ids_for_party(db, party_id)
+    |
+
+E501 Line too long (104 > 100)
+   --> app\groups\application\circles.py:366:101
+    |
+366 | async def _require_active_organizer(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> None:
+    |                                                                                                     ^^^^
+367 |     if not await is_active_group_organizer(db, group_id, party_id):
+368 |         raise AccessDeniedException
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> app\groups\application\group_roles.py:4:1
+   |
+ 2 |   a given type."""
+ 3 |
+ 4 | / from __future__ import annotations
+ 5 | |
+ 6 | | import uuid
+ 7 | |
+ 8 | |
+ 9 | | from sqlalchemy.ext.asyncio import AsyncSession
+10 | |
+11 | | from app.core import clock
+12 | |
+13 | | from ..infrastructure import repository
+14 | | from ..models import GroupRole, GroupRoleType
+   | |_____________________________________________^
+help: Organize imports
+  |
+7 |
+  -
+8 | from sqlalchemy.ext.asyncio import AsyncSession
+  |
+
+E501 Line too long (106 > 100)
+  --> app\groups\application\memberships.py:27:101
+   |
+27 | async def add_active_membership(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> Membership:
+   |                                                                                                     ^^^^^^
+28 |     """Flushes (never commits) a new active `Membership` of `party_id` in
+29 |     `group_id`. The caller checks "already a member" and owns the commit."""
+   |
+
+E501 Line too long (104 > 100)
+   --> app\groups\application\memberships.py:198:101
+    |
+198 | async def list_memberships_for_circle(db: AsyncSession, circle_group_id: uuid.UUID) -> list[Membership]:
+    |                                                                                                     ^^^^
+199 |     return await repository.list_active_memberships_for_group(db, circle_group_id)
+    |
+
+E501 Line too long (101 > 100)
+  --> app\groups\application\pledges.py:78:101
+   |
+78 | async def create_pledge(db: AsyncSession, principal: Principal, needed_item_id: uuid.UUID) -> Pledge:
+   |                                                                                                     ^
+79 |     profile = await get_profile_by_principal(db, principal)
+80 |     needed_item = await get_needed_item(db, needed_item_id)
+   |
+
+E501 Line too long (109 > 100)
+   --> app\groups\application\term_item_listings.py:382:101
+    |
+382 | async def _resolve_lister_display_names(db: AsyncSession, party_ids: set[uuid.UUID]) -> dict[uuid.UUID, str]:
+    |                                                                                                     ^^^^^^^^^
+383 |     """`party_id -> display_name`, resolved once per DISTINCT lister in a
+384 |     result set — same bounded-loop precedent as `_resolve_item_display_info`."""
+    |
+
+E501 Line too long (118 > 100)
+    --> app\groups\application\term_item_listings.py:1011:101
+     |
+1009 |             party_id=other.proposer_party_id,
+1010 |             kind=NotificationKind.SWAP_REJECTED,
+1011 |             message=f'Twoja propozycja zamiany za „{product.name}" została odrzucona — rzecz trafiła do kogoś innego',
+     |                                                                                                     ^^^^^^^^^^^^^^^^^^
+1012 |             link_path=await item_path(db, other.listing_item_id),
+1013 |         )
+     |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> app\groups\router\memberships.py:3:1
+   |
+ 1 |   """`/api/memberships` routes — end a circle membership."""
+ 2 |
+ 3 | / from __future__ import annotations
+ 4 | |
+ 5 | | from datetime import date
+ 6 | | import uuid
+ 7 | | from typing import Annotated
+ 8 | |
+ 9 | | from fastapi import APIRouter, Depends
+10 | | from sqlalchemy.ext.asyncio import AsyncSession
+11 | |
+12 | | from app.core import clock
+13 | | from app.core.auth_deps import Principal, require_any
+14 | | from app.db import get_db
+15 | | from app.groups import service
+16 | | from app.groups.schemas import MembershipResponse
+   | |_________________________________________________^
+17 |
+18 |   router = APIRouter(tags=["groups"])
+   |
+help: Organize imports
+  |
+4 |
+5 + import uuid
+6 | from datetime import date
+  - import uuid
+7 | from typing import Annotated
+  |
+
+E501 Line too long (102 > 100)
+  --> app\groups\router\pledges.py:58:101
+   |
+57 | @router.get("/api/pledges/{pledge_id}", response_model=PledgeResponse)
+58 | async def get_pledge(pledge_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> PledgeResponse:
+   |                                                                                                     ^^
+59 |     pledge = await service.get_pledge(db, pledge_id)
+60 |     return PledgeResponse.model_validate(pledge)
+   |
+
+E501 Line too long (102 > 100)
+  --> app\groups\router\term_item_listings.py:51:101
+   |
+49 | )
+50 | async def set_item_listing_preference(
+51 |     item_id: uuid.UUID, body: SetItemListingPreferenceRequest, db: DbSession, principal: EditPrincipal
+   |                                                                                                     ^^
+52 | ) -> ItemListingPreferenceResponse | None:
+53 |     preference = await service.set_item_listing_preference(
+   |
+
+E501 Line too long (105 > 100)
+   --> app\groups\router\terms.py:164:101
+    |
+163 | @router.delete("/api/needed-items/{needed_item_id}", status_code=status.HTTP_204_NO_CONTENT)
+164 | async def delete_needed_item(needed_item_id: uuid.UUID, db: DbSession, principal: EditPrincipal) -> None:
+    |                                                                                                     ^^^^^
+165 |     profile = await get_profile_by_principal(db, principal)
+166 |     await service.soft_delete_needed_item(db, needed_item_id, profile.party_id)
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> app\plugin\models.py:20:1
+   |
+18 |   """
+19 |
+20 | / from __future__ import annotations
+21 | |
+22 | | import uuid
+23 | | from datetime import datetime
+24 | | from typing import Any
+25 | |
+26 | | from sqlalchemy import Boolean, DateTime, String, Text, UniqueConstraint
+27 | | from sqlalchemy.dialects.postgresql import JSONB
+28 | | from sqlalchemy.dialects import postgresql
+29 | | from sqlalchemy.orm import Mapped, mapped_column
+30 | |
+31 | | from app.core.base_model import Base, BaseEntity
+   | |________________________________________________^
+help: Organize imports
+   |
+26 | from sqlalchemy import Boolean, DateTime, String, Text, UniqueConstraint
+27 + from sqlalchemy.dialects import postgresql
+28 | from sqlalchemy.dialects.postgresql import JSONB
+   - from sqlalchemy.dialects import postgresql
+29 | from sqlalchemy.orm import Mapped, mapped_column
+   |
+
+E501 Line too long (101 > 100)
+  --> app\plugin\models.py:88:101
+   |
+86 |     # No FK to any entity table — deliberate loose reference, do not add
+87 |     # referential integrity here (see module docstring).
+88 |     entity_id: Mapped[uuid.UUID | None] = mapped_column(postgresql.UUID(as_uuid=True), nullable=True)
+   |                                                                                                     ^
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> app\plugin\query_service.py:12:1
+   |
+10 |   """
+11 |
+12 | / from __future__ import annotations
+13 | |
+14 | | import uuid
+15 | |
+16 | | from decimal import Decimal, InvalidOperation
+17 | | from typing import Any
+18 | |
+19 | | from sqlalchemy import Boolean, ColumnElement, Numeric, TextClause, cast, func, select, text
+20 | | from sqlalchemy.ext.asyncio import AsyncSession
+21 | |
+22 | | from app.core.filter_dsl import ALLOWED_OPERATORS, IDENTIFIER_PATTERN
+23 | |
+24 | | from .models import PluginObject
+   | |________________________________^
+help: Organize imports
+   |
+14 | import uuid
+   -
+15 | from decimal import Decimal, InvalidOperation
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> app\product\query_service.py:10:1
+   |
+ 8 |   """
+ 9 |
+10 | / from __future__ import annotations
+11 | |
+12 | | import uuid
+13 | |
+14 | | from decimal import Decimal, InvalidOperation
+15 | | from typing import Any
+16 | |
+17 | | from sqlalchemy import Boolean, ColumnElement, Numeric, Select, TextClause, cast, func, select, text
+18 | | from sqlalchemy.ext.asyncio import AsyncSession
+19 | |
+20 | | from app.core.filter_dsl import ALLOWED_OPERATORS, IDENTIFIER_PATTERN
+21 | |
+22 | | from .models import Product
+   | |___________________________^
+23 |
+24 |   # Sort whitelist: unknown/blank `field` silently falls back to the default
+   |
+help: Organize imports
+   |
+12 | import uuid
+   -
+13 | from decimal import Decimal, InvalidOperation
+   |
+
+E501 Line too long (120 > 100)
+   --> tests\test_circulation.py:487:101
+    |
+487 | async def test_circulationBridge_cancelReservation_repeatCall_raisesBusinessConflict_distinctFromWrongPartyAccessDenied(
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^
+488 |     client: AsyncClient, db_session: AsyncSession
+489 | ) -> None:
+    |
+
+E501 Line too long (103 > 100)
+   --> tests\test_organizations.py:157:101
+    |
+155 |     token = await _register_organizer(client, "org.owner.slug3@example.com")
+156 |     created = await client.post(
+157 |         "/api/organizations/mine", json={"name": "Publiczna Organizacja"}, headers=_auth_headers(token)
+    |                                                                                                     ^^^
+158 |     )
+159 |     slug = created.json()["slug"]
+    |
+
+E501 Line too long (108 > 100)
+  --> tests\test_plugin_admin_gating.py:61:101
+   |
+61 | async def _exercise_management_routes(client: AsyncClient, headers: dict[str, str], plugin_id: str) -> None:
+   |                                                                                                     ^^^^^^^^
+62 |     """Runs all 3 `ManagementPrincipal`-gated routes end to end (manifest
+63 |     PUT creates, enabled PATCH toggles, descriptor DELETE removes) and
+   |
+
+UP017 [*] Use `datetime.UTC` alias
+  --> tests\test_term_clock_regressions.py:49:33
+   |
+47 |     def now(cls, tz: tzinfo | None = None) -> datetime:  # type: ignore[override]
+48 |         if tz is None:
+49 |             return datetime.now(timezone.utc).replace(tzinfo=None)
+   |                                 ^^^^^^^^^^^^
+50 |         return datetime.now(tz)
+   |
+help: Convert to `datetime.UTC` alias
+   |
+13 | import uuid
+   - from datetime import date, datetime, timedelta, timezone, tzinfo
+14 + from datetime import date, datetime, timedelta, timezone, tzinfo, UTC
+15 | from zoneinfo import ZoneInfo
+--------------------------------------------------------------------------------
+48 |         if tz is None:
+   -             return datetime.now(timezone.utc).replace(tzinfo=None)
+49 +             return datetime.now(UTC).replace(tzinfo=None)
+50 |         return datetime.now(tz)
+   |
+
+Found 69 errors.
+[*] 11 fixable with the `--fix` option.

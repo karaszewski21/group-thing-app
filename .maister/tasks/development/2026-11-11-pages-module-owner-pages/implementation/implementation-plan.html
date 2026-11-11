@@ -192,17 +192,17 @@ ul.steps li small { display:block; color:var(--dim); margin-left:20px; font-size
 
 <h2>Task groups</h2>
 
-<section data-group="1" class="group todo" id="g1">
+<section data-group="1" class="group done" id="g1">
   <h3>Group 1: Baseline Snapshots <span class="badge">spec step 0</span><span class="g-badge"></span></h3>
   <p class="meta">Depends on: none · 6 steps</p>
   <div class="chips"><code class="new">TASK/verification/dump_openapi.py</code><code class="new">openapi-before.json</code><code class="new">ruff-check-before.txt</code><code class="new">ruff-format-before.txt</code><code class="new">mypy-before.txt</code><code class="new">pytest-before.txt</code></div>
   <ul class="steps">
-    <li data-step="1.1" class="step todo">Write <code>TASK/verification/dump_openapi.py</code><small>Imports <code>app.main.app</code>, writes <code>app.openapi()</code> as JSON with key order kept; puts the working directory on <code>sys.path</code>; run from <code>src/backend</code>; no server, no DB.</small></li>
-    <li data-step="1.2" class="step todo">Run it once: <code>openapi-before.json</code><small>Note the component count (expected 205) and the seven operationIds.</small></li>
-    <li data-step="1.3" class="step todo">Record <code>ruff-check-before.txt</code> and <code>ruff-format-before.txt</code><small>A non-zero exit code is expected; the output is the record.</small></li>
-    <li data-step="1.4" class="step todo">Record <code>mypy-before.txt</code> (<code>uv run python -m mypy app</code>)</li>
-    <li data-step="1.5" class="step todo">Record <code>pytest-before.txt</code> (whole suite)<small>A test failing here is listed by name; it is not a regression later.</small></li>
-    <li data-step="1.6" class="step todo">Confirm the baselines<small>Five files exist; counts in the group report (expected 69 / 50 / 15 in 8 files); <code>git status</code> shows no change under <code>src/</code>.</small></li>
+    <li data-step="1.1" class="step done">Write <code>TASK/verification/dump_openapi.py</code><small>Imports <code>app.main.app</code>, writes <code>app.openapi()</code> as JSON with key order kept; puts the working directory on <code>sys.path</code>; run from <code>src/backend</code>; no server, no DB.</small></li>
+    <li data-step="1.2" class="step done">Run it once: <code>openapi-before.json</code><small>Note the component count (expected 205) and the seven operationIds.</small></li>
+    <li data-step="1.3" class="step done">Record <code>ruff-check-before.txt</code> and <code>ruff-format-before.txt</code><small>A non-zero exit code is expected; the output is the record.</small></li>
+    <li data-step="1.4" class="step done">Record <code>mypy-before.txt</code> (<code>uv run python -m mypy app</code>)</li>
+    <li data-step="1.5" class="step done">Record <code>pytest-before.txt</code> (whole suite)<small>A test failing here is listed by name; it is not a regression later.</small></li>
+    <li data-step="1.6" class="step done">Confirm the baselines<small>Five files exist; counts in the group report (expected 69 / 50 / 15 in 8 files); <code>git status</code> shows no change under <code>src/</code>.</small></li>
   </ul>
   <details><summary>Acceptance criteria</summary><ul>
     <li>The five baseline files and the script exist under <code>TASK/verification/</code></li>
@@ -211,16 +211,16 @@ ul.steps li small { display:block; color:var(--dim); margin-left:20px; font-size
   </ul></details>
 </section>
 
-<section data-group="2" class="group todo" id="g2">
+<section data-group="2" class="group done" id="g2">
   <h3>Group 2: Groups Facade Preparation <span class="badge">spec step A</span><span class="g-badge"></span></h3>
   <p class="meta">Depends on: 1 · 5 steps</p>
   <div class="chips"><code>app/groups/application/owner_items.py</code><code>app/groups/application/organizer_page.py</code><code>app/groups/service.py</code><code>app/groups/infrastructure/events_acl.py</code></div>
   <ul class="steps">
-    <li data-step="2.1" class="step todo">Regression net (no new tests)<small>Proof is the whole existing suite; confirm in <code>pytest-before.txt</code> which tests were green.</small></li>
-    <li data-step="2.2" class="step todo">Rename <code>_counts</code> → <code>owner_item_counts</code> in <code>owner_items.py</code><small>Definition and every caller (regex <code>\b_counts\(</code> over app and tests); <code>count_owner_items</code> calls the new name.</small></li>
-    <li data-step="2.3" class="step todo">Add the 14 exports to <code>groups/service.py</code><small>2 from <code>owner_items</code>, 1 from <code>reserved_by</code>, 7 from <code>repository</code>, 1 from <code>slug_resolver</code>, 3 from <code>events_acl</code>. The two layout reads stay until Group 5. Not exported: <code>owner_summary</code>, <code>count_owner_items</code>, <code>count_owner_listed_items_by_mode</code>, <code>UpcomingEvent</code>.</small></li>
-    <li data-step="2.4" class="step todo">Add <code>count_upcoming_authored_events</code> to <code>events_acl.__all__</code></li>
-    <li data-step="2.5" class="step todo">Check<small>Whole suite equals <code>pytest-before.txt</code>; ruff on the four files and <code>mypy app</code> show nothing new against the baselines.</small></li>
+    <li data-step="2.1" class="step done">Regression net (no new tests)<small>Proof is the whole existing suite; confirm in <code>pytest-before.txt</code> which tests were green.</small></li>
+    <li data-step="2.2" class="step done">Rename <code>_counts</code> → <code>owner_item_counts</code> in <code>owner_items.py</code><small>Definition and every caller (regex <code>\b_counts\(</code> over app and tests); <code>count_owner_items</code> calls the new name.</small></li>
+    <li data-step="2.3" class="step done">Add the 14 exports to <code>groups/service.py</code><small>2 from <code>owner_items</code>, 1 from <code>reserved_by</code>, 7 from <code>repository</code>, 1 from <code>slug_resolver</code>, 3 from <code>events_acl</code>. The two layout reads stay until Group 5. Not exported: <code>owner_summary</code>, <code>count_owner_items</code>, <code>count_owner_listed_items_by_mode</code>, <code>UpcomingEvent</code>.</small></li>
+    <li data-step="2.4" class="step done">Add <code>count_upcoming_authored_events</code> to <code>events_acl.__all__</code></li>
+    <li data-step="2.5" class="step done">Check<small>Whole suite equals <code>pytest-before.txt</code>; ruff on the four files and <code>mypy app</code> show nothing new against the baselines.</small></li>
   </ul>
   <details><summary>Acceptance criteria</summary><ul>
     <li>Whole suite passes unchanged</li>
@@ -230,17 +230,17 @@ ul.steps li small { display:block; color:var(--dim); margin-left:20px; font-size
   </ul></details>
 </section>
 
-<section data-group="3" class="group todo" id="g3">
+<section data-group="3" class="group done" id="g3">
   <h3>Group 3: Pages ACLs, Domain and Schemas <span class="badge">spec step B · half 1</span><span class="g-badge"></span></h3>
   <p class="meta">Depends on: 2 · 6 steps · 3 new tests</p>
   <div class="chips"><code class="new">tests/test_pages_domain.py</code><code class="new">app/pages/__init__.py</code><code class="new">app/pages/schemas.py</code><code class="new">app/pages/domain/__init__.py</code><code class="new">domain/page_content.py</code><code class="new">domain/links.py</code><code class="new">domain/owner_dates.py</code><code class="new">app/pages/infrastructure/__init__.py</code><code class="new">infrastructure/groups_acl.py</code><code class="new">infrastructure/organizations_acl.py</code><code class="new">infrastructure/users_acl.py</code><code class="new">infrastructure/media_acl.py</code><code class="new">infrastructure/product_acl.py</code><code class="new">infrastructure/locations_acl.py</code></div>
   <ul class="steps">
-    <li data-step="3.1" class="step todo">Write the 3 tests of <code>tests/test_pages_domain.py</code> (no DB, no client)<small>Tie at the same <code>starts_at</code> → term first; earliest <code>limit</code> entries across both inputs; exact strings of <code>term_path</code> and <code>event_path</code>.</small></li>
-    <li data-step="3.2" class="step todo">Create the package skeleton<small><code>app/pages/__init__.py</code> with a module docstring only; empty <code>domain/__init__.py</code>, <code>infrastructure/__init__.py</code>.</small></li>
-    <li data-step="3.3" class="step todo">Write the six ACLs<small>Pure re-exports: docstring, imports, sorted <code>__all__</code>, no function bodies. <code>locations_acl</code> aliases <code>load_locations_by_ids</code> as <code>get_locations_by_ids</code>. Template: the events ACLs.</small></li>
-    <li data-step="3.4" class="step todo">Write the three domain modules<small><code>page_content.py</code> (<code>PageLayout</code> + eight caps), <code>links.py</code>, <code>owner_dates.py</code> with <code>def merge_upcoming_dates[D: _HasStartsAt](terms: Sequence[D], events: Sequence[D], limit: int) -> list[D]</code>. No <code>app.*</code> import.</small></li>
-    <li data-step="3.5" class="step todo">Write <code>app/pages/schemas.py</code><small>17 classes + <code>OrganizationLayoutResponse</code> alias verbatim from <code>app/groups/schemas.py:409-608</code>; module-level imports from <code>groups_acl</code> and <code>media_acl</code>. The groups copies stay until Group 5.</small></li>
-    <li data-step="3.6" class="step todo">Check<small>3 domain tests pass; <code>import app.pages.schemas</code> works; ruff clean on new files; no mypy error in <code>app/pages</code>; the six ACL files read against the spec table.</small></li>
+    <li data-step="3.1" class="step done">Write the 3 tests of <code>tests/test_pages_domain.py</code> (no DB, no client)<small>Tie at the same <code>starts_at</code> → term first; earliest <code>limit</code> entries across both inputs; exact strings of <code>term_path</code> and <code>event_path</code>.</small></li>
+    <li data-step="3.2" class="step done">Create the package skeleton<small><code>app/pages/__init__.py</code> with a module docstring only; empty <code>domain/__init__.py</code>, <code>infrastructure/__init__.py</code>.</small></li>
+    <li data-step="3.3" class="step done">Write the six ACLs<small>Pure re-exports: docstring, imports, sorted <code>__all__</code>, no function bodies. <code>locations_acl</code> aliases <code>load_locations_by_ids</code> as <code>get_locations_by_ids</code>. Template: the events ACLs.</small></li>
+    <li data-step="3.4" class="step done">Write the three domain modules<small><code>page_content.py</code> (<code>PageLayout</code> + eight caps), <code>links.py</code>, <code>owner_dates.py</code> with <code>def merge_upcoming_dates[D: _HasStartsAt](terms: Sequence[D], events: Sequence[D], limit: int) -> list[D]</code>. No <code>app.*</code> import.</small></li>
+    <li data-step="3.5" class="step done">Write <code>app/pages/schemas.py</code><small>17 classes + <code>OrganizationLayoutResponse</code> alias verbatim from <code>app/groups/schemas.py:409-608</code>; module-level imports from <code>groups_acl</code> and <code>media_acl</code>. The groups copies stay until Group 5.</small></li>
+    <li data-step="3.6" class="step done">Check<small>3 domain tests pass; <code>import app.pages.schemas</code> works; ruff clean on new files; no mypy error in <code>app/pages</code>; the six ACL files read against the spec table.</small></li>
   </ul>
   <details><summary>Acceptance criteria</summary><ul>
     <li>The 3 domain tests pass</li>
@@ -250,16 +250,16 @@ ul.steps li small { display:block; color:var(--dim); margin-left:20px; font-size
   </ul></details>
 </section>
 
-<section data-group="4" class="group todo" id="g4">
+<section data-group="4" class="group done" id="g4">
   <h3>Group 4: Pages Application and Router, unregistered <span class="badge">spec step B · half 2</span><span class="g-badge"></span></h3>
   <p class="meta">Depends on: 3 · 5 steps</p>
   <div class="chips"><code class="new">app/pages/application/__init__.py</code><code class="new">application/owner_pages.py</code><code class="new">application/organization_page.py</code><code class="new">app/pages/router/__init__.py</code><code class="new">router/organization_page.py</code><code class="new">router/owner_pages.py</code></div>
   <ul class="steps">
-    <li data-step="4.1" class="step todo">Regression net (no new tests)<small>The five page files still exercise the old groups routes: <code>test_organizer_page.py</code>, <code>test_organizer_page_queries.py</code>, <code>test_owner_items_page.py</code>, <code>test_owner_meetings.py</code>, <code>test_party_profile.py</code>.</small></li>
-    <li data-step="4.2" class="step todo">Write <code>application/owner_pages.py</code><small>14 functions from OI, docstrings verbatim; call sites remapped to the pages ACLs; <code>list_owner_dates</code> keeps its statement sequence and returns <code>merge_upcoming_dates(…)</code>; <code>clock.local_now()</code> stays a module-attribute call; new module docstring.</small></li>
-    <li data-step="4.3" class="step todo">Write <code>application/organization_page.py</code><small>Six functions from AP; <code>owner_items.X</code> → <code>owner_pages.X</code>; group-terms link through <code>term_path</code>; new module docstring.</small></li>
-    <li data-step="4.4" class="step todo">Write the router<small>Two sub-routers tagged <code>pages</code>, routes in today's order, signatures / docstrings / cache headers verbatim; <code>PageLayout</code> and <code>ExchangeMode</code> imported at module level; <code>router/__init__.py</code> includes organization page first. <code>app/main.py</code> is not touched.</small></li>
-    <li data-step="4.5" class="step todo">Check<small><code>import app.pages.router</code> succeeds; ruff clean on <code>app/pages</code>; <code>mypy app</code> equals baseline; the five page files pass.</small></li>
+    <li data-step="4.1" class="step done">Regression net (no new tests)<small>The five page files still exercise the old groups routes: <code>test_organizer_page.py</code>, <code>test_organizer_page_queries.py</code>, <code>test_owner_items_page.py</code>, <code>test_owner_meetings.py</code>, <code>test_party_profile.py</code>.</small></li>
+    <li data-step="4.2" class="step done">Write <code>application/owner_pages.py</code><small>14 functions from OI, docstrings verbatim; call sites remapped to the pages ACLs; <code>list_owner_dates</code> keeps its statement sequence and returns <code>merge_upcoming_dates(…)</code>; <code>clock.local_now()</code> stays a module-attribute call; new module docstring.</small></li>
+    <li data-step="4.3" class="step done">Write <code>application/organization_page.py</code><small>Six functions from AP; <code>owner_items.X</code> → <code>owner_pages.X</code>; group-terms link through <code>term_path</code>; new module docstring.</small></li>
+    <li data-step="4.4" class="step done">Write the router<small>Two sub-routers tagged <code>pages</code>, routes in today's order, signatures / docstrings / cache headers verbatim; <code>PageLayout</code> and <code>ExchangeMode</code> imported at module level; <code>router/__init__.py</code> includes organization page first. <code>app/main.py</code> is not touched.</small></li>
+    <li data-step="4.5" class="step done">Check<small><code>import app.pages.router</code> succeeds; ruff clean on <code>app/pages</code>; <code>mypy app</code> equals baseline; the five page files pass.</small></li>
   </ul>
   <details><summary>Acceptance criteria</summary><ul>
     <li><code>app/pages</code> has all 19 modules and imports cleanly</li>
@@ -269,21 +269,21 @@ ul.steps li small { display:block; color:var(--dim); margin-left:20px; font-size
   </ul></details>
 </section>
 
-<section data-group="5" class="group todo" id="g5">
+<section data-group="5" class="group done" id="g5">
   <h3>Group 5: Router Switch and Removal of the Groups Copies <span class="badge">spec step C · atomic</span><span class="g-badge"></span></h3>
   <p class="meta">Depends on: 4 · 9 steps</p>
   <div class="note">Steps 5.2–5.8 are one unit. Do not run tests, stop or hand over between them; a half-done switch either renames OpenAPI components or leaves the tree unimportable.</div>
   <div class="chips"><code>app/main.py</code><code>app/groups/router/__init__.py</code><code class="del">app/groups/router/organizer_page.py</code><code class="del">app/groups/application/organizer_page.py</code><code>app/groups/service.py</code><code>app/groups/application/owner_items.py</code><code>app/groups/schemas.py</code><code>app/groups/infrastructure/organizations_acl.py</code><code>tests/test_organizer_page.py</code><code>tests/test_party_profile.py</code><code>tests/test_organizer_bridges.py</code></div>
   <ul class="steps">
-    <li data-step="5.1" class="step todo">Regression net (no new tests)<small>Ten files must pass after the switch: the five page files, <code>test_reserved_listings.py</code>, <code>test_item_visibility.py</code>, <code>test_organizer_bridges.py</code>, <code>test_event_reservations_migration.py</code>, <code>test_domain_clock_guard.py</code>. Check <code>ruff-format-before.txt</code> for each file to edit.</small></li>
-    <li data-step="5.2" class="step todo"><code>app/main.py</code>: import <code>pages_router</code>, include it directly before <code>groups_router</code></li>
-    <li data-step="5.3" class="step todo">Groups router: remove <code>organizer_page</code> from import and include; delete the two old files</li>
-    <li data-step="5.4" class="step todo"><code>groups/service.py</code>: remove the two layout reads; docstring names <code>app.pages</code> as a consumer</li>
-    <li data-step="5.5" class="step todo"><code>owner_items.py</code>: keep four functions<small><code>listed_items</code>, <code>owner_item_counts</code>, <code>count_owner_items</code>, <code>owner_summary</code>; imports reduced; module docstring rewritten; <code>item_actions.py</code> not edited.</small></li>
-    <li data-step="5.6" class="step todo"><code>groups/schemas.py</code>: remove the 17 classes and the alias<small>Remove the <code>PublicMediaResponse</code> import; <code>Annotated</code> only if F401 reports it; rewrite the two section comments.</small></li>
-    <li data-step="5.7" class="step todo"><code>groups/infrastructure/organizations_acl.py</code>: remove the two wrappers<small><code>get_organization_by_slug</code>, <code>get_owner_party_id</code>; confirm no caller remains under <code>app/groups</code>.</small></li>
-    <li data-step="5.8" class="step todo">Three test import edits<small><code>PageLayout</code> and <code>PROFILE_RECENT_ITEMS</code> from <code>app.pages.domain.page_content</code>; <code>organizations_acl</code> from <code>app.pages.infrastructure</code> (+ docstring). Imports placed where isort puts them.</small></li>
-    <li data-step="5.9" class="step todo">Check<small>Ten files pass; quick OpenAPI check (205 components, no <code>app__pages__*</code>, <code>app__groups__schemas__ReservedByResponse</code> present); ruff and mypy against baselines; groups imports neither <code>app.media</code> nor <code>app.users.profile_layouts</code>.</small></li>
+    <li data-step="5.1" class="step done">Regression net (no new tests)<small>Ten files must pass after the switch: the five page files, <code>test_reserved_listings.py</code>, <code>test_item_visibility.py</code>, <code>test_organizer_bridges.py</code>, <code>test_event_reservations_migration.py</code>, <code>test_domain_clock_guard.py</code>. Check <code>ruff-format-before.txt</code> for each file to edit.</small></li>
+    <li data-step="5.2" class="step done"><code>app/main.py</code>: import <code>pages_router</code>, include it directly before <code>groups_router</code></li>
+    <li data-step="5.3" class="step done">Groups router: remove <code>organizer_page</code> from import and include; delete the two old files</li>
+    <li data-step="5.4" class="step done"><code>groups/service.py</code>: remove the two layout reads; docstring names <code>app.pages</code> as a consumer</li>
+    <li data-step="5.5" class="step done"><code>owner_items.py</code>: keep four functions<small><code>listed_items</code>, <code>owner_item_counts</code>, <code>count_owner_items</code>, <code>owner_summary</code>; imports reduced; module docstring rewritten; <code>item_actions.py</code> not edited.</small></li>
+    <li data-step="5.6" class="step done"><code>groups/schemas.py</code>: remove the 17 classes and the alias<small>Remove the <code>PublicMediaResponse</code> import; <code>Annotated</code> only if F401 reports it; rewrite the two section comments.</small></li>
+    <li data-step="5.7" class="step done"><code>groups/infrastructure/organizations_acl.py</code>: remove the two wrappers<small><code>get_organization_by_slug</code>, <code>get_owner_party_id</code>; confirm no caller remains under <code>app/groups</code>.</small></li>
+    <li data-step="5.8" class="step done">Three test import edits<small><code>PageLayout</code> and <code>PROFILE_RECENT_ITEMS</code> from <code>app.pages.domain.page_content</code>; <code>organizations_acl</code> from <code>app.pages.infrastructure</code> (+ docstring). Imports placed where isort puts them.</small></li>
+    <li data-step="5.9" class="step done">Check<small>Ten files pass; quick OpenAPI check (205 components, no <code>app__pages__*</code>, <code>app__groups__schemas__ReservedByResponse</code> present); ruff and mypy against baselines; groups imports neither <code>app.media</code> nor <code>app.users.profile_layouts</code>.</small></li>
   </ul>
   <details><summary>Acceptance criteria</summary><ul>
     <li>The ten regression files pass with no assertion edit</li>
@@ -294,16 +294,16 @@ ul.steps li small { display:block; color:var(--dim); margin-left:20px; font-size
   </ul></details>
 </section>
 
-<section data-group="6" class="group todo" id="g6">
+<section data-group="6" class="group done" id="g6">
   <h3>Group 6: Groups Cleanup and Boundary Guards <span class="badge">spec step D</span><span class="g-badge"></span></h3>
   <p class="meta">Depends on: 5 · 5 steps · 3 new tests</p>
   <div class="chips"><code class="new">tests/test_pages_boundary.py</code><code>tests/test_domain_clock_guard.py</code><code>app/groups/infrastructure/repository.py</code><code>app/groups/infrastructure/events_acl.py</code><code>app/groups/infrastructure/product_bridge.py</code></div>
   <ul class="steps">
-    <li data-step="6.1" class="step todo">Write the 3 tests of <code>tests/test_pages_boundary.py</code> and extend the clock guard<small><code>test_appModules_importingPages_onlyMain</code>, <code>test_pagesModules_outsideInfrastructure_importOnlyAllowedPackages</code>, <code>test_pagesAcls_importingPagesSchemas_none</code>; whole-segment package match; <code>_APP_ROOT / "pages"</code> added to <code>_GUARDED_DIRS</code>.</small></li>
-    <li data-step="6.2" class="step todo">Delete <code>party_leads_public_circle</code> from <code>repository.py</code><small>Hand edit only: the file is unformatted at baseline.</small></li>
-    <li data-step="6.3" class="step todo"><code>events_acl.py</code>: delete <code>has_authored_event</code>, update the docstring<small>Keep the <code>exists</code> import unless ruff reports it unused.</small></li>
-    <li data-step="6.4" class="step todo"><code>product_bridge.py</code> docstring: term page thumbnails only</li>
-    <li data-step="6.5" class="step todo">Check<small>Boundary, clock guard, events-migration, query-budget and bridges files pass; the two dead names are gone; <code>repository.py</code> diff holds deletions only.</small></li>
+    <li data-step="6.1" class="step done">Write the 3 tests of <code>tests/test_pages_boundary.py</code> and extend the clock guard<small><code>test_appModules_importingPages_onlyMain</code>, <code>test_pagesModules_outsideInfrastructure_importOnlyAllowedPackages</code>, <code>test_pagesAcls_importingPagesSchemas_none</code>; whole-segment package match; <code>_APP_ROOT / "pages"</code> added to <code>_GUARDED_DIRS</code>.</small></li>
+    <li data-step="6.2" class="step done">Delete <code>party_leads_public_circle</code> from <code>repository.py</code><small>Hand edit only: the file is unformatted at baseline.</small></li>
+    <li data-step="6.3" class="step done"><code>events_acl.py</code>: delete <code>has_authored_event</code>, update the docstring<small>Keep the <code>exists</code> import unless ruff reports it unused.</small></li>
+    <li data-step="6.4" class="step done"><code>product_bridge.py</code> docstring: term page thumbnails only</li>
+    <li data-step="6.5" class="step done">Check<small>Boundary, clock guard, events-migration, query-budget and bridges files pass; the two dead names are gone; <code>repository.py</code> diff holds deletions only.</small></li>
   </ul>
   <details><summary>Acceptance criteria</summary><ul>
     <li>The 3 boundary tests and the clock guard pass</li>
@@ -313,16 +313,16 @@ ul.steps li small { display:block; color:var(--dim); margin-left:20px; font-size
   </ul></details>
 </section>
 
-<section data-group="7" class="group todo" id="g7">
+<section data-group="7" class="group done" id="g7">
   <h3>Group 7: Documentation <span class="badge">spec step E</span><span class="g-badge"></span></h3>
   <p class="meta">Depends on: 5 · 5 steps</p>
   <div class="chips"><code>.maister/docs/project/architecture.md</code><code>.maister/docs/standards/backend/time.md</code><code>.maister/docs/INDEX.md</code></div>
   <ul class="steps">
-    <li data-step="7.1" class="step todo">Locate the passages by their text (line numbers in the spec may have shifted)</li>
-    <li data-step="7.2" class="step todo"><code>architecture.md</code><small>New section "Public pages (app/pages/)" before Messaging; four old paths replaced; one sentence under "Import discipline"; 7 → 8 public reads (the <code>Vary</code> wording stays); one <code>pages/</code> entry in the package tree.</small></li>
-    <li data-step="7.3" class="step todo"><code>time.md</code>: guard covers <code>app/groups/application</code>, <code>app/groups/router</code>, <code>app/events</code>, <code>app/pages</code></li>
-    <li data-step="7.4" class="step todo"><code>INDEX.md</code>: architecture summary names <code>app/pages</code>; guard directory list gains <code>app/events</code> and <code>app/pages</code></li>
-    <li data-step="7.5" class="step todo">Check: every path and name written exists in the tree; no other passage changed</li>
+    <li data-step="7.1" class="step done">Locate the passages by their text (line numbers in the spec may have shifted)</li>
+    <li data-step="7.2" class="step done"><code>architecture.md</code><small>New section "Public pages (app/pages/)" before Messaging; four old paths replaced; one sentence under "Import discipline"; 7 → 8 public reads (the <code>Vary</code> wording stays); one <code>pages/</code> entry in the package tree.</small></li>
+    <li data-step="7.3" class="step done"><code>time.md</code>: guard covers <code>app/groups/application</code>, <code>app/groups/router</code>, <code>app/events</code>, <code>app/pages</code></li>
+    <li data-step="7.4" class="step done"><code>INDEX.md</code>: architecture summary names <code>app/pages</code>; guard directory list gains <code>app/events</code> and <code>app/pages</code></li>
+    <li data-step="7.5" class="step done">Check: every path and name written exists in the tree; no other passage changed</li>
   </ul>
   <details><summary>Acceptance criteria</summary><ul>
     <li>The three files carry the edits listed in the spec's "Documentation edits", and no others</li>
@@ -330,18 +330,18 @@ ul.steps li small { display:block; color:var(--dim); margin-left:20px; font-size
   </ul></details>
 </section>
 
-<section data-group="8" class="group todo" id="g8">
+<section data-group="8" class="group done" id="g8">
   <h3>Group 8: Suite, Static-Analysis and OpenAPI Comparison <span class="badge">spec step F</span><span class="g-badge"></span></h3>
   <p class="meta">Depends on: 1–7 · 7 steps</p>
   <div class="chips"><code class="new">TASK/verification/openapi-after.json</code><code class="new">compare_openapi.py</code><code class="new">ruff-check-after.txt</code><code class="new">ruff-format-after.txt</code><code class="new">mypy-after.txt</code><code class="new">pytest-after.txt</code></div>
   <ul class="steps">
-    <li data-step="8.1" class="step todo">Review the tests of this feature<small>6 new tests + regression inventory; existing test diff = three imports, one guard entry, two docstrings. No test added by default; at most 10 if a gap is found, each reported.</small></li>
-    <li data-step="8.2" class="step todo">Whole suite → <code>pytest-after.txt</code><small>Same result as the baseline plus the 6 new tests.</small></li>
-    <li data-step="8.3" class="step todo"><code>mypy app</code> → <code>mypy-after.txt</code><small>Same 15 errors in the same 8 files; none in <code>app/pages</code>.</small></li>
-    <li data-step="8.4" class="step todo">ruff → <code>ruff-check-after.txt</code>, <code>ruff-format-after.txt</code><small>Nothing absent from the baselines; every new file clean on its own; no baseline-unformatted file reformatted.</small></li>
-    <li data-step="8.5" class="step todo">OpenAPI comparison (<code>openapi-after.json</code>, <code>compare_openapi.py</code>)<small>Deep-equal after resetting seven tags; <code>paths</code> key order equal; seven operationIds; exactly seven operations tagged <code>pages</code>; 205 components, no <code>app__pages__*</code>, <code>app__groups__schemas__ReservedByResponse</code> present.</small></li>
-    <li data-step="8.6" class="step todo">Control searches over <code>src/backend/app</code><small>Nothing for the four dead names and <code>\b_counts\(</code>; <code>owner_item_counts(</code> present; import-line regexes for <code>app.pages</code> match only in <code>app/main.py</code> outside the package.</small></li>
-    <li data-step="8.7" class="step todo">Walk the spec's nine Success Criteria<small>Includes <code>__all__</code> −2 / +14, no migration file, nothing committed.</small></li>
+    <li data-step="8.1" class="step done">Review the tests of this feature<small>6 new tests + regression inventory; existing test diff = three imports, one guard entry, two docstrings. No test added by default; at most 10 if a gap is found, each reported.</small></li>
+    <li data-step="8.2" class="step done">Whole suite → <code>pytest-after.txt</code><small>Same result as the baseline plus the 6 new tests.</small></li>
+    <li data-step="8.3" class="step done"><code>mypy app</code> → <code>mypy-after.txt</code><small>Same 15 errors in the same 8 files; none in <code>app/pages</code>.</small></li>
+    <li data-step="8.4" class="step done">ruff → <code>ruff-check-after.txt</code>, <code>ruff-format-after.txt</code><small>Nothing absent from the baselines; every new file clean on its own; no baseline-unformatted file reformatted.</small></li>
+    <li data-step="8.5" class="step done">OpenAPI comparison (<code>openapi-after.json</code>, <code>compare_openapi.py</code>)<small>Deep-equal after resetting seven tags; <code>paths</code> key order equal; seven operationIds; exactly seven operations tagged <code>pages</code>; 205 components, no <code>app__pages__*</code>, <code>app__groups__schemas__ReservedByResponse</code> present.</small></li>
+    <li data-step="8.6" class="step done">Control searches over <code>src/backend/app</code><small>Nothing for the four dead names and <code>\b_counts\(</code>; <code>owner_item_counts(</code> present; import-line regexes for <code>app.pages</code> match only in <code>app/main.py</code> outside the package.</small></li>
+    <li data-step="8.7" class="step done">Walk the spec's nine Success Criteria<small>Includes <code>__all__</code> −2 / +14, no migration file, nothing committed.</small></li>
   </ul>
   <details><summary>Acceptance criteria</summary><ul>
     <li>Whole suite passes; the 6 new tests pass; <code>tests/test_organizer_page_queries.py</code> is unmodified</li>

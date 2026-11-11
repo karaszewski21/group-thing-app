@@ -1,5 +1,5 @@
 """Shared read helpers for asserting on the item-movement ledger
-(`accounts` / `circulation_transactions` / `circulation_entries`) from tests.
+(`accounts` / `inventory_transactions` / `inventory_entries`) from tests.
 
 `assert_ledger_matches_projection` checks the ledger invariant only for the
 given items, because some tests deliberately force a legacy item state that
@@ -15,29 +15,29 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.circulation.models import (
+from app.inventory.models import (
     Account,
     AccountType,
-    CirculationEntry,
-    CirculationTransaction,
+    InventoryEntry,
     InventoryItem,
+    InventoryTransaction,
 )
 
 
-async def movements_for_item(db: AsyncSession, item_id: uuid.UUID) -> list[CirculationTransaction]:
+async def movements_for_item(db: AsyncSession, item_id: uuid.UUID) -> list[InventoryTransaction]:
     """Every transaction with an entry for `item_id`, oldest first by
     `(occurred_at, id)`, with `entries` and each entry's `account` loaded."""
     result = await db.execute(
-        select(CirculationTransaction)
+        select(InventoryTransaction)
         .where(
-            CirculationTransaction.id.in_(
-                select(CirculationEntry.transaction_id).where(CirculationEntry.item_id == item_id)
+            InventoryTransaction.id.in_(
+                select(InventoryEntry.transaction_id).where(InventoryEntry.item_id == item_id)
             )
         )
         .options(
-            selectinload(CirculationTransaction.entries).joinedload(CirculationEntry.account)
+            selectinload(InventoryTransaction.entries).joinedload(InventoryEntry.account)
         )
-        .order_by(CirculationTransaction.occurred_at, CirculationTransaction.id)
+        .order_by(InventoryTransaction.occurred_at, InventoryTransaction.id)
     )
     return list(result.scalars().all())
 
@@ -74,12 +74,12 @@ async def assert_ledger_matches_projection(db: AsyncSession, item_ids: Iterable[
     balance_rows = (
         await db.execute(
             select(
-                CirculationEntry.item_id,
-                CirculationEntry.account_id,
-                func.sum(CirculationEntry.quantity),
+                InventoryEntry.item_id,
+                InventoryEntry.account_id,
+                func.sum(InventoryEntry.quantity),
             )
-            .where(CirculationEntry.item_id.in_(ids))
-            .group_by(CirculationEntry.item_id, CirculationEntry.account_id)
+            .where(InventoryEntry.item_id.in_(ids))
+            .group_by(InventoryEntry.item_id, InventoryEntry.account_id)
         )
     ).tuples().all()
     balances: dict[uuid.UUID, dict[uuid.UUID, int]] = {item_id: {} for item_id in ids}
@@ -100,10 +100,10 @@ async def assert_ledger_matches_projection(db: AsyncSession, item_ids: Iterable[
 
     unbalanced = (
         await db.execute(
-            select(CirculationEntry.transaction_id, CirculationEntry.item_id)
-            .where(CirculationEntry.item_id.in_(ids))
-            .group_by(CirculationEntry.transaction_id, CirculationEntry.item_id)
-            .having(func.sum(CirculationEntry.quantity) != 0)
+            select(InventoryEntry.transaction_id, InventoryEntry.item_id)
+            .where(InventoryEntry.item_id.in_(ids))
+            .group_by(InventoryEntry.transaction_id, InventoryEntry.item_id)
+            .having(func.sum(InventoryEntry.quantity) != 0)
         )
     ).tuples().all()
     assert not unbalanced, f"transactions not summing to 0 per item: {unbalanced}"

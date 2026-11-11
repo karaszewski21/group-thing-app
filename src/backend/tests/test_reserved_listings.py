@@ -16,11 +16,11 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from app.circulation.models import BalanceStatus, InventoryItem, ItemCondition, ReservationType
 from app.core import clock
 from app.groups import service
-from app.groups.infrastructure import circulation_bridge, repository
+from app.groups.infrastructure import inventory_bridge, repository
 from app.groups.models import SwapProposal, SwapProposalStatus
+from app.inventory.models import BalanceStatus, InventoryItem, ItemCondition, ReservationType
 from tests.conftest import count_queries, create_location
 from tests.test_item_visibility import _world as _private_world
 from tests.test_organizer_bridges import _register_items
@@ -84,7 +84,7 @@ async def test_listedItemsSelect_includesReservedAndInTransitWithReserver_exclud
     taker_user_id = await _account_user_id(client, taker_token)
     await _take_in_term(db_session, _principal(taker_token), reserved_id, term_id)
     in_transit = await _take_in_term(db_session, _principal(taker_token), in_transit_id, term_id)
-    await circulation_bridge.confirm_reservation(
+    await inventory_bridge.confirm_reservation(
         db_session,
         cast(uuid.UUID, in_transit.resolved_reservation_id),
         await _account_user_id(client, lister_token),
@@ -95,7 +95,7 @@ async def test_listedItemsSelect_includesReservedAndInTransitWithReserver_exclud
     deleted.deleted_at = datetime.utcnow()
     await db_session.flush()
 
-    listed = circulation_bridge.listed_items_with_product_select().subquery()
+    listed = inventory_bridge.listed_items_with_product_select().subquery()
     rows = (await db_session.execute(select(listed).where(listed.c.item_id.in_(item_ids)))).all()
 
     by_item = {row.item_id: row for row in rows}

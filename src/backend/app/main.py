@@ -24,7 +24,6 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from app.auth.router import router as auth_router
 from app.category.router import router as category_router
-from app.circulation.router import router as circulation_router
 from app.config import settings
 from app.core import clock
 from app.core.auth_deps import register_auth_exception_handlers
@@ -34,6 +33,7 @@ from app.events.router import router as events_router
 from app.families.router import router as families_router
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.router import router as groups_router
+from app.inventory.router import router as inventory_router
 from app.locations.router import router as locations_router
 from app.media.service import sweep_superseded_media
 from app.messaging.router import router as messaging_router
@@ -45,6 +45,7 @@ from app.oauth2.metadata_router import router as oauth2_metadata_router
 from app.oauth2.router import router as oauth2_router
 from app.organizations.router import router as organizations_router
 from app.outbox import scheduler as outbox_scheduler
+from app.pages.router import router as pages_router
 from app.plugin.router import router as plugin_router
 from app.product.router import router as product_router
 from app.storage import outbox_listener as storage_outbox_listener
@@ -157,12 +158,13 @@ app.include_router(product_router)
 app.include_router(category_router)
 app.include_router(plugin_router)
 app.include_router(users_router)
+app.include_router(pages_router)
 app.include_router(groups_router)
 app.include_router(organizations_router)
 app.include_router(locations_router)
 app.include_router(events_router)
 app.include_router(families_router)
-app.include_router(circulation_router)
+app.include_router(inventory_router)
 app.include_router(notifications_router)
 app.include_router(messaging_router)
 app.include_router(moderation_router)

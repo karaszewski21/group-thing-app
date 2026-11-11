@@ -3,7 +3,7 @@ migration; see spec.md's Database Schema Spec `products` table). `category_id`
 is a plain FK-id column into the standalone `app.category` module's
 `Category` table (reintroduced by `0025_category_reintroduction`) — no
 `relationship()` per `standards/backend/models.md`'s cross-module rule;
-`app.circulation`'s `InventoryItem.product_id` references this same catalog.
+`app.inventory`'s `InventoryItem.product_id` references this same catalog.
 """
 
 from __future__ import annotations

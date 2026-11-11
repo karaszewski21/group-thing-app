@@ -14,11 +14,11 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import BalanceStatus, InventoryBalance, Reservation
 from app.core import clock
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.domain import swap_events
 from app.groups.models import GiveawayTermEndMarker
+from app.inventory.models import BalanceStatus, InventoryBalance, Reservation
 from app.outbox.models import OutboxEntry
 from app.users.models import UserProfile
 from tests.conftest import create_location

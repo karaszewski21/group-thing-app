@@ -17,9 +17,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth_deps import Principal
 
 from ..infrastructure import (
-    circulation_acl,
     events_acl,
     groups_acl,
+    inventory_acl,
     organizations_acl,
     repository,
     users_acl,
@@ -83,7 +83,7 @@ async def _load_labels(
     )
     profiles = await users_acl.list_chat_profiles_by_party_ids(db, party_ids)
     return _Labels(
-        item_refs=await circulation_acl.list_item_refs(
+        item_refs=await inventory_acl.list_item_refs(
             db, {c.item_id for c in conversations if c.item_id is not None}
         ),
         owner_slugs=await organizations_acl.list_party_slugs(

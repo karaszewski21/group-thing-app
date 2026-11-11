@@ -4,7 +4,7 @@ relationship to eager-load, per `standards/backend/models.md`'s cross-module
 rule) into the standalone `app.category` module's `Category` table.
 
 `delete_product` handles the FK violation raised when a product is still
-referenced by an `app.circulation.InventoryItem` — mirroring the pattern
+referenced by an `app.inventory.InventoryItem` — mirroring the pattern
 the now-removed `category/service.py` used for
 `CategoryHasProductsException`.
 """
@@ -51,8 +51,8 @@ SHARED_DESCRIPTION_PLUGIN_ID = "ai-description"
 SHARED_DESCRIPTION_FIELD = "description"
 
 
-# Ad-hoc, typed Core references to `app.circulation`'s tables — never its
-# ORM models (`app.product` must not depend on `app.circulation`), per
+# Ad-hoc, typed Core references to `app.inventory`'s tables — never its
+# ORM models (`app.product` must not depend on `app.inventory`), per
 # `standards/backend/models.md`'s cross-module rule. Only the columns the
 # item-owner check reads are declared.
 _inventory_items = table(
@@ -90,7 +90,7 @@ MAX_PRODUCT_PHOTOS = 3
 
 class ProductHasInventoryItemsException(BusinessConflictException):
     """Raised when deleting a product still referenced by at least one
-    `app.circulation.InventoryItem`."""
+    `app.inventory.InventoryItem`."""
 
     def __init__(self, product_id: uuid.UUID) -> None:
         super().__init__(

@@ -14,10 +14,10 @@ from httpx import AsyncClient
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import InventoryItem
 from app.core import clock
 from app.groups import service
 from app.groups.models import ItemListingPreference, Term
+from app.inventory.models import InventoryItem
 from tests.conftest import create_location
 from tests.test_term_item_listings import (
     _auth,

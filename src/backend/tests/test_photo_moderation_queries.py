@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.groups.infrastructure import product_bridge
 from app.moderation.status import ModerationStatus
 from app.product.models import ProductPhoto
-from tests.test_circulation_ledger import _create_product, _create_user
+from tests.test_inventory_ledger import _create_product, _create_user
 
 
 async def _add_photo(db: AsyncSession, product_id: uuid.UUID, status: ModerationStatus) -> None:

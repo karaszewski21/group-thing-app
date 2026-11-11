@@ -16,8 +16,8 @@ from httpx import AsyncClient
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from app.circulation.models import InventoryItem
 from app.core import clock
+from app.inventory.models import InventoryItem
 from tests.conftest import count_queries, create_location, locality_ids
 from tests.test_event_item_reservations import _listed_items, _sign_up
 from tests.test_personal_pickup import _remove_location, _set_location

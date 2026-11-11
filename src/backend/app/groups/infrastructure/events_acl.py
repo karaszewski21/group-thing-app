@@ -4,10 +4,11 @@ reads events. It imports `app.events.models` and nothing else from events —
 service here would close an import cycle (guarded by
 `tests/test_event_reservations_migration.py`).
 
-Used by event reservations (lookup, `FOR SHARE` lock, eligibility), the owner
-items page (upcoming events of a party), the party profile (any authored
-event), the end-of-event scan (events in a start window) and every event link
-(`author_slugs`)."""
+Used by event reservations (lookup, `FOR SHARE` lock, eligibility), the
+end-of-event scan (events in a start window) and every event link
+(`author_slugs`). The upcoming-events reads (`list_upcoming_events_for_parties`,
+`count_upcoming_authored_events`) and `author_slugs` serve `app.pages` through
+`groups.service`."""
 
 from __future__ import annotations
 
@@ -30,10 +31,10 @@ __all__ = [
     "Event",
     "UpcomingEvent",
     "author_slugs",
+    "count_upcoming_authored_events",
     "eligible_event_ids",
     "get_event",
     "get_events_by_ids",
-    "has_authored_event",
     "is_event_eligible",
     "list_events_starting_between",
     "list_upcoming_events_for_parties",
@@ -169,11 +170,6 @@ async def count_upcoming_authored_events(
         .where(Event.author_party_id == party_id, Event.starts_at >= now)
     )
     return result.scalar_one()
-
-
-async def has_authored_event(db: AsyncSession, party_id: uuid.UUID) -> bool:
-    result = await db.execute(select(exists().where(Event.author_party_id == party_id)))
-    return bool(result.scalar())
 
 
 async def list_events_starting_between(

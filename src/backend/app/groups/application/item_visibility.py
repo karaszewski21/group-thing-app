@@ -19,12 +19,12 @@ from app.core.auth_deps import Principal
 from app.core.errors import EntityNotFoundException
 from app.users.service import get_profile_by_principal
 
-from ..infrastructure import circulation_bridge, repository
+from ..infrastructure import inventory_bridge, repository
 from ..models import ItemListingPreference, ItemVisibility
 
 _OPEN_STATUSES = (
-    circulation_bridge.ReservationStatus.PENDING,
-    circulation_bridge.ReservationStatus.CONFIRMED,
+    inventory_bridge.ReservationStatus.PENDING,
+    inventory_bridge.ReservationStatus.CONFIRMED,
 )
 
 
@@ -57,7 +57,7 @@ async def _is_counterparty(
         return True
     open_legs = [
         r
-        for r in await circulation_bridge.list_reservations(db, item_id)
+        for r in await inventory_bridge.list_reservations(db, item_id)
         if r.status in _OPEN_STATUSES
     ]
     if not open_legs:
@@ -80,7 +80,7 @@ async def require_item_visible_to(
 ) -> None:
     """`require_item_visible` for a request principal, resolved to its party
     only when the item is PRIVATE; an unresolvable principal is anonymous.
-    The circulation router's gate on `/details`, `/history`, `/balance` and
+    The inventory router's gate on `/details`, `/history`, `/balance` and
     `GET /api/inventory-items/{id}`."""
     preference = await repository.get_item_listing_preference(db, item_id)
     if preference is None or preference.visibility != ItemVisibility.PRIVATE:

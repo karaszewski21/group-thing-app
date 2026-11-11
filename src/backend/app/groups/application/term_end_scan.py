@@ -4,8 +4,8 @@ emitting an idempotent outbox event for each still-open GIFT
 `app.notifications.outbox_listener` listens for to prompt the parties
 allowed to call `confirm_transaction` (a GIFT's taker, both SWAP parties).
 
-Reads circulation state ONLY through `circulation_bridge` — this module
-never imports `app.circulation` directly. GIFT candidates come from
+Reads inventory state ONLY through `inventory_bridge` — this module
+never imports `app.inventory` directly. GIFT candidates come from
 `Reservation.term_id` (statuses `PENDING`/`CONFIRMED`; SWAP excluded), so
 they are covered regardless of listing preferences. SWAP candidates are
 still derived from the standing `ItemListingPreference` of every party
@@ -34,7 +34,7 @@ from app.outbox import service as outbox_service
 from app.users.service import get_profile_by_account_user_id
 
 from ..domain import swap_events
-from ..infrastructure import circulation_bridge, events_acl, repository
+from ..infrastructure import events_acl, inventory_bridge, repository
 from ..infrastructure.slug_resolver import resolve_organizer_slug
 from ..models import (
     GiveawayTermEndMarker,
@@ -82,7 +82,7 @@ async def _find_events_just_started(
     return await events_acl.list_events_starting_between(db, ended_by - window, ended_by)
 
 
-def _context_id(reservation: circulation_bridge.Reservation) -> uuid.UUID:
+def _context_id(reservation: inventory_bridge.Reservation) -> uuid.UUID:
     """The Term or Event a reservation was made for — the key of the scan's
     `link_paths`/`details` maps (Term and Event ids never collide)."""
     return cast(
@@ -93,7 +93,7 @@ def _context_id(reservation: circulation_bridge.Reservation) -> uuid.UUID:
 
 async def _scan_hand_over_reservations(
     db: AsyncSession,
-    candidates: list[circulation_bridge.Reservation],
+    candidates: list[inventory_bridge.Reservation],
     link_paths: dict[uuid.UUID, str],
     details_by_context: dict[uuid.UUID, dict[str, object]],
 ) -> int:
@@ -119,7 +119,7 @@ async def _scan_hand_over_reservations(
     )
 
     pending = [r for r in candidates if r.id not in already_marked]
-    item_names = await circulation_bridge.list_product_names_for_items(
+    item_names = await inventory_bridge.list_product_names_for_items(
         db, {r.item_id for r in pending}
     )
 
@@ -170,7 +170,7 @@ async def _scan_swaps(
     swap_item_ids = [
         pref.item_id
         for pref in preferences
-        if pref.mode == circulation_bridge.ReservationType.SWAP.value
+        if pref.mode == inventory_bridge.ReservationType.SWAP.value
     ]
     if not swap_item_ids:
         return 0
@@ -181,14 +181,14 @@ async def _scan_swaps(
             SwapProposal.status == SwapProposalStatus.ACCEPTED,
             SwapProposal.term_ended_notified_at.is_(None),
             SwapProposal.proposer_reservation_id.in_(
-                circulation_bridge.reservation_ids_for_term_select(cast(uuid.UUID, term.id))
+                inventory_bridge.reservation_ids_for_term_select(cast(uuid.UUID, term.id))
             ),
         )
     )
     proposals = list(result.scalars().all())
     if not proposals:
         return 0
-    item_names = await circulation_bridge.list_product_names_for_items(
+    item_names = await inventory_bridge.list_product_names_for_items(
         db, {p.listing_item_id for p in proposals} | {p.offered_item_id for p in proposals}
     )
 
@@ -232,7 +232,7 @@ async def _scan_event_swaps(
                 SwapProposal.status == SwapProposalStatus.ACCEPTED,
                 SwapProposal.term_ended_notified_at.is_(None),
                 SwapProposal.proposer_reservation_id.in_(
-                    circulation_bridge.reservation_ids_for_event_select(event_id)
+                    inventory_bridge.reservation_ids_for_event_select(event_id)
                 ),
             )
         )
@@ -241,7 +241,7 @@ async def _scan_event_swaps(
         return 0
 
     proposals = [p for _, p in proposals_by_event]
-    reservation_model = circulation_bridge.Reservation
+    reservation_model = inventory_bridge.Reservation
     owner_reservations = {
         cast(uuid.UUID, r.id): r
         for r in (
@@ -254,7 +254,7 @@ async def _scan_event_swaps(
         .scalars()
         .all()
     }
-    item_names = await circulation_bridge.list_product_names_for_items(
+    item_names = await inventory_bridge.list_product_names_for_items(
         db, {p.listing_item_id for p in proposals} | {p.offered_item_id for p in proposals}
     )
 
@@ -319,13 +319,13 @@ async def scan_for_term_ended(db: AsyncSession, *, window: timedelta = DEFAULT_W
             "group_name": event.name,
         }
 
-    candidates: list[circulation_bridge.Reservation] = []
+    candidates: list[inventory_bridge.Reservation] = []
     if terms:
-        candidates += await circulation_bridge.list_active_hand_over_reservations_for_terms(
+        candidates += await inventory_bridge.list_active_hand_over_reservations_for_terms(
             db, [cast(uuid.UUID, t.id) for t in terms]
         )
     if events:
-        candidates += await circulation_bridge.list_active_hand_over_reservations_for_events(
+        candidates += await inventory_bridge.list_active_hand_over_reservations_for_events(
             db, [cast(uuid.UUID, e.id) for e in events]
         )
     hand_over_events = await _scan_hand_over_reservations(

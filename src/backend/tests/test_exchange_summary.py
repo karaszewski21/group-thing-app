@@ -18,13 +18,13 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import ReservationType
 from app.config import settings
 from app.core.auth_deps import Principal
 from app.core.errors import AccessDeniedException, EntityNotFoundException
 from app.core.security import decode_token
 from app.families.models import Family, FamilyMembership, FamilyRole, FamilyRoleType
 from app.groups import service
+from app.inventory.models import ReservationType
 from app.party.models import Party, PartyType
 from app.users.service import get_profile_by_principal
 from tests.conftest import create_location, leaf_category_ids

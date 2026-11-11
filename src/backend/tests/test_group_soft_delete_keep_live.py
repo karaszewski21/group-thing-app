@@ -12,12 +12,12 @@ from datetime import timedelta
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import ReservationType
 from app.core import clock
 from app.groups import service
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.domain import swap_events
 from app.groups.models import Term
+from app.inventory.models import ReservationType
 from tests.test_group_soft_delete_reads import _soft_delete_row
 from tests.test_organizer_page import _needed_item
 from tests.test_term_end_scan import _outbox_payloads, _push_term_into_past

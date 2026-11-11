@@ -31,7 +31,7 @@ EditPrincipal = Annotated[Principal, Depends(require_any("EDIT", "mcp:edit"))]
 Storage = Annotated[ObjectStorage | None, Depends(get_storage)]
 
 
-# The groups router is included before circulation's, so this literal path
+# The groups router is included before inventory's, so this literal path
 # wins over `GET /api/reservations/{reservation_id}`. Matrix row 42
 # (`GET ^/api/reservations(/.*)?$` -> READ).
 @router.get("/api/reservations/mine", response_model=list[MyReservationResponse])

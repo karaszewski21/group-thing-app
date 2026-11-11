@@ -26,7 +26,7 @@ from app.core.errors import EntityNotFoundException
 from app.users.models import UserProfile
 from app.users.service import get_profile_by_account_user_id, get_profile_by_principal
 
-from ..infrastructure import circulation_bridge, events_acl, locations_acl, repository
+from ..infrastructure import events_acl, inventory_bridge, locations_acl, repository
 from ..infrastructure.slug_resolver import resolve_organizer_slugs
 from ..models import ItemListingPreference, ItemVisibility, SwapProposal
 from ..schemas import (
@@ -46,8 +46,8 @@ from .term_item_listings import is_listing_owner, transaction_action_flags
 MAX_CONTEXTS = 5
 
 _OPEN_STATUSES = (
-    circulation_bridge.ReservationStatus.PENDING,
-    circulation_bridge.ReservationStatus.CONFIRMED,
+    inventory_bridge.ReservationStatus.PENDING,
+    inventory_bridge.ReservationStatus.CONFIRMED,
 )
 
 
@@ -62,26 +62,26 @@ async def get_item_actions(
     )
     viewer_party_id = viewer_profile.party_id if viewer_profile is not None else None
     await require_item_visible(db, item_id, viewer_party_id)
-    item = await circulation_bridge.get_item(db, item_id)
-    listed = item.listing_status == circulation_bridge.ItemListingStatus.ACTIVE
+    item = await inventory_bridge.get_item(db, item_id)
+    listed = item.listing_status == inventory_bridge.ItemListingStatus.ACTIVE
     if principal is None and not listed:
         raise EntityNotFoundException("InventoryItem", item_id)
 
     preference = await repository.get_item_listing_preference(db, item_id)
     mode = cast(ExchangeMode, preference.mode) if preference is not None else None
     private = preference is not None and preference.visibility == ItemVisibility.PRIVATE
-    balance_status = (await circulation_bridge.get_item_balance(db, item_id)).status
+    balance_status = (await inventory_bridge.get_item_balance(db, item_id)).status
     open_legs = [
         r
-        for r in await circulation_bridge.list_reservations(db, item_id)
+        for r in await inventory_bridge.list_reservations(db, item_id)
         if r.status in _OPEN_STATUSES
     ]
     leg = max(open_legs, key=lambda r: r.created_at) if open_legs else None
     proposals = await repository.list_pending_swap_proposals_for_listing_item(db, item_id)
     available = (
-        listed and balance_status == circulation_bridge.BalanceStatus.AVAILABLE and not proposals
+        listed and balance_status == inventory_bridge.BalanceStatus.AVAILABLE and not proposals
     )
-    inventory = await circulation_bridge.resolve_owning_inventory(db, item)
+    inventory = await inventory_bridge.resolve_owning_inventory(db, item)
     owner = await _owner(db, inventory.owner_user_id)
     viewer = _viewer(viewer_party_id, owner.party_id)
 
@@ -129,7 +129,7 @@ async def get_item_actions(
 
 @dataclass(frozen=True)
 class _ReservedState:
-    balance_status: circulation_bridge.BalanceStatus
+    balance_status: inventory_bridge.BalanceStatus
     reserved_by_user_id: uuid.UUID | None
     proposer_party_id: uuid.UUID | None
 
@@ -255,7 +255,7 @@ def _viewer_location(
 
 async def _party_reservation(
     db: AsyncSession,
-    leg: circulation_bridge.Reservation | None,
+    leg: inventory_bridge.Reservation | None,
     proposals: list[SwapProposal],
     viewer: UserProfile,
     preference: ItemListingPreference | None,
@@ -283,12 +283,12 @@ async def _party_reservation(
     proposal = next((p for p in proposals if owns or p.proposer_party_id == viewer.party_id), None)
     if proposal is None:
         return None
-    proposer_leg = await circulation_bridge.get_reservation(db, proposal.proposer_reservation_id)
+    proposer_leg = await inventory_bridge.get_reservation(db, proposal.proposer_reservation_id)
     return ItemPartyReservationResponse(
         role="GIVER" if owns else "RECEIVER",
         reservation_id=None,
         proposal_id=cast(uuid.UUID, proposal.id),
-        reservation_type=circulation_bridge.ReservationType.SWAP,
+        reservation_type=inventory_bridge.ReservationType.SWAP,
         personal_pickup=proposer_leg.term_id is None and proposer_leg.event_id is None,
         can_confirm=False,
         can_cancel=False,

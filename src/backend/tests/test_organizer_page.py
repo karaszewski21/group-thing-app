@@ -17,16 +17,16 @@ from httpx import AsyncClient
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import BalanceStatus
 from app.core import clock
-from app.groups.application.organizer_page import PageLayout
 from app.groups.models import (
     Group,
     ItemListingPreference,
     Leadership,
 )
+from app.inventory.models import BalanceStatus
 from app.organizations.models import Organization, OrganizationMembership
 from app.organizations.page_layouts import PAGE_LAYOUT_KEYS
+from app.pages.domain.page_content import PageLayout
 from tests.conftest import create_location
 from tests.test_organizer_bridges import (
     _register_items,

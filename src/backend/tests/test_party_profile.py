@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.groups.application.owner_items import PROFILE_RECENT_ITEMS
+from app.pages.domain.page_content import PROFILE_RECENT_ITEMS
 from app.users.models import UserProfile
 from tests.test_organizer_page import _circle, _in_days, _listed_items, _organization_slug, _term
 from tests.test_owner_items_page import ITEM_KEYS, NEAREST_KEYS, OWNER_KEYS, _create_event

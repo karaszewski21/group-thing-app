@@ -15,7 +15,7 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import InventoryItem
+from app.inventory.models import InventoryItem
 from app.messaging.application.send_limiter import limiter
 from app.messaging.infrastructure import repository
 from app.messaging.models import Conversation

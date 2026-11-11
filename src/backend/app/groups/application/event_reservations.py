@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import clock
 from app.users.models import UserProfile
 
-from ..infrastructure import circulation_bridge, notifications_bridge
+from ..infrastructure import inventory_bridge, notifications_bridge
 from ..infrastructure.notifications_bridge import NotificationKind
 from ..models import SwapProposal, SwapProposalStatus
 from .item_links import item_path
@@ -37,9 +37,9 @@ class OpenEventReservationCounts:
 
 @dataclass(frozen=True)
 class _OpenExchanges:
-    reservations: list[circulation_bridge.Reservation]
+    reservations: list[inventory_bridge.Reservation]
     live_proposals: list[SwapProposal]
-    standalone: list[circulation_bridge.Reservation]
+    standalone: list[inventory_bridge.Reservation]
 
 
 async def _collect_open_exchanges(
@@ -48,11 +48,11 @@ async def _collect_open_exchanges(
     """The event's open reservations, its PROPOSED/ACCEPTED proposals, the
     live ones among them (proposer leg still open) and the open reservations
     no live proposal covers. Two statements."""
-    reservations = await circulation_bridge.list_open_reservations_for_event(db, event_id)
+    reservations = await inventory_bridge.list_open_reservations_for_event(db, event_id)
     statement = select(SwapProposal).where(
         SwapProposal.status.in_(_LIVE_PROPOSAL_STATUSES),
         SwapProposal.proposer_reservation_id.in_(
-            circulation_bridge.reservation_ids_for_event_select(event_id)
+            inventory_bridge.reservation_ids_for_event_select(event_id)
         ),
     )
     if for_update:
@@ -99,7 +99,7 @@ async def cancel_open_event_reservations(
     proposals and stages one `RESERVATION_CANCELLED` per party of each gift
     or swap. Flush only — the caller commits."""
     exchanges, proposals = await _collect_open_exchanges(db, event_id, for_update=True)
-    cancelled = await circulation_bridge.cancel_reservations_without_commit(
+    cancelled = await inventory_bridge.cancel_reservations_without_commit(
         db, [cast(uuid.UUID, r.id) for r in exchanges.reservations]
     )
     cancelled_ids = {cast(uuid.UUID, r.id) for r in cancelled}
@@ -112,7 +112,7 @@ async def cancel_open_event_reservations(
         {r.giver_user_id for r in exchanges.reservations}
         | {r.reserved_by_user_id for r in exchanges.reservations},
     )
-    names = await circulation_bridge.list_product_names_for_items(
+    names = await inventory_bridge.list_product_names_for_items(
         db,
         {r.item_id for r in exchanges.reservations}
         | {p.listing_item_id for p in exchanges.live_proposals},

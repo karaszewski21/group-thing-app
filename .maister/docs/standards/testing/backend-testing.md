@@ -14,7 +14,7 @@ Tests use pytest + pytest-asyncio (`asyncio_mode = "auto"`, session-scoped event
 Exercise features through their HTTP endpoints with `client` and assert status codes plus JSON bodies (`response.json()`); include `response.text` in status asserts for readable failures. When no endpoint exists for the setup you need (e.g. granting `ADMIN`, ledger states), seed through application/service functions or SQL on `db_session`, then `await db_session.commit()` so the request sees it. Don't test private helpers, Pydantic/SQLAlchemy boilerplate, or framework behaviour.
 ```python
 assert response.status_code == 201, response.text
-await circulation_service.confirm_reservation(db_session, reservation_id, owner_user_id)
+await inventory_service.confirm_reservation(db_session, reservation_id, owner_user_id)
 ```
 
 ### Per-File Auth Helpers

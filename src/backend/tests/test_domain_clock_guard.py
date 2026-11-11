@@ -1,5 +1,5 @@
-"""Guards for the domain clock: the groups and events packages read "now"
-only through `app.core.clock`, and accepting a swap is gated on the Term not
+"""Guards for the domain clock: the groups, events and pages packages read
+"now" only through `app.core.clock`, and accepting a swap is gated on the Term not
 having started yet (frozen via the opt-in `freeze_local_now` fixture)."""
 
 from __future__ import annotations
@@ -14,13 +14,13 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import Reservation, ReservationType
 from app.config import settings
 from app.core.auth_deps import Principal
 from app.core.errors import BusinessConflictException
 from app.core.security import decode_token
 from app.groups import service
 from app.groups.models import SwapProposalStatus, Term
+from app.inventory.models import Reservation, ReservationType
 from tests.conftest import create_location, leaf_category_ids
 from tests.test_term_item_listings import _propose_in_term
 
@@ -29,6 +29,7 @@ _GUARDED_DIRS = (
     _APP_ROOT / "groups" / "application",
     _APP_ROOT / "groups" / "router",
     _APP_ROOT / "events",
+    _APP_ROOT / "pages",
 )
 _FORBIDDEN = ("datetime.now(", "date.today(")
 

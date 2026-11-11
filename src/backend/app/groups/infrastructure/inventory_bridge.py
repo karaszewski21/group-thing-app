@@ -1,0 +1,303 @@
+"""Anti-corruption layer over `app.inventory`: the ONLY `app.groups`
+module that imports the inventory vertical. `application/term_item_listings`
+and `application/attendance` drive the ItemListingPreference->Reservation
+bridge exclusively through these thin pass-throughs (`create_reservation`/
+`list_reservations` and the re-exported `ReservationType`/
+`ReservationStatus`), never importing inventory models directly; a Term transaction is
+resolved in one inventory commit through `fulfill_exchange`/
+`cancel_exchange`. Listing-preference
+writes lock the item through `get_item_for_update` and keep its
+`listing_status` in step through `set_item_listing_status`. List reads
+join `listed_items_with_product_select` (reserved items included) into
+their own statements; takeability-only reads check a batch of items with
+`list_available_items_with_product`."""
+
+from __future__ import annotations
+
+import uuid
+from collections.abc import Collection, Sequence
+from typing import Any
+
+from sqlalchemy import Select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.inventory import service as inventory_service
+from app.inventory.models import (
+    BalanceStatus,
+    Inventory,
+    InventoryBalance,
+    InventoryItem,
+    InventoryType,
+    ItemCondition,
+    ItemListingStatus,
+    Reservation,
+    ReservationStatus,
+    ReservationType,
+)
+from app.inventory.service import AvailableItemView
+
+__all__ = [
+    "AvailableItemView",
+    "BalanceStatus",
+    "Inventory",
+    "InventoryItem",
+    "InventoryType",
+    "ItemListingStatus",
+    "Reservation",
+    "ReservationStatus",
+    "ReservationType",
+    "cancel_exchange",
+    "cancel_reservation",
+    "cancel_reservations_without_commit",
+    "confirm_reservation",
+    "create_reservation",
+    "find_personal_inventory",
+    "fulfill_exchange",
+    "get_item",
+    "get_item_balance",
+    "get_item_for_update",
+    "get_item_live_location_id",
+    "get_reservation",
+    "list_active_hand_over_reservations_for_events",
+    "list_active_hand_over_reservations_for_terms",
+    "list_active_reservations_for_taker",
+    "list_available_items_with_product",
+    "list_item_products",
+    "list_items_with_product_name",
+    "listed_items_with_product_select",
+    "inventory_items_with_product_select",
+    "list_open_reservations_for_event",
+    "list_product_names_for_items",
+    "list_reservations",
+    "list_reservations_by_ids",
+    "reservation_ids_for_event_select",
+    "reservation_ids_for_term_select",
+    "resolve_owning_inventory",
+    "set_item_listing_status",
+]
+
+
+async def create_reservation(
+    db: AsyncSession,
+    *,
+    item_id: uuid.UUID,
+    reservation_type: ReservationType,
+    reserved_by_user_id: uuid.UUID,
+    term_id: uuid.UUID | None = None,
+    event_id: uuid.UUID | None = None,
+    commit: bool = True,
+) -> Reservation:
+    """`GIFT`/`SWAP` reservation creation for the exchange mechanism, in at
+    most one context — none for a personal pickup (`ValueError` when both
+    are given). Used by
+    `app.groups.application.term_item_listings`; `commit=False` only
+    flushes."""
+    return await inventory_service.create_reservation(
+        db,
+        item_id=item_id,
+        reservation_type=reservation_type,
+        reserved_by_user_id=reserved_by_user_id,
+        term_id=term_id,
+        event_id=event_id,
+        commit=commit,
+    )
+
+
+async def get_reservation(db: AsyncSession, reservation_id: uuid.UUID) -> Reservation:
+    return await inventory_service.get_reservation(db, reservation_id)
+
+
+async def confirm_reservation(
+    db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID, *, commit: bool = True
+) -> Reservation:
+    """Used by `term_item_listings` to auto-confirm a just-created swap leg
+    on behalf of the item's current holder, whose consent already exists (a
+    published `ItemListingPreference`, or the proposer's own offer) —
+    inventory's `confirm_reservation` requires exactly that party."""
+    return await inventory_service.confirm_reservation(
+        db, reservation_id, acting_user_id, commit=commit
+    )
+
+
+async def cancel_reservation(
+    db: AsyncSession, reservation_id: uuid.UUID, acting_user_id: uuid.UUID, *, commit: bool = True
+) -> Reservation:
+    """Thin pass-through, same shape as `confirm_reservation` above."""
+    return await inventory_service.cancel_reservation(
+        db, reservation_id, acting_user_id, commit=commit
+    )
+
+
+async def cancel_reservations_without_commit(
+    db: AsyncSession, reservation_ids: Collection[uuid.UUID]
+) -> list[Reservation]:
+    """Holder-side cancel of the still-open reservations among
+    `reservation_ids`, for event deletion. Flush only — the caller commits;
+    see `app.inventory.service.cancel_reservations_without_commit`."""
+    return await inventory_service.cancel_reservations_without_commit(db, reservation_ids)
+
+
+async def list_available_items_with_product(
+    db: AsyncSession, item_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, AvailableItemView]:
+    return await inventory_service.list_available_items_with_product(db, item_ids)
+
+
+ListedItemsSelect = Select[
+    tuple[uuid.UUID, uuid.UUID, str, ItemCondition, BalanceStatus, uuid.UUID | None]
+]
+
+
+def listed_items_with_product_select() -> ListedItemsSelect:
+    """`(item_id, product_id, product_name, condition, balance_status,
+    reserved_by_user_id)` of every live AVAILABLE, RESERVED or IN_TRANSIT
+    item, unexecuted, for a list read to join."""
+    return inventory_service.listed_items_with_product_select()
+
+
+def inventory_items_with_product_select(inventory_id: uuid.UUID) -> Select[Any]:
+    """Every live item in `inventory_id` with its product name and stored
+    fields, unexecuted, for `Moje rzeczy` to filter and page."""
+    return inventory_service.inventory_items_with_product_select(inventory_id)
+
+
+async def fulfill_exchange(
+    db: AsyncSession, reservation_ids: Sequence[uuid.UUID], acting_user_id: uuid.UUID
+) -> list[Reservation]:
+    """Used by `term_item_listings.confirm_transaction`. Commits the
+    session, including the caller's flushed changes — see
+    `app.inventory.service.fulfill_exchange`."""
+    return await inventory_service.fulfill_exchange(db, reservation_ids, acting_user_id)
+
+
+async def cancel_exchange(
+    db: AsyncSession, reservation_ids: Sequence[uuid.UUID], acting_user_id: uuid.UUID
+) -> list[Reservation]:
+    """Used by `term_item_listings.cancel_transaction`; same commit contract
+    as `fulfill_exchange`."""
+    return await inventory_service.cancel_exchange(db, reservation_ids, acting_user_id)
+
+
+async def list_reservations(db: AsyncSession, item_id: uuid.UUID) -> list[Reservation]:
+    """Used by `application/term_item_listings.py` to derive an item's
+    current listing status (active or most-recently-fulfilled reservation)
+    since that's no longer cached on a stored listing row."""
+    return await inventory_service.list_reservations(db, item_id)
+
+
+async def list_active_reservations_for_taker(
+    db: AsyncSession, account_user_id: uuid.UUID
+) -> list[Reservation]:
+    """Used by `application/term_item_listings.py`'s
+    `list_my_active_taken_term_item_listings` — the availability-independent
+    taker-side counterpart to `list_reservations` above."""
+    return await inventory_service.list_active_reservations_for_taker(db, account_user_id)
+
+
+async def list_active_hand_over_reservations_for_terms(
+    db: AsyncSession, term_ids: list[uuid.UUID]
+) -> list[Reservation]:
+    """Used by `application/term_end_scan.py`: the still-open GIFT
+    reservations of the just-ended Terms, in one query."""
+    return await inventory_service.list_active_hand_over_reservations_for_terms(db, term_ids)
+
+
+def reservation_ids_for_term_select(term_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
+    """Used by `application/term_end_scan.py` to scope swap proposals to the
+    Term their proposer reservation belongs to, as an SQL subquery."""
+    return inventory_service.reservation_ids_for_term_select(term_id)
+
+
+async def list_active_hand_over_reservations_for_events(
+    db: AsyncSession, event_ids: list[uuid.UUID]
+) -> list[Reservation]:
+    """Used by the term-end scan's event pass: the still-open GIFT
+    reservations of the just-started Events, in one query."""
+    return await inventory_service.list_active_hand_over_reservations_for_events(db, event_ids)
+
+
+def reservation_ids_for_event_select(event_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
+    """`reservation_ids_for_term_select` for an Event's swap proposals."""
+    return inventory_service.reservation_ids_for_event_select(event_id)
+
+
+async def list_open_reservations_for_event(
+    db: AsyncSession, event_id: uuid.UUID
+) -> list[Reservation]:
+    """Every PENDING/CONFIRMED reservation of the Event, both swap legs
+    included, for `cancel_reservations_without_commit` on event deletion."""
+    return await inventory_service.list_open_reservations_for_event(db, event_id)
+
+
+async def list_product_names_for_items(
+    db: AsyncSession, item_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """Used by `application/term_end_scan.py` to name every prompted item in
+    one read, soft-deleted items included."""
+    return await inventory_service.list_product_names_for_items(db, item_ids)
+
+
+async def list_item_products(
+    db: AsyncSession, item_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, tuple[uuid.UUID, str]]:
+    """Used by `application/my_reservations.py`: each item's product id (for
+    its thumbnail) and name, in one read."""
+    return await inventory_service.list_item_products(db, item_ids)
+
+
+async def list_reservations_by_ids(
+    db: AsyncSession, reservation_ids: Collection[uuid.UUID]
+) -> list[Reservation]:
+    """Used by `application/my_reservations.py` for the proposer legs of
+    pending swap proposals, which carry the proposal's term or event."""
+    return await inventory_service.list_reservations_by_ids(db, reservation_ids)
+
+
+async def find_personal_inventory(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory | None:
+    """The user's PERSONAL inventory, or `None` if they have never created
+    one."""
+    inventories = await inventory_service.list_inventories(db, owner_user_id)
+    return next(
+        (inv for inv in inventories if inv.inventory_type == InventoryType.PERSONAL), None
+    )
+
+
+async def get_item_live_location_id(db: AsyncSession, item_id: uuid.UUID) -> uuid.UUID | None:
+    """The item's place unless missing or soft-deleted: required for a
+    personal take and for a first listing."""
+    return await inventory_service.find_item_live_location_id(db, item_id)
+
+
+async def list_items_with_product_name(
+    db: AsyncSession, inventory_id: uuid.UUID
+) -> list[tuple[InventoryItem, str]]:
+    """Used by `list_my_inventory_items`: items physically in `inventory_id`."""
+    return await inventory_service.list_items_with_product_name(db, inventory_id)
+
+
+async def get_item(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
+    return await inventory_service.get_item(db, item_id)
+
+
+async def get_item_for_update(db: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
+    """`get_item` under a FOR UPDATE item row lock — see
+    `app.inventory.application.inventory_items.get_item_for_update`."""
+    return await inventory_service.get_item_for_update(db, item_id)
+
+
+async def set_item_listing_status(
+    db: AsyncSession, item_id: uuid.UUID, listing_status: ItemListingStatus
+) -> None:
+    """The only way `app.groups` writes `listing_status`, alongside every
+    listing-preference insert/delete. Flush only — the caller commits."""
+    await inventory_service.set_item_listing_status(db, item_id, listing_status)
+
+
+async def get_item_balance(db: AsyncSession, item_id: uuid.UUID) -> InventoryBalance:
+    return await inventory_service.get_item_balance(db, item_id)
+
+
+async def resolve_owning_inventory(db: AsyncSession, item: InventoryItem) -> Inventory:
+    """The item's permanent owning inventory — see
+    `app.inventory.application.inventory_items.resolve_owning_inventory`."""
+    return await inventory_service.resolve_owning_inventory(db, item)

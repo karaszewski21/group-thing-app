@@ -1,0 +1,958 @@
+unformatted: File would be reformatted
+  --> alembic\versions\0002_seed_dev_users.py:84:20
+   |
+83 |         )
+   -         op.execute(sa.text("DELETE FROM users WHERE username = :username").bindparams(username=username))
+84 +         op.execute(
+85 +             sa.text("DELETE FROM users WHERE username = :username").bindparams(username=username)
+86 +         )
+   |
+
+unformatted: File would be reformatted
+   --> alembic\versions\0003_party_schema.py:84:33
+    |
+83  |         sa.ForeignKeyConstraint(
+    -             ["family_group_id"], ["party_groups.id"], name="fk_party_people_family_group_id_party_groups"
+84  +             ["family_group_id"],
+85  +             ["party_groups.id"],
+86  +             name="fk_party_people_family_group_id_party_groups",
+87  |         ),
+88  |     )
+89  |     _own_sequence(_PARTY_PERSON_SEQ, "party_people")
+    -     op.create_index("ix_party_people_family_group_id", "party_people", ["family_group_id"], unique=False)
+90  +     op.create_index(
+91  +         "ix_party_people_family_group_id", "party_people", ["family_group_id"], unique=False
+92  +     )
+93  |
+--------------------------------------------------------------------------------
+116 |     op.create_index(
+    -         "ix_party_leaderships_organizer_person_id", "party_leaderships", ["organizer_person_id"], unique=False
+117 +         "ix_party_leaderships_organizer_person_id",
+118 +         "party_leaderships",
+119 +         ["organizer_person_id"],
+120 +         unique=False,
+121 |     )
+--------------------------------------------------------------------------------
+144 |         sa.ForeignKeyConstraint(
+    -             ["family_group_id"], ["party_groups.id"], name="fk_party_memberships_family_group_id_party_groups"
+145 +             ["family_group_id"],
+146 +             ["party_groups.id"],
+147 +             name="fk_party_memberships_family_group_id_party_groups",
+148 |         ),
+149 |         sa.ForeignKeyConstraint(
+    -             ["circle_group_id"], ["party_groups.id"], name="fk_party_memberships_circle_group_id_party_groups"
+150 +             ["circle_group_id"],
+151 +             ["party_groups.id"],
+152 +             name="fk_party_memberships_circle_group_id_party_groups",
+153 |         ),
+154 |     )
+155 |     _own_sequence(_PARTY_MEMBERSHIP_SEQ, "party_memberships")
+    -     op.create_index("ix_party_memberships_family_group_id", "party_memberships", ["family_group_id"], unique=False)
+    -     op.create_index("ix_party_memberships_circle_group_id", "party_memberships", ["circle_group_id"], unique=False)
+156 +     op.create_index(
+157 +         "ix_party_memberships_family_group_id",
+158 +         "party_memberships",
+159 +         ["family_group_id"],
+160 +         unique=False,
+161 +     )
+162 +     op.create_index(
+163 +         "ix_party_memberships_circle_group_id",
+164 +         "party_memberships",
+165 +         ["circle_group_id"],
+166 +         unique=False,
+167 +     )
+168 |
+--------------------------------------------------------------------------------
+219 |         sa.ForeignKeyConstraint(
+    -             ["pledged_by_person_id"], ["party_people.id"], name="fk_pledges_pledged_by_person_id_party_people"
+220 +             ["pledged_by_person_id"],
+221 +             ["party_people.id"],
+222 +             name="fk_pledges_pledged_by_person_id_party_people",
+223 |         ),
+224 |     )
+225 |     _own_sequence(_PLEDGE_SEQ, "pledges")
+226 |     op.create_index("ix_pledges_needed_item_id", "pledges", ["needed_item_id"], unique=False)
+    -     op.create_index("ix_pledges_pledged_by_person_id", "pledges", ["pledged_by_person_id"], unique=False)
+227 +     op.create_index(
+228 +         "ix_pledges_pledged_by_person_id", "pledges", ["pledged_by_person_id"], unique=False
+229 +     )
+230 |
+    |
+
+unformatted: File would be reformatted
+   --> alembic\versions\0004_circulation_schema.py:70:33
+    |
+69  |         sa.UniqueConstraint("code", name="uq_accounts_code"),
+    -         sa.ForeignKeyConstraint(["owner_user_id"], ["users.id"], name="fk_accounts_owner_user_id_users"),
+70  +         sa.ForeignKeyConstraint(
+71  +             ["owner_user_id"], ["users.id"], name="fk_accounts_owner_user_id_users"
+72  +         ),
+73  |     )
+--------------------------------------------------------------------------------
+102 |         sa.PrimaryKeyConstraint("id", name="pk_inventories"),
+    -         sa.ForeignKeyConstraint(["owner_user_id"], ["users.id"], name="fk_inventories_owner_user_id_users"),
+103 +         sa.ForeignKeyConstraint(
+104 +             ["owner_user_id"], ["users.id"], name="fk_inventories_owner_user_id_users"
+105 +         ),
+106 |     )
+--------------------------------------------------------------------------------
+131 |     _own_sequence(_INVENTORY_ITEM_SEQ, "inventory_items")
+    -     op.create_index("ix_inventory_items_inventory_id", "inventory_items", ["inventory_id"], unique=False)
+    -     op.create_index("ix_inventory_items_product_id", "inventory_items", ["product_id"], unique=False)
+132 +     op.create_index(
+133 +         "ix_inventory_items_inventory_id", "inventory_items", ["inventory_id"], unique=False
+134 +     )
+135 +     op.create_index(
+136 +         "ix_inventory_items_product_id", "inventory_items", ["product_id"], unique=False
+137 +     )
+138 |
+--------------------------------------------------------------------------------
+154 |         sa.ForeignKeyConstraint(
+    -             ["item_id"], ["inventory_items.id"], name="fk_inventory_balances_item_id_inventory_items"
+155 +             ["item_id"],
+156 +             ["inventory_items.id"],
+157 +             name="fk_inventory_balances_item_id_inventory_items",
+158 |         ),
+--------------------------------------------------------------------------------
+191 |     op.create_index("ix_reservations_item_id", "reservations", ["item_id"], unique=False)
+    -     op.create_index("ix_reservations_reserved_by_user_id", "reservations", ["reserved_by_user_id"], unique=False)
+192 +     op.create_index(
+193 +         "ix_reservations_reserved_by_user_id", "reservations", ["reserved_by_user_id"], unique=False
+194 +     )
+195 |
+--------------------------------------------------------------------------------
+207 |         sa.PrimaryKeyConstraint("id", name="pk_circulation_transactions"),
+    -         sa.UniqueConstraint("transaction_number", name="uq_circulation_transactions_transaction_number"),
+208 +         sa.UniqueConstraint(
+209 +             "transaction_number", name="uq_circulation_transactions_transaction_number"
+210 +         ),
+211 |     )
+--------------------------------------------------------------------------------
+237 |     _own_sequence(_CIRCULATION_ENTRY_SEQ, "circulation_entries")
+    -     op.create_index("ix_circulation_entries_transaction_id", "circulation_entries", ["transaction_id"], unique=False)
+    -     op.create_index("ix_circulation_entries_account_id", "circulation_entries", ["account_id"], unique=False)
+238 +     op.create_index(
+239 +         "ix_circulation_entries_transaction_id",
+240 +         "circulation_entries",
+241 +         ["transaction_id"],
+242 +         unique=False,
+243 +     )
+244 +     op.create_index(
+245 +         "ix_circulation_entries_account_id", "circulation_entries", ["account_id"], unique=False
+246 +     )
+247 |
+    |
+
+unformatted: File would be reformatted
+  --> alembic\versions\0007_circulation_product_cleanup_data.py:37:16
+   |
+36 |     op.execute("DELETE FROM circulation_transactions")
+   -     op.execute("UPDATE pledges SET resolved_reservation_id = NULL WHERE resolved_reservation_id IS NOT NULL")
+37 +     op.execute(
+38 +         "UPDATE pledges SET resolved_reservation_id = NULL WHERE resolved_reservation_id IS NOT NULL"
+39 +     )
+40 |     op.execute("DELETE FROM reservations")
+   |
+
+unformatted: File would be reformatted
+   --> alembic\versions\0010_seed_dev_user_profiles.py:130:15
+    |
+129 |     for username, _display_name, _family_name in _PROFILES:
+    -         row = bind.execute(
+    -             sa.text(
+    -                 "SELECT up.party_id AS person_party_id, fr.party_id AS guardian_party_id, "
+    -                 "fm.to_family_id AS family_id, f.party_id AS family_party_id "
+    -                 "FROM user_profiles up "
+    -                 "JOIN users u ON u.id = up.account_user_id "
+    -                 "LEFT JOIN family_roles fr ON fr.party_id = up.party_id "
+    -                 "LEFT JOIN family_memberships fm ON fm.from_role_id = fr.id "
+    -                 "LEFT JOIN families f ON f.id = fm.to_family_id "
+    -                 "WHERE u.username = :username"
+    -             ),
+    -             {"username": username},
+    -         ).mappings().first()
+130 +         row = (
+131 +             bind.execute(
+132 +                 sa.text(
+133 +                     "SELECT up.party_id AS person_party_id, fr.party_id AS guardian_party_id, "
+134 +                     "fm.to_family_id AS family_id, f.party_id AS family_party_id "
+135 +                     "FROM user_profiles up "
+136 +                     "JOIN users u ON u.id = up.account_user_id "
+137 +                     "LEFT JOIN family_roles fr ON fr.party_id = up.party_id "
+138 +                     "LEFT JOIN family_memberships fm ON fm.from_role_id = fr.id "
+139 +                     "LEFT JOIN families f ON f.id = fm.to_family_id "
+140 +                     "WHERE u.username = :username"
+141 +                 ),
+142 +                 {"username": username},
+143 +             )
+144 +             .mappings()
+145 +             .first()
+146 +         )
+147 |         if row is None:
+--------------------------------------------------------------------------------
+166 |         bind.execute(
+    -             sa.text(
+    -                 "DELETE FROM user_profiles WHERE party_id = :party_id"
+    -             ),
+167 +             sa.text("DELETE FROM user_profiles WHERE party_id = :party_id"),
+168 |             {"party_id": row["person_party_id"]},
+    |
+
+unformatted: File would be reformatted
+  --> alembic\versions\0016_unique_user_profile_email.py:37:45
+   |
+36 |     op.execute(
+   -         f"CREATE UNIQUE INDEX {_INDEX_NAME} "
+   -         "ON user_profiles (lower(email)) "
+   -         "WHERE email IS NOT NULL"
+37 +         f"CREATE UNIQUE INDEX {_INDEX_NAME} ON user_profiles (lower(email)) WHERE email IS NOT NULL"
+38 |     )
+   |
+
+unformatted: File would be reformatted
+  --> alembic\versions\0029_term_attendance_withdrawn_at.py:29:19
+   |
+28 | def upgrade() -> None:
+   -     op.add_column(
+   -         "term_attendances", sa.Column("withdrawn_at", sa.TIMESTAMP(), nullable=True)
+   -     )
+29 +     op.add_column("term_attendances", sa.Column("withdrawn_at", sa.TIMESTAMP(), nullable=True))
+30 |
+   |
+
+unformatted: File would be reformatted
+  --> alembic\versions\0030_inventory_items_home_inventory_id.py:31:19
+   |
+30 | def upgrade() -> None:
+   -     op.add_column(
+   -         "inventory_items", sa.Column("home_inventory_id", sa.BigInteger(), nullable=True)
+   -     )
+31 +     op.add_column("inventory_items", sa.Column("home_inventory_id", sa.BigInteger(), nullable=True))
+32 |     op.create_foreign_key(
+   |
+
+unformatted: File would be reformatted
+  --> alembic\versions\0031_swap_proposal.py:90:29
+   |
+89 |         sa.PrimaryKeyConstraint("id", name="pk_giveaway_term_end_markers"),
+   -         sa.UniqueConstraint(
+   -             "reservation_id", name="uq_giveaway_term_end_markers_reservation_id"
+   -         ),
+90 +         sa.UniqueConstraint("reservation_id", name="uq_giveaway_term_end_markers_reservation_id"),
+91 |     )
+   |
+
+unformatted: File would be reformatted
+  --> alembic\versions\0033_inventory_personal_virtual_uniqueness.py:47:24
+   |
+46 |     # PERSONAL/VIRTUAL duplicates; repoint items/balances at it; drop the rest.
+   -     duplicate_groups = bind.execute(
+   -         sa.text(
+   -             "SELECT owner_user_id, inventory_type, array_agg(id ORDER BY created_at, id) AS ids "
+   -             "FROM inventories "
+   -             "WHERE inventory_type IN ('PERSONAL', 'VIRTUAL') "
+   -             "GROUP BY owner_user_id, inventory_type "
+   -             "HAVING count(*) > 1"
+47 +     duplicate_groups = (
+48 +         bind.execute(
+49 +             sa.text(
+50 +                 "SELECT owner_user_id, inventory_type, array_agg(id ORDER BY created_at, id) AS ids "
+51 +                 "FROM inventories "
+52 +                 "WHERE inventory_type IN ('PERSONAL', 'VIRTUAL') "
+53 +                 "GROUP BY owner_user_id, inventory_type "
+54 +                 "HAVING count(*) > 1"
+55 +             )
+56 |         )
+   -     ).mappings().all()
+57 +         .mappings()
+58 +         .all()
+59 +     )
+60 |
+   |
+
+unformatted: File would be reformatted
+   --> alembic\versions\0041_baseentity_id_uuid.py:238:6
+    |
+237 |     ("fk_reservations_term_id_terms", "reservations", "term_id", "terms"),
+    -     ("fk_swap_proposals_proposer_party_id_parties", "swap_proposals", "proposer_party_id", "parties"),
+238 +     (
+239 +         "fk_swap_proposals_proposer_party_id_parties",
+240 +         "swap_proposals",
+241 +         "proposer_party_id",
+242 +         "parties",
+243 +     ),
+244 |     ("fk_term_attendances_party_id_parties", "term_attendances", "party_id", "parties"),
+    |
+
+unformatted: File would be reformatted
+   --> alembic\versions\0042_circulation_item_movement_ledger.py:185:19
+    |
+184 |     )
+    -     op.add_column(
+    -         "circulation_transactions", sa.Column("is_posted", sa.Boolean(), nullable=False)
+    -     )
+185 +     op.add_column("circulation_transactions", sa.Column("is_posted", sa.Boolean(), nullable=False))
+186 |
+    |
+
+unformatted: File would be reformatted
+  --> alembic\versions\0073_event_reservations.py:64:19
+   |
+63 | def downgrade() -> None:
+   -     contextless = op.get_bind().execute(
+   -         sa.text("SELECT count(*) FROM reservations WHERE term_id IS NULL")
+   -     ).scalar_one()
+64 +     contextless = (
+65 +         op.get_bind()
+66 +         .execute(sa.text("SELECT count(*) FROM reservations WHERE term_id IS NULL"))
+67 +         .scalar_one()
+68 +     )
+69 |     if contextless:
+   |
+
+unformatted: File would be reformatted
+  --> app\circulation\application\inventory.py:70:1
+   |
+69 |     return inventory
+   -
+   |
+
+unformatted: File would be reformatted
+   --> app\circulation\application\inventory_items.py:171:38
+    |
+170 |
+    - async def get_item_with_product_name(db: AsyncSession, item_id: uuid.UUID) -> tuple[InventoryItem, str]:
+171 + async def get_item_with_product_name(
+172 +     db: AsyncSession, item_id: uuid.UUID
+173 + ) -> tuple[InventoryItem, str]:
+174 |     """Joined read backing `GET /api/inventory-items/{id}`'s response."""
+--------------------------------------------------------------------------------
+214 |     *physical* location, not legal ownership, during a loan."""
+    -     permanent_id = item.home_inventory_id if item.home_inventory_id is not None else item.inventory_id
+215 +     permanent_id = (
+216 +         item.home_inventory_id if item.home_inventory_id is not None else item.inventory_id
+217 +     )
+218 |     return await get_inventory(db, permanent_id)
+--------------------------------------------------------------------------------
+303 |     if balance.status != BalanceStatus.AVAILABLE:
+    -         raise BusinessConflictException(
+    -             "Nie można usunąć — rzecz jest zarezerwowana"
+    -         )
+304 +         raise BusinessConflictException("Nie można usunąć — rzecz jest zarezerwowana")
+305 |     product = await product_service.get_product(db, item.product_id)
+    |
+
+unformatted: File would be reformatted
+  --> app\circulation\domain\item_privacy.py:78:8
+   |
+77 | ) -> str:
+   -     """"Ty" for the viewer themself; the subject's name when the viewer took
+78 +     """ "Ty" for the viewer themself; the subject's name when the viewer took
+79 |     part (falling back to "inna rodzina" without a profile); otherwise
+   |
+
+unformatted: File would be reformatted
+  --> app\circulation\domain\reservation_rules.py:27:16
+   |
+26 |     holder."""
+   -     if not any(
+   -         acting_user_id in (r.giver_user_id, r.reserved_by_user_id) for r in reservations
+   -     ):
+27 +     if not any(acting_user_id in (r.giver_user_id, r.reserved_by_user_id) for r in reservations):
+28 |         raise AccessDeniedException
+   |
+
+unformatted: File would be reformatted
+   --> app\circulation\infrastructure\repository.py:177:36
+    |
+176 |
+    - async def list_items_for_inventory(db: AsyncSession, inventory_id: uuid.UUID) -> list[InventoryItem]:
+177 + async def list_items_for_inventory(
+178 +     db: AsyncSession, inventory_id: uuid.UUID
+179 + ) -> list[InventoryItem]:
+180 |     result = await db.execute(
+--------------------------------------------------------------------------------
+247 |                 (
+    -                     InventoryBalance.status.in_(
+    -                         (BalanceStatus.RESERVED, BalanceStatus.IN_TRANSIT)
+    -                     ),
+248 +                     InventoryBalance.status.in_((BalanceStatus.RESERVED, BalanceStatus.IN_TRANSIT)),
+249 |                     active_reservation,
+--------------------------------------------------------------------------------
+471 |
+    - async def list_active_reservations_for_item(db: AsyncSession, item_id: uuid.UUID) -> list[Reservation]:
+472 + async def list_active_reservations_for_item(
+473 +     db: AsyncSession, item_id: uuid.UUID
+474 + ) -> list[Reservation]:
+475 |     """Every `PENDING`/`CONFIRMED` reservation for `item_id` — same query
+    |
+
+unformatted: File would be reformatted
+   --> app\circulation\router.py:168:20
+    |
+167 | @router.get("/api/inventory-items/{item_id}", response_model=InventoryItemResponse)
+    - async def get_item(item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> InventoryItemResponse:
+168 + async def get_item(
+169 +     item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
+170 + ) -> InventoryItemResponse:
+171 |     await item_visibility.require_item_visible_to(db, item_id, principal)
+    |
+
+unformatted: File would be reformatted
+  --> app\families\bootstrap.py:67:40
+   |
+66 |
+   - async def create_solo_family_for_party(db: AsyncSession, party_id: uuid.UUID, display_name: str) -> Family:
+67 + async def create_solo_family_for_party(
+68 +     db: AsyncSession, party_id: uuid.UUID, display_name: str
+69 + ) -> Family:
+70 |     """Ensures `party_id` has a resolvable solo Family, creating one named
+   |
+
+unformatted: File would be reformatted
+   --> app\families\guardians.py:82:36
+    |
+81  |
+    - async def _require_family_guardian(db: AsyncSession, family_id: uuid.UUID, caller_party_id: uuid.UUID) -> None:
+82  + async def _require_family_guardian(
+83  +     db: AsyncSession, family_id: uuid.UUID, caller_party_id: uuid.UUID
+84  + ) -> None:
+85  |     """Verbatim body of the guardian-authz check shared by `rename_family`
+--------------------------------------------------------------------------------
+160 | async def remove_family_member(
+    -     db: AsyncSession, family_id: uuid.UUID, family_membership_id: uuid.UUID, caller_party_id: uuid.UUID
+161 +     db: AsyncSession,
+162 +     family_id: uuid.UUID,
+163 +     family_membership_id: uuid.UUID,
+164 +     caller_party_id: uuid.UUID,
+165 | ) -> None:
+    |
+
+unformatted: File would be reformatted
+  --> app\families\repository.py:77:37
+   |
+76 |
+   - async def list_guardian_memberships(db: AsyncSession, family_id: uuid.UUID) -> list[FamilyMembership]:
+77 + async def list_guardian_memberships(
+78 +     db: AsyncSession, family_id: uuid.UUID
+79 + ) -> list[FamilyMembership]:
+80 |     result = await db.execute(
+--------------------------------------------------------------------------------
+87 |
+   - async def list_group_memberships_for_family(db: AsyncSession, family_id: uuid.UUID) -> list[Membership]:
+88 + async def list_group_memberships_for_family(
+89 +     db: AsyncSession, family_id: uuid.UUID
+90 + ) -> list[Membership]:
+91 |     """Aggregates active Circle memberships across every guardian/child in
+   |
+
+unformatted: File would be reformatted
+   --> app\families\router.py:119:22
+    |
+118 | @router.get("/api/families/{family_id}", response_model=FamilyResponse)
+    - async def get_family(family_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> FamilyResponse:
+119 + async def get_family(
+120 +     family_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
+121 + ) -> FamilyResponse:
+122 |     profile = await get_profile_by_principal(db, principal)
+    |
+
+unformatted: File would be reformatted
+  --> app\groups\application\attendance.py:25:30
+   |
+24 |
+   - async def _is_term_organizer(db: AsyncSession, term_circle_group_id: uuid.UUID, party_id: uuid.UUID) -> bool:
+25 + async def _is_term_organizer(
+26 +     db: AsyncSession, term_circle_group_id: uuid.UUID, party_id: uuid.UUID
+27 + ) -> bool:
+28 |     """Whether `party_id` is the current organizer of the Circle that owns
+   |
+
+unformatted: File would be reformatted
+   --> app\groups\application\circles.py:65:29
+    |
+64  |
+    - async def create_own_circle(db: AsyncSession, organizer_party_id: uuid.UUID, circle_name: str) -> Group:
+65  + async def create_own_circle(
+66  +     db: AsyncSession, organizer_party_id: uuid.UUID, circle_name: str
+67  + ) -> Group:
+68  |     """Self-service 'become an Organizer': creates a brand-new Circle and
+--------------------------------------------------------------------------------
+290 |     leadership = Leadership(
+    -         from_role_id=cast(uuid.UUID, role.id), to_group_id=group_id, valid_from=valid_from, valid_to=None
+291 +         from_role_id=cast(uuid.UUID, role.id),
+292 +         to_group_id=group_id,
+293 +         valid_from=valid_from,
+294 +         valid_to=None,
+295 |     )
+--------------------------------------------------------------------------------
+352 |
+    - async def list_active_leaderships_for_party(db: AsyncSession, party_id: uuid.UUID) -> list[Leadership]:
+353 + async def list_active_leaderships_for_party(
+354 +     db: AsyncSession, party_id: uuid.UUID
+355 + ) -> list[Leadership]:
+356 |     """Every Circle `party_id` currently, actively leads."""
+--------------------------------------------------------------------------------
+372 |
+    - async def _require_active_organizer(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> None:
+373 + async def _require_active_organizer(
+374 +     db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID
+375 + ) -> None:
+376 |     if not await is_active_group_organizer(db, group_id, party_id):
+    |
+
+unformatted: File would be reformatted
+   --> app\groups\application\memberships.py:27:33
+    |
+26  |
+    - async def add_active_membership(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> Membership:
+27  + async def add_active_membership(
+28  +     db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID
+29  + ) -> Membership:
+30  |     """Flushes (never commits) a new active `Membership` of `party_id` in
+--------------------------------------------------------------------------------
+178 |     standing_member_party_ids = await list_group_member_party_ids(db, group_id)
+    -     await _require_group_member_or_leader(
+    -         db, group_id, profile.party_id, standing_member_party_ids
+    -     )
+179 +     await _require_group_member_or_leader(db, group_id, profile.party_id, standing_member_party_ids)
+180 |
+--------------------------------------------------------------------------------
+197 |
+    - async def list_memberships_for_circle(db: AsyncSession, circle_group_id: uuid.UUID) -> list[Membership]:
+198 + async def list_memberships_for_circle(
+199 +     db: AsyncSession, circle_group_id: uuid.UUID
+200 + ) -> list[Membership]:
+201 |     return await repository.list_active_memberships_for_group(db, circle_group_id)
+    |
+
+unformatted: File would be reformatted
+  --> app\groups\application\pledges.py:78:25
+   |
+77 |
+   - async def create_pledge(db: AsyncSession, principal: Principal, needed_item_id: uuid.UUID) -> Pledge:
+78 + async def create_pledge(
+79 +     db: AsyncSession, principal: Principal, needed_item_id: uuid.UUID
+80 + ) -> Pledge:
+81 |     profile = await get_profile_by_principal(db, principal)
+   |
+
+unformatted: File would be reformatted
+   --> app\groups\application\reservation_context.py:320:20
+    |
+319 |         return None
+    -     event = await (
+    -         events_acl.lock_event_for_share if for_write else events_acl.get_event
+    -     )(db, reservation.event_id)
+320 +     event = await (events_acl.lock_event_for_share if for_write else events_acl.get_event)(
+321 +         db, reservation.event_id
+322 +     )
+323 |     return EventContext(event=event) if event is not None else None
+    |
+
+unformatted: File would be reformatted
+   --> app\groups\application\term_item_listings.py:91:1
+    |
+90  |
+91  +
+92  | class TermAlreadyResolvedException(BusinessConflictException):
+--------------------------------------------------------------------------------
+117 |     if balance.status != circulation_bridge.BalanceStatus.AVAILABLE:
+    -         raise BusinessConflictException(
+    -             "Nie można użyć tej rzeczy — jest zarezerwowana"
+    -         )
+118 +         raise BusinessConflictException("Nie można użyć tej rzeczy — jest zarezerwowana")
+119 |     return item
+--------------------------------------------------------------------------------
+380 |
+    - async def _resolve_lister_display_names(db: AsyncSession, party_ids: set[uuid.UUID]) -> dict[uuid.UUID, str]:
+381 + async def _resolve_lister_display_names(
+382 +     db: AsyncSession, party_ids: set[uuid.UUID]
+383 + ) -> dict[uuid.UUID, str]:
+384 |     """`party_id -> display_name`, resolved once per DISTINCT lister in a
+--------------------------------------------------------------------------------
+598 |
+    - async def _lock_takeable_preference(
+    -     db: AsyncSession, item_id: uuid.UUID
+    - ) -> ItemListingPreference:
+599 + async def _lock_takeable_preference(db: AsyncSession, item_id: uuid.UUID) -> ItemListingPreference:
+600 |     """The item's listing preference under `FOR UPDATE`, checked after the
+--------------------------------------------------------------------------------
+686 |     product = await product_bridge.get_product(db, listed_item.product_id)
+    -     owner_message, taker_message = _take_messages(
+    -         context, taker_profile.display_name, product.name
+    -     )
+687 +     owner_message, taker_message = _take_messages(context, taker_profile.display_name, product.name)
+688 |     await notifications_bridge.create_notification(
+    |
+
+unformatted: File would be reformatted
+   --> app\groups\application\terms.py:120:69
+    |
+119 |         if term.location_id is not None:
+    -             response.location = locations_acl.location_ref_response(
+    -                 locations.get(term.location_id)
+    -             )
+120 +             response.location = locations_acl.location_ref_response(locations.get(term.location_id))
+121 |         responses.append(response)
+    |
+
+unformatted: File would be reformatted
+   --> app\groups\infrastructure\circulation_bridge.py:260:17
+    |
+259 |     inventories = await circulation_service.list_inventories(db, owner_user_id)
+    -     return next(
+    -         (inv for inv in inventories if inv.inventory_type == InventoryType.PERSONAL), None
+    -     )
+260 +     return next((inv for inv in inventories if inv.inventory_type == InventoryType.PERSONAL), None)
+261 |
+    |
+
+unformatted: File would be reformatted
+    --> app\groups\infrastructure\repository.py:1317:44
+     |
+1316 |     result = await db.execute(
+     -         select(listed.c.mode, func.count())
+     -         .where(~_is_reserved(listed))
+     -         .group_by(listed.c.mode)
+1317 +         select(listed.c.mode, func.count()).where(~_is_reserved(listed)).group_by(listed.c.mode)
+1318 |     )
+     |
+
+unformatted: File would be reformatted
+   --> app\groups\router\circles.py:278:13
+    |
+277 |
+    - @router.get(
+    -     "/api/groups/{group_id}/exchange-summary", response_model=GroupExchangeSummaryResponse
+    - )
+278 + @router.get("/api/groups/{group_id}/exchange-summary", response_model=GroupExchangeSummaryResponse)
+279 | async def get_exchange_summary(
+    |
+
+unformatted: File would be reformatted
+  --> app\groups\router\pledges.py:58:22
+   |
+57 | @router.get("/api/pledges/{pledge_id}", response_model=PledgeResponse)
+   - async def get_pledge(pledge_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) -> PledgeResponse:
+58 + async def get_pledge(
+59 +     pledge_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
+60 + ) -> PledgeResponse:
+61 |     pledge = await service.get_pledge(db, pledge_id)
+   |
+
+unformatted: File would be reformatted
+  --> app\groups\router\term_item_listings.py:51:24
+   |
+50 | async def set_item_listing_preference(
+   -     item_id: uuid.UUID, body: SetItemListingPreferenceRequest, db: DbSession, principal: EditPrincipal
+51 +     item_id: uuid.UUID,
+52 +     body: SetItemListingPreferenceRequest,
+53 +     db: DbSession,
+54 +     principal: EditPrincipal,
+55 | ) -> ItemListingPreferenceResponse | None:
+   |
+
+unformatted: File would be reformatted
+   --> app\groups\router\terms.py:164:30
+    |
+163 | @router.delete("/api/needed-items/{needed_item_id}", status_code=status.HTTP_204_NO_CONTENT)
+    - async def delete_needed_item(needed_item_id: uuid.UUID, db: DbSession, principal: EditPrincipal) -> None:
+164 + async def delete_needed_item(
+165 +     needed_item_id: uuid.UUID, db: DbSession, principal: EditPrincipal
+166 + ) -> None:
+167 |     profile = await get_profile_by_principal(db, principal)
+    |
+
+unformatted: File would be reformatted
+   --> app\notifications\outbox_listener.py:125:73
+    |
+124 |         message = (
+    -             f"Czy zamiana „{listing_item_name}” ↔ „{offered_item_name}” "
+    -             f"doszła do skutku? {suffix}"
+125 +             f"Czy zamiana „{listing_item_name}” ↔ „{offered_item_name}” doszła do skutku? {suffix}"
+126 |         )
+    |
+
+unformatted: File would be reformatted
+  --> app\oauth2\models.py:43:61
+   |
+42 |     )
+   -     redirect_uris: Mapped[list[str] | None] = mapped_column(
+   -         postgresql.ARRAY(Text()), nullable=True
+   -     )
+43 +     redirect_uris: Mapped[list[str] | None] = mapped_column(postgresql.ARRAY(Text()), nullable=True)
+44 |     scopes: Mapped[list[str] | None] = mapped_column(postgresql.ARRAY(Text()), nullable=True)
+   |
+
+unformatted: File would be reformatted
+  --> app\plugin\models.py:88:57
+   |
+87 |     # referential integrity here (see module docstring).
+   -     entity_id: Mapped[uuid.UUID | None] = mapped_column(postgresql.UUID(as_uuid=True), nullable=True)
+88 +     entity_id: Mapped[uuid.UUID | None] = mapped_column(
+89 +         postgresql.UUID(as_uuid=True), nullable=True
+90 +     )
+   |
+
+unformatted: File would be reformatted
+   --> app\product\query_service.py:110:30
+    |
+109 |         except InvalidOperation as exc:
+    -             raise ValueError(
+    -                 f"Value must be numeric for '{operator}' operator: {value}"
+    -             ) from exc
+110 +             raise ValueError(f"Value must be numeric for '{operator}' operator: {value}") from exc
+111 |         numeric_path = cast(_path_as_text(plugin_id, json_path), Numeric)
+    |
+
+unformatted: File would be reformatted
+   --> tests\ledger_assertions.py:37:18
+    |
+36  |         )
+    -         .options(
+    -             selectinload(CirculationTransaction.entries).joinedload(CirculationEntry.account)
+    -         )
+37  +         .options(selectinload(CirculationTransaction.entries).joinedload(CirculationEntry.account))
+38  |         .order_by(CirculationTransaction.occurred_at, CirculationTransaction.id)
+--------------------------------------------------------------------------------
+50  |     items = (
+    -         await db.execute(
+    -             select(InventoryItem)
+    -             .where(InventoryItem.id.in_(ids))
+    -             .execution_options(populate_existing=True)
+51  +         (
+52  +             await db.execute(
+53  +                 select(InventoryItem)
+54  +                 .where(InventoryItem.id.in_(ids))
+55  +                 .execution_options(populate_existing=True)
+56  +             )
+57  |         )
+    -     ).scalars().all()
+58  +         .scalars()
+59  +         .all()
+60  +     )
+61  |     assert {item.id for item in items} == set(ids), "unknown item id passed to the assertion"
+--------------------------------------------------------------------------------
+72  |             )
+    -         ).tuples().all()
+73  +         )
+74  +         .tuples()
+75  +         .all()
+76  |     )
+77  |
+78  |     balance_rows = (
+    -         await db.execute(
+    -             select(
+    -                 CirculationEntry.item_id,
+    -                 CirculationEntry.account_id,
+    -                 func.sum(CirculationEntry.quantity),
+79  +         (
+80  +             await db.execute(
+81  +                 select(
+82  +                     CirculationEntry.item_id,
+83  +                     CirculationEntry.account_id,
+84  +                     func.sum(CirculationEntry.quantity),
+85  +                 )
+86  +                 .where(CirculationEntry.item_id.in_(ids))
+87  +                 .group_by(CirculationEntry.item_id, CirculationEntry.account_id)
+88  |             )
+    -             .where(CirculationEntry.item_id.in_(ids))
+    -             .group_by(CirculationEntry.item_id, CirculationEntry.account_id)
+89  |         )
+    -     ).tuples().all()
+90  +         .tuples()
+91  +         .all()
+92  +     )
+93  |     balances: dict[uuid.UUID, dict[uuid.UUID, int]] = {item_id: {} for item_id in ids}
+--------------------------------------------------------------------------------
+109 |     unbalanced = (
+    -         await db.execute(
+    -             select(CirculationEntry.transaction_id, CirculationEntry.item_id)
+    -             .where(CirculationEntry.item_id.in_(ids))
+    -             .group_by(CirculationEntry.transaction_id, CirculationEntry.item_id)
+    -             .having(func.sum(CirculationEntry.quantity) != 0)
+110 +         (
+111 +             await db.execute(
+112 +                 select(CirculationEntry.transaction_id, CirculationEntry.item_id)
+113 +                 .where(CirculationEntry.item_id.in_(ids))
+114 +                 .group_by(CirculationEntry.transaction_id, CirculationEntry.item_id)
+115 +                 .having(func.sum(CirculationEntry.quantity) != 0)
+116 +             )
+117 |         )
+    -     ).tuples().all()
+118 +         .tuples()
+119 +         .all()
+120 +     )
+121 |     assert not unbalanced, f"transactions not summing to 0 per item: {unbalanced}"
+    |
+
+unformatted: File would be reformatted
+   --> tests\test_circles_router.py:248:33
+    |
+247 |
+    -     response = await client.get(
+    -         f"/api/groups/{group_id}/terms", headers=_auth(org_token)
+    -     )
+248 +     response = await client.get(f"/api/groups/{group_id}/terms", headers=_auth(org_token))
+249 |
+--------------------------------------------------------------------------------
+265 |
+    -     response = await client.get(
+    -         f"/api/groups/{group_id}/terms", headers=_auth(guardian_token)
+    -     )
+266 +     response = await client.get(f"/api/groups/{group_id}/terms", headers=_auth(guardian_token))
+267 |
+--------------------------------------------------------------------------------
+291 |
+    -     response = await client.get(
+    -         f"/api/groups/{group_id}/terms", headers=_auth(profileless_token)
+    -     )
+292 +     response = await client.get(f"/api/groups/{group_id}/terms", headers=_auth(profileless_token))
+293 |
+    |
+
+unformatted: File would be reformatted
+   --> tests\test_event_attendance.py:99:32
+    |
+98  |     invalid_status, _ = await _sign_up(client, event_id, "not-a-jwt")
+    -     legacy = await client.post(
+    -         f"/api/events/{event_id}/attendances", json={"guest_name": "Ania"}
+    -     )
+99  +     legacy = await client.post(f"/api/events/{event_id}/attendances", json={"guest_name": "Ania"})
+100 |
+    |
+
+unformatted: File would be reformatted
+   --> tests\test_exchange_summary.py:422:23
+    |
+421 |     proposer_token, _ = await _register(client, "GUEST", "exs.proposer9@example.com")
+    -     await client.post(
+    -         f"/api/groups/{group_id}/rsvp", json=rsvp, headers=_auth(proposer_token)
+    -     )
+422 +     await client.post(f"/api/groups/{group_id}/rsvp", json=rsvp, headers=_auth(proposer_token))
+423 |     offered_id = await _register_personal_item(client, proposer_token, "Rolki 9")
+    |
+
+unformatted: File would be reformatted
+   --> tests\test_moderation.py:269:33
+    |
+268 |     every = await client.get("/api/moderation/photos?size=100", headers=admin)
+    -     approved = await client.get(
+    -         "/api/moderation/photos?status=APPROVED&size=100", headers=admin
+    -     )
+269 +     approved = await client.get("/api/moderation/photos?status=APPROVED&size=100", headers=admin)
+270 |
+    |
+
+unformatted: File would be reformatted
+   --> tests\test_my_terms.py:113:13
+    |
+112 |         assert response.status_code == 400, params
+    -     assert (
+    -         await client.get("/api/groups/mine/terms", params={"role": "led"})
+    -     ).status_code == 401
+113 +     assert (await client.get("/api/groups/mine/terms", params={"role": "led"})).status_code == 401
+114 |
+    |
+
+unformatted: File would be reformatted
+   --> tests\test_organizations.py:124:20
+    |
+123 |     [
+    -         "meetings", "items", "podarki", "profile", "settings", "places",
+    -         "family", "account", "search", "wanted", "add", "messages", "groups",
+124 +         "meetings",
+125 +         "items",
+126 +         "podarki",
+127 +         "profile",
+128 +         "settings",
+129 +         "places",
+130 +         "family",
+131 +         "account",
+132 +         "search",
+133 +         "wanted",
+134 +         "add",
+135 +         "messages",
+136 +         "groups",
+137 |     ],
+--------------------------------------------------------------------------------
+167 |     created = await client.post(
+    -         "/api/organizations/mine", json={"name": "Publiczna Organizacja"}, headers=_auth_headers(token)
+168 +         "/api/organizations/mine",
+169 +         json={"name": "Publiczna Organizacja"},
+170 +         headers=_auth_headers(token),
+171 |     )
+--------------------------------------------------------------------------------
+276 | ) -> None:
+    -     headers, created = await _create_organization(
+    -         client, "org.layout1@example.com", "Nowy Układ"
+    -     )
+277 +     headers, created = await _create_organization(client, "org.layout1@example.com", "Nowy Układ")
+278 |
+--------------------------------------------------------------------------------
+291 | ) -> None:
+    -     headers, created = await _create_organization(
+    -         client, "org.layout2@example.com", "Oceaniczna"
+    -     )
+292 +     headers, created = await _create_organization(client, "org.layout2@example.com", "Oceaniczna")
+293 |
+--------------------------------------------------------------------------------
+316 | ) -> None:
+    -     headers, created = await _create_organization(
+    -         client, "org.layout9@example.com", "Plan Zajec"
+    -     )
+317 +     headers, created = await _create_organization(client, "org.layout9@example.com", "Plan Zajec")
+318 |
+--------------------------------------------------------------------------------
+364 | ) -> None:
+    -     headers, created = await _create_organization(
+    -         client, "org.layout4@example.com", "Bez Nulli"
+    -     )
+365 +     headers, created = await _create_organization(client, "org.layout4@example.com", "Bez Nulli")
+366 |
+    |
+
+unformatted: File would be reformatted
+   --> tests\test_personal_pickup.py:251:12
+    |
+250 |     )
+    -     assert taken["link_path"] == reserved["link_path"] == await _item_link(
+    -         client, owner_token, item_id
+251 +     assert (
+252 +         taken["link_path"]
+253 +         == reserved["link_path"]
+254 +         == await _item_link(client, owner_token, item_id)
+255 |     )
+    |
+
+unformatted: File would be reformatted
+  --> tests\test_plugin_admin_gating.py:61:39
+   |
+60 |
+   - async def _exercise_management_routes(client: AsyncClient, headers: dict[str, str], plugin_id: str) -> None:
+61 + async def _exercise_management_routes(
+62 +     client: AsyncClient, headers: dict[str, str], plugin_id: str
+63 + ) -> None:
+64 |     """Runs all 3 `ManagementPrincipal`-gated routes end to end (manifest
+   |
+
+unformatted: File would be reformatted
+   --> tests\test_term_location_capacity.py:299:37
+    |
+298 |     with count_queries(engine) as one_term_statements:
+    -         response = await client.get(
+    -             f"/api/groups/{group['id']}/terms", headers=_auth(token)
+    -         )
+299 +         response = await client.get(f"/api/groups/{group['id']}/terms", headers=_auth(token))
+300 |     assert response.status_code == 200
+--------------------------------------------------------------------------------
+310 |     with count_queries(engine) as three_term_statements:
+    -         response = await client.get(
+    -             f"/api/groups/{group['id']}/terms", headers=_auth(token)
+    -         )
+311 +         response = await client.get(f"/api/groups/{group['id']}/terms", headers=_auth(token))
+312 |     rows = {row["id"]: row for row in response.json()["items"]}
+    |
+
+50 files would be reformatted, 397 files already formatted

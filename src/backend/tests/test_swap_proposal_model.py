@@ -80,7 +80,7 @@ async def test_swapProposal_looseItemAndReservationPointers_acceptArbitraryIds_n
 ) -> None:
     proposer_party_id = await _create_party(db_session)
 
-    # Arbitrary ids with no corresponding circulation rows must succeed
+    # Arbitrary ids with no corresponding inventory rows must succeed
     # — these fields are deliberate loose cross-BC pointers, no FK
     # constraint, matching `ItemListingPreference`'s convention.
     listing_item_id, offered_item_id, proposer_reservation_id = (

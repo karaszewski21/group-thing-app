@@ -1,7 +1,7 @@
 """`app.groups` bounded context: Circles (`Group`), the person-side roles
 played toward a Circle (`GroupRole`), the two relationships built on those
 roles (`Leadership`, `Membership`), Term/NeededItem/Pledge, and the
-item-listing exchange bridge into `app.circulation`.
+item-listing exchange bridge into `app.inventory`.
 
 `leaderships` lives in this module (not `app.users`) because this module
 owns the invariant it enforces — "at most one active leader per Circle" —
@@ -299,7 +299,7 @@ class ItemListingPreference(BaseEntity):
     `InventoryBalance`, never cached here — same "derived, never stored"
     principle the exchange mechanism already applies to takeability.
     `item_id` is a deliberate loose pointer into
-    `app.circulation.InventoryItem` — no `ForeignKeyConstraint`, per `standards/backend/models.md`'s
+    `app.inventory.InventoryItem` — no `ForeignKeyConstraint`, per `standards/backend/models.md`'s
     cross-module-reference rule. One row per item; clearing the mode deletes
     the row rather than nulling it out, and so does a fulfilled GIFT/SWAP
     (`confirm_transaction`) — the item then belongs to someone else, who
@@ -307,7 +307,7 @@ class ItemListingPreference(BaseEntity):
 
     __tablename__ = "item_listing_preferences"
 
-    # Loose cross-BC pointer into `app.circulation.InventoryItem` — no FK.
+    # Loose cross-BC pointer into `app.inventory.InventoryItem` — no FK.
     # Unique: at most one standing preference per item.
     item_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True), nullable=False, unique=True
@@ -319,7 +319,7 @@ class ItemListingPreference(BaseEntity):
     )
     # One of `ReservationType`'s GIFT/SWAP values (validated in
     # schemas.py against `_OFFERABLE_RESERVATION_TYPES`) — plain string, not
-    # the circulation enum type itself, per the module-boundary rule.
+    # the inventory enum type itself, per the module-boundary rule.
     mode: Mapped[str] = mapped_column(String(20), nullable=False)
     visibility: Mapped[ItemVisibility] = mapped_column(
         _enum_column(ItemVisibility, 10),
@@ -336,7 +336,7 @@ class SwapProposal(BaseEntity):
     exists) before the target party ever sees the proposal; the target's
     own leg is only created once they `ACCEPT`. `listing_item_id`,
     `offered_item_id`, and `proposer_reservation_id` are deliberate loose
-    pointers into `app.circulation` — no `ForeignKeyConstraint` — mirroring
+    pointers into `app.inventory` — no `ForeignKeyConstraint` — mirroring
     `ItemListingPreference.item_id`'s cross-BC-pointer convention, per
     `standards/backend/models.md`.
     `term_ended_notified_at` is the idempotency marker the term-end scanner
@@ -359,18 +359,18 @@ class SwapProposal(BaseEntity):
         ForeignKey("parties.id", name="fk_swap_proposals_proposer_party_id_parties"),
         nullable=False,
     )
-    # Loose cross-BC pointer into `app.circulation.InventoryItem` (the
+    # Loose cross-BC pointer into `app.inventory.InventoryItem` (the
     # target listing's item) — no FK, same precedent as
     # `ItemListingPreference.item_id`.
     listing_item_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True), nullable=False
     )
-    # Loose cross-BC pointer into `app.circulation.InventoryItem` (the
+    # Loose cross-BC pointer into `app.inventory.InventoryItem` (the
     # proposer's own item being offered) — no FK.
     offered_item_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True), nullable=False
     )
-    # Loose cross-BC pointer into `app.circulation.Reservation` (the
+    # Loose cross-BC pointer into `app.inventory.Reservation` (the
     # proposer's own already-locked leg) — no FK.
     proposer_reservation_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True), nullable=False
@@ -384,7 +384,7 @@ class SwapProposal(BaseEntity):
 class GiveawayTermEndMarker(BaseEntity):
     """Idempotency marker for the term-end scanner
     (`application/term_end_scan`) on a GIFT `Reservation`. This groups-owned
-    row carries the "already notified" flag so circulation's `Reservation` needs no column for it.
+    row carries the "already notified" flag so inventory's `Reservation` needs no column for it.
     `reservation_id` is a loose cross-BC pointer — no FK, same precedent as
     `SwapProposal`'s `*_item_id`/`proposer_reservation_id` fields."""
 

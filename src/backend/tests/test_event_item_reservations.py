@@ -11,10 +11,10 @@ from httpx import AsyncClient, Response
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.circulation.models import BalanceStatus, InventoryBalance, Reservation
 from app.core import clock
 from app.events.models import Event
 from app.groups.infrastructure import events_acl
+from app.inventory.models import BalanceStatus, InventoryBalance, Reservation
 from tests.conftest import create_location, seed_legacy_guest
 from tests.test_term_item_listings import _auth, _item_link, _register, _resolve_product
 

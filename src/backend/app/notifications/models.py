@@ -87,7 +87,7 @@ class Notification(BaseEntity):
         postgresql.UUID(as_uuid=True), nullable=True
     )
     # Loose cross-BC pointer (no FK, same convention as `proposal_id`) at
-    # `app.circulation.models.Reservation.id`. Populated for
+    # `app.inventory.models.Reservation.id`. Populated for
     # `TERM_CONFIRMATION_NEEDED` raised for a GIFT reservation;
     # `None` for every other kind (including the SWAP prompt).
     reservation_id: Mapped[uuid.UUID | None] = mapped_column(

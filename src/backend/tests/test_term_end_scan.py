@@ -21,7 +21,6 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from app.circulation.models import ReservationType
 from app.config import settings
 from app.core import clock
 from app.core.auth_deps import Principal
@@ -31,8 +30,9 @@ from app.groups import service
 from app.groups.application import term_end_scan
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.domain import swap_events
-from app.groups.infrastructure import circulation_bridge
+from app.groups.infrastructure import inventory_bridge
 from app.groups.models import GiveawayTermEndMarker, SwapProposal, SwapProposalStatus, Term
+from app.inventory.models import ReservationType
 from app.notifications.models import Notification, NotificationKind
 from app.notifications.outbox_listener import register as register_outbox_handlers
 from app.outbox.dispatcher import dispatch_pending
@@ -450,7 +450,7 @@ async def test_scan_giftTakeWithClearedPreference_stillPromptsReservation(
     lister_token, lister_party_id, taker_party_id, term_id, reservation_id = await _taken_gift(
         client, db_session, "6"
     )
-    item_id = (await circulation_bridge.get_reservation(db_session, reservation_id)).item_id
+    item_id = (await inventory_bridge.get_reservation(db_session, reservation_id)).item_id
     await service.set_item_listing_preference(db_session, _principal(lister_token), item_id, None)
     await _push_term_into_past(db_session, term_id)
 
@@ -937,7 +937,7 @@ async def test_scan_eventSwap_promptsEachPartyWithItsReservationOnce(
         client, "tee3", "owner", "proposer"
     )
     proposal = await _event_swap(client, event_id, owner, proposer, "tee3")
-    owner_reservation = await circulation_bridge.get_reservation(
+    owner_reservation = await inventory_bridge.get_reservation(
         db_session, uuid.UUID(proposal["proposer_reservation_id"])
     )
     link_path = await _event_link(client, event_id)

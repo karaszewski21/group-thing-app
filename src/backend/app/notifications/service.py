@@ -43,7 +43,7 @@ async def create_notification(
     action that triggered it. `proposal_id` is the loose
     `app.groups.models.SwapProposal.id` pointer, set on `SWAP_PROPOSED`
     and on a swap `TERM_CONFIRMATION_NEEDED`; `reservation_id` is the loose
-    `app.circulation.models.Reservation.id` pointer, only meaningful for a
+    `app.inventory.models.Reservation.id` pointer, only meaningful for a
     GIFT `TERM_CONFIRMATION_NEEDED`."""
     db.add(
         Notification(

@@ -56,7 +56,7 @@ async def set_item_listing_preference(
     return ItemListingPreferenceResponse.model_validate(preference) if preference else None
 
 
-# Registered by `app.main` ahead of circulation's router, so the literal
+# Registered by `app.main` ahead of inventory's router, so the literal
 # `mine` segment is matched here before `GET /api/inventory-items/{item_id}`
 # could try to parse it as an `int`.
 @router.get("/api/inventory-items/mine", response_model=list[MyInventoryItemResponse])

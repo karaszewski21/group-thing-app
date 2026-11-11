@@ -15,8 +15,8 @@ from httpx import AsyncClient
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from app.circulation.models import BalanceStatus
 from app.groups.models import ItemListingPreference
+from app.inventory.models import BalanceStatus
 from app.moderation.status import ModerationStatus
 from app.organizations.models import Organization
 from tests.conftest import count_queries, create_location

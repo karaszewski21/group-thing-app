@@ -1,0 +1,983 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.7, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.14.2, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collected 1202 items
+
+tests\test_add_active_membership.py ..                                   [  0%]
+tests\test_attendance_withdrawal.py ..                                   [  0%]
+tests\test_auth_cookie.py ..........                                     [  1%]
+tests\test_authorization_matrix.py ..................................... [  4%]
+..................................................                       [  8%]
+tests\test_category_module.py ...........                                [  9%]
+tests\test_category_reintroduction.py ....                               [  9%]
+tests\test_category_tree.py .........                                    [ 10%]
+tests\test_category_tree_migration.py ...                                [ 10%]
+tests\test_circles_router.py ...........                                 [ 11%]
+tests\test_circulation.py .........................                      [ 13%]
+tests\test_circulation_bulk_cancel.py ....                               [ 13%]
+tests\test_circulation_ledger.py ....................                    [ 15%]
+tests\test_clock.py ..................                                   [ 17%]
+tests\test_conversation_inbox.py ...                                     [ 17%]
+tests\test_conversation_messages.py ........                             [ 18%]
+tests\test_domain_clock_guard.py ...                                     [ 18%]
+tests\test_event_attendance.py .......                                   [ 18%]
+tests\test_event_banners.py .......                                      [ 19%]
+tests\test_event_conversations.py ....                                   [ 19%]
+tests\test_event_conversations_migration.py ..                           [ 19%]
+tests\test_event_item_reservations.py ..........                         [ 20%]
+tests\test_event_page.py ................                                [ 22%]
+tests\test_event_party_indexes_migration.py .                            [ 22%]
+tests\test_event_reservation_delete.py .........                         [ 22%]
+tests\test_event_reservation_readers.py ....                             [ 23%]
+tests\test_event_reservations_migration.py ......                        [ 23%]
+tests\test_events.py ........................                            [ 25%]
+tests\test_events_migration.py ..                                        [ 25%]
+tests\test_exchange_summary.py ..........                                [ 26%]
+tests\test_families.py ...................                               [ 28%]
+tests\test_families_bootstrap.py ..                                      [ 28%]
+tests\test_group_access.py ............                                  [ 29%]
+tests\test_group_join_code.py ...........                                [ 30%]
+tests\test_group_join_code_migrations.py ...                             [ 30%]
+tests\test_group_layout_mode.py ....                                     [ 31%]
+tests\test_group_location_defaults.py .......                            [ 31%]
+tests\test_group_members.py .....                                        [ 32%]
+tests\test_group_privacy.py ........                                     [ 32%]
+tests\test_group_soft_delete.py ..........                               [ 33%]
+tests\test_group_soft_delete_keep_live.py ......                         [ 34%]
+tests\test_group_soft_delete_migration.py ..                             [ 34%]
+tests\test_group_soft_delete_reads.py .........                          [ 34%]
+tests\test_group_soft_delete_service.py ......                           [ 35%]
+tests\test_group_term_conversations.py .....                             [ 35%]
+tests\test_groups.py .....................................               [ 38%]
+tests\test_groups_moderation.py .........                                [ 39%]
+tests\test_handover_copy_api.py ......                                   [ 40%]
+tests\test_inventory_location_migration.py .                             [ 40%]
+tests\test_item_actions.py .......                                       [ 40%]
+tests\test_item_conversations.py ......                                  [ 41%]
+tests\test_item_details.py ...........                                   [ 42%]
+tests\test_item_history.py ..                                            [ 42%]
+tests\test_item_listing_status.py .........                              [ 43%]
+tests\test_item_listing_status_migration.py ..                           [ 43%]
+tests\test_item_location.py ..........                                   [ 44%]
+tests\test_item_reservations_router.py ...........                       [ 45%]
+tests\test_item_visibility.py ..................                         [ 46%]
+tests\test_item_visibility_migration.py ..                               [ 46%]
+tests\test_join_code_limiter.py ......                                   [ 47%]
+tests\test_lend_listing_preferences_migration.py .                       [ 47%]
+tests\test_lightweight_family_members.py ..................              [ 48%]
+tests\test_localities.py ....................                            [ 50%]
+tests\test_localities_migration.py ..                                    [ 50%]
+tests\test_location_helpers.py ..                                        [ 50%]
+tests\test_locations.py ................                                 [ 52%]
+tests\test_locations_migration.py ..                                     [ 52%]
+tests\test_login.py ....                                                 [ 52%]
+tests\test_media_gates.py ..                                             [ 52%]
+tests\test_media_migration.py .....                                      [ 53%]
+tests\test_media_moderation.py .......                                   [ 53%]
+tests\test_media_organization.py ......................                  [ 55%]
+tests\test_media_queries.py .....                                        [ 56%]
+tests\test_media_sweep.py ...                                            [ 56%]
+tests\test_message_send_limiter.py ....                                  [ 56%]
+tests\test_messaging_cross_context.py .....                              [ 57%]
+tests\test_messaging_migration.py ..                                     [ 57%]
+tests\test_messaging_repository.py .....                                 [ 57%]
+tests\test_moderation.py ......................                          [ 59%]
+tests\test_moderation_config.py ...                                      [ 59%]
+tests\test_my_attendances.py ......                                      [ 60%]
+tests\test_my_items_page.py .....                                        [ 60%]
+tests\test_my_profile.py ..........                                      [ 61%]
+tests\test_my_profile_appearance.py .....                                [ 61%]
+tests\test_my_reservations.py ......                                     [ 62%]
+tests\test_my_terms.py .....                                             [ 62%]
+tests\test_needed_item_name_migration.py ..                              [ 62%]
+tests\test_needed_items_batch.py .....                                   [ 63%]
+tests\test_notifications.py ........                                     [ 64%]
+tests\test_organization_founding_media.py ...                            [ 64%]
+tests\test_organization_page_layout_migration.py .......                 [ 64%]
+tests\test_organizations.py ............................................ [ 68%]
+.                                                                        [ 68%]
+tests\test_organizer_bridges.py ......                                   [ 69%]
+tests\test_organizer_page.py .......                                     [ 69%]
+tests\test_organizer_page_queries.py .........                           [ 70%]
+tests\test_outbox.py .....                                               [ 70%]
+tests\test_owner_items_page.py ..F....                                   [ 71%]
+tests\test_owner_meetings.py ......                                      [ 71%]
+tests\test_pagination.py ...                                             [ 72%]
+tests\test_party_profile.py .........                                    [ 72%]
+tests\test_party_reservation_actions.py .......                          [ 73%]
+tests\test_personal_pickup.py .........                                  [ 74%]
+tests\test_personal_pickup_migration.py ......                           [ 74%]
+tests\test_photo_moderation_attempts_migration.py ..                     [ 74%]
+tests\test_photo_moderation_gate.py ....                                 [ 75%]
+tests\test_photo_moderation_queries.py .                                 [ 75%]
+tests\test_pledge_fulfillment_migration.py .                             [ 75%]
+tests\test_plugin_admin_gating.py ...                                    [ 75%]
+tests\test_private_group_access_defects.py .....                         [ 76%]
+tests\test_product_category_fk_rename.py ...                             [ 76%]
+tests\test_product_description.py ....                                   [ 76%]
+tests\test_product_leaf_category.py ...                                  [ 76%]
+tests\test_product_photo_model.py ...                                    [ 77%]
+tests\test_product_photos.py ............                                [ 78%]
+tests\test_product_resolution.py .....                                   [ 78%]
+tests\test_promotion.py ..                                               [ 78%]
+tests\test_public_term.py .....................                          [ 80%]
+tests\test_registration.py ....                                          [ 80%]
+tests\test_reservation_write_guards.py ......                            [ 81%]
+tests\test_reserved_listings.py ...................                      [ 82%]
+tests\test_rsvp.py ......                                                [ 83%]
+tests\test_stale_data_error_handler.py ..                                [ 83%]
+tests\test_swap_proposal_model.py .....                                  [ 84%]
+tests\test_swap_proposals_listing_index_migration.py .                   [ 84%]
+tests\test_term_attendees.py .......                                     [ 84%]
+tests\test_term_clock_regressions.py ......                              [ 85%]
+tests\test_term_end_scan.py .......................                      [ 87%]
+tests\test_term_item_listings.py ....................................... [ 90%]
+....................                                                     [ 92%]
+tests\test_term_item_listings_model.py ....                              [ 92%]
+tests\test_term_item_listings_router.py ........................         [ 94%]
+tests\test_term_location_capacity.py ............                        [ 95%]
+tests\test_terms_circle_occurs_on_index_migration.py F                   [ 95%]
+tests\test_text_guard.py ...............                                 [ 96%]
+tests\test_text_moderation_org_group_term.py .........                   [ 97%]
+tests\test_text_moderation_product.py ...........                        [ 98%]
+tests\test_unknown_page_404.py ...                                       [ 98%]
+tests\test_user_profile_birth_year.py ..                                 [ 98%]
+tests\test_vinted_category_fixture.py ....                               [ 99%]
+tests\test_vinted_category_seed_migration.py ........                    [ 99%]
+tests\test_worker_removed.py ...                                         [100%]
+
+================================== FAILURES ===================================
+___ test_getOwnerItems_nearest_privateCircleTermExcludedPublicTermWithPath ____
+
+client = <httpx.AsyncClient object at 0x00000162D9F71FD0>
+
+    async def test_getOwnerItems_nearest_privateCircleTermExcludedPublicTermWithPath(
+        client: AsyncClient,
+    ) -> None:
+        owner_token, _ = await _register(client, "ORGANIZER", "oi.private@example.com")
+        slug = await _organization_slug(client, owner_token, "Prywatne Rzeczy")
+        private_id = await _circle(client, owner_token, "Oi prywatny", "PRIVATE")
+        public_id = await _circle(client, owner_token, "Oi publiczny")
+        await _term(client, owner_token, private_id, _in_days(1))
+        public_on = _in_days(4)
+        public_term = await _term(client, owner_token, public_id, public_on)
+        await _term(client, owner_token, public_id, _in_days(-1))
+    
+        nearest = (await _items_page(client, f"/api/public/organizers/{slug}/items"))["nearest"]
+    
+>       assert nearest == {
+            "kind": "TERM",
+            "id": str(public_term),
+            "name": "Oi publiczny",
+            "starts_at": public_on.isoformat(),
+            "location_name": None,
+            "attendee_count": 0,
+            "path": f"/{slug}/group/{public_id}/term/{public_term}",
+        }
+E       AssertionError: assert {'kind': 'TER...8:23:01', ...} == {'kind': 'TER...8:23:01', ...}
+E         
+E         Omitting 6 identical items, use -vv to show
+E         Differing items:
+E         {'location_name': 'Nowa Dêba, podkarpackie'} != {'location_name': None}
+E         Use -v to get more diff
+
+tests\test_owner_items_page.py:203: AssertionError
+________________ test_migration0053_downgradeUpgrade_roundTrip ________________
+
+engine = <sqlalchemy.ext.asyncio.engine.AsyncEngine object at 0x00000162D2F6DD10>
+database_url = 'postgresql+asyncpg://test:test@localhost:56959/test'
+
+    async def test_migration0053_downgradeUpgrade_roundTrip(
+        engine: AsyncEngine, database_url: str
+    ) -> None:
+        try:
+            _alembic(database_url, "downgrade", "0052")
+            await engine.dispose()
+            indexes = await _read_indexes(engine)
+            assert INDEX_NAME not in indexes
+            assert "ix_terms_circle_group_id" in indexes
+        finally:
+            _alembic(database_url, "upgrade", "head")
+            await engine.dispose()
+    
+        indexes = await _read_indexes(engine)
+        assert indexes[INDEX_NAME] == ["circle_group_id", "occurs_on"]
+>       assert indexes["ix_terms_circle_group_id"] == ["group_id"]
+E       AssertionError: assert ['circle_group_id'] == ['group_id']
+E         
+E         At index 0 diff: 'circle_group_id' != 'group_id'
+E         Use -v to get more diff
+
+tests\test_terms_circle_occurs_on_index_migration.py:43: AssertionError
+---------------------------- Captured stderr call -----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running downgrade 0083 -> 0082, drop legacy image tables
+INFO  [alembic.runtime.migration] Running downgrade 0082 -> 0081, media
+INFO  [alembic.runtime.migration] Running downgrade 0081 -> 0080, profile page appearance
+INFO  [alembic.runtime.migration] Running downgrade 0080 -> 0079, item location locality
+INFO  [alembic.runtime.migration] Running downgrade 0079 -> 0078, seed localities
+INFO  [alembic.runtime.migration] Running downgrade 0078 -> 0077, localities
+INFO  [alembic.runtime.migration] Running downgrade 0077 -> 0076, swap proposals listing item index
+INFO  [alembic.runtime.migration] Running downgrade 0076 -> 0075, item listing visibility
+INFO  [alembic.runtime.migration] Running downgrade 0075 -> 0074, inventory location
+INFO  [alembic.runtime.migration] Running downgrade 0074 -> 0073, personal pickup reservations
+INFO  [alembic.runtime.migration] Running downgrade 0073 -> 0072, event reservations
+INFO  [alembic.runtime.migration] Running downgrade 0072 -> 0071, event party indexes
+INFO  [alembic.runtime.migration] Running downgrade 0071 -> 0070, event conversations
+INFO  [alembic.runtime.migration] Running downgrade 0070 -> 0069, events
+INFO  [alembic.runtime.migration] Running downgrade 0069 -> 0068, vinted categories
+INFO  [alembic.runtime.migration] Running downgrade 0068 -> 0067, needed item name
+INFO  [alembic.runtime.migration] Running downgrade 0067 -> 0066, wipe needed items
+INFO  [alembic.runtime.migration] Running downgrade 0066 -> 0065, category tree
+INFO  [alembic.runtime.migration] Running downgrade 0065 -> 0064, backfill item listing status
+INFO  [alembic.runtime.migration] Running downgrade 0064 -> 0063, item listing status
+INFO  [alembic.runtime.migration] Running downgrade 0063 -> 0062, drop pledge fulfillment
+INFO  [alembic.runtime.migration] Running downgrade 0062 -> 0061, delete LEND listing preferences
+INFO  [alembic.runtime.migration] Running downgrade 0061 -> 0060, messaging
+INFO  [alembic.runtime.migration] Running downgrade 0060 -> 0059, drop group join requests
+INFO  [alembic.runtime.migration] Running downgrade 0059 -> 0058, group join code
+INFO  [alembic.runtime.migration] Running downgrade 0058 -> 0057, group/term location and capacity
+INFO  [alembic.runtime.migration] Running downgrade 0057 -> 0056, locations
+INFO  [alembic.runtime.migration] Running downgrade 0056 -> 0055, group soft delete
+INFO  [alembic.runtime.migration] Running downgrade 0055 -> 0054, organization description
+INFO  [alembic.runtime.migration] Running downgrade 0054 -> 0053, organization media
+INFO  [alembic.runtime.migration] Running downgrade 0053 -> 0052, terms circle occurs_on index
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 0052 -> 0053, terms circle occurs_on index
+INFO  [alembic.runtime.migration] Running upgrade 0053 -> 0054, organization media
+INFO  [alembic.runtime.migration] Running upgrade 0054 -> 0055, organization description
+INFO  [alembic.runtime.migration] Running upgrade 0055 -> 0056, group soft delete
+INFO  [alembic.runtime.migration] Running upgrade 0056 -> 0057, locations
+INFO  [alembic.runtime.migration] Running upgrade 0057 -> 0058, group/term location and capacity
+INFO  [alembic.runtime.migration] Running upgrade 0058 -> 0059, group join code
+INFO  [alembic.runtime.migration] Running upgrade 0059 -> 0060, drop group join requests
+INFO  [alembic.runtime.migration] Running upgrade 0060 -> 0061, messaging
+INFO  [alembic.runtime.migration] Running upgrade 0061 -> 0062, delete LEND listing preferences
+INFO  [alembic.runtime.migration] Running upgrade 0062 -> 0063, drop pledge fulfillment
+INFO  [alembic.runtime.migration] Running upgrade 0063 -> 0064, item listing status
+INFO  [alembic.runtime.migration] Running upgrade 0064 -> 0065, backfill item listing status
+INFO  [alembic.runtime.migration] Running upgrade 0065 -> 0066, category tree
+INFO  [alembic.runtime.migration] Running upgrade 0066 -> 0067, wipe needed items
+INFO  [alembic.runtime.migration] Running upgrade 0067 -> 0068, needed item name
+INFO  [alembic.runtime.migration] Running upgrade 0068 -> 0069, vinted categories
+INFO  [alembic.runtime.migration] 0069 legacy wipe: wipe_categories holds 5 rows
+INFO  [alembic.runtime.migration] 0069 legacy wipe: wipe_products holds 0 rows
+INFO  [alembic.runtime.migration] 0069 legacy wipe: wipe_items holds 0 rows
+INFO  [alembic.runtime.migration] 0069 legacy wipe: wipe_reservations holds 0 rows
+INFO  [alembic.runtime.migration] 0069 legacy wipe: wipe_proposals holds 0 rows
+INFO  [alembic.runtime.migration] 0069 legacy wipe: wipe_conversations holds 0 rows
+INFO  [alembic.runtime.migration] 0069 legacy wipe: wipe_transactions holds 0 rows
+INFO  [alembic.runtime.migration] 0069 legacy wipe: wipe_photos holds 0 rows
+INFO  [alembic.runtime.migration] Running upgrade 0069 -> 0070, events
+INFO  [alembic.runtime.migration] Running upgrade 0070 -> 0071, event conversations
+INFO  [alembic.runtime.migration] Running upgrade 0071 -> 0072, event party indexes
+INFO  [alembic.runtime.migration] Running upgrade 0072 -> 0073, event reservations
+INFO  [alembic.runtime.migration] Running upgrade 0073 -> 0074, personal pickup reservations
+INFO  [alembic.runtime.migration] Running upgrade 0074 -> 0075, inventory location
+INFO  [alembic.runtime.migration] Running upgrade 0075 -> 0076, item listing visibility
+INFO  [alembic.runtime.migration] Running upgrade 0076 -> 0077, swap proposals listing item index
+INFO  [alembic.runtime.migration] Running upgrade 0077 -> 0078, localities
+INFO  [alembic.runtime.migration] Running upgrade 0078 -> 0079, seed localities
+INFO  [alembic.runtime.migration] 0079 seeded 54440 localities and 72245 postal codes in 1.79s
+INFO  [alembic.runtime.migration] Running upgrade 0079 -> 0080, item location locality
+INFO  [alembic.runtime.migration] Running upgrade 0080 -> 0081, profile page appearance
+INFO  [alembic.runtime.migration] Running upgrade 0081 -> 0082, media
+INFO  [alembic.runtime.migration] Running upgrade 0082 -> 0083, drop legacy image tables
+============================== warnings summary ===============================
+tests\conftest.py:35
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\conftest.py:35: DeprecationWarning: testcontainers.postgres is deprecated, use testcontainers.community.postgres instead
+    from testcontainers.postgres import PostgresContainer
+
+tests/test_add_active_membership.py: 50 warnings
+tests/test_attendance_withdrawal.py: 70 warnings
+tests/test_auth_cookie.py: 54 warnings
+tests/test_authorization_matrix.py: 16 warnings
+tests/test_category_module.py: 44 warnings
+tests/test_category_tree.py: 78 warnings
+tests/test_circles_router.py: 288 warnings
+tests/test_circulation.py: 592 warnings
+tests/test_circulation_bulk_cancel.py: 50 warnings
+tests/test_circulation_ledger.py: 333 warnings
+tests/test_conversation_inbox.py: 187 warnings
+tests/test_conversation_messages.py: 339 warnings
+tests/test_domain_clock_guard.py: 130 warnings
+tests/test_event_attendance.py: 106 warnings
+tests/test_event_banners.py: 84 warnings
+tests/test_event_conversations.py: 117 warnings
+tests/test_event_item_reservations.py: 555 warnings
+tests/test_event_page.py: 592 warnings
+tests/test_event_reservation_delete.py: 897 warnings
+tests/test_event_reservation_readers.py: 226 warnings
+tests/test_event_reservations_migration.py: 25 warnings
+tests/test_events.py: 326 warnings
+tests/test_exchange_summary.py: 456 warnings
+tests/test_families.py: 247 warnings
+tests/test_families_bootstrap.py: 16 warnings
+tests/test_group_access.py: 300 warnings
+tests/test_group_join_code.py: 341 warnings
+tests/test_group_join_code_migrations.py: 13 warnings
+tests/test_group_layout_mode.py: 2 warnings
+tests/test_group_location_defaults.py: 122 warnings
+tests/test_group_members.py: 134 warnings
+tests/test_group_privacy.py: 186 warnings
+tests/test_group_soft_delete.py: 184 warnings
+tests/test_group_soft_delete_keep_live.py: 334 warnings
+tests/test_group_soft_delete_reads.py: 226 warnings
+tests/test_group_soft_delete_service.py: 48 warnings
+tests/test_group_term_conversations.py: 162 warnings
+tests/test_groups.py: 685 warnings
+tests/test_groups_moderation.py: 143 warnings
+tests/test_handover_copy_api.py: 381 warnings
+tests/test_item_actions.py: 422 warnings
+tests/test_item_conversations.py: 205 warnings
+tests/test_item_details.py: 329 warnings
+tests/test_item_history.py: 164 warnings
+tests/test_item_listing_status.py: 380 warnings
+tests/test_item_location.py: 257 warnings
+tests/test_item_reservations_router.py: 400 warnings
+tests/test_item_visibility.py: 1318 warnings
+tests/test_lightweight_family_members.py: 236 warnings
+tests/test_localities.py: 96 warnings
+tests/test_location_helpers.py: 31 warnings
+tests/test_locations.py: 146 warnings
+tests/test_login.py: 33 warnings
+tests/test_media_migration.py: 15 warnings
+tests/test_media_moderation.py: 182 warnings
+tests/test_media_organization.py: 366 warnings
+tests/test_media_queries.py: 119 warnings
+tests/test_media_sweep.py: 72 warnings
+tests/test_messaging_cross_context.py: 136 warnings
+tests/test_messaging_migration.py: 2 warnings
+tests/test_messaging_repository.py: 212 warnings
+tests/test_moderation.py: 158 warnings
+tests/test_my_attendances.py: 134 warnings
+tests/test_my_items_page.py: 201 warnings
+tests/test_my_profile.py: 107 warnings
+tests/test_my_profile_appearance.py: 40 warnings
+tests/test_my_reservations.py: 238 warnings
+tests/test_my_terms.py: 156 warnings
+tests/test_needed_items_batch.py: 108 warnings
+tests/test_notifications.py: 197 warnings
+tests/test_organization_founding_media.py: 51 warnings
+tests/test_organizations.py: 374 warnings
+tests/test_organizer_bridges.py: 111 warnings
+tests/test_organizer_page.py: 330 warnings
+tests/test_organizer_page_queries.py: 1250 warnings
+tests/test_outbox.py: 13 warnings
+tests/test_owner_items_page.py: 319 warnings
+tests/test_owner_meetings.py: 99 warnings
+tests/test_pagination.py: 19 warnings
+tests/test_party_profile.py: 186 warnings
+tests/test_party_reservation_actions.py: 298 warnings
+tests/test_personal_pickup.py: 362 warnings
+tests/test_personal_pickup_migration.py: 32 warnings
+tests/test_photo_moderation_attempts_migration.py: 4 warnings
+tests/test_photo_moderation_gate.py: 120 warnings
+tests/test_photo_moderation_queries.py: 18 warnings
+tests/test_plugin_admin_gating.py: 24 warnings
+tests/test_private_group_access_defects.py: 104 warnings
+tests/test_product_category_fk_rename.py: 38 warnings
+tests/test_product_description.py: 75 warnings
+tests/test_product_leaf_category.py: 27 warnings
+tests/test_product_photo_model.py: 9 warnings
+tests/test_product_photos.py: 271 warnings
+tests/test_product_resolution.py: 55 warnings
+tests/test_promotion.py: 20 warnings
+tests/test_public_term.py: 492 warnings
+tests/test_registration.py: 33 warnings
+tests/test_reservation_write_guards.py: 133 warnings
+tests/test_reserved_listings.py: 1117 warnings
+tests/test_rsvp.py: 150 warnings
+tests/test_swap_proposal_model.py: 7 warnings
+tests/test_term_attendees.py: 210 warnings
+tests/test_term_clock_regressions.py: 341 warnings
+tests/test_term_end_scan.py: 1149 warnings
+tests/test_term_item_listings.py: 3435 warnings
+tests/test_term_item_listings_model.py: 13 warnings
+tests/test_term_item_listings_router.py: 1133 warnings
+tests/test_term_location_capacity.py: 270 warnings
+tests/test_text_moderation_org_group_term.py: 107 warnings
+tests/test_text_moderation_product.py: 106 warnings
+tests/test_user_profile_birth_year.py: 4 warnings
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\core\base_model.py:38: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow()
+
+tests/test_add_active_membership.py: 50 warnings
+tests/test_attendance_withdrawal.py: 67 warnings
+tests/test_auth_cookie.py: 54 warnings
+tests/test_authorization_matrix.py: 16 warnings
+tests/test_category_module.py: 41 warnings
+tests/test_category_tree.py: 76 warnings
+tests/test_circles_router.py: 287 warnings
+tests/test_circulation.py: 561 warnings
+tests/test_circulation_bulk_cancel.py: 40 warnings
+tests/test_circulation_ledger.py: 310 warnings
+tests/test_conversation_inbox.py: 160 warnings
+tests/test_conversation_messages.py: 238 warnings
+tests/test_domain_clock_guard.py: 114 warnings
+tests/test_event_attendance.py: 105 warnings
+tests/test_event_banners.py: 84 warnings
+tests/test_event_conversations.py: 108 warnings
+tests/test_event_item_reservations.py: 496 warnings
+tests/test_event_page.py: 561 warnings
+tests/test_event_reservation_delete.py: 723 warnings
+tests/test_event_reservation_readers.py: 214 warnings
+tests/test_event_reservations_migration.py: 25 warnings
+tests/test_events.py: 323 warnings
+tests/test_exchange_summary.py: 442 warnings
+tests/test_families.py: 243 warnings
+tests/test_families_bootstrap.py: 16 warnings
+tests/test_group_access.py: 288 warnings
+tests/test_group_join_code.py: 312 warnings
+tests/test_group_join_code_migrations.py: 13 warnings
+tests/test_group_layout_mode.py: 2 warnings
+tests/test_group_location_defaults.py: 109 warnings
+tests/test_group_members.py: 133 warnings
+tests/test_group_privacy.py: 182 warnings
+tests/test_group_soft_delete.py: 177 warnings
+tests/test_group_soft_delete_keep_live.py: 297 warnings
+tests/test_group_soft_delete_reads.py: 216 warnings
+tests/test_group_soft_delete_service.py: 43 warnings
+tests/test_group_term_conversations.py: 146 warnings
+tests/test_groups.py: 670 warnings
+tests/test_groups_moderation.py: 139 warnings
+tests/test_handover_copy_api.py: 331 warnings
+tests/test_item_actions.py: 400 warnings
+tests/test_item_conversations.py: 202 warnings
+tests/test_item_details.py: 306 warnings
+tests/test_item_history.py: 134 warnings
+tests/test_item_listing_status.py: 357 warnings
+tests/test_item_location.py: 224 warnings
+tests/test_item_reservations_router.py: 385 warnings
+tests/test_item_visibility.py: 1215 warnings
+tests/test_lightweight_family_members.py: 232 warnings
+tests/test_localities.py: 96 warnings
+tests/test_location_helpers.py: 31 warnings
+tests/test_locations.py: 143 warnings
+tests/test_login.py: 33 warnings
+tests/test_media_migration.py: 15 warnings
+tests/test_media_moderation.py: 164 warnings
+tests/test_media_organization.py: 366 warnings
+tests/test_media_queries.py: 83 warnings
+tests/test_media_sweep.py: 58 warnings
+tests/test_messaging_cross_context.py: 126 warnings
+tests/test_messaging_migration.py: 2 warnings
+tests/test_messaging_repository.py: 123 warnings
+tests/test_moderation.py: 154 warnings
+tests/test_my_attendances.py: 133 warnings
+tests/test_my_items_page.py: 200 warnings
+tests/test_my_profile.py: 102 warnings
+tests/test_my_profile_appearance.py: 34 warnings
+tests/test_my_reservations.py: 212 warnings
+tests/test_my_terms.py: 153 warnings
+tests/test_needed_items_batch.py: 107 warnings
+tests/test_notifications.py: 187 warnings
+tests/test_organization_founding_media.py: 51 warnings
+tests/test_organizations.py: 365 warnings
+tests/test_organizer_bridges.py: 106 warnings
+tests/test_organizer_page.py: 312 warnings
+tests/test_organizer_page_queries.py: 1205 warnings
+tests/test_outbox.py: 5 warnings
+tests/test_owner_items_page.py: 300 warnings
+tests/test_owner_meetings.py: 98 warnings
+tests/test_pagination.py: 19 warnings
+tests/test_party_profile.py: 176 warnings
+tests/test_party_reservation_actions.py: 267 warnings
+tests/test_personal_pickup.py: 310 warnings
+tests/test_personal_pickup_migration.py: 32 warnings
+tests/test_photo_moderation_attempts_migration.py: 4 warnings
+tests/test_photo_moderation_gate.py: 116 warnings
+tests/test_photo_moderation_queries.py: 18 warnings
+tests/test_plugin_admin_gating.py: 24 warnings
+tests/test_private_group_access_defects.py: 99 warnings
+tests/test_product_category_fk_rename.py: 37 warnings
+tests/test_product_description.py: 68 warnings
+tests/test_product_leaf_category.py: 26 warnings
+tests/test_product_photo_model.py: 9 warnings
+tests/test_product_photos.py: 266 warnings
+tests/test_product_resolution.py: 54 warnings
+tests/test_promotion.py: 20 warnings
+tests/test_public_term.py: 477 warnings
+tests/test_registration.py: 33 warnings
+tests/test_reservation_write_guards.py: 126 warnings
+tests/test_reserved_listings.py: 1048 warnings
+tests/test_rsvp.py: 149 warnings
+tests/test_swap_proposal_model.py: 7 warnings
+tests/test_term_attendees.py: 207 warnings
+tests/test_term_clock_regressions.py: 306 warnings
+tests/test_term_end_scan.py: 1044 warnings
+tests/test_term_item_listings.py: 3034 warnings
+tests/test_term_item_listings_model.py: 13 warnings
+tests/test_term_item_listings_router.py: 1029 warnings
+tests/test_term_location_capacity.py: 252 warnings
+tests/test_text_moderation_org_group_term.py: 104 warnings
+tests/test_text_moderation_product.py: 102 warnings
+tests/test_user_profile_birth_year.py: 4 warnings
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\core\base_model.py:28: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow()
+
+tests/test_attendance_withdrawal.py: 2 warnings
+tests/test_group_access.py: 1 warning
+tests/test_group_members.py: 1 warning
+tests/test_group_soft_delete_keep_live.py: 1 warning
+tests/test_group_term_conversations.py: 1 warning
+tests/test_groups.py: 1 warning
+tests/test_messaging_cross_context.py: 1 warning
+tests/test_term_attendees.py: 1 warning
+tests/test_term_item_listings.py: 2 warnings
+tests/test_term_item_listings_router.py: 1 warning
+tests/test_term_location_capacity.py: 1 warning
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\groups\application\attendance.py:68: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    attendance.withdrawn_at = datetime.utcnow()
+
+tests/test_attendance_withdrawal.py: 1 warning
+tests/test_circulation.py: 19 warnings
+tests/test_circulation_ledger.py: 7 warnings
+tests/test_conversation_inbox.py: 4 warnings
+tests/test_conversation_messages.py: 7 warnings
+tests/test_domain_clock_guard.py: 4 warnings
+tests/test_event_item_reservations.py: 17 warnings
+tests/test_event_page.py: 26 warnings
+tests/test_event_reservation_delete.py: 36 warnings
+tests/test_event_reservation_readers.py: 6 warnings
+tests/test_exchange_summary.py: 8 warnings
+tests/test_group_soft_delete_keep_live.py: 7 warnings
+tests/test_handover_copy_api.py: 10 warnings
+tests/test_item_actions.py: 15 warnings
+tests/test_item_conversations.py: 8 warnings
+tests/test_item_details.py: 10 warnings
+tests/test_item_history.py: 4 warnings
+tests/test_item_listing_status.py: 30 warnings
+tests/test_item_location.py: 9 warnings
+tests/test_item_reservations_router.py: 12 warnings
+tests/test_item_visibility.py: 43 warnings
+tests/test_location_helpers.py: 2 warnings
+tests/test_messaging_cross_context.py: 3 warnings
+tests/test_moderation.py: 6 warnings
+tests/test_my_items_page.py: 18 warnings
+tests/test_my_reservations.py: 9 warnings
+tests/test_organizer_bridges.py: 7 warnings
+tests/test_organizer_page.py: 13 warnings
+tests/test_organizer_page_queries.py: 39 warnings
+tests/test_owner_items_page.py: 15 warnings
+tests/test_party_profile.py: 8 warnings
+tests/test_party_reservation_actions.py: 10 warnings
+tests/test_personal_pickup.py: 11 warnings
+tests/test_photo_moderation_gate.py: 7 warnings
+tests/test_product_description.py: 3 warnings
+tests/test_product_photos.py: 13 warnings
+tests/test_product_resolution.py: 1 warning
+tests/test_public_term.py: 5 warnings
+tests/test_reservation_write_guards.py: 2 warnings
+tests/test_reserved_listings.py: 41 warnings
+tests/test_term_clock_regressions.py: 8 warnings
+tests/test_term_end_scan.py: 24 warnings
+tests/test_term_item_listings.py: 85 warnings
+tests/test_term_item_listings_router.py: 30 warnings
+tests/test_text_moderation_product.py: 1 warning
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\circulation\application\inventory_items.py:76: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    added_at=datetime.utcnow(),
+
+tests/test_circulation.py::test_deleteInventoryItem_availableItem_returns204AndExcludedFromList
+tests/test_circulation.py::test_getInventoryItem_softDeleted_returns404
+tests/test_circulation.py::test_createReservation_softDeletedItem_raisesNotFound
+tests/test_circulation_ledger.py::test_deleteItem_postsRemoveToExternalAndSetsDeletedAt
+tests/test_circulation_ledger.py::test_itemLifecycle_registerGiftRemove_ledgerMatchesProjectionAtEachStep
+tests/test_item_details.py::test_getItemDetails_deletedOrMissingItem_returns200DeletedOr404
+tests/test_item_history.py::test_getItemHistory_swapDeletedMissingAndAnonymous_handledPerSpec
+tests/test_term_item_listings_router.py::test_listMyInventoryItems_softDeletedItem_isExcluded
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\circulation\application\inventory_items.py:309: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    occurred_at=datetime.utcnow(),
+
+tests/test_circulation.py: 9 warnings
+tests/test_circulation_bulk_cancel.py: 4 warnings
+tests/test_circulation_ledger.py: 5 warnings
+tests/test_domain_clock_guard.py: 3 warnings
+tests/test_event_item_reservations.py: 9 warnings
+tests/test_event_reservation_delete.py: 28 warnings
+tests/test_event_reservation_readers.py: 6 warnings
+tests/test_exchange_summary.py: 2 warnings
+tests/test_group_soft_delete_keep_live.py: 6 warnings
+tests/test_handover_copy_api.py: 9 warnings
+tests/test_item_actions.py: 1 warning
+tests/test_item_details.py: 5 warnings
+tests/test_item_history.py: 3 warnings
+tests/test_item_listing_status.py: 2 warnings
+tests/test_item_location.py: 2 warnings
+tests/test_item_reservations_router.py: 2 warnings
+tests/test_item_visibility.py: 13 warnings
+tests/test_my_items_page.py: 1 warning
+tests/test_my_reservations.py: 8 warnings
+tests/test_organizer_page_queries.py: 6 warnings
+tests/test_party_reservation_actions.py: 8 warnings
+tests/test_personal_pickup.py: 11 warnings
+tests/test_public_term.py: 1 warning
+tests/test_reservation_write_guards.py: 2 warnings
+tests/test_reserved_listings.py: 14 warnings
+tests/test_term_clock_regressions.py: 6 warnings
+tests/test_term_end_scan.py: 24 warnings
+tests/test_term_item_listings.py: 60 warnings
+tests/test_term_item_listings_router.py: 17 warnings
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\circulation\application\reservations.py:69: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    reserved_at=datetime.utcnow(),
+
+tests/test_circulation.py: 9 warnings
+tests/test_circulation_bulk_cancel.py: 4 warnings
+tests/test_circulation_ledger.py: 5 warnings
+tests/test_domain_clock_guard.py: 3 warnings
+tests/test_event_item_reservations.py: 9 warnings
+tests/test_event_reservation_delete.py: 28 warnings
+tests/test_event_reservation_readers.py: 6 warnings
+tests/test_exchange_summary.py: 2 warnings
+tests/test_group_soft_delete_keep_live.py: 6 warnings
+tests/test_handover_copy_api.py: 9 warnings
+tests/test_item_actions.py: 1 warning
+tests/test_item_details.py: 5 warnings
+tests/test_item_history.py: 3 warnings
+tests/test_item_listing_status.py: 2 warnings
+tests/test_item_location.py: 2 warnings
+tests/test_item_reservations_router.py: 2 warnings
+tests/test_item_visibility.py: 13 warnings
+tests/test_my_items_page.py: 1 warning
+tests/test_my_reservations.py: 8 warnings
+tests/test_organizer_page_queries.py: 6 warnings
+tests/test_party_reservation_actions.py: 8 warnings
+tests/test_personal_pickup.py: 11 warnings
+tests/test_public_term.py: 1 warning
+tests/test_reservation_write_guards.py: 2 warnings
+tests/test_reserved_listings.py: 14 warnings
+tests/test_term_clock_regressions.py: 6 warnings
+tests/test_term_end_scan.py: 24 warnings
+tests/test_term_item_listings.py: 60 warnings
+tests/test_term_item_listings_router.py: 17 warnings
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\circulation\application\reservations.py:77: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    balance.reserved_at = datetime.utcnow()
+
+tests/test_circulation.py: 1 warning
+tests/test_circulation_ledger.py: 1 warning
+tests/test_event_item_reservations.py: 2 warnings
+tests/test_event_reservation_readers.py: 1 warning
+tests/test_group_soft_delete_keep_live.py: 1 warning
+tests/test_item_history.py: 2 warnings
+tests/test_item_listing_status.py: 2 warnings
+tests/test_item_location.py: 1 warning
+tests/test_personal_pickup.py: 2 warnings
+tests/test_term_clock_regressions.py: 1 warning
+tests/test_term_item_listings.py: 12 warnings
+tests/test_term_item_listings_router.py: 4 warnings
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\circulation\application\reservation_transitions.py:217: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_circulation_bulk_cancel.py::test_cancelReservationsWithoutCommit_openAndTerminal_cancelsOpenSkipsTerminal
+tests/test_circulation_bulk_cancel.py::test_cancelReservationsWithoutCommit_openAndTerminal_cancelsOpenSkipsTerminal
+tests/test_circulation_bulk_cancel.py::test_cancelReservationsWithoutCommit_sessionRolledBack_restoresPendingRows
+tests/test_circulation_bulk_cancel.py::test_createReservation_bothContexts_raisesValueError
+tests/test_circulation_bulk_cancel.py::test_createReservation_noContext_createsPendingPersonalReservation
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_circulation_bulk_cancel.py:56: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    added_at=datetime.utcnow(),
+
+tests/test_circulation_ledger.py::test_postMovement_fromNotMatchingProjection_raisesConflictWithoutEntries
+tests/test_circulation_ledger.py::test_postMovement_swapNonCrossingLegs_raisesConflict
+tests/test_circulation_ledger.py::test_postMovement_swapNonCrossingLegs_raisesConflict
+tests/test_circulation_ledger.py::test_postMovement_swapSameItemInBothLegs_raisesConflict
+tests/test_circulation_ledger.py::test_postMovement_swapWithVirtualSide_raisesConflict
+tests/test_circulation_ledger.py::test_postMovement_swapWithVirtualSide_raisesConflict
+tests/test_circulation_ledger.py::test_postMovement_validPersonalSwap_postsFourEntriesAndMatchesProjection
+tests/test_circulation_ledger.py::test_postMovement_validPersonalSwap_postsFourEntriesAndMatchesProjection
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_circulation_ledger.py:162: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    added_at=datetime.utcnow(),
+
+tests/test_circulation_ledger.py::test_postMovement_fromNotMatchingProjection_raisesConflictWithoutEntries
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_circulation_ledger.py:242: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    occurred_at=datetime.utcnow(),
+
+tests/test_circulation_ledger.py::test_postMovement_swapNonCrossingLegs_raisesConflict
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_circulation_ledger.py:263: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    occurred_at=datetime.utcnow(),
+
+tests/test_circulation_ledger.py::test_postMovement_swapSameItemInBothLegs_raisesConflict
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_circulation_ledger.py:284: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    occurred_at=datetime.utcnow(),
+
+tests/test_circulation_ledger.py::test_postMovement_swapWithVirtualSide_raisesConflict
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_circulation_ledger.py:307: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    occurred_at=datetime.utcnow(),
+
+tests/test_circulation_ledger.py::test_postMovement_validPersonalSwap_postsFourEntriesAndMatchesProjection
+tests/test_circulation_ledger.py::test_postMovement_validPersonalSwap_postsFourEntriesAndMatchesProjection
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_circulation_ledger.py:327: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    occurred_at=datetime.utcnow(),
+
+tests/test_circulation_ledger.py::test_postMovement_validPersonalSwap_postsFourEntriesAndMatchesProjection
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_circulation_ledger.py:335: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    occurred_at=datetime.utcnow(),
+
+tests/test_conversation_inbox.py: 24 warnings
+tests/test_conversation_messages.py: 97 warnings
+tests/test_event_conversations.py: 5 warnings
+tests/test_group_term_conversations.py: 3 warnings
+tests/test_messaging_repository.py: 86 warnings
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\messaging\infrastructure\repository.py:151: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at = datetime.utcnow()
+
+tests/test_conversation_inbox.py: 27 warnings
+tests/test_conversation_messages.py: 37 warnings
+tests/test_event_conversations.py: 6 warnings
+tests/test_group_term_conversations.py: 5 warnings
+tests/test_messaging_repository.py: 89 warnings
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\messaging\infrastructure\repository.py:182: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_conversation_messages.py::test_sendMessage_groupDeletedDuringModeration_recheckedUnderLockReturns409
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_conversation_messages.py:386: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    update(Group).where(Group.id == group_id).values(deleted_at=datetime.utcnow())
+
+tests/test_conversation_messages.py::test_sendMessage_deletedItemAndOwnershipChange_itemThreadStaysWritable
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_conversation_messages.py:412: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    item.deleted_at = datetime.utcnow()
+
+tests/test_event_attendance.py: 1 warning
+tests/test_event_conversations.py: 3 warnings
+tests/test_event_item_reservations.py: 3 warnings
+tests/test_event_page.py: 1 warning
+tests/test_event_reservation_delete.py: 15 warnings
+tests/test_owner_items_page.py: 1 warning
+tests/test_personal_pickup.py: 2 warnings
+tests/test_term_end_scan.py: 1 warning
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\events\service.py:419: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    attendance.withdrawn_at = datetime.utcnow()
+
+tests/test_event_reservations_migration.py::test_downgradeTo0072_contextlessReservationExists_refusesWithRecoveryPath
+tests/test_event_reservations_migration.py::test_insertOpenReservation_noContext_allowedAfter0074
+tests/test_event_reservations_migration.py::test_insertOpenReservation_bothContexts_violatesContextCheck
+tests/test_event_reservations_migration.py::test_deleteEvent_terminalReservations_detachesEventId
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_event_reservations_migration.py:90: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    added_at=datetime.utcnow(),
+
+tests/test_event_reservations_migration.py::test_downgradeTo0072_contextlessReservationExists_refusesWithRecoveryPath
+tests/test_event_reservations_migration.py::test_insertOpenReservation_noContext_allowedAfter0074
+tests/test_event_reservations_migration.py::test_insertOpenReservation_bothContexts_violatesContextCheck
+tests/test_event_reservations_migration.py::test_deleteEvent_terminalReservations_detachesEventId
+tests/test_event_reservations_migration.py::test_deleteEvent_terminalReservations_detachesEventId
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_event_reservations_migration.py:132: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    reserved_at=datetime.utcnow(),
+
+tests/test_events.py: 1 warning
+tests/test_group_location_defaults.py: 3 warnings
+tests/test_item_actions.py: 2 warnings
+tests/test_item_location.py: 4 warnings
+tests/test_locations.py: 1 warning
+tests/test_personal_pickup.py: 2 warnings
+tests/test_term_location_capacity.py: 6 warnings
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\locations\service.py:132: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    location.deleted_at = datetime.utcnow()
+
+tests/test_events.py::test_listAttending_onlyActiveAttendances_orderedByStartsAt
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_events.py:510: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    await _seed_attendance(db_session, withdrawn, caller_party, withdrawn_at=datetime.utcnow())
+
+tests/test_group_join_code.py: 2 warnings
+tests/test_group_soft_delete.py: 5 warnings
+tests/test_group_soft_delete_reads.py: 8 warnings
+tests/test_group_soft_delete_service.py: 4 warnings
+tests/test_groups_moderation.py: 3 warnings
+tests/test_needed_items_batch.py: 1 warning
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\groups\application\circles.py:201: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    group.deleted_at = datetime.utcnow()
+
+tests/test_group_soft_delete_keep_live.py::test_confirmOrCancelTransaction_onDeletedGroupTerm_stillResolves
+tests/test_group_soft_delete_keep_live.py::test_mineAsTakerAndMineListings_onDeletedGroupTerm_stillAnswer
+tests/test_group_soft_delete_keep_live.py::test_withdrawAttendance_onDeletedGroup_succeeds
+tests/test_group_soft_delete_keep_live.py::test_scanForTermEnded_deletedGroupTerm_stillProcessed
+tests/test_group_soft_delete_keep_live.py::test_listSwapProposalsForMyItem_onDeletedGroup_stillAnswers
+tests/test_group_soft_delete_keep_live.py::test_getReservation_onDeletedGroupTerm_returnsTermOccursOn
+tests/test_group_soft_delete_reads.py::test_myAttendances_and_myPledges_excludeDeletedGroup
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_group_soft_delete_reads.py:30: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    group.deleted_at = datetime.utcnow()
+
+tests/test_group_soft_delete_keep_live.py: 1 warning
+tests/test_term_clock_regressions.py: 1 warning
+tests/test_term_end_scan.py: 12 warnings
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\groups\application\term_end_scan.py:154: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    db.add(GiveawayTermEndMarker(reservation_id=reservation_id, notified_at=datetime.utcnow()))
+
+tests/test_group_soft_delete_service.py::test_softDeleteGroup_withdrawnRsvpOrPastTerm_doesNotBlock
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_group_soft_delete_service.py:51: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    attendance.withdrawn_at = datetime.utcnow()
+
+tests/test_group_term_conversations.py::test_openGroupConversation_privateGroup_accessOrderAndReadOnlyStates
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_group_term_conversations.py:98: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    await _update_group(db_session, deleted_group, deleted_at=datetime.utcnow())
+
+tests/test_group_term_conversations.py::test_openGroupConversation_privateGroup_accessOrderAndReadOnlyStates
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_group_term_conversations.py:130: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    await _update_group(db_session, group_id, deleted_at=datetime.utcnow())
+
+tests/test_group_term_conversations.py::test_groupChat_softDeletedGroup_readableMarkableListedButSendIs409
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_group_term_conversations.py:209: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    await _update_group(db_session, group_id, deleted_at=datetime.utcnow())
+
+tests/test_group_term_conversations.py::test_termChat_softDeletedGroup_attendeeReadsAndReopensButSendIs409
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_group_term_conversations.py:268: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    await _update_group(db_session, group_id, deleted_at=datetime.utcnow())
+
+tests/test_groups.py::test_deleteNeededItem_claimedPledge_transitionsToWithdrawn
+tests/test_groups.py::test_deleteNeededItem_secondDelete_returns404
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\groups\application\terms.py:393: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    needed_item.deleted_at = datetime.utcnow()
+
+tests/test_groups.py::test_getNeededItem_softDeleted_returns404
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_groups.py:560: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    row.deleted_at = datetime.utcnow()
+
+tests/test_groups.py::test_getNeededItemPledges_parentSoftDeleted_returns404
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_groups.py:740: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    row.deleted_at = datetime.utcnow()
+
+tests/test_item_conversations.py::test_openItemConversation_deletedItem_404WithoutThreadAnd200WithThread
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_item_conversations.py:186: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    await _update_item(db_session, item_id, deleted_at=datetime.utcnow())
+
+tests/test_item_details.py::test_getItemDetails_anonymousOnDraftOrDeletedItem_returns404
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_item_details.py:385: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    item.deleted_at = datetime.utcnow()
+
+tests/test_item_history.py::test_getItemHistory_fulfilledGift_entryCarriesTermDateAndNewOwnerSeesIt
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_item_history.py:111: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    term.occurs_on = datetime.utcnow() - timedelta(days=1)
+
+tests/test_item_location.py::test_transfer_registerKeepsLocation_giftClearsIt
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_item_location.py:145: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    occurred_at=datetime.utcnow(),
+
+tests/test_media_moderation.py::test_decide_afterCronStyleCoreUpdateBumpedUpdatedAt_succeedsNo409_usesLockedStatus
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_media_moderation.py:304: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    updated_at=datetime.utcnow() + timedelta(seconds=5),
+
+tests/test_media_organization.py::test_deleteGallery_middle_renumbersDenselyAndStagesOutbox
+tests/test_media_organization.py::test_reorder_permutation_returns200InNewOrder
+tests/test_media_organization.py::test_deleteGallery_storageNone_stillDeletesRenumbersAndStagesOutbox
+tests/test_media_organization.py::test_reorder_storageNone_appliesOrderReturns200EmptyList
+tests/test_my_profile.py::test_myGallery_limitReorderDelete_otherUsersMediaId404
+tests/test_my_profile.py::test_myGallery_limitReorderDelete_otherUsersMediaId404
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\media\service.py:378: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_messaging_cross_context.py::test_isActiveGroupMemberAndOrganizer_softDeletedGroup_trueUntilMembershipEnds
+tests/test_messaging_cross_context.py::test_getChatAudienceForParty_allVisibilitiesAndDeleted_excludesWithdrawnAttendance
+tests/test_messaging_cross_context.py::test_getChatAudienceForParty_allVisibilitiesAndDeleted_excludesWithdrawnAttendance
+tests/test_messaging_cross_context.py::test_listChatRefs_batched_returnTupleShapesInOneQueryAndNoneForEmpty
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_messaging_cross_context.py:28: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    group.deleted_at = datetime.utcnow()
+
+tests/test_messaging_cross_context.py::test_listItemRefs_includesSoftDeleted_queryCountIndependentOfItemCount
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_messaging_cross_context.py:155: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    item.deleted_at = datetime.utcnow()
+
+tests/test_messaging_repository.py::test_insertMessage_createdAtStrictlyAfterLastMessage_evenWhenClockLags
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_messaging_repository.py:100: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    future = datetime.utcnow() + timedelta(minutes=5)
+
+tests/test_messaging_repository.py::test_bumpAndReadUpsert_keepGreatest_neverMoveBackwards
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_messaging_repository.py:119: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    later = datetime.utcnow()
+
+tests/test_notifications.py: 8 warnings
+tests/test_outbox.py: 2 warnings
+tests/test_product_photos.py: 1 warning
+tests/test_term_end_scan.py: 11 warnings
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\outbox\dispatcher.py:75: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    entry.processed_at = datetime.utcnow()
+
+tests/test_notifications.py::test_markRead_dropsUnreadCount_keepsRowWithTimestamp
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\notifications\service.py:75: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    notification.read_at = datetime.utcnow()
+
+tests/test_notifications.py::test_withdrawPledge_secondNotification_readAllClears
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\notifications\service.py:83: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    .values(read_at=datetime.utcnow())
+
+tests/test_personal_pickup_migration.py::test_insertOpenReservation_noContext_allowedAfter0074
+tests/test_personal_pickup_migration.py::test_insertOpenReservation_bothContexts_violatesContextCheck
+tests/test_personal_pickup_migration.py::test_downgrade0074_openNoContextRows_refusesNamingRecovery[pendingProposal]
+tests/test_personal_pickup_migration.py::test_downgrade0074_openNoContextRows_refusesNamingRecovery[personalGift]
+tests/test_personal_pickup_migration.py::test_downgrade0075_openNoContextRows_refusesBeforeDroppingLocation
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_personal_pickup_migration.py:85: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    added_at=datetime.utcnow(),
+
+tests/test_personal_pickup_migration.py::test_insertOpenReservation_noContext_allowedAfter0074
+tests/test_personal_pickup_migration.py::test_insertOpenReservation_noContext_allowedAfter0074
+tests/test_personal_pickup_migration.py::test_insertOpenReservation_bothContexts_violatesContextCheck
+tests/test_personal_pickup_migration.py::test_downgrade0074_openNoContextRows_refusesNamingRecovery[pendingProposal]
+tests/test_personal_pickup_migration.py::test_downgrade0074_openNoContextRows_refusesNamingRecovery[personalGift]
+tests/test_personal_pickup_migration.py::test_downgrade0075_openNoContextRows_refusesBeforeDroppingLocation
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_personal_pickup_migration.py:104: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    reserved_at=datetime.utcnow(),
+
+tests/test_plugin_admin_gating.py::test_managementRoutes_pluginManagementOnlyPrincipal_succeed
+tests/test_plugin_admin_gating.py::test_managementRoutes_pluginManagementOnlyPrincipal_succeed
+tests/test_plugin_admin_gating.py::test_managementRoutes_adminOnlyPrincipal_succeed
+tests/test_plugin_admin_gating.py::test_managementRoutes_adminOnlyPrincipal_succeed
+tests/test_text_moderation_product.py::test_replacePluginData_sharedDescriptionPluginOffending_returns400
+tests/test_text_moderation_product.py::test_deletePluginData_notScored
+tests/test_text_moderation_product.py::test_replacePluginData_nonStringDescription_notScored
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\plugin\models.py:43: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow()
+
+tests/test_plugin_admin_gating.py::test_managementRoutes_pluginManagementOnlyPrincipal_succeed
+tests/test_plugin_admin_gating.py::test_managementRoutes_adminOnlyPrincipal_succeed
+tests/test_text_moderation_product.py::test_replacePluginData_sharedDescriptionPluginOffending_returns400
+tests/test_text_moderation_product.py::test_deletePluginData_notScored
+tests/test_text_moderation_product.py::test_replacePluginData_nonStringDescription_notScored
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\plugin\models.py:36: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow()
+
+tests/test_public_term.py::test_getPublicCircle_softDeletedNeededItem_notReturned
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_public_term.py:265: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    removed.deleted_at = datetime.utcnow()
+
+tests/test_public_term.py::test_getPublicCircle_termWithNeededItems_unaffectedAfterSiblingDelete
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_public_term.py:286: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    removed.deleted_at = datetime.utcnow()
+
+tests/test_reserved_listings.py::test_listedItemsSelect_includesReservedAndInTransitWithReserver_excludesDeleted
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_reserved_listings.py:95: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    deleted.deleted_at = datetime.utcnow()
+
+tests/test_swap_proposal_model.py::test_giveawayTermEndMarker_roundTrips_andEnforcesUniqueReservationId
+  C:\Users\karas\Desktop\group-thing-app\src\backend\tests\test_swap_proposal_model.py:112: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_term_end_scan.py::test_scan_acceptedSwapProposalPastTermEnd_emitsTermEndedSwap
+tests/test_term_end_scan.py::test_scan_swapPastGrace_payloadCarriesBothItemsDateAndGroup
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\groups\application\term_end_scan.py:210: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    proposal.term_ended_notified_at = datetime.utcnow()
+
+tests/test_term_end_scan.py::test_scan_eventSwap_promptsEachPartyWithItsReservationOnce
+tests/test_term_end_scan.py::test_scan_eventSwapOfWithdrawnAttendee_stillPrompted
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\app\groups\application\term_end_scan.py:289: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    proposal.term_ended_notified_at = datetime.utcnow()
+
+tests/test_term_item_listings_model.py::test_itemListingPreference_roundTripsAllColumns_viaRawInsertAndSelect
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_term_item_listings_model.py:40: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_term_item_listings_model.py::test_termAttendance_withdrawnAt_defaultsNullOnInsert
+tests/test_term_item_listings_model.py::test_termAttendance_withdrawnAt_acceptsDatetimeAndRoundTrips
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_term_item_listings_model.py:30: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    term = Term(circle_group_id=group.id, occurs_on=datetime.utcnow())
+
+tests/test_term_item_listings_model.py::test_termAttendance_withdrawnAt_acceptsDatetimeAndRoundTrips
+  C:\Users\karas\Desktop\swaptime\group-thing-app\src\backend\tests\test_term_item_listings_model.py:103: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    withdrawn_at = datetime.utcnow().replace(microsecond=0)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_owner_items_page.py::test_getOwnerItems_nearest_privateCircleTermExcludedPublicTermWithPath
+FAILED tests/test_terms_circle_occurs_on_index_migration.py::test_migration0053_downgradeUpgrade_roundTrip
+========= 2 failed, 1200 passed, 56636 warnings in 745.27s (0:12:25) ==========

@@ -1,6 +1,6 @@
 orchestrator:
   started_phase: phase-1
-  completed_phases: [phase-1, phase-2, phase-5, phase-6, phase-7]
+  completed_phases: [phase-1, phase-2, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-14]
   failed_phases: []
   auto_fix_attempts: {}
   options:
@@ -16,7 +16,7 @@ orchestrator:
     reality_check_enabled: true
     production_check_enabled: true
   created: "2026-11-11T14:57:59Z"
-  updated: "2026-11-11T17:13:45Z"
+  updated: "2026-11-11T18:55:16Z"
   task_path: .maister/tasks/development/2026-11-11-pages-module-owner-pages
   task_ids: {}
   phases:
@@ -27,7 +27,13 @@ orchestrator:
     phase-5: {status: completed, started: "2026-11-11T15:40:29Z", completed: "2026-11-11T16:00:21Z"}
     phase-6: {status: completed, started: "2026-11-11T16:00:21Z", completed: "2026-11-11T17:02:45Z"}
     phase-7: {status: completed, started: "2026-11-11T17:02:45Z", completed: "2026-11-11T17:13:45Z"}
-    phase-8: {status: in_progress, started: "2026-11-11T17:13:45Z", completed: null}
+    phase-8: {status: completed, started: "2026-11-11T17:13:45Z", completed: "2026-11-11T18:31:47Z"}
+    phase-9: {status: skipped, started: null, completed: null, skip_reason: "Phase 3 not executed"}
+    phase-10: {status: completed, started: "2026-11-11T18:31:47Z", completed: "2026-11-11T18:32:24Z"}
+    phase-11: {status: completed, started: "2026-11-11T18:32:24Z", completed: "2026-11-11T18:55:16Z"}
+    phase-12: {status: skipped, started: null, completed: null, skip_reason: "e2e_enabled false (backend refactor, no UI)"}
+    phase-13: {status: skipped, started: null, completed: null, skip_reason: "user_docs_enabled false"}
+    phase-14: {status: completed, started: "2026-11-11T18:55:16Z", completed: "2026-11-11T18:55:16Z"}
 
 task:
   title: "Wydzielenie modułu app/pages (publiczne strony właściciela) z app/groups"
@@ -41,7 +47,7 @@ task:
     kształty odpowiedzi, nagłówki cache i schemat bazy bez zmian; bez migracji. Poza
     zakresem: przeniesienie `derive_party_slug`, wydzielenie modułu `exchange` z groups,
     rename `circulation` → `inventory`, ujednolicenie prefiksów organizers/organizations.
-  status: in_progress
+  status: completed
   tags: [backend, refactor, module-boundaries]
   priority: null
 
@@ -179,9 +185,23 @@ task_context:
       artifacts:
         - {path: implementation/implementation-plan.md, label: "Implementation plan", html: implementation/implementation-plan.html}
 
+    implementation:
+      summary: "All 8 groups (48 steps) done in 7 waves. app/pages serves the seven routes; full suite 2 failed / 1206 passed, the 2 failures pre-existing on the untouched tree; ruff, mypy and OpenAPI identical to baseline except the 7 tags groups -> pages."
+      decisions:
+        - {decision: "Two baseline pytest failures accepted as pre-existing and left failing", rationale: "plan forbids assertion edits; both fail identically on the untouched tree"}
+        - {decision: "Organization kept in groups organizations_acl __all__", rationale: "present at HEAD and used in its own type hints; spec removes only the two wrappers"}
+      risks:
+        - "Pre-existing failure in the moved area: test_owner_items_page.py::test_getOwnerItems_nearest_privateCircleTermExcludedPublicTermWithPath (nearest dict differs only in location_name)"
+        - "Pre-existing failure: test_terms_circle_occurs_on_index_migration.py::test_migration0053_downgradeUpgrade_roundTrip"
+        - "Git Bash sed -i converts CRLF files to LF; repository.py was restored to CRLF by hand"
+      artifacts:
+        - {path: implementation/work-log.md, label: "Work log", html: null}
 verification_context:
-  last_status: null
-  issues_found: []
+  last_status: passed_with_issues
+  issues_found:
+    - {severity: warning, source: code_review, description: "Raw groups rows and listed_items() Select cross the groups->pages boundary", fixable: false}
+    - {severity: warning, source: pragmatic, description: "Three stale route docstrings published as OpenAPI descriptions", fixable: true}
   fixes_applied: []
-  decisions_made: []
+  decisions_made:
+    - {decision: "Skip fixes, proceed as-is", rationale: "user choice at the fix gate; both warnings recorded as follow-ups; docstrings kept verbatim per the OpenAPI acceptance rule"}
   reverify_count: 0

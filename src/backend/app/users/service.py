@@ -173,7 +173,7 @@ async def get_profile_by_account_user_id(
     db: AsyncSession, account_user_id: uuid.UUID
 ) -> UserProfile:
     """The inverse of `UserProfile.account_user_id` — used by
-    `app.groups.application.term_item_listings` to map a `circulation.
+    `app.groups.application.term_item_listings` to map a `inventory.
     Reservation.reserved_by_user_id` (an account `users.id`) back to the
     taking party for display, since that reservation is the only place the
     taker is recorded once listings became fully derived."""

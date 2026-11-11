@@ -931,7 +931,7 @@ async def shares_private_circle(
 
 
 def _my_items(party_id: uuid.UUID, items: Select[Any]) -> Subquery:
-    """`items` (circulation's inventory-items select) plus the party's own
+    """`items` (the inventory module's inventory-items select) plus the party's own
     listing `mode` and `visibility`, both `None` without a preference.
     PRIVATE preferences count: this is the owner's view of their items."""
     inventory_items = items.subquery("inventory_items")
@@ -995,7 +995,7 @@ async def list_my_items(
 
 
 def with_pending_proposer(listed_items: Select[Any]) -> Select[Any]:
-    """`listed_items` (circulation's listed-items select, reserved items
+    """`listed_items` (inventory's listed-items select, reserved items
     included) plus `proposer_party_id`: the proposer of the oldest still
     `PROPOSED` `SwapProposal` targeting the item, `None` without one.
     Unexecuted, for a list read to join."""
@@ -1159,11 +1159,6 @@ def _owner_public_groups(owner_party_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
         )
         .where(Group.visibility == GroupVisibility.PUBLIC, Group.deleted_at.is_(None))
     )
-
-
-async def party_leads_public_circle(db: AsyncSession, party_id: uuid.UUID) -> bool:
-    result = await db.execute(select(exists(_owner_public_groups(party_id))))
-    return bool(result.scalar())
 
 
 async def count_owner_public_groups(db: AsyncSession, owner_party_id: uuid.UUID) -> int:

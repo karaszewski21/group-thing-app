@@ -22,9 +22,9 @@ from app.core.auth_deps import Principal
 from app.core.errors import BusinessConflictException, EntityNotFoundException
 
 from ..infrastructure import (
-    circulation_acl,
     events_acl,
     groups_acl,
+    inventory_acl,
     organizations_acl,
     repository,
     users_acl,
@@ -64,10 +64,10 @@ async def open_item_conversation(
     db: AsyncSession, principal: Principal, item_id: uuid.UUID
 ) -> tuple[ConversationResponse, bool]:
     me = await users_acl.get_caller_party_id(db, principal)
-    item = await circulation_acl.find_item_including_deleted(db, item_id)
+    item = await inventory_acl.find_item_including_deleted(db, item_id)
     if item is None:
         raise EntityNotFoundException("InventoryItem", item_id)
-    owner_party_id = await circulation_acl.get_owner_party_id(db, item)
+    owner_party_id = await inventory_acl.get_owner_party_id(db, item)
     if owner_party_id == me:
         raise OwnItemConversationException
 
@@ -207,7 +207,7 @@ async def _to_response(
     participant_count: int | None = None
     if conversation.kind == ConversationKind.ITEM:
         assert conversation.item_id is not None
-        name, deleted_at = (await circulation_acl.list_item_refs(db, [conversation.item_id]))[
+        name, deleted_at = (await inventory_acl.list_item_refs(db, [conversation.item_id]))[
             conversation.item_id
         ]
         assert conversation.owner_party_id is not None

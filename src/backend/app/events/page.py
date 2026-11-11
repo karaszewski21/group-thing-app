@@ -16,8 +16,8 @@ from app.storage.service import ObjectStorage
 
 from . import service
 from .infrastructure import (
-    circulation_acl,
     groups_acl,
+    inventory_acl,
     locations_acl,
     organizations_acl,
     product_acl,
@@ -68,7 +68,7 @@ async def _listed_items_by_party(
     the thumbnails when storage is configured and at most two for the
     reserver names of a logged-in viewer."""
     preferences = groups_acl.item_listing_preferences_select(party_ids).subquery("preferences")
-    listed = groups_acl.with_pending_proposer(circulation_acl.listed_items_select()).subquery(
+    listed = groups_acl.with_pending_proposer(inventory_acl.listed_items_select()).subquery(
         "listed_items"
     )
     ranked = (
