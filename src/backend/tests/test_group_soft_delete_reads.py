@@ -88,16 +88,18 @@ async def test_listGroups_and_publicOrganizerDirectory_excludeDeletedGroup(
     await _delete(client, token, deleted)
 
     groups = await client.get("/api/groups", headers=_auth(token))
-    page = await client.get(f"/api/public/organizers/{slug}")
-    terms = await client.get(f"/api/public/organizers/{slug}/terms")
+    page = await client.get(f"/api/public/organizations/{slug}/layout/SCHEDULE")
+    kept_page = await client.get(f"/api/public/organizations/{slug}/groups/{kept}/terms")
+    deleted_page = await client.get(f"/api/public/organizations/{slug}/groups/{deleted}/terms")
     assert str(deleted) not in {row["id"] for row in groups.json()}
     assert str(kept) in {row["id"] for row in groups.json()}
     assert page.status_code == 200
-    assert [circle["id"] for circle in page.json()["circles"]] == [str(kept)]
-    assert [term["term_id"] for term in page.json()["upcoming_terms"]] == [str(kept_term)]
-    assert terms.status_code == 200
-    assert [term["term_id"] for term in terms.json()["items"]] == [str(kept_term)]
-    assert terms.json()["total"] == 1
+    assert [group["id"] for group in page.json()["groups"]] == [str(kept)]
+    assert [term["id"] for term in page.json()["upcoming_terms"]] == [str(kept_term)]
+    assert page.json()["stats"]["group_count"] == 1
+    assert kept_page.status_code == 200
+    assert [term["id"] for term in kept_page.json()["terms"]] == [str(kept_term)]
+    assert deleted_page.status_code == 404
 
 
 async def test_myAttendances_and_myPledges_excludeDeletedGroup(
@@ -165,9 +167,7 @@ async def test_termsByCircle_termById_neededItemsByTerm_createPledge_return404(
     await _delete(client, org_token, group_id)
 
     headers = _auth(guest_token)
-    assert (
-        await client.get(f"/api/groups/{group_id}/terms", headers=headers)
-    ).status_code == 404
+    assert (await client.get(f"/api/groups/{group_id}/terms", headers=headers)).status_code == 404
     assert (await client.get(f"/api/terms/{term_id}", headers=headers)).status_code == 404
     assert (
         await client.get(f"/api/needed-items?term_id={term_id}", headers=headers)

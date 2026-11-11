@@ -6,7 +6,7 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import date, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -399,75 +399,11 @@ class GroupAccessResponse(BaseModel):
     access: GroupAccessDetails
 
 
-# --- Public organizer directory (`GET /api/public/organizers/{slug}`) --
+# --- Public organization page (`GET /api/public/organizations/{slug}/layout/{layout}`)
 # Anonymous read model: explicit allowlisted fields only, never a person's
 # name, party id or child data.
 
 ExchangeMode = Literal["GIFT", "SWAP"]
-
-
-class OrganizerNextTermResponse(BaseModel):
-    id: uuid.UUID
-    occurs_on: datetime
-    attendee_count: int
-
-
-class OrganizerCircleResponse(BaseModel):
-    id: uuid.UUID
-    name: str
-    layout_mode: GroupLayoutMode
-    next_term: OrganizerNextTermResponse | None
-    # Terms in the 60-day window; `next_term` itself has no window.
-    upcoming_term_count: int
-
-
-class OrganizerTermResponse(BaseModel):
-    term_id: uuid.UUID
-    group_id: uuid.UUID
-    group_name: str
-    occurs_on: datetime
-    description: str | None
-    attendee_count: int
-
-
-class OrganizerExchangeCounts(BaseModel):
-    # GIFT/SWAP count available items only; RESERVED the reserved ones.
-    GIFT: int
-    SWAP: int
-    RESERVED: int
-
-
-class OrganizerExchangeItemResponse(BaseModel):
-    item_id: uuid.UUID
-    product_name: str
-    condition: str
-    mode: ExchangeMode
-    thumb_url: str | None
-    term_id: uuid.UUID
-    group_id: uuid.UUID
-    occurs_on: datetime
-    reservation: ReservedByResponse | None
-
-
-class OrganizerExchangeResponse(BaseModel):
-    # Over every eligible item; `items` is capped, so it may hold fewer.
-    counts: OrganizerExchangeCounts
-    items: list[OrganizerExchangeItemResponse]
-
-
-class OrganizerNeededItemResponse(BaseModel):
-    id: uuid.UUID
-    term_id: uuid.UUID
-    group_id: uuid.UUID
-    name: str
-    claimed: bool
-
-
-class OrganizerStatsResponse(BaseModel):
-    circle_count: int
-    upcoming_term_count: int
-    # `None` below 3 families, so a small group's families stay unidentifiable.
-    family_count: int | None
 
 
 class OwnerItemCardResponse(BaseModel):
@@ -515,17 +451,94 @@ class OwnerNearestDateResponse(BaseModel):
     path: str
 
 
-class OrganizerPageResponse(BaseModel):
-    circles: list[OrganizerCircleResponse]
-    upcoming_terms: list[OrganizerTermResponse]
-    exchange: OrganizerExchangeResponse
-    needed_items: list[OrganizerNeededItemResponse]
-    stats: OrganizerStatsResponse
-    # Upcoming terms and events of the owner, earliest first (`list_owner_dates`).
-    upcoming_dates: list[OwnerNearestDateResponse]
-    recent_items: list[OwnerItemCardResponse]
-    # The first of `upcoming_dates`, only when `recent_items` is non-empty.
-    owner_nearest: OwnerNearestDateResponse | None
+class OrganizationStatsResponse(BaseModel):
+    # PUBLIC, non-deleted groups the owner leads.
+    group_count: int
+    # The owner's PUBLIC listed items that are not reserved.
+    item_count: int
+    # Upcoming terms of those groups plus upcoming events the owner authored.
+    meeting_count: int
+
+
+class OrganizationItemStatsResponse(BaseModel):
+    # Available (not reserved) PUBLIC listed items per mode.
+    GIFT: int
+    SWAP: int
+
+
+class OrganizationNextTermResponse(BaseModel):
+    id: uuid.UUID
+    occurs_on: datetime
+    attendee_count: int
+
+
+class OrganizationGroupResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    layout_mode: GroupLayoutMode
+    next_term: OrganizationNextTermResponse | None
+    upcoming_term_count: int
+
+
+class MeetingLinkResponse(BaseModel):
+    kind: Literal["TERM", "EVENT"]
+    # Naive Warsaw wall clock (`Term.occurs_on` / `Event.starts_at`).
+    starts_at: datetime
+    path: str
+
+
+class ClassicLayoutResponse(BaseModel):
+    layout: Literal["CLASSIC"] = "CLASSIC"
+    stats: OrganizationStatsResponse
+    upcoming_terms: list[OwnerNearestDateResponse]
+    items: list[OwnerItemCardResponse]
+
+
+class LinksLayoutResponse(BaseModel):
+    layout: Literal["LINKS"] = "LINKS"
+    stats: OrganizationStatsResponse
+
+
+class ScheduleLayoutResponse(BaseModel):
+    layout: Literal["SCHEDULE"] = "SCHEDULE"
+    stats: OrganizationStatsResponse
+    upcoming_terms: list[OwnerNearestDateResponse]
+    # The owner's newest groups.
+    groups: list[OrganizationGroupResponse]
+    item_stats: OrganizationItemStatsResponse
+
+
+class ExchangeLayoutResponse(BaseModel):
+    layout: Literal["EXCHANGE"] = "EXCHANGE"
+    stats: OrganizationStatsResponse
+    items: list[OwnerItemCardResponse]
+    term_links: list[MeetingLinkResponse]
+
+
+class GroupTermResponse(BaseModel):
+    id: uuid.UUID
+    # Naive Warsaw wall clock (`Term.occurs_on`).
+    occurs_on: datetime
+    description: str | None
+    location_name: str | None
+    attendee_count: int
+    path: str
+
+
+class OrganizationGroupTermsResponse(BaseModel):
+    """The group page behind `/<org-slug>/group/<group-id>/terms`: the group
+    tile and its upcoming terms, earliest first, at most
+    `GROUP_TERMS_LIMIT`."""
+
+    owner: OwnerSummaryResponse
+    group: OrganizationGroupResponse
+    terms: list[GroupTermResponse]
+
+
+OrganizationLayoutResponse = Annotated[
+    ClassicLayoutResponse | LinksLayoutResponse | ScheduleLayoutResponse | ExchangeLayoutResponse,
+    Field(discriminator="layout"),
+]
 
 
 # --- Public owner items page (`GET /api/public/{organizers/{slug},parties/{id}}/items`)

@@ -71,6 +71,11 @@ export function ownerPagePath(owner: { slug: string | null; party_id: string }):
 }
 
 /** The public event page, under the author's organizer slug (`EventResponse.author_slug`). */
+/** A public group's page with its upcoming terms. */
+export function groupTermsPath(organizerSlug: string, groupId: string): string {
+  return `/${organizerSlug}/group/${groupId}/terms`;
+}
+
 export function eventPath(organizerSlug: string, eventId: string): string {
   return `/${organizerSlug}/event/${eventId}`;
 }

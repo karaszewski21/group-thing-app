@@ -1,14 +1,12 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
-import * as groupsApi from "../api/groups";
 import * as mediaApi from "../api/media";
-import type { OwnerNearestDate } from "../api/ownerItems";
 import { ACCESS_DENIED_MESSAGE } from "../api/problem";
 import * as organizationsApi from "../api/organizations";
 import { findPreset } from "../theme/palettes";
-import dayjs from "../utils/dayjs";
 import { appearanceRouteElement } from "./itemRoute";
+import { layoutStats, linksLayout } from "./organizationLayoutFixtures";
 import { createQueryWrapper } from "./queryClient";
 import { getTestLocation, getTestRouter, renderWithRoute } from "./renderWithRoute";
 
@@ -19,16 +17,13 @@ vi.mock("../api/organizations", () => ({
   getPublicOrganization: vi.fn(),
   getMyOrganization: vi.fn(),
   updateOrganization: vi.fn(),
+  getOrganizationLayout: vi.fn(),
 }));
 
 vi.mock("../api/media", () => ({
   uploadMedia: vi.fn(),
   deleteMedia: vi.fn(),
   reorderGallery: vi.fn(),
-}));
-
-vi.mock("../api/groups", () => ({
-  getOrganizerPage: vi.fn(),
 }));
 
 function currentUrl() {
@@ -78,39 +73,9 @@ const MY_ORGANIZATION: organizationsApi.MyOrganizationResponse = {
   media: [],
 };
 
-const DIRECTORY: groupsApi.OrganizerPageResponse = {
-  circles: [],
-  upcoming_terms: [],
-  exchange: { counts: { GIFT: 0, SWAP: 0, RESERVED: 0 }, items: [] },
-  needed_items: [],
-  upcoming_dates: [],
-  recent_items: [],
-  owner_nearest: null,
-  stats: { circle_count: 0, upcoming_term_count: 0, family_count: null },
-};
+const DIRECTORY = linksLayout();
 
-function circle(id: string, name: string): groupsApi.OrganizerCircle {
-  return { id, name, layout_mode: "CIRCLE", next_term: null, upcoming_term_count: 2 };
-}
-
-function dateInDays(days: number, groupId: string): OwnerNearestDate {
-  return {
-    kind: "TERM",
-    id: `term-${groupId}-${days}`,
-    name: groupId,
-    starts_at: dayjs().add(days, "day").format("YYYY-MM-DDTHH:mm:ss"),
-    location_name: null,
-    attendee_count: 0,
-    path: `/muzyczne-skrzaty/group/${groupId}/term/term-${groupId}-${days}`,
-  };
-}
-
-const BUSY_DIRECTORY: groupsApi.OrganizerPageResponse = {
-  ...DIRECTORY,
-  circles: [circle("c-1", "Maluchy"), circle("c-2", "Starszaki")],
-  upcoming_dates: [dateInDays(1, "c-1"), dateInDays(3, "c-2"), dateInDays(8, "c-1"), dateInDays(10, "c-2")],
-  stats: { circle_count: 2, upcoming_term_count: 4, family_count: null },
-};
+const BUSY_DIRECTORY = linksLayout({ stats: layoutStats({ group_count: 2, meeting_count: 4 }) });
 
 function textOfIds(ids: string | null) {
   return (ids ?? "")
@@ -154,7 +119,7 @@ beforeEach(() => {
   mockAuth = { token: "owner-token" };
   vi.mocked(organizationsApi.getPublicOrganization).mockResolvedValue(ORGANIZATION);
   vi.mocked(organizationsApi.getMyOrganization).mockResolvedValue(MY_ORGANIZATION);
-  vi.mocked(groupsApi.getOrganizerPage).mockResolvedValue(DIRECTORY);
+  vi.mocked(organizationsApi.getOrganizationLayout).mockResolvedValue(DIRECTORY);
 });
 
 describe("Wygląd strony page", () => {
@@ -305,30 +270,31 @@ describe("Wygląd strony page", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("marks Spotkania as Polecany for four dates within 14 days", async () => {
-    vi.mocked(groupsApi.getOrganizerPage).mockResolvedValue(BUSY_DIRECTORY);
+  it("marks Spotkania as Polecany for four upcoming meetings, reading only the LINKS stats", async () => {
+    vi.mocked(organizationsApi.getOrganizationLayout).mockResolvedValue(BUSY_DIRECTORY);
     await openEditor();
 
     await vi.waitFor(() => expect(recommendedLayouts()).toEqual(["Spotkania"]));
+    expect(organizationsApi.getOrganizationLayout).toHaveBeenCalledWith("muzyczne-skrzaty", "LINKS");
     expect(within(screen.getByRole("radiogroup", { name: "Układ strony" })).getAllByRole("radio")).toHaveLength(4);
   });
 
-  it("marks only the Wizytówka layout as Polecany for an organizer without dates or items", async () => {
+  it("marks only the Wizytówka layout as Polecany for an organizer without meetings or items", async () => {
     await openEditor();
 
     await vi.waitFor(() => expect(recommendedLayouts()).toEqual(["Wizytówka"]));
   });
 
-  it("shows no Polecany badge while the directory is loading", async () => {
-    vi.mocked(groupsApi.getOrganizerPage).mockReturnValue(new Promise(() => {}));
+  it("shows no Polecany badge while the stats are loading", async () => {
+    vi.mocked(organizationsApi.getOrganizationLayout).mockReturnValue(new Promise(() => {}));
     await openEditor();
 
     expect(recommendedLayouts()).toEqual([]);
     expect(screen.queryByText("Polecany")).not.toBeInTheDocument();
   });
 
-  it("marks only the Wizytówka layout as Polecany when the directory is unavailable", async () => {
-    vi.mocked(groupsApi.getOrganizerPage).mockRejectedValue(
+  it("marks only the Wizytówka layout as Polecany when the stats are unavailable", async () => {
+    vi.mocked(organizationsApi.getOrganizationLayout).mockRejectedValue(
       new ApiError(500, "Server Error", { status: 500, message: "Server Error" }),
     );
     await openEditor();

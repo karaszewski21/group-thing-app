@@ -1,6 +1,7 @@
 import { useId } from "react";
 import { Link } from "../../../routing/navigation";
 import { itemPagePath } from "../../product/useItemRoutes";
+import { itemsOf } from "../layouts/layoutData";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
 import { ItemCard } from "../../../components/shared/ItemCard";
 
@@ -8,15 +9,15 @@ const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus
 
 // eslint-disable-next-line react-refresh/only-export-components -- the renderer reads each block's isEmpty next to it
 export function isRecentItemsEmpty(data: OrganizerPageData): boolean {
-  return (data.directory?.recent_items.length ?? 0) === 0;
+  return itemsOf(data.directory).length === 0;
 }
 
 /** The owner's newest listed items, each tile opening its product page.
  * `featured`: headed as the page's main offer, for a layout built around items. */
 export function RecentItemsBlock({ data, variant }: BlockProps) {
   const headingId = useId();
-  const directory = data.directory;
-  if (!directory || directory.recent_items.length === 0) return null;
+  const items = itemsOf(data.directory);
+  if (items.length === 0) return null;
   const slug = data.organization.slug;
 
   return (
@@ -25,7 +26,7 @@ export function RecentItemsBlock({ data, variant }: BlockProps) {
         {variant === "featured" ? "Rzeczy do oddania i wymiany" : "Ostatnio dodane rzeczy"}
       </h2>
       <ul className="grid grid-cols-2 gap-2.5">
-        {directory.recent_items.map((item) => (
+        {items.map((item) => (
           <li key={item.item_id}>
             <ItemCard
               href={itemPagePath(slug, item.item_id)}

@@ -66,7 +66,10 @@ from app.groups.application.memberships import (
     list_memberships_for_party,
     list_term_attendees,
 )
-from app.groups.application.organizer_page import get_organizer_page, list_organizer_terms
+from app.groups.application.organizer_page import (
+    get_organization_group_terms,
+    get_organization_layout,
+)
 from app.groups.application.pledges import (
     create_pledge,
     get_pledge,
@@ -163,7 +166,7 @@ __all__ = [
     "get_location",
     "get_locations_by_ids",
     "get_needed_item_view",
-    "get_organizer_page",
+    "get_organization_layout",
     "get_pledge",
     "get_public_circle_view",
     "get_term",
@@ -194,7 +197,7 @@ __all__ = [
     "list_my_term_item_listings",
     "list_needed_item_views",
     "list_needed_item_views_for_terms",
-    "list_organizer_terms",
+    "get_organization_group_terms",
     "list_pledges",
     "list_swap_proposals_for_my_item",
     "list_term_attendees",

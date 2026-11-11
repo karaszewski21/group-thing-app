@@ -27,7 +27,7 @@ const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
   },
   stats: {
     title: "Statystyki",
-    body: "Statystyki pojawią się, gdy będziesz mieć więcej grup i terminów. Widzisz to tylko Ty.",
+    body: "Tu pokażemy, ile prowadzisz grup, ile masz spotkań i rzeczy do oddania. Widzisz to tylko Ty.",
     cta: ADD_TERM,
   },
   "upcoming-dates": {
@@ -40,19 +40,14 @@ const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
     body: "Tu pojawi się Twój najbliższy termin lub wydarzenie. Widzisz to tylko Ty.",
     cta: ADD_TERM,
   },
-  "circles-grid": {
+  "groups-grid": {
     title: "Nasze grupy",
-    body: "Tu pokażemy Twoje publiczne grupy z najbliższymi terminami. Widzisz to tylko Ty.",
+    body: "Tu pokażemy Twoje najnowsze publiczne grupy z najbliższymi terminami. Widzisz to tylko Ty.",
     cta: { label: "Dodaj grupę →", to: "/meetings" },
   },
-  "exchange-counts": {
+  "item-stats": {
     title: "Wymiana rzeczy",
-    body: "Gdy rodzice z Twoich grup wystawią rzeczy do oddania lub wymiany, pokażemy tu ich liczbę. Widzisz to tylko Ty.",
-    cta: ADD_EXCHANGE_ITEM,
-  },
-  "exchange-board": {
-    title: "Wymiana rzeczy",
-    body: "Tu pojawią się rzeczy, które Ty i rodzice z Twoich grup wystawicie na najbliższe zajęcia. Widzisz to tylko Ty.",
+    body: "Gdy wystawisz rzeczy do oddania lub wymiany, pokażemy tu, ile ich czeka. Widzisz to tylko Ty.",
     cta: ADD_EXCHANGE_ITEM,
   },
   "recent-items": {
@@ -60,10 +55,10 @@ const GHOST_COPY: Partial<Record<BlockId, GhostCopy>> = {
     body: "Tu pokażemy rzeczy, które ostatnio wystawisz do oddania lub wymiany. Widzisz to tylko Ty.",
     cta: ADD_EXCHANGE_ITEM,
   },
-  "needed-items": {
-    title: "Potrzebne rzeczy",
-    body: "Gdy dodasz do terminu potrzebne rzeczy, rodzice zobaczą tu, co jeszcze trzeba przynieść. Widzisz to tylko Ty.",
-    cta: { label: "Dodaj potrzebną rzecz →", to: "/meetings" },
+  "meeting-links": {
+    title: "Najbliższe spotkania",
+    body: "Tu pokażemy daty Twoich dwóch najbliższych spotkań. Widzisz to tylko Ty.",
+    cta: ADD_TERM,
   },
 };
 

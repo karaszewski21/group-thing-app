@@ -83,7 +83,7 @@ async def test_personalisedPublicRoute_cookie_privateNoStoreAndVaryAuthorization
 ) -> None:
     token, _ = await _register(client, "ORGANIZER", "cookie.vary@example.com")
     slug = await _organization_slug(client, token, "Ciasteczkowy Krąg")
-    url = f"/api/public/organizers/{slug}"
+    url = f"/api/public/organizations/{slug}/layout/CLASSIC"
 
     with_cookie = await client.get(url, headers=_cookie(token))
     invalid_cookie = await client.get(url, headers=_cookie("not-a-token"))

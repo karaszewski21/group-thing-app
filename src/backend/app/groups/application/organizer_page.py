@@ -1,60 +1,57 @@
-"""The public organizer directory behind `/:slug`: the owner's PUBLIC
-circles, their upcoming terms, the exchange items and needed items of each
-circle's next term, aggregate stats, the owner's upcoming public dates
-(terms and events, `upcoming_dates`) and newest listed items with their
-nearest public date (`owner_items`), the last two shown even with no circles.
-Reserved items stay listed with their badge, whose reserver name only a
-logged-in viewer gets, so the router never lets a shared cache keep a
-personalised response.
+"""The public organization page behind `/:slug`, one read per layout
+(`get_organization_layout`): every layout gets the owner's `stats`, and each
+adds only the lists its blocks show. Everything counts only what the owner
+runs — the PUBLIC groups they lead, those groups' terms and the events they
+authored — never a date they merely attend. Reserved items stay listed with
+their badge, whose reserver name only a logged-in viewer gets, so the router
+never lets a shared cache keep a personalised response.
 
-Every read is batched over the circles or their next terms (a constant
-number of statements however many circles or items there are), and every
-list is capped in SQL. Lister identity is used only to decide eligibility and never leaves
-the repository's exchange query. The per-item helpers of
-`term_item_listings.py` are not used, because they run several queries per
-item.
+A fixed number of statements per layout, every list capped in SQL.
 
-`list_organizer_terms` backs the paginated `/terms` agenda (at most 5
-statements, constant)."""
+`get_organization_group_terms` backs one group's page with its upcoming
+terms (a constant number of statements)."""
 
 from __future__ import annotations
 
 import uuid
-from datetime import timedelta
-from typing import cast
+from datetime import datetime
+from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
 from app.core.auth_deps import Principal
-from app.core.pagination import Page, PageParams
+from app.core.errors import EntityNotFoundException
 from app.storage.service import ObjectStorage
 
-from ..infrastructure import circulation_bridge, product_bridge, repository
+from ..infrastructure import events_acl, locations_acl, repository
 from ..schemas import (
-    ExchangeMode,
-    OrganizerCircleResponse,
-    OrganizerExchangeCounts,
-    OrganizerExchangeItemResponse,
-    OrganizerExchangeResponse,
-    OrganizerNeededItemResponse,
-    OrganizerNextTermResponse,
-    OrganizerPageResponse,
-    OrganizerStatsResponse,
-    OrganizerTermResponse,
+    ClassicLayoutResponse,
+    ExchangeLayoutResponse,
+    GroupTermResponse,
+    LinksLayoutResponse,
+    MeetingLinkResponse,
+    OrganizationGroupResponse,
+    OrganizationGroupTermsResponse,
+    OrganizationItemStatsResponse,
+    OrganizationLayoutResponse,
+    OrganizationNextTermResponse,
+    OrganizationStatsResponse,
     OwnerItemCardResponse,
-    OwnerNearestDateResponse,
+    OwnerSummaryResponse,
+    ScheduleLayoutResponse,
 )
 from . import owner_items
-from .reserved_by import load_reserved_by_names, resolve_viewer_party_id
+from .reserved_by import resolve_viewer_party_id
 
-UPCOMING_WINDOW = timedelta(days=60)
-EXCHANGE_ITEMS_LIMIT = 12
-NEEDED_ITEMS_LIMIT = 5
-RECENT_ITEMS_LIMIT = 6
-UPCOMING_DATES_LIMIT = 6
-# Below this, a family count could single out the families in a small group.
-MIN_REPORTED_FAMILY_COUNT = 3
+PageLayout = Literal["CLASSIC", "LINKS", "SCHEDULE", "EXCHANGE"]
+
+UPCOMING_TERMS_LIMIT = 4
+CLASSIC_ITEMS_LIMIT = 4
+SCHEDULE_GROUPS_LIMIT = 4
+EXCHANGE_ITEMS_LIMIT = 8
+EXCHANGE_TERM_LINKS_LIMIT = 2
+GROUP_TERMS_LIMIT = 50
 
 
 async def _resolve_owner(db: AsyncSession, slug: str) -> uuid.UUID:
@@ -62,208 +59,143 @@ async def _resolve_owner(db: AsyncSession, slug: str) -> uuid.UUID:
     return owner_party_id
 
 
-def _empty_exchange() -> OrganizerExchangeResponse:
-    return OrganizerExchangeResponse(
-        counts=OrganizerExchangeCounts(GIFT=0, SWAP=0, RESERVED=0), items=[]
+async def _stats(
+    db: AsyncSession, owner_party_id: uuid.UUID, now: datetime
+) -> tuple[OrganizationStatsResponse, OrganizationItemStatsResponse]:
+    available = await repository.count_owner_available_items_by_mode(
+        db, owner_party_id, owner_items.listed_items()
     )
-
-
-def _empty_page(
-    upcoming_dates: list[OwnerNearestDateResponse],
-    recent_items: list[OwnerItemCardResponse],
-    owner_nearest: OwnerNearestDateResponse | None,
-) -> OrganizerPageResponse:
-    return OrganizerPageResponse(
-        circles=[],
-        upcoming_terms=[],
-        exchange=_empty_exchange(),
-        needed_items=[],
-        stats=OrganizerStatsResponse(circle_count=0, upcoming_term_count=0, family_count=None),
-        upcoming_dates=upcoming_dates,
-        recent_items=recent_items,
-        owner_nearest=owner_nearest,
+    item_stats = OrganizationItemStatsResponse(
+        GIFT=available.get("GIFT", 0), SWAP=available.get("SWAP", 0)
     )
+    terms = await repository.count_owner_public_terms(db, owner_party_id, now)
+    events = await events_acl.count_upcoming_authored_events(db, owner_party_id, now)
+    stats = OrganizationStatsResponse(
+        group_count=await repository.count_owner_public_groups(db, owner_party_id),
+        item_count=item_stats.GIFT + item_stats.SWAP,
+        meeting_count=terms + events,
+    )
+    return stats, item_stats
 
 
-async def get_organizer_page(
+async def _recent_items(
     db: AsyncSession,
-    slug: str,
+    owner_party_id: uuid.UUID,
+    limit: int,
     storage: ObjectStorage | None,
-    principal: Principal | None = None,
-) -> OrganizerPageResponse:
-    owner_party_id = await _resolve_owner(db, slug)
+    principal: Principal | None,
+) -> list[OwnerItemCardResponse]:
     viewer_party_id = await resolve_viewer_party_id(db, principal)
-    # Warsaw wall clock, the same clock the naive `occurs_on` values use.
-    now = clock.local_now()
-    window_end = now + UPCOMING_WINDOW
-
-    recent_items = await owner_items.list_owner_recent_items(
-        db, owner_party_id, RECENT_ITEMS_LIMIT, storage, viewer_party_id
+    return await owner_items.list_owner_recent_items(
+        db, owner_party_id, limit, storage, viewer_party_id
     )
-    upcoming_dates = await owner_items.list_owner_dates(db, owner_party_id, UPCOMING_DATES_LIMIT)
-    owner_nearest = upcoming_dates[0] if recent_items and upcoming_dates else None
 
-    circle_rows = await repository.list_owner_public_circles(db, owner_party_id, now, window_end)
-    if not circle_rows:
-        return _empty_page(upcoming_dates, recent_items, owner_nearest)
-    group_ids = [row[0] for row in circle_rows]
-    next_term_ids = [row[3] for row in circle_rows if row[3] is not None]
 
-    term_rows = await repository.list_upcoming_terms_for_groups(db, group_ids, now, window_end)
-    attendance = await repository.count_active_attendances_by_term(
-        db, list({*next_term_ids, *(row[0] for row in term_rows)})
+async def _groups(
+    db: AsyncSession,
+    owner_party_id: uuid.UUID,
+    now: datetime,
+    limit: int = SCHEDULE_GROUPS_LIMIT,
+    group_id: uuid.UUID | None = None,
+) -> list[OrganizationGroupResponse]:
+    rows = await repository.list_owner_public_groups(
+        db, owner_party_id, now, limit, group_id=group_id
     )
-    family_count = await repository.count_member_families_for_groups(db, group_ids, owner_party_id)
-
-    def attendee_count(term_id: uuid.UUID) -> int:
-        return attendance.get(term_id, (0, 0))[0]
-
-    circles = [
-        OrganizerCircleResponse(
+    return [
+        OrganizationGroupResponse(
             id=group_id,
             name=name,
             layout_mode=layout_mode,
             next_term=None
             if next_term_id is None or next_occurs_on is None
-            else OrganizerNextTermResponse(
-                id=next_term_id,
-                occurs_on=next_occurs_on,
-                attendee_count=attendee_count(next_term_id),
+            else OrganizationNextTermResponse(
+                id=next_term_id, occurs_on=next_occurs_on, attendee_count=next_attendees or 0
             ),
-            upcoming_term_count=window_count,
+            upcoming_term_count=upcoming,
         )
-        for group_id, name, layout_mode, next_term_id, next_occurs_on, window_count in circle_rows
-    ]
-    upcoming_terms = [
-        OrganizerTermResponse(
-            term_id=term_id,
-            group_id=group_id,
-            group_name=group_name,
-            occurs_on=occurs_on,
-            description=description,
-            attendee_count=attendee_count(term_id),
-        )
-        for term_id, group_id, group_name, occurs_on, description in term_rows
+        for (
+            group_id,
+            name,
+            layout_mode,
+            next_term_id,
+            next_occurs_on,
+            next_attendees,
+            upcoming,
+        ) in rows
     ]
 
-    needed_items: list[OrganizerNeededItemResponse] = []
-    exchange = _empty_exchange()
-    if next_term_ids:
-        needed_items = [
-            OrganizerNeededItemResponse(
-                id=needed_id,
-                term_id=term_id,
-                group_id=group_id,
-                name=name,
-                claimed=claimed,
-            )
-            for needed_id, term_id, group_id, name, claimed in (
-                await repository.list_needed_items_for_terms(db, next_term_ids, NEEDED_ITEMS_LIMIT)
-            )
-        ]
-        exchange = await _build_exchange(
-            db, owner_party_id, next_term_ids, storage, viewer_party_id
-        )
 
-    return OrganizerPageResponse(
-        circles=circles,
-        upcoming_terms=upcoming_terms,
-        exchange=exchange,
-        needed_items=needed_items,
-        stats=OrganizerStatsResponse(
-            circle_count=len(circles),
-            upcoming_term_count=sum(circle.upcoming_term_count for circle in circles),
-            family_count=family_count if family_count >= MIN_REPORTED_FAMILY_COUNT else None,
-        ),
-        upcoming_dates=upcoming_dates,
-        recent_items=recent_items,
-        owner_nearest=owner_nearest,
-    )
-
-
-async def list_organizer_terms(
-    db: AsyncSession, slug: str, params: PageParams, group_id: uuid.UUID | None
-) -> Page[OrganizerTermResponse]:
-    """Every upcoming term of the owner's qualifying PUBLIC circles, with no
-    window. A `group_id` outside those circles gives an empty page, not a 404."""
+async def get_organization_layout(
+    db: AsyncSession,
+    slug: str,
+    layout: PageLayout,
+    storage: ObjectStorage | None,
+    principal: Principal | None = None,
+) -> OrganizationLayoutResponse:
     owner_party_id = await _resolve_owner(db, slug)
+    # Warsaw wall clock, the same clock the naive `occurs_on` values use.
     now = clock.local_now()
-    total = await repository.count_owner_public_terms(db, owner_party_id, now, group_id)
-    rows = await repository.list_owner_public_terms_page(
-        db, owner_party_id, now, group_id, params.offset, params.size
+    stats, item_stats = await _stats(db, owner_party_id, now)
+
+    if layout == "LINKS":
+        return LinksLayoutResponse(stats=stats)
+    if layout == "EXCHANGE":
+        dates = await owner_items.list_owner_dates(
+            db, owner_party_id, EXCHANGE_TERM_LINKS_LIMIT, own_only=True
+        )
+        return ExchangeLayoutResponse(
+            stats=stats,
+            items=await _recent_items(db, owner_party_id, EXCHANGE_ITEMS_LIMIT, storage, principal),
+            term_links=[
+                MeetingLinkResponse(kind=date.kind, starts_at=date.starts_at, path=date.path)
+                for date in dates
+            ],
+        )
+    upcoming_terms = await owner_items.list_owner_dates(
+        db, owner_party_id, UPCOMING_TERMS_LIMIT, own_only=True
     )
-    attendance = await repository.count_active_attendances_by_term(db, [row[0] for row in rows])
-    return Page(
-        items=[
-            OrganizerTermResponse(
-                term_id=term_id,
-                group_id=term_group_id,
-                group_name=group_name,
+    if layout == "SCHEDULE":
+        return ScheduleLayoutResponse(
+            stats=stats,
+            upcoming_terms=upcoming_terms,
+            groups=await _groups(db, owner_party_id, now),
+            item_stats=item_stats,
+        )
+    return ClassicLayoutResponse(
+        stats=stats,
+        upcoming_terms=upcoming_terms,
+        items=await _recent_items(db, owner_party_id, CLASSIC_ITEMS_LIMIT, storage, principal),
+    )
+
+
+async def get_organization_group_terms(
+    db: AsyncSession, slug: str, group_id: uuid.UUID
+) -> OrganizationGroupTermsResponse:
+    """404 as for the layouts, and when the group is not one of the owner's
+    PUBLIC, non-deleted groups."""
+    organization, owner_party_id = await owner_items.resolve_organization_owner(db, slug)
+    now = clock.local_now()
+    groups = await _groups(db, owner_party_id, now, limit=1, group_id=group_id)
+    if not groups:
+        raise EntityNotFoundException("Group", group_id)
+    rows = await repository.list_group_upcoming_terms(db, group_id, now, GROUP_TERMS_LIMIT)
+    locations = await locations_acl.get_locations_by_ids(
+        db, {row.location_id for row in rows if row.location_id is not None}
+    )
+    return OrganizationGroupTermsResponse(
+        owner=OwnerSummaryResponse(
+            party_id=owner_party_id, display_name=organization.name, slug=organization.slug
+        ),
+        group=groups[0],
+        terms=[
+            GroupTermResponse(
+                id=term_id,
                 occurs_on=occurs_on,
                 description=description,
-                attendee_count=attendance.get(term_id, (0, 0))[0],
+                location_name=locations[location_id].label if location_id in locations else None,
+                attendee_count=attendee_count,
+                path=f"/{organization.slug}/group/{group_id}/term/{term_id}",
             )
-            for term_id, term_group_id, group_name, occurs_on, description in rows
-        ],
-        total=total,
-        page=params.page,
-        size=params.size,
-    )
-
-
-async def _build_exchange(
-    db: AsyncSession,
-    owner_party_id: uuid.UUID,
-    next_term_ids: list[uuid.UUID],
-    storage: ObjectStorage | None,
-    viewer_party_id: uuid.UUID | None,
-) -> OrganizerExchangeResponse:
-    """Mirrors the public term listing: on each next term the eligible
-    listers are its active attendees plus the circle's leader (the owner),
-    and every live listed item counts, reserved ones included. Each item is
-    placed on the nearest next term its lister is eligible for. GIFT/SWAP
-    count the available items and RESERVED the reserved ones, matching the
-    page's tabs. Counting and ranking both run in SQL, so only the top
-    `EXCHANGE_ITEMS_LIMIT` rows are loaded."""
-    listed_items = repository.with_pending_proposer(
-        circulation_bridge.listed_items_with_product_select()
-    )
-    counts = await repository.count_exchange_items(db, owner_party_id, next_term_ids, listed_items)
-    if not counts:
-        return _empty_exchange()
-    ranked = await repository.list_nearest_exchange_items(
-        db, owner_party_id, next_term_ids, listed_items, EXCHANGE_ITEMS_LIMIT
-    )
-    names = await load_reserved_by_names(db, ranked, viewer_party_id)
-
-    photos = (
-        await product_bridge.first_approved_photo_by_product(db, {row.product_id for row in ranked})
-        if storage is not None
-        else {}
-    )
-
-    def thumb_url(product_id: uuid.UUID) -> str | None:
-        photo = photos.get(product_id)
-        return None if photo is None or storage is None else storage.public_url(photo.thumb_key)
-
-    return OrganizerExchangeResponse(
-        counts=OrganizerExchangeCounts(
-            GIFT=counts.get("GIFT", 0),
-            SWAP=counts.get("SWAP", 0),
-            RESERVED=counts.get("RESERVED", 0),
-        ),
-        items=[
-            OrganizerExchangeItemResponse(
-                item_id=row.item_id,
-                product_name=row.product_name,
-                condition=row.condition,
-                mode=cast(ExchangeMode, row.mode),
-                thumb_url=thumb_url(row.product_id),
-                term_id=row.term_id,
-                group_id=row.group_id,
-                occurs_on=row.occurs_on,
-                reservation=names.row_reservation(row),
-            )
-            for row in ranked
+            for term_id, occurs_on, description, location_id, attendee_count in rows
         ],
     )

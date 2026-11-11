@@ -42,6 +42,22 @@ describe("proxy", () => {
     expect(resolveProxy(request({ pathname: "/meetings", hasSession: true }), BACKEND)).toEqual({ kind: "next" });
   });
 
+  it("redirects the removed /:slug/terms agenda to the meetings, or with group_id to that group's page", () => {
+    expect(resolveProxy(request({ pathname: "/rodzinny-grajdolek/terms" }), BACKEND)).toEqual({
+      kind: "redirect",
+      location: "/rodzinny-grajdolek/meetings",
+    });
+    expect(
+      resolveProxy(request({ pathname: "/rodzinny-grajdolek/terms/", search: "?group_id=g-1&page=2" }), BACKEND),
+    ).toEqual({ kind: "redirect", location: "/rodzinny-grajdolek/group/g-1/terms" });
+    expect(resolveProxy(request({ pathname: "/rodzinny-grajdolek/group/g-1/terms" }), BACKEND)).toEqual({
+      kind: "next",
+    });
+    expect(resolveProxy(request({ pathname: "/terms/t-1/edit", hasSession: true }), BACKEND)).toEqual({
+      kind: "next",
+    });
+  });
+
   it("leaves /add public and gates /add/product", () => {
     expect(resolveProxy(request({ pathname: "/add" }), BACKEND)).toEqual({ kind: "next" });
     expect(resolveProxy(request({ pathname: "/add/product" }), BACKEND)).toEqual({

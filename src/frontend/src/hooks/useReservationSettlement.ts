@@ -14,7 +14,7 @@ import { EVENT_KEY } from "./useEvent";
 import { ITEM_ACTIONS_KEY } from "./useItemActions";
 import { ITEM_DETAILS_KEY } from "./useItemDetail";
 import { NOTIFICATIONS_KEY } from "./useNotifications";
-import { ORGANIZER_PAGE_KEY } from "./useOrganizerPage";
+import { ORGANIZATION_LAYOUT_KEY } from "./useOrganizationLayout";
 import { OWNER_ITEMS_KEY } from "./useOwnerItems";
 import { GROUP_ACCESS_KEY } from "./useTermAccess";
 
@@ -24,7 +24,7 @@ export const RESERVATION_STATE_KEYS = [
   [ITEM_ACTIONS_KEY],
   [ITEM_DETAILS_KEY],
   [OWNER_ITEMS_KEY],
-  [ORGANIZER_PAGE_KEY],
+  [ORGANIZATION_LAYOUT_KEY],
   [EVENT_KEY],
   [GROUP_ACCESS_KEY],
   NOTIFICATIONS_KEY,

@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { itemPagePath } from "../../product/useItemRoutes";
-import { ExchangeModeTabs, type ExchangeFilter } from "../../organization-public/blocks/ExchangeBoardBlock";
+import { ExchangeModeTabs, type ExchangeFilter } from "./ExchangeModeTabs";
 import { ItemCard } from "../../../components/shared/ItemCard";
 import { useOwnerItemsPage } from "../OwnerItemsContext";
 

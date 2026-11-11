@@ -6,7 +6,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { authPath } from "../../auth/authPaths";
 import { useMediaActions } from "../../hooks/useMediaActions";
 import { useMyOrganization } from "../../hooks/useMyOrganization";
-import { useOrganizerPage } from "../../hooks/useOrganizerPage";
+import { useOrganizationLayout } from "../../hooks/useOrganizationLayout";
 import { usePublicOrganization } from "../../hooks/usePublicOrganization";
 import { useUpdateOrganization } from "../../hooks/useUpdateOrganization";
 import { Navigate, notFound, useAppPathname } from "../../routing/navigation";
@@ -17,7 +17,6 @@ import { toDraft, type DraftChanges } from "../editor/draft";
 import type { LayoutOption } from "../editor/LayoutTab";
 import { PhotosTab } from "../editor/PhotosTab";
 import { isRecommended, LAYOUT_REGISTRY, resolveLayout } from "./layouts/registry";
-import type { OrganizerPageData } from "./layouts/types";
 import { directoryStatusOf } from "./organizationPageViewState";
 
 /** The editor's changes as an Organization `PATCH` ("O nas" is its description). */
@@ -57,20 +56,18 @@ export function OrganizationAppearancePage({ slug }: { slug: string }) {
 
 function OrganizationEditor({ organization }: { organization: MyOrganizationResponse }) {
   const publicOrganization = usePublicOrganization(organization.slug);
-  const directory = useOrganizerPage(organization.slug);
-  const directoryStatus = directoryStatusOf(directory);
+  // The badges need only the stats, which LINKS carries alone.
+  const statsRead = useOrganizationLayout(organization.slug, "LINKS");
+  const statsStatus = directoryStatusOf(statsRead);
+  const stats = statsStatus === "ready" ? (statsRead.data?.stats ?? null) : null;
   const { update } = useUpdateOrganization();
   const actions = useMediaActions({ kind: "organization", organizationId: organization.id });
 
-  const pageData: OrganizerPageData | null = publicOrganization.data
-    ? {
-        organization: publicOrganization.data,
-        directory: directoryStatus === "ready" ? directory.data : null,
-        directoryStatus,
-      }
-    : null;
-  const layouts: LayoutOption[] | null = pageData
-    ? Object.values(LAYOUT_REGISTRY).map((layout) => ({ ...layout, recommended: isRecommended(layout, pageData) }))
+  const layouts: LayoutOption[] | null = publicOrganization.data
+    ? Object.values(LAYOUT_REGISTRY).map((layout) => ({
+        ...layout,
+        recommended: isRecommended(layout, stats, statsStatus),
+      }))
     : null;
 
   return (

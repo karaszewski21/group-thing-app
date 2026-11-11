@@ -8,7 +8,7 @@ import { isPersonalSwapAccept, type AcceptedSwapProposalResponse } from "../api/
 import { EVENT_KEY } from "../hooks/useEvent";
 import { ITEM_ACTIONS_KEY } from "../hooks/useItemActions";
 import { ITEM_DETAILS_KEY } from "../hooks/useItemDetail";
-import { ORGANIZER_PAGE_KEY } from "../hooks/useOrganizerPage";
+import { ORGANIZATION_LAYOUT_KEY } from "../hooks/useOrganizationLayout";
 import { OWNER_ITEMS_KEY } from "../hooks/useOwnerItems";
 import { useReservationSettlement } from "../hooks/useReservationSettlement";
 import { GROUP_ACCESS_KEY } from "../hooks/useTermAccess";
@@ -86,7 +86,7 @@ describe("useReservationSettlement", () => {
         [ITEM_ACTIONS_KEY],
         [ITEM_DETAILS_KEY],
         [OWNER_ITEMS_KEY],
-        [ORGANIZER_PAGE_KEY],
+        [ORGANIZATION_LAYOUT_KEY],
         [EVENT_KEY],
         [GROUP_ACCESS_KEY],
         ["notifications"],

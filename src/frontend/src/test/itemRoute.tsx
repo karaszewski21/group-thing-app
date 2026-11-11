@@ -14,6 +14,9 @@ import OwnerRoutePage from "../app/(site)/[slug]/page";
 import AppearanceRouteError from "../app/(site)/[slug]/appearance/error";
 import AppearanceRouteNotFound from "../app/(site)/[slug]/appearance/not-found";
 import AppearanceRoutePage from "../app/(site)/[slug]/appearance/page";
+import GroupTermsRouteError from "../app/(site)/[slug]/group/[groupId]/terms/error";
+import GroupTermsRouteNotFound from "../app/(site)/[slug]/group/[groupId]/terms/not-found";
+import GroupTermsRoutePage from "../app/(site)/[slug]/group/[groupId]/terms/page";
 import { RouteBoundary } from "./routeBoundary";
 
 /** `/:slug/product/:id` as Next renders it: the route's `page.tsx` block
@@ -46,6 +49,17 @@ export async function ownerMeetingsRouteElement(url: string): Promise<ReactEleme
   const page = await OwnerMeetingsRoutePage({ params: Promise.resolve({ slug }) });
   return (
     <RouteBoundary NotFound={OwnerMeetingsRouteNotFound} ErrorPage={OwnerMeetingsRouteError}>
+      {page}
+    </RouteBoundary>
+  );
+}
+
+/** `/:slug/group/:groupId/terms` as Next renders it, like `itemRouteElement`. */
+export async function groupTermsRouteElement(url: string): Promise<ReactElement> {
+  const [, slug = "", , groupId = ""] = new URL(url, "http://localhost").pathname.split("/");
+  const page = await GroupTermsRoutePage({ params: Promise.resolve({ slug, groupId }) });
+  return (
+    <RouteBoundary NotFound={GroupTermsRouteNotFound} ErrorPage={GroupTermsRouteError}>
       {page}
     </RouteBoundary>
   );

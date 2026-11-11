@@ -12,7 +12,7 @@ statement through `events_acl`, then the winner's place and slug). The
 per-item helpers of `term_item_listings.py` are not used, because they run
 several queries per item.
 
-Also used by the organizer page (`recent_items`, `owner_nearest`), the
+Also used by the organization page layouts (`organization_layout.py`), the
 person profile behind `/<party-id>` (`get_party_profile`) and the owner
 meetings pages behind `/<org-slug>/meetings` and `/<party-id>/meetings`
 (`list_owner_dates`)."""
@@ -75,12 +75,12 @@ async def resolve_organization_owner(
     return organization, owner_party_id
 
 
-def _listed_items() -> Select[Any]:
+def listed_items() -> Select[Any]:
     return repository.with_pending_proposer(circulation_bridge.listed_items_with_product_select())
 
 
 async def _counts(db: AsyncSession, party_id: uuid.UUID) -> OwnerItemCountsResponse:
-    counts = await repository.count_owner_listed_items_by_mode(db, party_id, _listed_items())
+    counts = await repository.count_owner_listed_items_by_mode(db, party_id, listed_items())
     return OwnerItemCountsResponse(GIFT=counts.get("GIFT", 0), SWAP=counts.get("SWAP", 0))
 
 
@@ -99,7 +99,7 @@ async def _list_owner_items(
     viewer_party_id: uuid.UUID | None,
 ) -> list[OwnerItemCardResponse]:
     rows = await repository.list_owner_listed_items_page(
-        db, party_id, _listed_items(), mode, offset, limit
+        db, party_id, listed_items(), mode, offset, limit
     )
     names = await load_reserved_by_names(db, rows, viewer_party_id)
     photos = (
@@ -138,17 +138,22 @@ async def list_owner_recent_items(
 
 
 async def list_owner_dates(
-    db: AsyncSession, party_id: uuid.UUID, limit: int
+    db: AsyncSession, party_id: uuid.UUID, limit: int, *, own_only: bool = False
 ) -> list[OwnerNearestDateResponse]:
     """The party's `limit` earliest upcoming public dates, earliest first:
     terms of PUBLIC, non-deleted circles it leads or actively attends and
-    events it authored or actively attends; a term wins a tie. A fixed
+    events it authored or actively attends (`own_only`: only the ones it
+    leads or authored); a term wins a tie. A fixed
     number of statements: terms, events, their places, then one
     organization lookup per distinct circle organizer and event author."""
     # Warsaw wall clock, the clock of `Term.occurs_on` and `Event.starts_at`.
     now = clock.local_now()
-    terms = await repository.list_upcoming_public_terms_for_party(db, party_id, now, limit)
-    events = await events_acl.list_upcoming_events_for_parties(db, [party_id], now, limit=limit)
+    terms = await repository.list_upcoming_public_terms_for_party(
+        db, party_id, now, limit, own_only=own_only
+    )
+    events = await events_acl.list_upcoming_events_for_parties(
+        db, [party_id], now, limit=limit, authored_only=own_only
+    )
     locations = await locations_acl.get_locations_by_ids(
         db, {row.location_id for row in terms if row.location_id is not None}
     )

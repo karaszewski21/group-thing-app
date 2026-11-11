@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { NotFoundFrame, PageFrame } from "../../components/shared/PageFrame";
-import { ORGANIZER_PAGE_KEY } from "../../hooks/useOrganizerPage";
+import { ORGANIZATION_LAYOUT_KEY } from "../../hooks/useOrganizationLayout";
 import { PUBLIC_ORGANIZATION_KEY } from "../../hooks/usePublicOrganization";
 import { ORGANIZATION_PAGE_LOAD_ERROR, OrganizationPageLoadError } from "./organizationPageViewState";
 
@@ -22,7 +22,7 @@ export function OrganizationPageError({ error, reset }: { error: Error; reset: (
   const retry = async () => {
     await Promise.all([
       queryClient.resetQueries({ queryKey: [PUBLIC_ORGANIZATION_KEY] }),
-      queryClient.resetQueries({ queryKey: [ORGANIZER_PAGE_KEY] }),
+      queryClient.resetQueries({ queryKey: [ORGANIZATION_LAYOUT_KEY] }),
     ]);
     reset();
   };

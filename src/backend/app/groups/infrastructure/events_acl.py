@@ -111,9 +111,11 @@ async def list_upcoming_events_for_parties(
     now: datetime,
     *,
     limit: int | None = None,
+    authored_only: bool = False,
 ) -> list[UpcomingEvent]:
     """Events starting at or after `now` (naive Warsaw, `clock.local_now()`)
-    that any of `party_ids` authored or actively attends, earliest first,
+    that any of `party_ids` authored or, unless `authored_only`, actively
+    attends, earliest first,
     each with its active attendee count and place label. One events statement
     plus one location lookup, however many events there are."""
     if not party_ids:
@@ -132,7 +134,12 @@ async def list_upcoming_events_for_parties(
     )
     query = (
         select(Event, attendee_count)
-        .where(Event.starts_at >= now, or_(Event.author_party_id.in_(parties), attended))
+        .where(
+            Event.starts_at >= now,
+            Event.author_party_id.in_(parties)
+            if authored_only
+            else or_(Event.author_party_id.in_(parties), attended),
+        )
         .order_by(Event.starts_at, Event.id)
     )
     if limit is not None:
@@ -151,6 +158,17 @@ async def list_upcoming_events_for_parties(
         )
         for event, count in rows
     ]
+
+
+async def count_upcoming_authored_events(
+    db: AsyncSession, party_id: uuid.UUID, now: datetime
+) -> int:
+    result = await db.execute(
+        select(func.count())
+        .select_from(Event)
+        .where(Event.author_party_id == party_id, Event.starts_at >= now)
+    )
+    return result.scalar_one()
 
 
 async def has_authored_event(db: AsyncSession, party_id: uuid.UUID) -> bool:

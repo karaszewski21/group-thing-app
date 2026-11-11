@@ -2,7 +2,7 @@
 
 import { Link, notFound } from "../../routing/navigation";
 import { useMyOrganization } from "../../hooks/useMyOrganization";
-import { useOrganizerPage } from "../../hooks/useOrganizerPage";
+import { useOrganizationLayout } from "../../hooks/useOrganizationLayout";
 import { usePublicOrganization } from "../../hooks/usePublicOrganization";
 import { appearancePath } from "../../routing/paths";
 import { OrganizerThemeScope } from "../../theme/OrganizerThemeScope";
@@ -25,8 +25,10 @@ import { OrganizerPageSkeleton } from "./OrganizerPageSkeleton";
  */
 export function PublicOrganizationPage({ slug }: { slug: string }) {
   const organization = usePublicOrganization(slug);
-  // Fetched in parallel; the directory never holds back the first paint.
-  const directory = useOrganizerPage(slug);
+  // The layout is known only with the Organization, so its data follows it;
+  // it never holds back the first paint.
+  const layout = resolveLayout(organization.data?.page_layout);
+  const directory = useOrganizationLayout(slug, layout.key, { enabled: organization.data !== null });
   const directoryStatus = directoryStatusOf(directory);
   const myOrganization = useMyOrganization();
   const isOwner = myOrganization.data?.slug === slug;
@@ -62,7 +64,7 @@ export function PublicOrganizationPage({ slug }: { slug: string }) {
         <OrganizerThemeScope theme={view.organization}>
           <PageFrame>
             <LayoutRenderer
-              layout={resolveLayout(view.organization.page_layout)}
+              layout={layout}
               data={pageData}
               mode={isOwner ? "owner-edit" : "visitor"}
               heroAction={settingsLink}

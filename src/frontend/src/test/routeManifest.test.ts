@@ -81,7 +81,7 @@ const INVENTORY = [
   "/:slug/items",
   "/:slug/appearance",
   "/:slug/meetings",
-  "/:slug/terms",
+  "/:slug/group/:groupId/terms",
   "/:slug/product",
   "/:slug/product/:id",
   "/:slug/event/:eventId",
