@@ -85,25 +85,6 @@ export function ThreadPage() {
   }
 }
 
-// function ThreadShell({ children }: { children: ReactNode }) {
-//   return <div className="flex min-h-0 flex-1 flex-col bg-paper font-sans text-ink">{children}</div>;
-// }
-
-// function BackButton() {
-//   const navigate = useAppNavigate();
-//   const hasInAppHistory = useHasInAppHistory();
-//   return (
-//     <button
-//       type="button"
-//       aria-label="Wróć"
-//       onClick={() => (hasInAppHistory ? navigate(-1) : navigate(INBOX_PATH))}
-//       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cream text-ink ${FOCUS_RING}`}
-//     >
-//       <BackIcon />
-//     </button>
-//   );
-// }
-
 function ThreadContent({
   view,
   thread,
@@ -134,7 +115,6 @@ function ThreadContent({
 }
 
 function ThreadHeader({ conversation }: { conversation: ConversationResponse }) {
-  const isItem = conversation.kind === "ITEM";
   const item = conversation.item;
   const groupName = conversation.group_name ?? conversation.title;
 
