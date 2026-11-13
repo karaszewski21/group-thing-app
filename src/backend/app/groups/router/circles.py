@@ -85,7 +85,7 @@ async def create_my_circle(
     onboarding flow; NOT for the Panel's "+ Dodaj grupę" (see
     `create_additional_my_circle` below)."""
     profile = await get_profile_by_principal(db, principal)
-    circle = await service.create_own_circle(db, profile.party_id, body.name)
+    circle = await service.create_own_circle(db, profile.party_id, body.name, body.description)
     return await _group_response(db, circle)
 
 
@@ -108,6 +108,7 @@ async def create_additional_my_circle(
         body.visibility,
         body.default_location_id,
         body.default_capacity,
+        body.description,
     )
     return await _group_response(db, circle)
 

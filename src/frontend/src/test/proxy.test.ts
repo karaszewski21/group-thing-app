@@ -66,6 +66,10 @@ describe("proxy", () => {
     });
   });
 
+  it("leaves /search public for guests", () => {
+    expect(resolveProxy(request({ pathname: "/search", search: "?q=klocki" }), BACKEND)).toEqual({ kind: "next" });
+  });
+
   it.each(["/groupsx", "/login", "/product/123", "/some-org", "/some-org/event/1"])(
     "does not gate %s",
     (pathname) => {

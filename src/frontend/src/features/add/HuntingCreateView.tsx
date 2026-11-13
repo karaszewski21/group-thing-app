@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "../../routing/navigation";
+import { Link, useAppSearchParams } from "../../routing/navigation";
 import { viewPath } from "../../routing/paths";
 
 const LABEL = "mb-1.5 block text-sm font-bold text-ink";
@@ -17,7 +17,8 @@ const EMPTY: HuntingDraft = { name: "", description: "" };
  * MOCK: nothing matches wanted items yet, so saving only shows a
  * confirmation; nothing is stored. */
 export function HuntingCreateView() {
-  const [draft, setDraft] = useState<HuntingDraft>(EMPTY);
+  const [params] = useAppSearchParams();
+  const [draft, setDraft] = useState<HuntingDraft>(() => ({ ...EMPTY, name: params.get("name")?.trim() ?? "" }));
   const [saved, setSaved] = useState<string | null>(null);
 
   const valid = draft.name.trim() !== "";

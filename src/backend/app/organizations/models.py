@@ -24,7 +24,9 @@ from sqlalchemy import (
     Date,
     Enum,
     ForeignKey,
+    Index,
     String,
+    func,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
@@ -102,6 +104,22 @@ class Organization(BaseEntity):
             name="ck_organizations_accent_color_hex",
         ),
     )
+
+
+# Trigram index for `fold_pl(:q) <% fold_pl(organizations.name)` (migration 0094).
+Index(
+    "ix_organizations_name_trgm",
+    func.fold_pl(Organization.name).label("name_folded"),
+    postgresql_using="gin",
+    postgresql_ops={"name_folded": "gin_trgm_ops"},
+)
+# Trigram index for `fold_pl(:q) <% fold_pl(organizations.slug)` (migration 0096).
+Index(
+    "ix_organizations_slug_trgm",
+    func.fold_pl(Organization.slug).label("slug_folded"),
+    postgresql_using="gin",
+    postgresql_ops={"slug_folded": "gin_trgm_ops"},
+)
 
 
 class OrganizationRole(BaseEntity):

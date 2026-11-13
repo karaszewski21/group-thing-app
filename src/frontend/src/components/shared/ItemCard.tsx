@@ -15,14 +15,16 @@ interface ItemCardProps {
   mode: ExchangeMode;
   /** `null` while available; a reserved tile keeps its link and intent pill. */
   reservation: ReservedByResponse | null;
+  /** Marks the tile reserved with this text instead of the reserver's. */
+  reservedCaption?: string;
 }
 
 /** A neutral item tile: thumbnail (or placeholder), name, condition, the
  * intent pill and, while reserved, the reserved pill (thumbnail dimmed); the
  * whole tile opens the product page. Shows nothing about who listed it. */
-export function ItemCard({ href, name, condition, thumbUrl, mode, reservation }: ItemCardProps) {
+export function ItemCard({ href, name, condition, thumbUrl, mode, reservation, reservedCaption }: ItemCardProps) {
   const conditionLabel = CONDITION_LABELS[condition as ItemCondition] ?? condition;
-  const dim = reservation ? "opacity-60" : "";
+  const dim = reservation || reservedCaption ? "opacity-60" : "";
 
   return (
     <article className="relative flex h-full flex-col rounded-2xl border border-line bg-paper p-2.5">
@@ -41,7 +43,7 @@ export function ItemCard({ href, name, condition, thumbUrl, mode, reservation }:
       </Link>
       <span className="mt-0.5 mb-2 text-[11px] text-ink-soft">Stan: {conditionLabel}</span>
       <span className="mt-auto">
-        <ItemTileBadges modes={[mode]} reservation={reservation} />
+        <ItemTileBadges modes={[mode]} reservation={reservation} reservedCaption={reservedCaption} />
       </span>
     </article>
   );

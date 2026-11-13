@@ -24,6 +24,7 @@ class TextField(StrEnum):
     ORGANIZATION_NAME = "ORGANIZATION_NAME"
     ORGANIZATION_DESCRIPTION = "ORGANIZATION_DESCRIPTION"
     GROUP_NAME = "GROUP_NAME"
+    GROUP_DESCRIPTION = "GROUP_DESCRIPTION"
     TERM_DESCRIPTION = "TERM_DESCRIPTION"
     PRODUCT_NAME = "PRODUCT_NAME"
     PRODUCT_DESCRIPTION = "PRODUCT_DESCRIPTION"
@@ -42,6 +43,9 @@ MESSAGES: dict[TextField, str] = {
         "Opis organizacji narusza zasady społeczności. Zmień go i spróbuj ponownie."
     ),
     TextField.GROUP_NAME: "Nazwa grupy narusza zasady społeczności. Zmień ją i spróbuj ponownie.",
+    TextField.GROUP_DESCRIPTION: (
+        "Opis grupy narusza zasady społeczności. Zmień go i spróbuj ponownie."
+    ),
     TextField.TERM_DESCRIPTION: (
         "Opis terminu narusza zasady społeczności. Zmień go i spróbuj ponownie."
     ),

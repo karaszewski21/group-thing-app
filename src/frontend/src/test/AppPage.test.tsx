@@ -23,6 +23,7 @@ import * as termItemListingsApi from "../api/termItemListings";
 import * as localitiesApi from "../api/localities";
 import * as locationsApi from "../api/locations";
 import * as eventsApi from "../api/events";
+import * as searchApi from "../api/search";
 import { AppPage } from "../features/panel/AppPage";
 import { emitPendingActionResolved } from "../components/layout/pending/pendingActionResolved";
 import { ApiError } from "../api/client";
@@ -146,6 +147,8 @@ vi.mock("../api/locations", () => ({
   deleteLocation: vi.fn(),
 }));
 
+vi.mock("../api/search", () => ({ searchPublic: vi.fn() }));
+
 vi.mock("../api/events", () => ({
   createEvent: vi.fn(),
   getMyEvents: vi.fn(),
@@ -257,6 +260,7 @@ const mockGroup: groupsApi.GroupResponse = {
   id: GROUP_ID,
   party_id: GROUP_PARTY_ID,
   name: "Nowa grupa",
+  description: null,
   organizer_slug: "ania-kowalska",
   layout_mode: "CIRCLE",
   visibility: "PUBLIC",
@@ -548,6 +552,7 @@ async function createFirstGroupFromHint() {
     expect(groupsApi.createAdditionalMyCircle).toHaveBeenCalledWith({
       name: "Nutki",
       visibility: "PRIVATE",
+      description: null,
       default_location_id: null,
       default_capacity: null,
     }),
@@ -2980,18 +2985,37 @@ describe("AppPage — redesigned navigation and pages", () => {
     expect(within(nav).getByRole("button", { name: "Konto" })).toHaveAttribute("aria-current", "true");
   });
 
-  it("Szukaj filters the (mock) items by the query and switches to meetings", async () => {
+  it("Szukaj searches items through the API and switches to meetings with the same q", async () => {
     mockGuestDefaults();
+    vi.mocked(searchApi.searchPublic).mockImplementation(async ({ mode }) => ({
+      items:
+        mode === "items"
+          ? [
+              {
+                kind: "product",
+                id: "w1",
+                title: "Wózek spacerowy",
+                subtitle: null,
+                href: "/marta/product/w1",
+                meta: { mode: "SWAP", condition: "GOOD", thumb_url: null, reserved: false, reserved_until: null },
+              },
+            ]
+          : [],
+      total: mode === "items" ? 1 : 0,
+      page: 1,
+      size: 20,
+      other_mode_count: mode === "items" ? 0 : 1,
+    }));
     renderPanel("/search");
 
-    fireEvent.change(await screen.findByLabelText("Szukaj rzeczy"), { target: { value: "wozek" } });
-    expect(screen.getByText("2 rzeczy dla „wozek”")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Wózek spacerowy" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Klocki drewniane" })).not.toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText("Szukaj przedmiotów"), { target: { value: "wozek" } });
+    expect(await screen.findByText("1 przedmiot dla „wozek”")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Wózek spacerowy" })).toHaveAttribute("href", "/marta/product/w1");
 
     fireEvent.click(screen.getByRole("tab", { name: "Spotkania" }));
-    expect(screen.getByLabelText("Szukaj spotkań")).toBeInTheDocument();
-    expect(screen.getByText(/0 spotkań dla „wozek”/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Szukaj spotkań")).toHaveValue("wozek");
+    expect(await screen.findByText("0 spotkań dla „wozek”")).toBeInTheDocument();
+    expect(searchApi.searchPublic).toHaveBeenLastCalledWith(expect.objectContaining({ q: "wozek", mode: "events" }), 1, 20);
   });
 
   it("Szukam adds and removes a wanted item", async () => {

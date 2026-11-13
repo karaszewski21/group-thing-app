@@ -46,10 +46,7 @@ async def _organizer_party_id(db: AsyncSession, group_id: uuid.UUID) -> uuid.UUI
 async def group_access(db: AsyncSession, group: groups_acl.Group, party_id: uuid.UUID) -> Access:
     """The Circle's active organizer or an active member; otherwise 403."""
     group_id = cast(uuid.UUID, group.id)
-    allowed = await groups_acl.is_active_group_organizer(
-        db, group_id, party_id
-    ) or await groups_acl.has_active_membership(db, group_id, party_id)
-    if not allowed:
+    if not await groups_acl.is_in_circle(db, group_id, party_id, include_deleted=True):
         raise AccessDeniedException
     return Access(
         read_only_reason(ConversationKind.GROUP, group.deleted_at, group.visibility),
@@ -63,8 +60,8 @@ async def term_access(db: AsyncSession, term: groups_acl.Term, party_id: uuid.UU
     """The active organizer of the Term's Circle or a non-withdrawn
     attendee, whatever the Term's date; otherwise 403."""
     group = await groups_acl.get_group_including_deleted(db, term.circle_group_id)
-    allowed = await groups_acl.is_active_group_organizer(
-        db, term.circle_group_id, party_id
+    allowed = await groups_acl.is_in_circle(
+        db, term.circle_group_id, party_id, organizer_only=True, include_deleted=True
     ) or await groups_acl.has_active_attendance(db, cast(uuid.UUID, term.id), party_id)
     if not allowed:
         raise AccessDeniedException

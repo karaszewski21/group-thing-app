@@ -204,11 +204,12 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (_methods("GET"), r"^/api/conversations(/.*)?$", ("READ",)),  # 53
     (_methods("POST"), r"^/api/conversations(/.*)?$", ("EDIT",)),  # 54
     # 55-56: app.category — reintroduced standalone Category reference
-    # table (implementation/spec.md). GETs stay READ-gated (never ADMIN):
-    # the seeded `editor` account's product-creation category dropdown
-    # depends on this. All mutations (create/update/delete/reorder) are
-    # ADMIN-only, unlike app.product's EDIT-gated mutations.
-    (_methods("GET"), r"^/api/categories(/.*)?$", ("READ", "mcp:read")),  # 55
+    # table (implementation/spec.md). The tree is static, non-personalised
+    # reference data, so its GETs are PUBLIC: guests use it in the search
+    # Kategoria filter. This is the one PUBLIC read outside `/api/public/`.
+    # All mutations (create/update/delete/reorder) are ADMIN-only, unlike
+    # app.product's EDIT-gated mutations.
+    (_methods("GET"), r"^/api/categories(/.*)?$", "PUBLIC"),  # 55
     (_methods("POST", "PUT", "DELETE", "PATCH"), r"^/api/categories(/.*)?$", ("ADMIN",)),  # 56
     # 57-60: app.groups' exchange mechanism (`/api/term-item-listings`,
     # `/api/item-listing-preferences`, implementation/spec.md's

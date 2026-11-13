@@ -11,6 +11,8 @@ import type { ItemActionsResponse } from "../api/itemActions";
 import type { ItemDetailsResponse } from "../api/items";
 import type { PartyProfileResponse } from "../api/ownerItems";
 import type { UserProfileResponse } from "../api/people";
+import PanelLayout from "../app/(site)/(panel)/layout";
+import SearchPage from "../app/(site)/(panel)/search/page";
 import { AuthProvider } from "../auth/AuthContext";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { LoginPage } from "../features/auth/LoginPage";
@@ -223,6 +225,25 @@ describe("SSR safety", () => {
       "dummy",
     );
     expect(html).toContain("Spotkania");
+  });
+
+  it.each([
+    { session: "anonymous", token: null },
+    { session: "cookie", token: SESSION },
+  ])("renders the $session /search chrome, leaving the browser-only panel to the client", ({ token }) => {
+    const html = renderOnServer(
+      "/search?q=klocki",
+      "/search",
+      <PublicLayout>
+        <PanelLayout>
+          <SearchPage />
+        </PanelLayout>
+      </PublicLayout>,
+      createTestQueryClient(),
+      token,
+    );
+    expect(html).toContain('aria-label="Menu konta"');
+    expect(html).not.toContain("Szukaj rzeczy i spotkań");
   });
 
   it.each([

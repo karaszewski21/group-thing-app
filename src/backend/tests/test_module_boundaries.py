@@ -1,17 +1,20 @@
-"""Import boundary of `app.pages`: only `app/main.py` imports it, page code
-outside `infrastructure/` reaches no other context, and the pages ACLs never
-import the pages schemas. Imports are read from the AST, so docstrings and
-comments that mention a module do not count."""
+"""Import boundary of the read-only page modules `app.pages` and
+`app.search`: only `app/main.py` imports them, their code outside
+`infrastructure/` reaches no other context (`domain/` only itself), and their
+ACLs never import their own schemas. Imports are read from the AST, so
+docstrings and comments that mention a module do not count."""
 
 from __future__ import annotations
 
 import ast
+import uuid
 from collections.abc import Iterator
 from pathlib import Path
 
+import pytest
+
 _APP_ROOT = Path(__file__).resolve().parents[1] / "app"
-_PAGES_ROOT = _APP_ROOT / "pages"
-_PAGES_ALLOWED = ("app.core", "app.db", "app.storage", "app.pages")
+MODULES = ("pages", "search")
 
 
 def _module_name(path: Path) -> str:
@@ -48,24 +51,30 @@ def _app_imports(path: Path) -> set[str]:
     return {module for module in _imported_modules(path) if _matches(module, "app")}
 
 
-def test_appModules_importingPages_onlyMain() -> None:
+@pytest.mark.parametrize("name", MODULES)
+def test_appModules_importingModule_onlyMain(name: str) -> None:
+    root = _APP_ROOT / name
     importers = sorted(
         str(path.relative_to(_APP_ROOT).as_posix())
         for path in _APP_ROOT.rglob("*.py")
-        if not path.is_relative_to(_PAGES_ROOT)
-        and any(_matches(module, "app.pages") for module in _app_imports(path))
+        if not path.is_relative_to(root)
+        and any(_matches(module, f"app.{name}") for module in _app_imports(path))
     )
 
     assert importers == ["main.py"]
 
 
-def test_pagesModules_outsideInfrastructure_importOnlyAllowedPackages() -> None:
+@pytest.mark.parametrize("name", MODULES)
+def test_moduleCode_outsideInfrastructure_importsOnlyAllowedPackages(name: str) -> None:
+    root = _APP_ROOT / name
     offenders = []
-    for path in sorted(_PAGES_ROOT.rglob("*.py")):
-        if path.is_relative_to(_PAGES_ROOT / "infrastructure"):
+    for path in sorted(root.rglob("*.py")):
+        if path.is_relative_to(root / "infrastructure"):
             continue
         allowed = (
-            ("app.pages.domain",) if path.is_relative_to(_PAGES_ROOT / "domain") else _PAGES_ALLOWED
+            (f"app.{name}.domain",)
+            if path.is_relative_to(root / "domain")
+            else ("app.core", "app.db", "app.storage", f"app.{name}")
         )
         offenders.extend(
             f"{path.relative_to(_APP_ROOT).as_posix()}: {module}"
@@ -76,12 +85,27 @@ def test_pagesModules_outsideInfrastructure_importOnlyAllowedPackages() -> None:
     assert offenders == []
 
 
-def test_pagesAcls_importingPagesSchemas_none() -> None:
+@pytest.mark.parametrize("name", MODULES)
+def test_moduleAcls_importingOwnSchemas_none(name: str) -> None:
     offenders = sorted(
         f"{path.relative_to(_APP_ROOT).as_posix()}: {module}"
-        for path in (_PAGES_ROOT / "infrastructure").rglob("*.py")
+        for path in (_APP_ROOT / name / "infrastructure").rglob("*.py")
         for module in _app_imports(path)
-        if _matches(module, "app.pages.schemas")
+        if _matches(module, f"app.{name}.schemas")
     )
 
     assert offenders == []
+
+
+def test_searchLinks_termAndEventPaths_matchPagesLinks() -> None:
+    # The boundary keeps search from importing `app.pages`, so it holds copies.
+    from app.pages.domain import links as pages_links
+    from app.search.domain import links as search_links
+
+    slug, group_id, term_id, event_id = "zielony-krag", uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+
+    term = search_links.term_path(slug, group_id, term_id)
+    event = search_links.event_path(slug, event_id)
+
+    assert term == pages_links.term_path(slug, group_id, term_id)
+    assert event == pages_links.event_path(slug, event_id)

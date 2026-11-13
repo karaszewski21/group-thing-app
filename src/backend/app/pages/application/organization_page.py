@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
+from sqlalchemy import Row
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
@@ -92,37 +94,24 @@ async def _recent_items(
 
 
 async def _groups(
-    db: AsyncSession,
-    owner_party_id: uuid.UUID,
-    now: datetime,
-    limit: int = SCHEDULE_GROUPS_LIMIT,
-    group_id: uuid.UUID | None = None,
+    db: AsyncSession, owner_party_id: uuid.UUID, now: datetime
 ) -> list[OrganizationGroupResponse]:
-    rows = await groups_acl.list_owner_public_groups(
-        db, owner_party_id, now, limit, group_id=group_id
+    rows = await groups_acl.list_owner_public_groups(db, owner_party_id, now, SCHEDULE_GROUPS_LIMIT)
+    return [_group_tile(row) for row in rows]
+
+
+def _group_tile(row: Row[Any]) -> OrganizationGroupResponse:
+    return OrganizationGroupResponse(
+        id=row.id,
+        name=row.name,
+        layout_mode=row.layout_mode,
+        next_term=None
+        if row.term_id is None or row.occurs_on is None
+        else OrganizationNextTermResponse(
+            id=row.term_id, occurs_on=row.occurs_on, attendee_count=row.attendee_count or 0
+        ),
+        upcoming_term_count=row.upcoming_term_count,
     )
-    return [
-        OrganizationGroupResponse(
-            id=group_id,
-            name=name,
-            layout_mode=layout_mode,
-            next_term=None
-            if next_term_id is None or next_occurs_on is None
-            else OrganizationNextTermResponse(
-                id=next_term_id, occurs_on=next_occurs_on, attendee_count=next_attendees or 0
-            ),
-            upcoming_term_count=upcoming,
-        )
-        for (
-            group_id,
-            name,
-            layout_mode,
-            next_term_id,
-            next_occurs_on,
-            next_attendees,
-            upcoming,
-        ) in rows
-    ]
 
 
 async def get_organization_layout(
@@ -175,7 +164,9 @@ async def get_organization_group_terms(
     PUBLIC, non-deleted groups."""
     organization, owner_party_id = await owner_pages.resolve_organization_owner(db, slug)
     now = clock.local_now()
-    groups = await _groups(db, owner_party_id, now, limit=1, group_id=group_id)
+    groups = await groups_acl.list_owner_public_groups(
+        db, owner_party_id, now, 1, group_id=group_id
+    )
     if not groups:
         raise EntityNotFoundException("Group", group_id)
     rows = await groups_acl.list_group_upcoming_terms(db, group_id, now, GROUP_TERMS_LIMIT)
@@ -186,7 +177,8 @@ async def get_organization_group_terms(
         owner=OwnerSummaryResponse(
             party_id=owner_party_id, display_name=organization.name, slug=organization.slug
         ),
-        group=groups[0],
+        group=_group_tile(groups[0]),
+        description=groups[0].description,
         terms=[
             GroupTermResponse(
                 id=term_id,

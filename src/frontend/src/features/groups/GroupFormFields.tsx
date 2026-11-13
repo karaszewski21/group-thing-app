@@ -8,12 +8,34 @@ const LAYOUT_OPTIONS: { mode: GroupLayoutMode; label: string }[] = [
   { mode: "TABLE", label: "Stół" },
 ];
 
+const DESCRIPTION_MAX = 500;
+const DESCRIPTION_HINT = "Widoczny na stronie terminów grupy i w wyszukiwarce. Bez linków i danych kontaktowych.";
+const DESCRIPTION_ERROR = `Opis może mieć najwyżej ${DESCRIPTION_MAX} znaków.`;
+
+/** Code points after trim, as the server counts them (an emoji is one). */
+function descriptionLength(description: string): number {
+  return [...description.trim()].length;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components -- the hosts and AppDataContext share the form's own rule
+export function isDescriptionTooLong(description: string): boolean {
+  return descriptionLength(description) > DESCRIPTION_MAX;
+}
+
+/** The request value: trimmed, a blank description is `null`. */
+// eslint-disable-next-line react-refresh/only-export-components -- the hosts and AppDataContext share the form's own rule
+export function descriptionRequestValue(description: string): string | null {
+  return description.trim() || null;
+}
+
 const PLACE_LABEL = "Stałe miejsce spotkań (opcjonalnie)";
 const CAPACITY_LABEL = "Ile miejsc (opcjonalnie)";
 
 export interface GroupFormValue {
   name: string;
   visibility: GroupVisibility;
+  /** Raw textarea text; `descriptionRequestValue` turns it into the request value. */
+  description: string;
   layoutMode?: GroupLayoutMode;
   defaultLocationId: string | null;
   /** Raw input text; `parseCapacity` turns it into the request value. */
@@ -30,11 +52,16 @@ interface GroupFormFieldsProps {
 }
 
 /** The group fields shared by the add and edit group pages, always in one
- * order: name, (layout), visibility, place, capacity. */
+ * order: name, description, (layout), visibility, place, capacity. */
 export function GroupFormFields({ value, onChange, showLayoutMode = false, idPrefix, fallbackLocation }: GroupFormFieldsProps) {
   function set(patch: Partial<GroupFormValue>) {
     onChange({ ...value, ...patch });
   }
+  const descriptionId = `${idPrefix}-description`;
+  const countId = `${descriptionId}-count`;
+  const hintId = `${descriptionId}-hint`;
+  const errorId = `${descriptionId}-error`;
+  const descriptionInvalid = isDescriptionTooLong(value.description);
 
   return (
     <div className="grid grid-cols-1 gap-3">
@@ -46,6 +73,29 @@ export function GroupFormFields({ value, onChange, showLayoutMode = false, idPre
           placeholder="np. Nutki dla starszaków"
           className={INPUT_CLASS}
         />
+      </Field>
+      <Field label="Opis" htmlFor={descriptionId}>
+        <textarea
+          id={descriptionId}
+          value={value.description}
+          onChange={(e) => set({ description: e.target.value })}
+          rows={4}
+          aria-invalid={descriptionInvalid || undefined}
+          aria-describedby={descriptionInvalid ? `${countId} ${errorId}` : `${countId} ${hintId}`}
+          className={`${INPUT_CLASS} resize-y aria-[invalid=true]:border-danger`}
+        />
+        <p id={countId} className={`text-right text-[12px] ${descriptionInvalid ? "font-extrabold text-danger" : "text-ink-soft"}`}>
+          {descriptionLength(value.description)} / {DESCRIPTION_MAX}
+        </p>
+        {descriptionInvalid ? (
+          <p id={errorId} role="alert" className="text-[12.5px] font-semibold text-danger">
+            {DESCRIPTION_ERROR}
+          </p>
+        ) : (
+          <p id={hintId} className="text-[12.5px] text-ink-soft">
+            {DESCRIPTION_HINT}
+          </p>
+        )}
       </Field>
       {showLayoutMode && (
         <Field label="Szablon wizualizacji">

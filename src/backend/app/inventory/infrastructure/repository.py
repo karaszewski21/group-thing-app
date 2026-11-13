@@ -20,6 +20,7 @@ from sqlalchemy import (
     DateTime,
     ScalarSelect,
     Select,
+    SQLColumnExpression,
     String,
     and_,
     case,
@@ -708,3 +709,25 @@ async def find_reservation_event(
         return None
     starts_at, name, author_party_id, organization_slug = row
     return ReservationEvent(starts_at, name, derive_party_slug(author_party_id, organization_slug))
+
+
+def newest_open_reservation_starts_at(
+    item_id: SQLColumnExpression[uuid.UUID],
+) -> ScalarSelect[datetime | None]:
+    """Correlated scalar: the start of the Term or Event the item's newest
+    open (PENDING/CONFIRMED) reservation is made for, `None` for a personal
+    pickup, a deleted Event or no open reservation. Unexecuted, for a list
+    read to project."""
+    return (
+        select(func.coalesce(_terms.c.occurs_on, _events.c.starts_at))
+        .select_from(Reservation)
+        .outerjoin(_terms, _terms.c.id == Reservation.term_id)
+        .outerjoin(_events, _events.c.id == Reservation.event_id)
+        .where(
+            Reservation.item_id == item_id,
+            Reservation.status.in_((ReservationStatus.PENDING, ReservationStatus.CONFIRMED)),
+        )
+        .order_by(Reservation.created_at.desc(), Reservation.id.desc())
+        .limit(1)
+        .scalar_subquery()
+    )

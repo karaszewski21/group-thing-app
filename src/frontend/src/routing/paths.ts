@@ -124,7 +124,8 @@ export function matchPath(pattern: string, pathname: string): PathMatch | null {
 }
 
 /** Path prefixes that need a session; each matches on a segment boundary
- * (`/add/` with its slash, so `/add` itself stays public). */
+ * (`/add/` with its slash, so `/add` itself stays public). `/search` is
+ * public: a guest searches everywhere. */
 export const PROTECTED_PREFIXES: readonly string[] = [
   "/home",
   "/meetings",
@@ -134,7 +135,6 @@ export const PROTECTED_PREFIXES: readonly string[] = [
   "/places",
   "/family",
   "/account",
-  "/search",
   "/wanted",
   "/add/",
   "/events/",

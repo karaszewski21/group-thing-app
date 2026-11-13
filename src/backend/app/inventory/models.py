@@ -272,6 +272,9 @@ class Reservation(BaseEntity):
             "event_id",
             postgresql_where=text("event_id IS NOT NULL"),
         ),
+        # A viewer's open reservations from either side (migration 0095).
+        Index("ix_reservations_reserved_by_user_id_status", "reserved_by_user_id", "status"),
+        Index("ix_reservations_giver_user_id_status", "giver_user_id", "status"),
     )
 
     item_id: Mapped[uuid.UUID] = mapped_column(

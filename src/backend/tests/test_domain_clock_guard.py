@@ -1,4 +1,4 @@
-"""Guards for the domain clock: the groups, events and pages packages read
+"""Guards for the domain clock: the groups, events, pages and search packages read
 "now" only through `app.core.clock`, and accepting a swap is gated on the Term not
 having started yet (frozen via the opt-in `freeze_local_now` fixture)."""
 
@@ -30,6 +30,7 @@ _GUARDED_DIRS = (
     _APP_ROOT / "groups" / "router",
     _APP_ROOT / "events",
     _APP_ROOT / "pages",
+    _APP_ROOT / "search",
 )
 _FORBIDDEN = ("datetime.now(", "date.today(")
 

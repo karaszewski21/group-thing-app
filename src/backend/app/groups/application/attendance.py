@@ -8,7 +8,6 @@ before this module). Mirrors how `pledges.py` co-locates
 from __future__ import annotations
 
 import uuid
-
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,19 +18,17 @@ from app.users.service import get_profile_by_principal
 
 from ..infrastructure import repository
 from ..models import TermAttendance
-from .circles import _group_role_party_id, get_current_leadership
+from .circles import is_active_group_organizer
 
 
-async def _is_term_organizer(db: AsyncSession, term_circle_group_id: uuid.UUID, party_id: uuid.UUID) -> bool:
+async def _is_term_organizer(
+    db: AsyncSession, term_circle_group_id: uuid.UUID, party_id: uuid.UUID
+) -> bool:
     """Whether `party_id` is the current organizer of the Circle that owns
     this Term — the organizer never RSVPs to their own Term (no
     `TermAttendance` row), so exchange-mechanism visibility for their own
     items needs this as an alternative to attendance, not a replacement."""
-    leadership = await get_current_leadership(db, term_circle_group_id)
-    if leadership is None:
-        return False
-    organizer_party_id = await _group_role_party_id(db, leadership.from_role_id)
-    return organizer_party_id == party_id
+    return await is_active_group_organizer(db, term_circle_group_id, party_id)
 
 
 async def _require_term_eligibility(

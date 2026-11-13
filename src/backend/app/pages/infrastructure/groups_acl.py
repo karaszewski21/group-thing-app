@@ -2,7 +2,7 @@
 imports the groups vertical. It exposes, through the groups facade, the
 owner-page reads (the pending-proposer join and the paging and counting of the
 owner's listed items, the per-mode counts, public
-groups, upcoming public terms of a party or a group, the viewer's party and
+groups with their descriptions, upcoming public terms of a party or a group, the viewer's party and
 the reservers' names, organizer slugs) and the upcoming-events reads groups
 keeps for the owner pages, plus the groups types the page schemas embed. It
 must not import `..schemas`."""

@@ -74,6 +74,7 @@ from app.inventory.infrastructure.repository import (
     list_item_refs,
     list_reservations_by_ids,
     listed_items_with_product_select,
+    newest_open_reservation_starts_at,
     reservation_ids_for_event_select,
     reservation_ids_for_term_select,
 )
@@ -81,6 +82,7 @@ from app.inventory.models import InventoryItem, Reservation
 
 __all__ = [
     "AvailableItemView",
+    "newest_open_reservation_starts_at",
     "cancel_exchange",
     "cancel_reservation",
     "cancel_reservations_without_commit",

@@ -50,6 +50,13 @@ from ..models import (
     Term,
     TermAttendance,
 )
+from .inventory_bridge import BalanceStatus
+from .membership import active_leadership_clause as active_leadership_clause
+from .membership import active_membership_clause as active_membership_clause
+from .membership import group_ids_for as group_ids_for
+from .membership import holds_active_leadership as holds_active_leadership
+from .membership import live_group_clause
+from .visibility import parties_share_group
 
 # --- Group -------------------------------------------------------------------
 
@@ -107,7 +114,7 @@ async def list_groups_for_moderation(
     deleting party's display name (`None` without a profile)."""
     member_counts = (
         select(Membership.to_group_id, func.count().label("member_count"))
-        .where(Membership.valid_to.is_(None))
+        .where(active_membership_clause())
         .group_by(Membership.to_group_id)
         .subquery()
     )
@@ -124,7 +131,7 @@ async def list_groups_for_moderation(
         )
         .join(GroupRole, GroupRole.id == Leadership.from_role_id)
         .join(UserProfile, UserProfile.party_id == GroupRole.party_id)
-        .where(Leadership.valid_to.is_(None))
+        .where(active_leadership_clause())
         .subquery()
     )
     order_by = (
@@ -181,7 +188,7 @@ async def get_leadership(db: AsyncSession, leadership_id: uuid.UUID) -> Leadersh
 
 async def find_current_leadership(db: AsyncSession, group_id: uuid.UUID) -> Leadership | None:
     result = await db.execute(
-        select(Leadership).where(Leadership.to_group_id == group_id, Leadership.valid_to.is_(None))
+        select(Leadership).where(Leadership.to_group_id == group_id, active_leadership_clause())
     )
     return result.scalar_one_or_none()
 
@@ -216,12 +223,10 @@ async def list_active_leaderships_for_role_ids(
     db: AsyncSession, role_ids: list[uuid.UUID]
 ) -> list[Leadership]:
     result = await db.execute(
-        select(Leadership)
-        .join(Group, Group.id == Leadership.to_group_id)
-        .where(
+        select(Leadership).where(
             Leadership.from_role_id.in_(role_ids),
-            Leadership.valid_to.is_(None),
-            Group.deleted_at.is_(None),
+            active_leadership_clause(),
+            live_group_clause(Leadership.to_group_id),
         )
     )
     return list(result.scalars().all())
@@ -239,7 +244,7 @@ async def list_active_memberships_for_group(
 ) -> list[Membership]:
     result = await db.execute(
         select(Membership)
-        .where(Membership.to_group_id == circle_group_id, Membership.valid_to.is_(None))
+        .where(Membership.to_group_id == circle_group_id, active_membership_clause())
         .order_by(Membership.valid_from.desc())
     )
     return list(result.scalars().all())
@@ -263,38 +268,18 @@ async def list_active_memberships_for_role_ids(
     db: AsyncSession, role_ids: list[uuid.UUID]
 ) -> list[Membership]:
     result = await db.execute(
-        select(Membership)
-        .join(Group, Group.id == Membership.to_group_id)
-        .where(
+        select(Membership).where(
             Membership.from_role_id.in_(role_ids),
-            Membership.valid_to.is_(None),
-            Group.deleted_at.is_(None),
+            active_membership_clause(),
+            live_group_clause(Membership.to_group_id),
         )
     )
     return list(result.scalars().all())
 
 
 # --- Chat audience ----------------------------------------------------------------
-# Messaging keeps a soft-deleted Circle's chat readable, so none of these joins
-# `Group` or filters `deleted_at` (unlike the `list_active_*_for_role_ids` reads).
-
-
-async def has_active_membership(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> bool:
-    return bool(
-        (
-            await db.execute(
-                select(
-                    exists().where(
-                        Membership.to_group_id == group_id,
-                        Membership.valid_to.is_(None),
-                        GroupRole.id == Membership.from_role_id,
-                        GroupRole.party_id == party_id,
-                        GroupRole.role_type == GroupRoleType.MEMBER,
-                    )
-                )
-            )
-        ).scalar_one()
-    )
+# Messaging keeps a soft-deleted Circle's chat readable, so these include
+# soft-deleted Circles (unlike the `list_active_*_for_role_ids` reads).
 
 
 async def has_active_attendance(db: AsyncSession, term_id: uuid.UUID, party_id: uuid.UUID) -> bool:
@@ -311,24 +296,6 @@ async def has_active_attendance(db: AsyncSession, term_id: uuid.UUID, party_id: 
             )
         ).scalar_one()
     )
-
-
-async def list_led_group_ids_for_party(db: AsyncSession, party_id: uuid.UUID) -> set[uuid.UUID]:
-    result = await db.execute(led_group_ids_query(party_id))
-    return set(result.scalars().all())
-
-
-async def list_member_group_ids_for_party(db: AsyncSession, party_id: uuid.UUID) -> set[uuid.UUID]:
-    result = await db.execute(
-        select(Membership.to_group_id)
-        .join(GroupRole, GroupRole.id == Membership.from_role_id)
-        .where(
-            GroupRole.party_id == party_id,
-            GroupRole.role_type == GroupRoleType.MEMBER,
-            Membership.valid_to.is_(None),
-        )
-    )
-    return set(result.scalars().all())
 
 
 async def list_attended_term_ids_for_party(db: AsyncSession, party_id: uuid.UUID) -> set[uuid.UUID]:
@@ -373,9 +340,9 @@ async def list_current_organizer_party_ids(
     if not group_ids:
         return {}
     result = await db.execute(
-        select(Leadership.to_group_id, GroupRole.party_id)
-        .join(GroupRole, GroupRole.id == Leadership.from_role_id)
-        .where(Leadership.to_group_id.in_(group_ids), Leadership.valid_to.is_(None))
+        select(Leadership.to_group_id, GroupRole.party_id).where(
+            Leadership.to_group_id.in_(group_ids), active_leadership_clause()
+        )
     )
     return {group_id: party_id for group_id, party_id in result.all()}
 
@@ -423,29 +390,15 @@ async def list_terms_for_group(db: AsyncSession, circle_group_id: uuid.UUID) -> 
     return list(result.scalars().all())
 
 
-def led_group_ids_query(party_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
-    """Circles the party currently leads."""
-    return (
-        select(Leadership.to_group_id)
-        .join(GroupRole, GroupRole.id == Leadership.from_role_id)
-        .where(
-            GroupRole.party_id == party_id,
-            GroupRole.role_type == GroupRoleType.ORGANIZATOR,
-            Leadership.valid_to.is_(None),
-        )
-    )
-
-
-def member_group_ids_query(party_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
-    """PRIVATE circles the party or anyone in the party's families currently
-    belongs to, without the circles the party leads. A PUBLIC circle's terms
-    reach the panel through RSVPs instead."""
+async def list_family_party_ids(db: AsyncSession, party_id: uuid.UUID) -> set[uuid.UUID]:
+    """Every party sharing an active family with `party_id`, itself included
+    when it belongs to a family."""
     own_family_ids = (
         select(FamilyMembership.to_family_id)
         .join(FamilyRole, FamilyRole.id == FamilyMembership.from_role_id)
         .where(FamilyRole.party_id == party_id, FamilyMembership.valid_to.is_(None))
     )
-    family_party_ids = (
+    result = await db.scalars(
         select(FamilyRole.party_id)
         .join(FamilyMembership, FamilyMembership.from_role_id == FamilyRole.id)
         .where(
@@ -453,18 +406,31 @@ def member_group_ids_query(party_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
             FamilyMembership.valid_to.is_(None),
         )
     )
-    return (
-        select(Membership.to_group_id)
-        .join(GroupRole, GroupRole.id == Membership.from_role_id)
-        .join(Group, Group.id == Membership.to_group_id)
-        .where(
-            or_(GroupRole.party_id == party_id, GroupRole.party_id.in_(family_party_ids)),
-            GroupRole.role_type == GroupRoleType.MEMBER,
-            Group.visibility == GroupVisibility.PRIVATE,
-            Membership.valid_to.is_(None),
-            Membership.to_group_id.not_in(led_group_ids_query(party_id)),
+    return set(result.all())
+
+
+def my_member_circle_ids(
+    party_id: uuid.UUID,
+    family_party_ids: Collection[uuid.UUID],
+    *,
+    only_private: bool,
+    exclude_led: bool,
+) -> Select[tuple[uuid.UUID]]:
+    """The "Moje terminy" MEMBER circles: those `party_id` is in, plus those its
+    family members hold a Membership in (never their leaderships).
+    `only_private` keeps PRIVATE circles (a PUBLIC circle's terms reach the
+    panel through RSVPs); `exclude_led` drops the circles `party_id` leads."""
+    query = select(Group.id).where(
+        or_(
+            Group.id.in_(group_ids_for(party_id)),
+            Group.id.in_(group_ids_for(family_party_ids, memberships_only=True)),
         )
     )
+    if only_private:
+        query = query.where(Group.visibility == GroupVisibility.PRIVATE)
+    if exclude_led:
+        query = query.where(Group.id.not_in(group_ids_for(party_id, organizer_only=True)))
+    return query
 
 
 async def list_terms_page(
@@ -811,28 +777,13 @@ def _visible_preferences(
     organizer of that circle (an RSVP is not membership, `can_view_item`)."""
     public = ItemListingPreference.visibility == ItemVisibility.PUBLIC
     if private_circle_id is not None:
-        return or_(public, _owner_in_circle(private_circle_id))
+        owner_in_circle = literal(private_circle_id).in_(
+            group_ids_for(ItemListingPreference.owner_party_id)
+        )
+        return or_(public, owner_in_circle)
     if include_private:
         return true()
     return public
-
-
-def _owner_in_circle(group_id: uuid.UUID) -> ColumnElement[bool]:
-    """The preference's owner is a standing member or the current organizer
-    of `group_id`, correlated to `ItemListingPreference.owner_party_id`."""
-    member = exists().where(
-        Membership.to_group_id == group_id,
-        Membership.valid_to.is_(None),
-        GroupRole.id == Membership.from_role_id,
-        GroupRole.party_id == ItemListingPreference.owner_party_id,
-    )
-    leads = exists().where(
-        Leadership.to_group_id == group_id,
-        Leadership.valid_to.is_(None),
-        GroupRole.id == Leadership.from_role_id,
-        GroupRole.party_id == ItemListingPreference.owner_party_id,
-    )
-    return or_(member, leads)
 
 
 async def list_item_listing_preferences_for_party(
@@ -892,42 +843,32 @@ def item_listing_preferences_select(
     )
 
 
-def _circle_ids_of(party_id: uuid.UUID) -> ColumnElement[bool]:
-    """`Group.id` is a circle `party_id` is a standing member of or
-    currently leads."""
-    member_of = (
-        select(Membership.to_group_id)
-        .join(GroupRole, GroupRole.id == Membership.from_role_id)
-        .where(GroupRole.party_id == party_id, Membership.valid_to.is_(None))
-    )
-    leads = (
-        select(Leadership.to_group_id)
-        .join(GroupRole, GroupRole.id == Leadership.from_role_id)
-        .where(GroupRole.party_id == party_id, Leadership.valid_to.is_(None))
-    )
-    return or_(Group.id.in_(member_of), Group.id.in_(leads))
-
-
-async def is_in_circle(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> bool:
+async def is_in_circle(
+    db: AsyncSession,
+    group_id: uuid.UUID,
+    party_id: uuid.UUID,
+    *,
+    organizer_only: bool = False,
+    include_deleted: bool = False,
+) -> bool:
     """Whether `party_id` is a standing member or the current organizer of
-    `group_id`. One statement."""
-    return bool(
-        await db.scalar(select(exists().where(Group.id == group_id, _circle_ids_of(party_id))))
-    )
+    the live circle `group_id` (only the organizer when `organizer_only`;
+    a soft-deleted circle counts only with `include_deleted`, which only
+    messaging's read paths pass). One statement."""
+    in_circle = group_ids_for(
+        party_id, organizer_only=organizer_only, include_deleted=include_deleted
+    ).where(Group.id == group_id)
+    return bool(await db.scalar(select(in_circle.exists())))
 
 
 async def shares_private_circle(
     db: AsyncSession, party_id: uuid.UUID, other_party_id: uuid.UUID
 ) -> bool:
-    """Whether both parties belong to one non-deleted PRIVATE circle, each
-    as a standing member or its current organizer. One statement."""
-    shared = exists().where(
-        Group.visibility == GroupVisibility.PRIVATE,
-        Group.deleted_at.is_(None),
-        _circle_ids_of(party_id),
-        _circle_ids_of(other_party_id),
+    """Whether both parties belong to one live PRIVATE circle, each as a
+    standing member or its current organizer. One statement."""
+    return bool(
+        await db.scalar(select(parties_share_group(party_id, other_party_id, private_only=True)))
     )
-    return bool(await db.scalar(select(shared)))
 
 
 def _my_items(party_id: uuid.UUID, items: Select[Any]) -> Subquery:
@@ -1017,8 +958,9 @@ def with_pending_proposer(listed_items: Select[Any]) -> Select[Any]:
 def _is_reserved(items: Subquery) -> ColumnElement[bool]:
     """A `with_pending_proposer` row is reserved while its balance is not
     AVAILABLE (RESERVED or IN_TRANSIT) or a swap proposal is pending."""
-    # The string-backed `BalanceStatus` column binds its plain value.
-    return or_(items.c.balance_status != "AVAILABLE", items.c.proposer_party_id.is_not(None))
+    return or_(
+        items.c.balance_status != BalanceStatus.AVAILABLE, items.c.proposer_party_id.is_not(None)
+    )
 
 
 async def list_listed_items_for_parties(
@@ -1143,21 +1085,9 @@ async def list_other_pending_swap_proposals_for_listing_item(
 
 
 def _owner_public_groups(owner_party_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
-    """Ids of the PUBLIC circles the owner currently leads: an active
-    `Leadership` from the owner's active ORGANIZATOR `GroupRole`."""
-    return (
-        select(Group.id)
-        .join(Leadership, and_(Leadership.to_group_id == Group.id, Leadership.valid_to.is_(None)))
-        .join(
-            GroupRole,
-            and_(
-                GroupRole.id == Leadership.from_role_id,
-                GroupRole.role_type == GroupRoleType.ORGANIZATOR,
-                GroupRole.party_id == owner_party_id,
-                GroupRole.valid_to.is_(None),
-            ),
-        )
-        .where(Group.visibility == GroupVisibility.PUBLIC, Group.deleted_at.is_(None))
+    """Ids of the live PUBLIC circles the owner currently leads."""
+    return group_ids_for(owner_party_id, organizer_only=True).where(
+        Group.visibility == GroupVisibility.PUBLIC
     )
 
 
@@ -1174,8 +1104,8 @@ async def list_owner_public_groups(
     *,
     group_id: uuid.UUID | None = None,
 ) -> list[Row[Any]]:
-    """`(group_id, name, layout_mode, next_term_id, next_occurs_on,
-    next_attendee_count, upcoming_term_count)` of the `limit` newest
+    """`(id, name, description, layout_mode, term_id, occurs_on,
+    attendee_count, upcoming_term_count)` of the `limit` newest
     `_owner_public_groups`, or only `group_id` when given (empty when it is
     not one of them). The next term comes from a per-group LATERAL
     lookup and the upcoming count from a correlated subquery, both served by
@@ -1205,11 +1135,12 @@ async def list_owner_public_groups(
         select(
             Group.id,
             Group.name,
+            Group.description,
             Group.layout_mode,
             next_term.c.term_id,
             next_term.c.occurs_on,
             next_term.c.attendee_count,
-            upcoming_term_count,
+            upcoming_term_count.label("upcoming_term_count"),
         )
         .outerjoin(next_term, true())
         .where(
@@ -1309,9 +1240,7 @@ async def count_owner_available_items_by_mode(
     not reserved (`_is_reserved`)."""
     listed = _owner_listed_items(owner_party_id, listed_items)
     result = await db.execute(
-        select(listed.c.mode, func.count())
-        .where(~_is_reserved(listed))
-        .group_by(listed.c.mode)
+        select(listed.c.mode, func.count()).where(~_is_reserved(listed)).group_by(listed.c.mode)
     )
     return {mode: count for mode, count in result.all()}
 
@@ -1376,15 +1305,10 @@ async def list_upcoming_public_terms_for_party(
     return result.all()
 
 
-def _leads_term_circle(party_id: uuid.UUID) -> Any:
-    """`Term`'s circle is currently led by `party_id` — the SQL twin of
-    `attendance._is_term_organizer` (active `Leadership` -> `GroupRole`)."""
-    return exists().where(
-        Leadership.to_group_id == Term.circle_group_id,
-        Leadership.valid_to.is_(None),
-        GroupRole.id == Leadership.from_role_id,
-        GroupRole.party_id == party_id,
-    )
+def _leads_term_circle(party_id: uuid.UUID) -> ColumnElement[bool]:
+    """`Term`'s live circle is currently led by `party_id`. Unlike
+    `attendance._is_term_organizer`, a soft-deleted circle does not count."""
+    return Term.circle_group_id.in_(group_ids_for(party_id, organizer_only=True))
 
 
 def _attends_term(party_id: uuid.UUID) -> Any:
@@ -1436,7 +1360,10 @@ async def list_upcoming_owner_terms_for_viewer(
             or_(_leads_term_circle(owner_party_id), _attends_term(owner_party_id)),
             or_(Group.visibility == GroupVisibility.PUBLIC, viewer_eligible),
             (
-                and_(Group.visibility == GroupVisibility.PRIVATE, _circle_ids_of(owner_party_id))
+                and_(
+                    Group.visibility == GroupVisibility.PRIVATE,
+                    Group.id.in_(group_ids_for(owner_party_id)),
+                )
                 if private_only
                 else true()
             ),

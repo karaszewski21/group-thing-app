@@ -4,12 +4,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthGuard } from "../auth/AuthGuard";
 import * as conversationsApi from "../api/conversations";
 import * as notificationsApi from "../api/notifications";
+import SearchPage from "../app/(site)/(panel)/search/page";
 import { PublicLayout } from "../components/layout/PublicLayout";
+import { PanelGate } from "../features/panel/PanelGate";
 import { createQueryWrapper } from "./queryClient";
 import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 import { resetSnoozeStoreForTests } from "../components/layout/pending/snoozeStore";
 
 vi.mock("../api/conversations", () => ({ getUnreadMessageCount: vi.fn(), chatErrorMessage: vi.fn() }));
+vi.mock("../api/search", () => ({ searchPublic: vi.fn() }));
 vi.mock("../api/notifications", () => ({
   getMyNotifications: vi.fn(),
   markNotificationRead: vi.fn(),
@@ -36,6 +39,11 @@ function renderPublicPage(initialEntry = "/skrzaty") {
       ),
       "/profile": inLayout(<h1>Profil</h1>),
       "/messages/:conversationId": inLayout(<h1>Wątek</h1>),
+      "/search": inLayout(
+        <PanelGate>
+          <SearchPage />
+        </PanelGate>,
+      ),
       "/login": <h1>Logowanie</h1>,
     },
     wrapper: createQueryWrapper(),
@@ -127,6 +135,20 @@ describe("PublicLayout", () => {
     renderPublicPage();
 
     expect(screen.getByRole("link", { name: "Szukaj rzeczy i spotkań" })).toHaveAttribute("href", "/search");
+  });
+
+  it("anonymous: the search field leads to a working /search with „Zaloguj się”, not to the login page", () => {
+    renderPublicPage();
+
+    fireEvent.click(screen.getByRole("link", { name: "Szukaj rzeczy i spotkań" }));
+
+    expect(getTestLocation()).toEqual({ pathname: "/search", search: "" });
+    expect(screen.getByRole("searchbox")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
+      "href",
+      "/login?returnTo=%2Fsearch",
+    );
+    expect(screen.queryByRole("heading", { name: "Logowanie" })).not.toBeInTheDocument();
   });
 
   it("logged in: the top bar holds only the brand, Spotkania and the notification bell", async () => {

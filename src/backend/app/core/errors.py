@@ -62,7 +62,12 @@ class TextModerationRejected(ValueError):
     """A text failed moderation; handled as a plain 400 by `value_error_handler`."""
 
 
-class ModerationUnavailable(Exception):
+class ServiceUnavailableException(Exception):
+    """A dependency or a bounded read could not answer in time; the caller
+    builds a user-facing message. 503."""
+
+
+class ModerationUnavailable(ServiceUnavailableException):
     """Moderation is enabled but the classifier is missing or failed. 503."""
 
     def __init__(
@@ -136,8 +141,8 @@ async def access_denied_handler(request: Request, exc: AccessDeniedException) ->
     return _envelope(status.HTTP_403_FORBIDDEN, "Forbidden", exc.public_message or "Access denied")
 
 
-async def moderation_unavailable_handler(
-    request: Request, exc: ModerationUnavailable
+async def service_unavailable_handler(
+    request: Request, exc: ServiceUnavailableException
 ) -> JSONResponse:
     return _envelope(status.HTTP_503_SERVICE_UNAVAILABLE, "Service Unavailable", str(exc))
 
@@ -182,7 +187,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StaleDataError, stale_data_error_handler)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, validation_error_handler)  # type: ignore[arg-type]
     app.add_exception_handler(AccessDeniedException, access_denied_handler)  # type: ignore[arg-type]
-    app.add_exception_handler(ModerationUnavailable, moderation_unavailable_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(ServiceUnavailableException, service_unavailable_handler)  # type: ignore[arg-type]
     app.add_exception_handler(TooManyAttemptsException, too_many_attempts_handler)  # type: ignore[arg-type]
     app.add_exception_handler(ValueError, value_error_handler)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, unhandled_exception_handler)

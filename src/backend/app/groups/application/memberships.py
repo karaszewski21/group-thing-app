@@ -20,7 +20,7 @@ from ..infrastructure import repository
 from ..models import GroupRoleType, Membership
 from ..schemas import GroupMemberResponse, TermAttendeeChildResponse, TermAttendeeResponse
 from .circles import _group_role_party_id, _require_active_organizer, get_group
-from .exchange_summary import _require_group_member_or_leader, list_group_member_party_ids
+from .exchange_summary import _require_group_member_or_leader
 from .group_roles import get_or_create_active_group_role
 
 
@@ -53,14 +53,6 @@ async def end_membership(
     await db.commit()
     await db.refresh(membership)
     return membership
-
-
-async def _is_active_member(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> bool:
-    """Non-raising: does `party_id` have a currently-active `Membership` in
-    `group_id`? Used to gate `PRIVATE`-group RSVP alongside
-    `circles.is_active_group_organizer` (an organizer need not also be a member)."""
-    memberships = await list_memberships_for_party(db, party_id)
-    return any(m.to_group_id == group_id for m in memberships)
 
 
 async def _resolve_party_families(
@@ -173,10 +165,7 @@ async def list_group_members(
     summary). One GROUP BY plus two batched lookups, no per-row query."""
     profile = await get_profile_by_principal(db, principal)
     await get_group(db, group_id)
-    standing_member_party_ids = await list_group_member_party_ids(db, group_id)
-    await _require_group_member_or_leader(
-        db, group_id, profile.party_id, standing_member_party_ids
-    )
+    await _require_group_member_or_leader(db, group_id, profile.party_id)
 
     rows = await repository.aggregate_active_attendances_for_group(db, group_id)
     party_ids = [row.party_id for row in rows]

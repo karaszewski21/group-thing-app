@@ -17,6 +17,7 @@ import uuid
 from datetime import date, datetime
 from typing import cast
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
@@ -26,6 +27,7 @@ from app.core.errors import (
     EntityNotFoundException,
 )
 from app.core.pagination import PageParams
+from app.moderation import rules
 from app.moderation.text_guard import TextField, check_text
 from app.party.models import PartyType
 from app.party.service import create_party
@@ -40,10 +42,18 @@ logger = logging.getLogger(__name__)
 # --- Groups (Circles) ---------------------------------------------------------
 
 
+async def _check_description(description: str | None, current: str | None = None) -> None:
+    """The description renders on the public group terms page and in search,
+    so it passes the same checks as a product description."""
+    rules.ensure_no_contact_info(description)
+    await check_text(TextField.GROUP_DESCRIPTION, description, current)
+
+
 async def create_circle(db: AsyncSession, data: CreateCircleRequest) -> Group:
     await check_text(TextField.GROUP_NAME, data.name)
+    await _check_description(data.description)
     party = await create_party(db, PartyType.ORGANIZATION)
-    group = Group(party_id=cast(uuid.UUID, party.id), name=data.name)
+    group = Group(party_id=cast(uuid.UUID, party.id), name=data.name, description=data.description)
     db.add(group)
     await db.commit()
     await db.refresh(group)
@@ -62,7 +72,12 @@ async def get_own_circle(db: AsyncSession, organizer_party_id: uuid.UUID) -> Gro
     return await get_group(db, leaderships[0].to_group_id)
 
 
-async def create_own_circle(db: AsyncSession, organizer_party_id: uuid.UUID, circle_name: str) -> Group:
+async def create_own_circle(
+    db: AsyncSession,
+    organizer_party_id: uuid.UUID,
+    circle_name: str,
+    description: str | None = None,
+) -> Group:
     """Self-service 'become an Organizer': creates a brand-new Circle and
     assigns `organizer_party_id` as its leader in one call. Idempotent by
     design (mirrors `create_own_organization`) — a caller who already leads
@@ -77,7 +92,7 @@ async def create_own_circle(db: AsyncSession, organizer_party_id: uuid.UUID, cir
     if existing is not None:
         return existing
 
-    circle = await create_circle(db, CreateCircleRequest(name=circle_name))
+    circle = await create_circle(db, CreateCircleRequest(name=circle_name, description=description))
     role = await get_or_create_active_group_role(db, organizer_party_id, GroupRoleType.ORGANIZATOR)
     leadership = Leadership(
         from_role_id=cast(uuid.UUID, role.id),
@@ -97,6 +112,7 @@ async def create_additional_circle(
     visibility: GroupVisibility | None = None,
     default_location_id: uuid.UUID | None = None,
     default_capacity: int | None = None,
+    description: str | None = None,
 ) -> Group:
     """Non-idempotent twin of `create_own_circle` — always creates a brand
     new Circle and a brand new `Leadership` for `organizer_party_id`, never
@@ -112,7 +128,7 @@ async def create_additional_circle(
     live places — not the Circle's ORGANIZATION party."""
     if default_location_id is not None:
         await locations_acl.get_owned_location(db, default_location_id, organizer_party_id)
-    circle = await create_circle(db, CreateCircleRequest(name=circle_name))
+    circle = await create_circle(db, CreateCircleRequest(name=circle_name, description=description))
     if visibility is not None:
         circle.visibility = visibility
     circle.default_location_id = default_location_id
@@ -241,10 +257,14 @@ async def update_group(
     actions. `default_location_id`/`default_capacity` apply only when present in
     `model_fields_set` (`null` clears); a newly assigned location must be one
     of the caller's own live places — re-sending the current id is not
-    re-checked, so a soft-deleted or handed-over default survives a save."""
+    re-checked, so a soft-deleted or handed-over default survives a save.
+    `description` follows `model_fields_set` too and is checked before any
+    write."""
     group = await get_group(db, group_id)
     await _require_active_organizer(db, group_id, caller_party_id)
     await check_text(TextField.GROUP_NAME, data.name, group.name)
+    if "description" in data.model_fields_set:
+        await _check_description(data.description, group.description)
     if (
         "default_location_id" in data.model_fields_set
         and data.default_location_id is not None
@@ -260,6 +280,8 @@ async def update_group(
         group.default_location_id = data.default_location_id
     if "default_capacity" in data.model_fields_set:
         group.default_capacity = data.default_capacity
+    if "description" in data.model_fields_set:
+        group.description = data.description
     await db.commit()
     await db.refresh(group)
     return group
@@ -356,11 +378,11 @@ async def list_active_leaderships_for_party(db: AsyncSession, party_id: uuid.UUI
 async def is_active_group_organizer(
     db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID
 ) -> bool:
-    """Non-raising twin of `_require_active_organizer` — for call sites that
-    need to compose this check with another (e.g. "organizer OR standing
-    member") rather than gate on it alone."""
-    current = await get_current_leadership(db, group_id)
-    return current is not None and await _group_role_party_id(db, current.from_role_id) == party_id
+    """Non-raising twin of `_require_active_organizer`: `party_id` holds the
+    current Leadership of `group_id`, soft-deleted or not. Organizer writes
+    load the live group first; `remove_leadership` and the term-organizer
+    reads deliberately reach a deleted circle."""
+    return bool(await db.scalar(select(repository.holds_active_leadership(party_id, group_id))))
 
 
 async def _require_active_organizer(db: AsyncSession, group_id: uuid.UUID, party_id: uuid.UUID) -> None:

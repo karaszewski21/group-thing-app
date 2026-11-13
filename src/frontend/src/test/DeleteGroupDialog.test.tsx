@@ -7,6 +7,7 @@ const GROUP: GroupResponse = {
   id: "g-1",
   party_id: "p-1",
   name: "Joga w parku",
+  description: null,
   organizer_slug: "ola",
   layout_mode: "CIRCLE",
   visibility: "PUBLIC",

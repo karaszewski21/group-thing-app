@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — Global search + groups.description</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:720px){ .two { grid-template-columns:1fr; } }
+.stories { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; }
+.story { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:var(--radius); padding:10px 12px; font-size:13px; }
+.scroll { overflow-x:auto; }
+.delta { color:var(--warn); font-weight:600; }
+ul.tight li { margin:3px 0; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Specification</span>
+  <h1>Global search (Przedmioty|Spotkania × Moje grupy|Wszędzie) + groups.description</h1>
+  <div style="color:var(--dim);font-size:12.5px">Generated 2026-11-12 · source <a href="spec.md" target="_blank" rel="noopener">spec.md</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>25</b><span>core requirements</span></div>
+  <div class="tile"><b>12</b><span>visibility rules</span></div>
+  <div class="tile"><b>11</b><span>migrations 0085–0095</span></div>
+  <div class="tile"><b>13 / 7</b><span>reuse / new</span></div>
+  <div class="tile"><b>1 + 8 + 12</b><span>audit findings resolved</span></div>
+  <div class="tile"><b style="color:var(--crit)">High</b><span>risk</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul class="tight">
+    <li><code>/search</code> becomes a real search page that guests can use too (including the Kategoria filter: <code>GET /api/categories</code> becomes PUBLIC). It calls <code>GET /api/public/search</code>, which returns <code>SearchPage{items,total,page,size,other_mode_count}</code>. Each item has a <code>kind</code>, the common fields <code>id,title,subtitle,href</code>, and kind-specific <code>meta</code>.</li>
+    <li>One membership primitive, <code>group_ids_for(parties, *, organizer_only, memberships_only, include_deleted)</code>, is built on <code>active_membership_clause()</code>/<code>active_leadership_clause()</code> and replaces all 11 backend definitions (D1–D12). A guard test keeps any other definition from coming back.</li>
+    <li>One SQL visibility predicate per subject drives search, and <code>can_view_item = EXISTS(items_visible_to)</code>; "listed only" (R12) is the search base, not part of the gate. PRIVATE items still need a shared non-deleted PRIVATE group. The counterparty check moves into SQL.</li>
+    <li>Full-text search uses <code>pg_trgm</code>, an IMMUTABLE <code>fold_pl()</code>, GENERATED STORED <code>search_vector</code> columns (<code>'simple'</code>, A/C weights), <code>categories.path_text</code> and concurrent GIN indexes. The new module <code>app/search</code> mirrors <code>app/pages</code>.</li>
+    <li><code>groups.description</code> (≤500 characters, checked synchronously by <code>check_text</code> and <code>ensure_no_contact_info</code>) is shown on the search card and in the group terms header. The only intended behaviour change is that an organizer may pledge items on their own group's terms (changelog).</li>
+  </ul>
+  <div class="two">
+    <div>
+      <h2>Key Decisions</h2>
+      <ul class="tight">
+        <li><strong>Phase 1 and 2 decisions are binding</strong>: C1–C4 and I1–I14.</li>
+        <li>The primitive lives in <code>app/groups/infrastructure/membership.py</code>, so the guard test can allowlist one file.</li>
+        <li><code>visible_to</code> lives in <code>app/groups/infrastructure/visibility.py</code>. The viewer's own items stay visible in the 404 gate; search excludes them on top (I12).</li>
+        <li><code>other_mode_count</code> counts the other mode with the same <code>q</code> and <code>scope</code> and no filters (the frontend clears filters on a mode switch).</li>
+        <li><strong>Meetings ordering (Q4, hard rule)</strong>: <code>match_class</code> first (description-only group = 1, everything else 0), then <code>sort_at ASC NULLS LAST</code>, <code>in_my_groups</code>, <code>rank</code>, <code>kind</code>, <code>id</code>. A description-only group never ranks above a name-matched group; terms and events stay ordered by date.</li>
+        <li><strong><code>remove_leadership</code> on a deleted circle (Q1)</strong>: row-level <code>holds_active_leadership</code> over <code>active_leadership_clause()</code>, not <code>group_ids_for</code>; <code>include_deleted=True</code> stays messaging-only, read-only.</li>
+        <li><strong>"Moje terminy" family set (Q3)</strong>: <code>group_ids_for(me)</code> &cup; <code>group_ids_for(family, memberships_only=True)</code>, with <code>only_private</code>/<code>exclude_led</code> on top. Zero behaviour change.</li>
+        <li><strong>Guest Kategoria (Q2)</strong>: matrix row 55 <code>GET /api/categories</code> &rarr; PUBLIC, router drops <code>ReadPrincipal</code>. Chosen over a new <code>/api/public/categories</code>: static reference data, one path for <code>useCategories</code>, no duplicate route. Mutations stay ADMIN.</li>
+        <li><strong>Guard rule (W-1)</strong>: only comparisons of <code>GroupRole.party_id</code> are flagged; projections pass. One allowlist entry: <code>list_groups_for_moderation</code>.</li>
+        <li>Fuzzy matching uses <code>fold_pl(:q) &lt;% col</code> at the default threshold 0.6. Ranking is <code>ts_rank</code> plus weighted <code>word_similarity</code> (A 1.0 / B 0.4 / C 0.2).</li>
+        <li>Index revisions are grouped by purpose; every other change is a revision of its own.</li>
+        <li>The membership predicate includes the role type and <code>GroupRole.valid_to IS NULL</code> (nil delta).</li>
+        <li>Moderation text follows the existing <code>MESSAGES</code> pattern; the frontend shows the server message verbatim.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Open Questions / Risks</h2>
+      <ul class="tight">
+        <li><span class="sev warning">warning</span>There is no CHANGELOG file. Default: create a root <code>CHANGELOG.md</code> with the single line.</li>
+        <li><span class="sev warning">warning</span><code>CREATE EXTENSION pg_trgm</code> needs CREATE privilege on the database. Check it in the runbook.</li>
+        <li><span class="sev warning">warning</span>The generated-column migrations rewrite <code>products</code>, <code>events</code> and <code>terms</code> (ACCESS EXCLUSIVE). Use <code>lock_timeout</code> and an off-peak deploy.</li>
+        <li><span class="sev critical">critical</span>About 25 call sites change across security gates. Mitigation: characterisation tests, one switch at a time, the guard test.</li>
+        <li><span class="sev info">info</span><code>fold_pl</code> mirrors <code>fold_polish</code> only for Polish letters, case and whitespace. A parity test pins this.</li>
+        <li><span class="sev info">info</span>31 vitest failures already fail on HEAD and are not regressions.</li>
+        <li><span class="sev warning">warning</span>Role-type and <code>GroupRole.valid_to</code> nil deltas were checked in code only. Runbook pre-deploy query (non-MEMBER memberships, non-ORGANIZATOR leaderships, <code>valid_to IS NOT NULL</code> roles) must return 0.</li>
+        <li><span class="sev info">info</span>The category tree (incl. product counts) becomes anonymously readable; no personal data (Q2).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<nav class="toc" style="font-size:13px">Contents:
+  <a href="#scope">Scope</a> · <a href="#stories">User Stories</a> · <a href="#req">Requirements</a> · <a href="#vis">Visibility</a> · <a href="#membership">Membership</a> · <a href="#mig">Migrations</a> · <a href="#api">API</a> · <a href="#fe">Frontend</a> · <a href="#visual">Visual Design</a> · <a href="#reuse">Reuse</a> · <a href="#tests">Tests</a> · <a href="#success">Success</a> · <a href="#audit">Audit resolutions</a>
+</nav>
+
+<main>
+<h2 id="scope">Goal &amp; Scope</h2>
+<div class="card">Let anyone find listed items, upcoming meetings, groups and organizations from one field. One membership definition and one visibility predicate are shared by search and the existing gates. Organizers can describe their groups, and the description is searchable.</div>
+<div class="two">
+  <div class="card"><strong class="pass">In scope</strong>
+    <ul class="tight">
+      <li>A. <code>groups.description</code>: create/edit, moderation, display on 2 surfaces</li>
+      <li>B. Membership unification D1–D12 + guard test</li>
+      <li>C. <code>items/terms/groups_visible_to</code>; <code>can_view_item</code> on SQL</li>
+      <li>D. Search DB (0086–0095), <code>app/search</code>, <code>GET /api/public/search</code></li>
+      <li>E. Search frontend (guest access, toggles, filters, cards, other-mode line)</li>
+      <li><code>/api/products?search=</code> → <code>icontains(autoescape=True)</code>; mock cleanup</li>
+      <li>Docs + changelog line; nothing committed</li>
+    </ul>
+  </div>
+  <div class="card"><strong class="fail">Out of scope</strong>
+    <ul class="tight">
+      <li>"Szukam" backend + ranking rule (1)</li>
+      <li>A PRIVATE→PUBLIC warning in <code>update_group</code></li>
+      <li>Revisiting the "Moje terminy" PRIVATE-only filter</li>
+      <li>Person-organizer slug and page; tags; description markdown or cover</li>
+      <li>Synonyms, history, popular searches; Meilisearch/Typesense; SDK <code>search.providers</code></li>
+      <li>The <code>polish</code> dictionary, <code>unaccent</code></li>
+      <li>A shared <code>useDebounce</code>; dropping redundant plain indexes</li>
+      <li>F1 <code>AppDataContext</code>; a new <code>GET /api/groups/mine</code></li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="stories">User Stories</h2>
+<div class="stories">
+  <div class="story">As a <b>member</b>, I want to search items in "Moje grupy" so that I only see things offered by people I share a group with.</div>
+  <div class="story">As a <b>logged-in user</b>, I want to switch to "Wszędzie" so that I also find public items, meetings, groups and organizations outside my groups.</div>
+  <div class="story">As a <b>guest</b>, I want to search without logging in so that I can discover public meetings, PUBLIC groups, organizations and public items.</div>
+  <div class="story">As a <b>searcher</b>, I want to see how many results the other mode has and switch to it with one click, keeping my query.</div>
+  <div class="story">As a <b>searcher with no item results</b>, I want a shortcut to add the thing to my "szukam" list.</div>
+  <div class="story">As an <b>organizer</b>, I want to write a group description (≤500 characters) so that people understand the group and find it by its description.</div>
+  <div class="story">As a <b>visitor of a group terms page</b>, I want to read the full group description in its header.</div>
+</div>
+
+<h2 id="req">Core Requirements</h2>
+<div class="card scroll"><table>
+<tr><th>#</th><th>Area</th><th>Requirement</th></tr>
+<tr><td>1</td><td>A</td><td>0085 adds <code>groups.description TEXT NULL</code> and the model field</td></tr>
+<tr><td>2</td><td>A</td><td>Create (3 paths) and PATCH accept <code>description</code>: stripped, blank → null, &gt;500 code points after strip → 400 (checked in the strip validator, not <code>Field(max_length)</code>); PATCH follows <code>model_fields_set</code></td></tr>
+<tr><td>3</td><td>A</td><td><code>ensure_no_contact_info</code> + <code>check_text(GROUP_DESCRIPTION, new, current)</code> before any write; new <code>TextField</code> + message</td></tr>
+<tr><td>4</td><td>A</td><td><code>GroupResponse.description</code> on all group responses (so the edit form can prefill)</td></tr>
+<tr><td>5</td><td>A</td><td><code>OrganizationGroupTermsResponse.description</code> (top level); <code>OrganizationGroupResponse</code> and <code>PublicCircleResponse</code> unchanged; sourced from the <code>list_owner_public_groups</code> row via <code>pages/infrastructure/groups_acl.py</code></td></tr>
+<tr><td>6</td><td>A</td><td>Form textarea + <code>n / 500</code> counter (code points after trim), inline error, submit disabled; terms header full text; search card clamped to 2 lines</td></tr>
+<tr><td>7</td><td>B</td><td><code>membership.py</code>: <code>active_membership_clause</code>, <code>active_leadership_clause</code>, <code>group_ids_for</code></td></tr>
+<tr><td>8</td><td>B</td><td>Replace D1–D12 per table, with explicit on-top filters</td></tr>
+<tr><td>9</td><td>B</td><td>The only delta is I2 (organizer pledges); all others are nil, proven by characterisation tests</td></tr>
+<tr><td>10</td><td>B</td><td>AST guard: no <em>comparison</em> of <code>GroupRole.party_id</code> in a function referencing Membership/Leadership (projections allowed; allowlist: <code>list_groups_for_moderation</code>), and no <code>valid_to.is_(None)</code> on them outside the primitive</td></tr>
+<tr><td>11</td><td>C</td><td><code>items/terms/groups_visible_to</code> implement R1–R11 exactly; R12 is the <code>search_items</code> base, not part of the gate</td></tr>
+<tr><td>12</td><td>C</td><td><code>can_view_item</code> = one statement over <code>items_visible_to(ALL)</code>; <code>_is_counterparty</code> removed; given-away/LENT items unchanged</td></tr>
+<tr><td>13</td><td>C</td><td>Existing lists keep their semantics by composing the same pieces</td></tr>
+<tr><td>14</td><td>D</td><td>Migrations 0086–0095</td></tr>
+<tr><td>15</td><td>D</td><td><code>path_text</code> maintained by <code>create_category</code>/<code>update_category</code> (subtree), computed in SQL with <code>fold_pl()</code></td></tr>
+<tr><td>16</td><td>D</td><td><code>app/search/</code> + <code>GET /api/public/search</code></td></tr>
+<tr><td>17</td><td>D</td><td><code>product/query_service.py:140</code> → <code>icontains(autoescape=True)</code></td></tr>
+<tr><td>17a</td><td>D</td><td><code>GET /api/categories</code> → PUBLIC (matrix row 55; router drops <code>ReadPrincipal</code>); no new route</td></tr>
+<tr><td>18</td><td>E</td><td><code>/search</code> out of <code>PROTECTED_PREFIXES</code>; <code>PanelGate</code> anonymous branch</td></tr>
+<tr><td>19</td><td>E</td><td>Real API and hook; URL state; infinite query + "Pokaż więcej"; 300 ms debounce; at least 2 characters</td></tr>
+<tr><td>20</td><td>E</td><td>Mode tablist + scope radiogroup (default Przedmioty / Moje grupy; hidden for guests)</td></tr>
+<tr><td>21</td><td>E</td><td>Filters per mode only; Kategoria works for guests (17a)</td></tr>
+<tr><td>22</td><td>E</td><td>One <code>kind</code>-driven card; other-mode line; empty and hint states; reserved labels</td></tr>
+<tr><td>23</td><td>E</td><td>Remove <code>MOCK_SEARCH_ITEMS</code> and <code>matchesQuery</code>; keep <code>MOCK_SEARCH_MEETINGS</code></td></tr>
+<tr><td>24</td><td>E</td><td><code>HuntingCreateView</code> seeds <code>draft.name</code> from <code>?name=</code> (prefill, no write)</td></tr>
+</table></div>
+
+<h2 id="vis">Visibility Rules (corrected, binding)</h2>
+<div class="card scroll">
+<p style="margin-top:0;color:var(--dim);font-size:12.5px">V = viewer, O = owner, P = preference, G(x) = <code>group_ids_for(x)</code> (non-deleted, member or organizer), now = <code>clock.local_now()</code></p>
+<table>
+<tr><th>#</th><th>Case</th><th>Guest</th><th>Wszędzie</th><th>Moje grupy</th><th>SQL</th></tr>
+<tr><td>R1</td><td>PUBLIC item, shared group</td><td>visible</td><td>visible</td><td>visible</td><td><code>P.visibility='PUBLIC' AND EXISTS(G(O) ∩ G(V))</code></td></tr>
+<tr><td>R2</td><td>PUBLIC item, no shared group</td><td>visible</td><td>visible</td><td class="fail">hidden</td><td>all: PUBLIC; mine needs R1's EXISTS</td></tr>
+<tr><td>R3</td><td>PRIVATE item</td><td class="fail">hidden</td><td>only with a shared non-deleted PRIVATE group</td><td>same</td><td><code>EXISTS(g ∈ G(O) ∩ G(V), g.visibility='PRIVATE')</code></td></tr>
+<tr><td>R4</td><td>PRIVATE item, group switched to PUBLIC</td><td>hidden</td><td>hidden unless another PRIVATE group is shared</td><td>same</td><td>follows from R3</td></tr>
+<tr><td>R5</td><td>Only shared group soft-deleted</td><td>PUBLIC only</td><td>PUBLIC visible / PRIVATE hidden</td><td>hidden</td><td><code>include_deleted=False</code></td></tr>
+<tr><td>R6</td><td>Counterparty (reserver/giver of an open reservation, PROPOSED proposer)</td><td>never</td><td>visible</td><td>visible</td><td><code>item_id IN (reservations open, user = :v_user)</code> OR <code>IN (swap_proposals PROPOSED, proposer = :v)</code></td></tr>
+<tr><td>R7</td><td>Owner = V</td><td>—</td><td>gate yes; search excluded</td><td>same</td><td>search adds <code>O &lt;&gt; :v</code></td></tr>
+<tr><td>R8</td><td>Term</td><td>PUBLIC</td><td>PUBLIC or in G(V)</td><td>in G(V)</td><td>group not deleted; <code>occurs_on &gt;= now</code></td></tr>
+<tr><td>R9</td><td>Group</td><td>PUBLIC</td><td>PUBLIC or in G(V)</td><td>in G(V)</td><td>org PUBLIC → terms page; person/PRIVATE → nearest term, omitted without one</td></tr>
+<tr><td>R10</td><td>Event, Organization</td><td>visible</td><td>visible</td><td class="fail">never</td><td>events <code>starts_at &gt;= now</code></td></tr>
+<tr><td>R11</td><td>RSVP, family, persons, children, szukam</td><td colspan="3">never count / never results</td><td>outside G(); only Organizations searched as organizers</td></tr>
+<tr><td>R12</td><td>Listed only (search base, not in <code>items_visible_to</code>)</td><td colspan="3">yes</td><td><code>search_items</code> base: <code>listed_items_with_product_select()</code> ⨝ preference; the 404 gate still passes given-away/LENT PUBLIC items</td></tr>
+</table></div>
+
+<h2 id="membership">Membership Primitive</h2>
+<div class="card">
+<table>
+<tr><th>Function</th><th>Semantics</th></tr>
+<tr><td><code>active_membership_clause()</code></td><td><code>valid_to IS NULL</code> ∧ role MEMBER ∧ <code>GroupRole.valid_to IS NULL</code></td></tr>
+<tr><td><code>active_leadership_clause()</code></td><td>the same for Leadership / ORGANIZATOR</td></tr>
+<tr><td><code>group_ids_for(parties, *, organizer_only=False, memberships_only=False, include_deleted=False)</code></td><td><code>parties</code>: a UUID, a set (C1 family) or a correlated column. Group ids from active membership (skipped when organizer_only) ∪ active leadership (skipped when memberships_only; both flags → <code>ValueError</code>); non-deleted unless <code>include_deleted</code> (messaging read-only only)</td></tr>
+<tr><td><code>holds_active_leadership(party_id, group_id)</code></td><td>EXISTS an active Leadership of the group held by the party; no deleted filter, no flag. Sole caller <code>circles.remove_leadership</code> (C-1)</td></tr>
+</table>
+<details style="margin-top:12px"><summary>Per-call-site replacement D1–D12 (+F1)</summary>
+<div class="scroll"><table>
+<tr><th>#</th><th>Current</th><th>Replacement</th><th>On-top filters</th><th>Delta</th></tr>
+<tr><td>D1</td><td><code>_circle_ids_of</code>/<code>is_in_circle</code>/<code>shares_private_circle</code></td><td><code>Group.id IN group_ids_for(party)</code>; shared PRIVATE via ∩</td><td>PRIVATE where it was</td><td>nil (deleted circles not reachable)</td></tr>
+<tr><td>D2</td><td><code>_owner_in_circle</code></td><td>correlated <code>group_ids_for(owner_party_id)</code></td><td>—</td><td>nil</td></tr>
+<tr><td>D3</td><td><code>has_active_membership</code> (messaging)</td><td><code>group_ids_for(party, include_deleted=True)</code></td><td>read-only; <code>GROUP_DELETED</code> blocks sending</td><td>nil</td></tr>
+<tr><td>D4</td><td>member/led id sets (inbox)</td><td>GROUP: include_deleted; TERM: organizer_only + include_deleted</td><td>split via organizer_only</td><td>nil</td></tr>
+<tr><td>D5</td><td><code>led_group_ids_query</code></td><td><code>organizer_only=True</code></td><td>—</td><td>nil</td></tr>
+<tr><td>D6</td><td><code>member_group_ids_query</code></td><td><code>group_ids_for(me)</code> ∪ <code>group_ids_for(family, memberships_only=True)</code></td><td><code>only_private=True</code>, <code>exclude_led=True</code> (I1), family set (C1)</td><td>nil (a co-guardian's led circle stays out, Q3)</td></tr>
+<tr><td>D7</td><td><code>_owner_public_groups</code></td><td><code>organizer_only=True</code></td><td>PUBLIC</td><td>nil</td></tr>
+<tr><td>D8</td><td><code>_is_active_member</code></td><td>EXISTS in <code>group_ids_for(party)</code></td><td>pledges: ∪ RSVP</td><td class="delta">I2: an organizer may pledge (changelog)</td></tr>
+<tr><td>D9</td><td><code>is_active_group_organizer</code></td><td>EXISTS organizer_only (+include_deleted in messaging); <code>remove_leadership</code> uses <code>holds_active_leadership</code></td><td>other writes load the group first</td><td>nil (<code>test_group_soft_delete.py:177</code> green)</td></tr>
+<tr><td>D10</td><td><code>_leads_term_circle</code>/<code>_is_term_organizer</code></td><td><code>Term.circle_group_id IN group_ids_for(…, organizer_only=True)</code></td><td>RSVP branch on top</td><td>nil</td></tr>
+<tr><td>D11</td><td><code>_require_group_member_or_leader</code></td><td>EXISTS in <code>group_ids_for(viewer)</code></td><td>—</td><td>nil</td></tr>
+<tr><td>D12</td><td>ORM <code>list_memberships_for_party</code>/<code>list_active_leaderships_for_party</code></td><td>entity selects with the shared clauses</td><td>—</td><td>nil</td></tr>
+<tr><td>F1</td><td>Frontend <code>AppDataContext</code></td><td>unchanged</td><td>—</td><td>nil</td></tr>
+</table></div>
+<p style="font-size:12.5px;color:var(--dim)">Not definitions, moved onto the shared clauses only: RSVP checks, <code>list_current_organizer_party_ids</code>, <code>find_current_leadership</code>, <code>list_active_memberships_for_group</code>, <code>list_groups_for_moderation</code> (guard allowlist).</p></details>
+</div>
+
+<h2 id="mig">Migrations 0085–0095</h2>
+<div class="card scroll"><table>
+<tr><th>Rev</th><th>Change</th><th>Downgrade / notes</th></tr>
+<tr><td>0085</td><td><code>groups.description TEXT NULL</code></td><td>drop column; lock_timeout</td></tr>
+<tr><td>0086</td><td><code>CREATE EXTENSION IF NOT EXISTS pg_trgm</code></td><td>drop extension (also drops a DBA-installed one: check ownership first); runbook CREATE privilege check</td></tr>
+<tr><td>0087</td><td><code>fold_pl(text)</code> IMMUTABLE PARALLEL SAFE</td><td>drop function; changing the body later = DROP/ADD the vectors + REINDEX</td></tr>
+<tr><td>0088</td><td><code>products.search_vector</code> GENERATED STORED (name A, description C, <code>'simple'::regconfig</code>)</td><td>drop column; table rewrite, off-peak; note: <code>polish</code> later = DROP/ADD COLUMN</td></tr>
+<tr><td>0089</td><td><code>events.search_vector</code></td><td>as 0088</td></tr>
+<tr><td>0090</td><td><code>terms.search_vector</code> (description C)</td><td>as 0088</td></tr>
+<tr><td>0091</td><td><code>categories.path_text TEXT NOT NULL DEFAULT ''</code></td><td>drop column</td></tr>
+<tr><td>0092</td><td>data: backfill <code>path_text</code> (recursive CTE)</td><td>set ''; future seeds set <code>path_text</code> with <code>fold_pl()</code> (<code>architecture.md</code> runbook)</td></tr>
+<tr><td>0093</td><td>GIN full-text indexes (products, events, terms)</td><td>concurrently, in autocommit_block</td></tr>
+<tr><td>0094</td><td>GIN trigram indexes on <code>fold_pl(name)</code> (products, events, groups, organizations) + <code>categories.path_text</code></td><td>concurrently</td></tr>
+<tr><td>0095</td><td>counterparty indexes: reservations (reserved_by_user_id, status), (giver_user_id, status); swap_proposals (proposer_party_id, status)</td><td>concurrently</td></tr>
+</table>
+<p style="font-size:12.5px;color:var(--dim)">Models declare generated columns with <code>Computed(..., persisted=True)</code> and <code>deferred(..., raiseload=True)</code>. Runbook adds the pre-deploy legacy data query (expected 0).</p></div>
+
+<h2 id="api">API Contract — <code>GET /api/public/search</code></h2>
+<div class="card">
+<p style="margin-top:0">PUBLIC matrix row <code>^/api/public/.*$</code> · <code>OptionalPrincipal</code> · <code>set_personalised_cache_headers</code> · ≤8 statements, constant in the row count</p>
+<div class="two">
+<div><table>
+<tr><th>Param</th><th>Values / 400 when</th></tr>
+<tr><td><code>q</code></td><td>folded length &lt; 2; max 100</td></tr>
+<tr><td><code>mode</code></td><td><code>items</code> | <code>events</code></td></tr>
+<tr><td><code>scope</code></td><td><code>mine</code> | <code>all</code>; guest forced to <code>all</code></td></tr>
+<tr><td><code>category</code>, <code>condition</code>, <code>offer_type</code></td><td>items only; the category includes its descendants</td></tr>
+<tr><td><code>date_from</code>, <code>date_to</code></td><td>events only; <code>date_to &lt; date_from</code> → 400; from clamped to now</td></tr>
+<tr><td><code>page</code>, <code>size</code></td><td><code>Pagination</code>, size default 20</td></tr>
+</table>
+<p style="font-size:12.5px">Also: <code>GET /api/categories(/{id})</code> becomes PUBLIC (Q2).</p></div>
+<div><table>
+<tr><th>kind</th><th>href</th><th>meta</th></tr>
+<tr><td>product</td><td><code>/&lt;slug|party&gt;/product/&lt;item&gt;</code></td><td>mode, condition, thumb_url, reserved, reserved_until</td></tr>
+<tr><td>term</td><td><code>term_path</code></td><td>starts_at, place, in_my_groups</td></tr>
+<tr><td>event</td><td><code>event_path</code></td><td>starts_at, place</td></tr>
+<tr><td>group</td><td>terms page / nearest term</td><td>description, next_starts_at, in_my_groups</td></tr>
+<tr><td>organization</td><td><code>/&lt;slug&gt;</code></td><td>slug</td></tr>
+</table></div>
+</div>
+<details style="margin-top:12px"><summary>Matching, ranking, ordering, module layout</summary>
+<ul class="tight">
+<li><strong>Items</strong>: <code>search_vector @@ tsq</code> OR <code>fq &lt;% fold_pl(name)</code> OR the category CTE (leaf name B, <code>path_text</code> C).</li>
+<li><strong>Terms</strong>: vector OR the group name (A), organization (B) or location (C) fuzzy. <strong>Events</strong>: vector OR name (A), organization (B), location (C). <strong>Groups</strong>: name (A), organization (B), description (C). <strong>Organizations</strong>: name and slug (A).</li>
+<li><strong>Rank</strong> = <code>ts_rank</code> + GREATEST(word_similarity × 1.0 / 0.4 / 0.2), with the constants in <code>app/search/domain/ranking.py</code>.</li>
+<li><strong>Items order</strong>: in_my_groups DESC, available before reserved, rank DESC, created_at DESC, id. Rule (1) is deferred.</li>
+<li><strong>Meetings</strong>: a UNION ALL of 4 kinds, ordered <code>match_class ASC, sort_at ASC NULLS LAST, in_my_groups DESC, rank DESC, kind, id</code>. Groups are class 1 when only the description matched; terms, events and organizations are always 0.</li>
+<li><strong>Result schema</strong>: <code>SearchResult</code> is a discriminated union of per-kind models (<code>Literal</code> <code>kind</code>, typed <code>meta</code>).</li>
+<li><strong>"Org-run"</strong>: the current organizer owns an Organization; owner-less organizations are excluded. Running events (<code>starts_at &lt; now</code>) are hidden.</li>
+<li><strong>Statement budget</strong>: viewer (1 joined select), category check, page rows, total, other_mode_count, organization slugs/names, then thumbnails (items) or display names + locations (meetings). Max 7 per mode, ≤8.</li>
+<li><strong>Module</strong>: <code>app/search/{router,application,domain,infrastructure/*_acl.py,schemas.py}</code>, plus <code>tests/test_search_boundary.py</code>. ACLs expose selects and re-export executed batched loaders, as in <code>app/pages</code>.</li>
+<li><strong>Group endpoints</strong>: description on the 3 create paths and on PATCH; 400/503 moderation; <code>GroupResponse.description</code>; <code>OrganizationGroupTermsResponse.description</code>.</li>
+</ul></details>
+</div>
+
+<h2 id="fe">Frontend</h2>
+<div class="card scroll"><table>
+<tr><th>Area</th><th>Change</th><th>Screen</th></tr>
+<tr><td><code>routing/paths.ts</code>, <code>PanelGate.tsx</code></td><td><code>/search</code> public; anonymous PhoneFrame branch</td><td>search-guest</td></tr>
+<tr><td><code>api/search.ts</code>, <code>hooks/useSearch.ts</code></td><td>typed union on <code>kind</code>; useInfiniteQuery, 300 ms debounce, min 2, keepPreviousData</td><td>all</td></tr>
+<tr><td><code>useSearchUrlState.ts</code></td><td>URL params via <code>useAppSearchParams</code> (scroll:false, replace while typing); a mode switch clears filters</td><td>all</td></tr>
+<tr><td><code>searchViewState.ts</code></td><td><code>resolveSearchView()</code>: hint | loading | error | results | empty-items | empty-meetings</td><td>search-hint, search-empty-items</td></tr>
+<tr><td><code>SearchView.tsx</code> (rewrite)</td><td>pill input, roving tablist, scope radiogroup, filters, aria-live summary, "Pokaż więcej"</td><td>search-items, search-meetings, search-guest</td></tr>
+<tr><td><code>SearchFilters</code>, <code>SearchResultCard</code>, <code>OtherModeLine</code></td><td>filters per mode (Kategoria also for guests); one <code>kind</code> card; other-mode line, highlighted when empty</td><td>components</td></tr>
+<tr><td><code>ItemCard</code>/<code>ItemTileBadges</code></td><td>optional <code>reservedCaption</code> (avoids the existing <code>reservedLabel()</code> helper)</td><td>search-items</td></tr>
+<tr><td><code>features/add/HuntingCreateView.tsx</code></td><td>initial name from <code>?name=</code> (prefill, no write)</td><td>search-empty-items</td></tr>
+<tr><td>Group forms</td><td>textarea, <code>n / 500</code> (<code>[...value.trim()].length</code>), hint, <code>role="alert"</code>, disabled submit, prefill</td><td>group-form-description</td></tr>
+<tr><td><code>GroupTermsHero</code></td><td>full description; absent → unchanged</td><td>group-terms-header</td></tr>
+<tr><td><code>utils/mocks.ts</code></td><td>delete <code>MOCK_SEARCH_ITEMS</code> and <code>matchesQuery</code></td><td>—</td></tr>
+</table></div>
+
+<h2 id="visual">Visual Design</h2>
+<div class="card">
+<p style="margin-top:0">Mockups in <code>analysis/design-context/</code> are binding inputs. The implementation-planner will attach <code>Visual References</code> to the UI task groups.</p>
+<table>
+<tr><th>ID</th><th>Mockup</th><th>Key elements</th></tr>
+<tr><td>screen:search-items</td><td><a href="../analysis/design-context/mockups/szukaj-przedmioty-moje-grupy.html">szukaj-przedmioty-moje-grupy</a></td><td>toggles, filter chips, ItemCard grid, reserved dimmed, Pokaż więcej, other-mode line</td></tr>
+<tr><td>screen:search-meetings</td><td><a href="../analysis/design-context/mockups/szukaj-spotkania-wsz-dzie.html">szukaj-spotkania-wszędzie</a></td><td>date chips; Termin / Wydarzenie / Grupa / Organizacja rows</td></tr>
+<tr><td>screen:search-empty-items</td><td><a href="../analysis/design-context/mockups/szukaj-brak-przedmiot-w.html">szukaj-brak-przedmiotów</a></td><td>dashed card, "Dodaj do listy „szukam”", highlighted line</td></tr>
+<tr><td>screen:search-guest</td><td><a href="../analysis/design-context/mockups/szukaj-go.html">szukaj-gość</a></td><td>"Zaloguj się", no scope toggle, Kategoria/Stan chips work</td></tr>
+<tr><td>screen:search-hint</td><td><a href="../analysis/design-context/mockups/szukaj-mniej-ni-2-znaki.html">szukaj-mniej-niż-2-znaki</a></td><td>hint, no request</td></tr>
+<tr><td>screen:group-form-description</td><td><a href="../analysis/design-context/mockups/formularz-grupy-opis.html">formularz-grupy-opis</a></td><td>textarea, counter, error, moderation banner</td></tr>
+<tr><td>screen:group-terms-header</td><td><a href="../analysis/design-context/mockups/strona-termin-w-grupy-nag-wek-z-opisem.html">strona-terminów-grupy</a></td><td>hero with full description / without</td></tr>
+<tr><td>component:search-result-row · other-mode-line · segmented-toggle</td><td>see search mockups</td><td>kind card, link line, toggles</td></tr>
+</table></div>
+
+<h2 id="reuse">Reusable vs New</h2>
+<div class="two">
+<div class="card"><strong>Reuse</strong>
+<ul class="tight">
+<li><code>app/pages/</code> + <code>test_pages_boundary.py</code></li>
+<li><code>listed_items_with_product_select</code>, <code>with_pending_proposer</code>, <code>_is_reserved</code></li>
+<li><code>list_owner_public_groups</code> LATERAL pattern</li>
+<li><code>pages/domain/links.py</code>, <code>derive_party_slug</code></li>
+<li><code>fold_polish</code>, <code>MIN_QUERY_LENGTH</code></li>
+<li><code>check_text</code>, <code>ensure_no_contact_info</code></li>
+<li><code>OptionalPrincipal</code>, cache headers, <code>Page</code>/<code>Pagination</code>, <code>clock</code></li>
+<li><code>load_locations_by_ids</code></li>
+<li>migrations 0055, 0053/0077, 0073</li>
+<li>conftest helpers, FakeTextClassifier</li>
+<li><code>useMyItemsPage</code>, <code>ItemCard</code>, <code>ItemTileBadges</code>, <code>DateTile</code>, <code>GroupCard</code></li>
+<li><code>ExchangeModeTabs</code> + <code>rovingIndex</code>, <code>CategoryTreePicker</code>, <code>CONDITION_LABELS</code>, <code>ITEM_MODES</code></li>
+<li><code>AboutTab</code> counter, <code>useAppSearchParams</code>, <code>PhoneFrame</code></li>
+</ul></div>
+<div class="card"><strong>New (why)</strong>
+<ul class="tight">
+<li><code>membership.py</code>: no single definition exists (11)</li>
+<li><code>visibility.py</code>: visibility is split between Python and SQL</li>
+<li><code>app/search/</code>: no search capability exists</li>
+<li>0085–0095, <code>fold_pl</code>, vectors, <code>path_text</code>: no FTS or trigram infrastructure</li>
+<li><code>api/search.ts</code>, <code>useSearch</code>, <code>features/search/*</code>: the current view is a mock</li>
+<li><code>reservedCaption</code> prop: extends the tile instead of forking it</li>
+<li><code>holds_active_leadership</code>: lets <code>remove_leadership</code> work on a deleted circle without widening <code>include_deleted</code></li>
+</ul></div>
+</div>
+
+<h2 id="tests">Testing</h2>
+<div class="card">
+<p style="margin-top:0">2–8 focused tests per step group. Verification runs only the new tests and the named regression suites.</p>
+<details open><summary>User-mandated (U1–U4)</summary><ul class="tight">
+<li>U1 Deleted group: the chat stays readable (send blocked); its terms appear neither in search nor in "Moje terminy". Items through that group: the PRIVATE item is absent in both scopes (and 404); the PUBLIC item is absent from "Moje grupy" only and stays in "Wszędzie" (R2/R5).</li>
+<li>U2 PRIVATE→PUBLIC: the PRIVATE item stops being visible unless another PRIVATE group is shared.</li>
+<li>U3 Counterparty from a group the user left: found and opened; after cancellation both stop.</li>
+<li>U4 An ended or deleted membership appears neither in <code>group_ids_for</code> nor in <code>list_memberships_for_party</code>.</li>
+</ul></details>
+<details><summary>visible_to (R1–R12) and acceptance</summary><ul class="tight">
+<li><code>test_visible_to.py</code>: one test per rule, guest/member/non-member/counterparty × scope, RSVP-only, family, child, own items. R12 on <code>search_items</code>; a given-away/LENT PUBLIC item still passes <code>can_view_item</code>.</li>
+<li>Guest: anonymous <code>GET /api/categories</code> → 200, POST → 401; guest category filter works.</li>
+<li>Description ≤500 saved, 501 → 400, moderation and contact info → 400, unchanged key sets.</li>
+<li>A guest sees public items only; <code>scope=mine</code> is forced. Mine scope shows nothing outside the viewer's groups, except counterparty items (C4/U3).</li>
+<li>„dziecięce” with a seeded „Dla dzieci” branch: descendants found, ranked below a name match.</li>
+<li>A description-only group match ranks below a name match, also when its next term is sooner (both groups have terms). A person group without a term is omitted.</li>
+<li><code>other_mode_count</code> = total after switching; no past items; 400 validation; cache headers; ≤8 constant statements.</li>
+</ul></details>
+<details><summary>Membership, migrations, frontend</summary><ul class="tight">
+<li>Characterisation per D row; D9/C-1 organizer ends a Leadership on a deleted circle → 200, non-organizer → 403; guard test + self-test; I2 as a <strong>new</strong> test <code>test_createPledge_currentOrganizerWithoutRsvp_returns201</code>; C1 family-member terms preserved; a co-guardian's <em>led</em> PRIVATE circle stays out (Q3).</li>
+<li>Deliberate updates: key sets <code>test_group_access.py:354</code> and <code>test_organizer_page.py:361</code> gain <code>description</code>; <code>test_category_module.py:76</code> → resolves to PUBLIC; new anonymous list test.</li>
+<li>Round-trips 0085 and 0086–0095; <code>fold_pl</code> parity; vector content; <code>path_text</code> refresh equal to the backfill; deferred vectors; search boundary; matrix row.</li>
+<li>Frontend: <code>resolveSearchView</code> table; SearchView behaviours (incl. guest Kategoria); group form (code-point counter); <code>HuntingCreateView</code> <code>?name=</code> prefill; terms header; update proxy, routeManifest, AppPage, PublicLayout, ssrSafety and fixtures.</li>
+</ul></details>
+<details><summary>Standards compliance</summary><ul class="tight">
+<li>backend: models, queries, jooq, migrations, security, api, time (add <code>app/search</code> to the clock guard)</li>
+<li>global: validation, minimal-implementation</li>
+<li>frontend: components, data-fetching, accessibility, css, responsive</li>
+<li>testing: backend-testing, frontend-testing</li>
+<li>Candidates: "LIKE only via autoescape or trgm", "membership only via <code>group_ids_for</code>"</li>
+</ul></details>
+</div>
+
+<details class="card"><summary>Technical approach — work order</summary>
+<ol class="tight">
+<li>Characterisation tests for every D row</li>
+<li>Build <code>membership.py</code> and the guard test, then switch D1–D12 one at a time</li>
+<li><code>visibility.py</code> and the <code>can_view_item</code> rewrite</li>
+<li><code>groups.description</code></li>
+<li>Migrations 0086–0095 + <code>path_text</code> maintenance</li>
+<li><code>app/search</code> backend and endpoint</li>
+<li>Frontend search</li>
+<li>Description display</li>
+<li>Ranking tuning and acceptance tests</li>
+<li>Docs, INDEX, changelog line</li>
+</ol>
+<p>Items: listed items ⨝ visible preferences ⨝ vector and category CTE → filters → rank → page, then batched slugs, thumbnails and reservation date. Meetings: a UNION ALL of four selects, then batched names and locations. Viewer resolution takes one statement; <code>:v_user</code> is a scalar subquery.</p>
+</details>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card"><ul class="tight">
+<li>Every corrected acceptance criterion is covered by a passing test.</li>
+<li>Exactly one membership definition (guard green); <code>can_view_item</code> and search agree for every R-row.</li>
+<li>Existing suites stay green, unchanged except the listed deliberate updates (two key-set tests, the category matrix test); I2 is a new test; <code>test_group_soft_delete.py:177</code> green.</li>
+<li>Search uses ≤8 constant statements; migrations round-trip cleanly.</li>
+<li><code>/search</code> works for guests and logged-in users and matches the 7 mockups; the description is editable and shown on 2 surfaces.</li>
+<li>The changelog line is present; nothing is committed.</li>
+</ul></div>
+
+<h2 id="audit">Spec audit resolutions</h2>
+<div class="card scroll"><p style="margin-top:0;font-size:12.5px;color:var(--dim)">Source: <a href="../verification/spec-audit.md">verification/spec-audit.md</a>. User decisions Q1–Q4 are binding.</p>
+<table>
+<tr><th>Finding</th><th>Change made</th></tr>
+<tr><td><span class="sev critical">C-1</span></td><td><code>remove_leadership</code> uses <code>holds_active_leadership</code> (row check over <code>active_leadership_clause()</code>); <code>include_deleted</code> stays messaging-only; <code>test_group_soft_delete.py:177</code> stays green (Q1).</td></tr>
+<tr><td><span class="sev warning">W-1</span></td><td>Guard rule 1 flags only comparisons; one allowlist entry <code>list_groups_for_moderation</code>, moved onto the shared clauses; self-test.</td></tr>
+<tr><td><span class="sev warning">W-2</span></td><td><code>GET /api/categories</code> → PUBLIC (matrix row 55, router); matrix test updated; anonymous test (Q2).</td></tr>
+<tr><td><span class="sev warning">W-3</span></td><td><code>memberships_only</code> parameter; family contributes memberships only; regression test (Q3).</td></tr>
+<tr><td><span class="sev warning">W-4</span></td><td>U1 fixture: PRIVATE absent in both scopes; PUBLIC absent only from "Moje grupy".</td></tr>
+<tr><td><span class="sev warning">W-5</span></td><td>R12 is the search base, not part of <code>items_visible_to</code>; gate test for given-away/LENT.</td></tr>
+<tr><td><span class="sev warning">W-6</span></td><td><code>match_class</code> before date for groups; acceptance test with the description-only group's term sooner (Q4).</td></tr>
+<tr><td><span class="sev warning">W-7</span></td><td>Key-set updates listed: <code>test_group_access.py:354</code>, <code>test_organizer_page.py:361</code>.</td></tr>
+<tr><td><span class="sev warning">W-8</span></td><td><code>HuntingCreateView</code> reads <code>?name=</code>; Vitest case.</td></tr>
+<tr><td><span class="sev info">I-1</span></td><td>I2 is a new test.</td></tr>
+<tr><td><span class="sev info">I-2</span></td><td>Statement inventory per mode, max 7.</td></tr>
+<tr><td><span class="sev info">I-3</span></td><td><code>Computed(persisted=True)</code> + <code>deferred(raiseload=True)</code>.</td></tr>
+<tr><td><span class="sev info">I-4</span></td><td><code>path_text</code> in SQL with <code>fold_pl()</code>.</td></tr>
+<tr><td><span class="sev info">I-5</span></td><td>ACL wording fixed.</td></tr>
+<tr><td><span class="sev info">I-6</span></td><td>Terms-response description source named.</td></tr>
+<tr><td><span class="sev info">I-7</span></td><td>"Org-run" defined; owner-less organizations excluded.</td></tr>
+<tr><td><span class="sev info">I-8</span></td><td>Prop renamed <code>reservedCaption</code>.</td></tr>
+<tr><td><span class="sev info">I-9</span></td><td>Code points after trim on both sides; length in the strip validator.</td></tr>
+<tr><td><span class="sev info">I-10</span></td><td>Runbook pre-deploy legacy data query.</td></tr>
+<tr><td><span class="sev info">I-11</span></td><td>0086 downgrade note; seed note in <code>architecture.md</code>; running events hidden; union of per-kind models.</td></tr>
+<tr><td><span class="sev info">I-12</span></td><td>"Moje grupy" wording excludes counterparty items.</td></tr>
+</table></div>
+</main>
+</body>
+</html>

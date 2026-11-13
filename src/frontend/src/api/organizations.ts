@@ -133,6 +133,8 @@ export interface GroupTerm {
 export interface OrganizationGroupTermsResponse {
   owner: OwnerItemsPageResponse["owner"];
   group: OrganizationGroup;
+  /** The group's own description, shown in full only in this page's header. */
+  description: string | null;
   terms: GroupTerm[];
 }
 

@@ -360,6 +360,7 @@ async def test_groupReads_privateGroupWithCode_neverExposeJoinCode(
         "visibility",
         "default_location",
         "default_capacity",
+        "description",
         "created_at",
         "updated_at",
         "term_count",

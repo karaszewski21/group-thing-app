@@ -79,7 +79,11 @@ async def test_upgradeHead_eventConstraints_namedAndPartial(engine: AsyncEngine)
         "fk_events_author_party_id_parties": (["author_party_id"], "parties"),
         "fk_events_location_id_locations": (["location_id"], "locations"),
     }
-    assert set(events["indexes"]) == {"ix_events_author_party_id"}
+    assert set(events["indexes"]) == {
+        "ix_events_author_party_id",
+        "ix_events_search_vector",
+        "ix_events_name_trgm",
+    }
 
     assert banners["pk"] == "pk_event_banners"
     assert banners["fks"] == {"fk_event_banners_event_id_events": (["event_id"], "events")}

@@ -19,6 +19,7 @@ const ORGANIZATION: PublicOrganizationResponse = {
 const PAGE: OrganizationGroupTermsResponse = {
   owner: { party_id: "p-1", display_name: "Orlik", slug: "orlik" },
   group: layoutGroup("g-1"),
+  description: null,
   terms: [],
 };
 

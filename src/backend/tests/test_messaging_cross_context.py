@@ -66,14 +66,20 @@ async def test_isActiveGroupMemberAndOrganizer_softDeletedGroup_trueUntilMembers
     await _soft_delete_group(db_session, group_id)
 
     assert await service.is_active_group_organizer(db_session, group_id, org_party_id) is True
-    assert await service.has_active_membership(db_session, group_id, member_party_id) is True
-    assert await service.has_active_membership(db_session, group_id, org_party_id) is False
+    assert (
+        await service.is_in_circle(db_session, group_id, member_party_id, include_deleted=True)
+        is True
+    )
+    assert await service.is_in_circle(db_session, group_id, member_party_id) is False
     assert await service.list_group_member_party_ids(db_session, group_id) == [member_party_id]
 
     membership.valid_to = _in_days(0).date()
     await db_session.commit()
 
-    assert await service.has_active_membership(db_session, group_id, member_party_id) is False
+    assert (
+        await service.is_in_circle(db_session, group_id, member_party_id, include_deleted=True)
+        is False
+    )
     assert await service.list_group_member_party_ids(db_session, group_id) == []
 
 

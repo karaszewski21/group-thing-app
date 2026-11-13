@@ -1,0 +1,190 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-12, phase-13, phase-14]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    sequential: null
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    spec_audit_verdict: pass-with-concerns
+    spec_audit_resolved: "C-1 remove_leadership via holds_active_leadership; W-2 GET /api/categories PUBLIC; W-3 memberships_only for family; W-6 match_class before date; W-1,W-4,W-5,W-7,W-8 + info resolved in spec revision"
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: "2026-11-12T11:51:42Z"
+  updated: "2026-11-13T09:42:59Z"
+  task_path: .maister/tasks/development/2026-11-12-global-search-group-description
+  task_ids: {}
+task:
+  title: Globalna wyszukiwarka + opis grupy
+  description: "Global search (items | meetings, scope mine | all) with visible_to visibility scope, tsvector/pg_trgm search, plus moderated groups.description. Full text in analysis/task-description.md"
+  status: completed
+  tags: [search, groups, moderation, visibility, frontend, backend, migration]
+  priority: null
+task_context:
+  risk_level: high
+  clarifications_resolved: true
+  scope_expanded: false
+  architecture_decision: "app/search read module + group_ids_for/visible_to in app.groups + generated tsvector columns"
+  tech_clarified: true
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: phase-4-mockup-studio
+    product_design_path: null
+    mockup_count: 7
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  project_context:
+    project_doc_paths:
+      - .maister/docs/project/tech-stack.md
+      - .maister/docs/project/architecture.md
+  phase_summaries:
+    codebase_analysis:
+      summary: "Search is greenfield (no pg_trgm/tsvector; /search is a login-gated mock); hard part is unifying visibility into one SQL predicate across 10+ consumers. Spec mismatches: sync text moderation, szukam mock-only, terms nameless, items linked to groups only via owner."
+      key_files: [src/backend/app/groups/infrastructure/repository.py, src/backend/app/groups/application/item_visibility.py, src/backend/app/groups/models.py, src/backend/app/moderation/text_guard.py, src/backend/app/pages/, src/frontend/src/features/search/SearchView.tsx, src/frontend/src/features/groups/GroupFormFields.tsx]
+      primary_language: python+typescript
+      decisions: []
+      risks: []
+      artifacts:
+        - {path: analysis/codebase-analysis.md, label: Codebase analysis, html: null}
+        - {path: analysis/clarifications.md, label: Clarifications, html: null}
+    clarifications:
+      - "Group description moderation: synchronous check_text (TextField.GROUP_DESCRIPTION); no pending state/badge"
+      - "Szukam ranking rule deferred; empty-state button links to /add/hunting?name=<q>"
+      - "My groups = standing member or current organizer of non-deleted group; single my_group_ids(user) must REPLACE the five existing definitions and be used in visible_to"
+      - "Guests: /search unblocked, GET /api/public/search, scope forced to all for guests"
+    gap_analysis:
+      summary: "Search and description are additive; real risk is unifying 11 backend membership definitions (~25 call sites) into one my_group_ids. Four swaps change behaviour (family in my terms, deleted-circle chat, pledge organizer, PRIVATE-item scope)."
+      integration_points: ["GET /api/public/search", "main.py router before system_router", "PROTECTED_PREFIXES + proxy.ts + PanelGate", "PublicLayout search link", "group forms", "group terms header"]
+      decisions: []
+      risks: ["Membership unification touches ~25 call sites incl. item 404 gates, take/propose, messaging; needs characterisation tests first", "my_group_ids must accept a correlated column", "GroupResponse must return description for edit prefill", "CREATE EXTENSION pg_trgm needs DB privilege on VPS"]
+      artifacts:
+        - {path: analysis/gap-analysis.md, label: Gap analysis, html: null}
+    scope_clarifications:
+      scope_expanded: false
+      summary: "18 decisions: one group_ids_for with include_deleted/family-as-filter; PRIVATE items need shared PRIVATE group; counterparty in SQL; generated tsvector columns; categories.path_text; fold_pl(); SearchPage(Page[SearchResult]) + other_mode_count; only intended behaviour change = organizer pledges."
+      decisions:
+        - {decision: "C1 family as filter on top of group_ids_for in Moje terminy", rationale: "one definition, params steer set"}
+        - {decision: "C2 include_deleted flag only for messaging read-only", rationale: "keep deleted-circle chat archive"}
+        - {decision: "C3 PRIVATE item visible only via shared non-deleted PRIVATE group", rationale: "switching to PUBLIC must not publish private items"}
+        - {decision: "C4 counterparty branch in visible_to SQL", rationale: "404 gate and lists never diverge"}
+        - {decision: "I2 organizer may pledge (only intended behaviour change, changelog)", rationale: "looks accidental"}
+        - {decision: "I6 GENERATED STORED tsvector, no triggers", rationale: "no cross-table denormalisation after I4/I5"}
+        - {decision: "I8 SearchPage(Page[SearchResult]) + other_mode_count, kind+common fields", rationale: "API consistency"}
+      risks: ["pg_trgm extension privilege on VPS"]
+      artifacts:
+        - {path: analysis/scope-clarifications.md, label: Scope clarifications, html: null}
+    ui_mockups:
+      summary: "7 HTML mockups via mockup-studio (format html, live gallery http://localhost:3847): search items/meetings/empty/guest/hint, group form description, group terms header."
+      components_designed: [search-result-row, other-mode-line, segmented-toggle]
+      format_used: html
+      decisions: []
+      risks: []
+      artifacts:
+        - {path: analysis/design-context/INDEX.md, label: Design context index, html: null}
+        - {path: analysis/design-context/design-resources.md, label: Design resources, html: null}
+    design:
+      summary: "7 screens + 3 components bound to globals.css tokens and existing SearchView/ItemCard/GroupCard/GroupFormFields; see INDEX.md."
+      screen_count: 7
+      component_count: 3
+      index_path: analysis/design-context/INDEX.md
+    specification:
+      summary: "23 requirements, 12 visibility rules (R1-R12), migrations 0085-0095, app/search module, GET /api/public/search SearchPage, group_ids_for per-call-site table D1-D12; only behaviour change I2 organizer pledges."
+      decisions:
+        - {decision: "Primitive in app/groups/infrastructure/membership.py; builders in visibility.py; exported via groups.service", rationale: "guard test allowlists one file"}
+        - {decision: "other_mode_count = other mode, same q+scope, no filters; frontend clears filters on mode switch", rationale: "counter = total after switch exactly"}
+        - {decision: "Meetings ordered sort_at ASC NULLS LAST then in_my_groups, rank, kind, id", rationale: "nearest date first over mixed list"}
+        - {decision: "word_similarity at pg_trgm default 0.6; rank = ts_rank + weighted word_similarity", rationale: "deterministic tests"}
+      risks: ["No CHANGELOG file exists; create root CHANGELOG.md", "pg_trgm needs CREATE privilege on prod DB", "Generated columns rewrite products/events/terms under ACCESS EXCLUSIVE", "~25 call sites across security gates", "fold_pl parity with fold_polish"]
+      artifacts:
+        - {path: implementation/spec.md, label: Specification, html: implementation/spec.html}
+        - {path: analysis/requirements.md, label: Requirements, html: null}
+        - {path: verification/spec-audit.md, label: Spec audit, html: null}
+    architecture_decision: {decision: "app/search read module + group_ids_for/visible_to in app.groups + generated tsvector columns", summary: null}
+    implementation:
+      summary: "15/15 groups, 116 steps; membership unified (11 definitions -> group_ids_for + guard test), visible_to, groups.description, migrations 0085-0095, app/search + GET /api/public/search, frontend search + description. Full suite: no regressions (backend 1337 pass, 2 pre-existing; frontend 24 pre-existing failures)."
+      decisions:
+        - {decision: "D10 deleted-circle organizer keeps 200 via holds_active_leadership", rationale: "user decision"}
+        - {decision: "D9 is_active_group_organizer = holds_active_leadership", rationale: "preserves behaviour; test_messaging_cross_context asserts it"}
+      risks: ["Visual deviations in search filters", "Description field after visibility vs mockup", "SAWarning false positive in search current_organizer"]
+      artifacts:
+        - {path: implementation/work-log.md, label: Work log, html: null}
+        - {path: implementation/full-test-suite-results.md, label: Full test suite results, html: null}
+    e2e:
+      summary: "GO WITH CAVEATS: 11/11 scenarios pass (2 minor), visual fidelity 7/3/0."
+      decisions: []
+      risks: ["resolved: M1 concurrent filter changes", "resolved: M2 inverted date range", "resolved: C1, C3; C2 kept", "E2E test records left in dev DB (user decision)"]
+      artifacts:
+        - {path: verification/e2e-verification-report.md, label: E2E report, html: verification/e2e-verification-report.html}
+        - {path: verification/visual-fidelity.md, label: Visual fidelity, html: verification/visual-fidelity.html}
+    user_docs:
+      summary: "Polish user guide with 20 screenshots (16 reused from E2E, 4 new)."
+      decisions: []
+      risks: ["Szukam saving is still a mock", "Screenshots show E2E test data"]
+      artifacts:
+        - {path: documentation/user-guide.md, label: User guide, html: null}
+    planning:
+      summary: "15 task groups, 116 steps, ~105-135 tests; strict chain G1-G5 (characterisation -> primitive -> switches -> visibility), G6-G8 description/search DB, G9-G13 search backend/frontend/display/ranking, G14 docs, G15 test review."
+      decisions:
+        - {decision: "Membership switch split into G2-G4; guard test in G4", rationale: "one consumer at a time"}
+        - {decision: "Public GET /api/categories and icontains fix in G9", rationale: "keeps G8 schema-only"}
+      risks: ["G6 slip blocks G8 (0086 chains from 0085)", "31 pre-existing vitest failures and mypy baseline 15 apply"]
+      artifacts:
+        - {path: implementation/implementation-plan.md, label: Implementation plan, html: implementation/implementation-plan.html}
+        - {path: implementation/visual-coverage.md, label: Visual coverage, html: null}
+verification_context:
+  last_status: passed_with_issues
+  issues_found:
+    - "N1 nginx real_ip behind proxy (warning, topology decision)"
+    - "W2 no EXPLAIN on real data (warning, by design)"
+    - "W11 search.py 799 lines (warning, by design)"
+    - "W14 standards text stale (warning, awaiting approval)"
+    - "W16 rebrand files in tree (warning, user commit split)"
+  fixes_applied:
+    - "W1 page cap 50 + SET LOCAL statement_timeout 3s + nginx limit_req 5r/s burst 20 (429)"
+    - "W3 category match on path_text only; migration 0096 trgm on groups.description, organizations.slug"
+    - "W4 /api/categories cache headers; product_count 0 for anonymous"
+    - "W5 CHANGELOG 6 new lines"
+    - "W6 date window narrows groups (next term in window)"
+    - "W7 maxLength 100"
+    - "W8 slug rules re-exported via groups ACL (term/event path stay local: pages boundary)"
+    - "W9 parties_share_group/owner_shares_group_with in visibility.py; inventory repository move"
+    - "W10 duplicate tests removed; boundary tests merged into test_module_boundaries.py"
+    - "W12 Opis between name and visibility"
+    - "W13 GroupResponse.description required"
+    - "W15 runbook (0085-0096, table sizes, roll-forward backfill, INVALID wording)"
+    - "I1 reserved_until only for logged-in"
+    - "I2 viewer-keyed search cache"
+    - "I4 explicit join (no SAWarning)"
+    - "I6 docstring, BalanceStatus, dead checks, private _count_other_mode"
+    - "Search statement timeout (57014) -> 503 Polish message via general ServiceUnavailableException"
+    - "N2 no retry on 503 + nginx JSON 429 Polish"
+    - "R1 CHANGELOG 429 + page cap"
+    - "R2 SEARCH_MAX_PAGE 50 stops paging"
+    - "R3 categories cache invalidated on session change"
+    - "R6 BalanceStatus, docstring, links parity test"
+    - "R7 spec verification amendments + nginx comment"
+    - "R8 runbook build-first, blocking note, real_ip guidance"
+  decisions_made:
+    - "W6 date filters narrow groups: yes"
+    - "I1 reserved_until only for logged-in"
+    - "W12 Opis as in mockup; W16 rebrand left for user"
+    - "Fix all fixable issues"
+    - "Cycle 2: fix minor issues; R5 reserved_until for logged-in non-members accepted; N1 real_ip left for topology decision"
+  reverify_count: 1

@@ -1,6 +1,6 @@
 """`app.category` module tests (implementation/spec.md Core Requirements
 #4-5): matrix-resolution for the 2 new `/api/categories` rows, router-level
-permission gating (READ for GET, ADMIN for every mutation), and
+permission gating (GET public, ADMIN for every mutation), and
 service-level CRUD/aggregate/reorder behavior.
 
 Category management is ADMIN-only (unlike `app.product`'s EDIT-gated
@@ -30,7 +30,6 @@ from app.core.errors import EntityNotFoundException
 from tests.conftest import leaf_category_ids
 
 ADMIN = ("ADMIN",)
-READ = ("READ", "mcp:read")
 
 
 async def _authed_headers(client: AsyncClient, email: str) -> dict[str, str]:
@@ -73,9 +72,9 @@ async def _grant_admin_and_relogin(
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_resolveRequirement_getCategories_resolvesToRead() -> None:
-    assert resolve_requirement("GET", "/api/categories") == READ
-    assert resolve_requirement("GET", "/api/categories/42") == READ
+def test_resolveRequirement_getCategories_resolvesToPublic() -> None:
+    assert resolve_requirement("GET", "/api/categories") == "PUBLIC"
+    assert resolve_requirement("GET", "/api/categories/42") == "PUBLIC"
 
 
 def test_resolveRequirement_mutateCategories_resolvesToAdmin() -> None:
@@ -83,6 +82,58 @@ def test_resolveRequirement_mutateCategories_resolvesToAdmin() -> None:
     assert resolve_requirement("PUT", "/api/categories/42") == ADMIN
     assert resolve_requirement("DELETE", "/api/categories/42") == ADMIN
     assert resolve_requirement("PATCH", "/api/categories/42/move") == ADMIN
+
+
+async def test_listCategories_anonymous_returns200(client: AsyncClient) -> None:
+    headers = await _authed_headers(client, "catanon1@example.com")
+
+    anonymous = await client.get("/api/categories")
+    logged_in = await client.get("/api/categories", headers=headers)
+    one = await client.get(f"/api/categories/{anonymous.json()[0]['id']}")
+    create = await client.post("/api/categories", json={"name": "Anonimowa"})
+
+    assert anonymous.status_code == 200
+    without_counts = [{**row, "product_count": 0} for row in logged_in.json()]
+    assert anonymous.json() == without_counts
+    assert one.status_code == 200
+    assert create.status_code == 401
+
+
+async def test_getCategories_anonymousVsPrincipal_countsOnlyForPrincipalAndCacheHeaders(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    category = Category(name="Liczona Publicznie", description=None, sort_order=1002)
+    db_session.add(category)
+    await db_session.flush()
+    category_id = category.id
+    await db_session.execute(
+        text(
+            "INSERT INTO products (id, name, sku, category_id, created_at, updated_at) "
+            "VALUES (gen_random_uuid(), 'Produkt prywatny', 'SKU-CAT-ANON', "
+            ":category_id, now(), now())"
+        ),
+        {"category_id": category_id},
+    )
+    await db_session.commit()
+    headers = await _authed_headers(client, "catanon2@example.com")
+
+    def count_of(rows: list[dict[str, object]]) -> object:
+        return next(row["product_count"] for row in rows if row["id"] == str(category_id))
+
+    anonymous = await client.get("/api/categories")
+    logged_in = await client.get("/api/categories", headers=headers)
+    anonymous_one = await client.get(f"/api/categories/{category_id}")
+    logged_in_one = await client.get(f"/api/categories/{category_id}", headers=headers)
+
+    assert count_of(anonymous.json()) == anonymous_one.json()["product_count"] == 0
+    assert count_of(logged_in.json()) == logged_in_one.json()["product_count"] == 1
+    for response in (anonymous, anonymous_one):
+        assert response.headers["cache-control"] == "public, max-age=60, s-maxage=300"
+    for response in (logged_in, logged_in_one):
+        assert response.headers["cache-control"] == "private, no-store"
+    for response in (anonymous, logged_in, anonymous_one, logged_in_one):
+        # GZip appends `Accept-Encoding` to the large list response.
+        assert response.headers["vary"].startswith("Authorization, Cookie")
 
 
 async def test_listCategories_readOnlyPrincipal_returns200(client: AsyncClient) -> None:

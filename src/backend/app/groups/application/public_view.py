@@ -51,7 +51,6 @@ from .circles import (
     get_group,
     is_active_group_organizer,
 )
-from .memberships import _is_active_member
 from .term_item_listings import list_public_term_item_listings
 from .terms import get_term, list_needed_item_views, list_terms
 
@@ -369,7 +368,7 @@ async def get_group_access(
     is_organizer = False
     if profile is not None:
         is_organizer = await is_active_group_organizer(db, group_id, profile.party_id)
-        is_member = is_organizer or await _is_active_member(db, group_id, profile.party_id)
+        is_member = await repository.is_in_circle(db, group_id, profile.party_id)
 
     group_response = await get_public_circle_view(
         db,
@@ -426,9 +425,8 @@ async def create_rsvp(
     if profile.account_user_id is None:
         raise AccessDeniedException
 
-    if group.visibility == GroupVisibility.PRIVATE and not (
-        await is_active_group_organizer(db, group_id, profile.party_id)
-        or await _is_active_member(db, group_id, profile.party_id)
+    if group.visibility == GroupVisibility.PRIVATE and not await repository.is_in_circle(
+        db, group_id, profile.party_id
     ):
         # Membership itself is only ever granted through the organizer's
         # access code, never by this route.

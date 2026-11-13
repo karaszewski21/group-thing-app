@@ -35,7 +35,7 @@ from ..schemas import (
     FamilyExchangeSummary,
     GroupExchangeSummaryResponse,
 )
-from .circles import _group_role_party_id, get_current_leadership, get_group
+from .circles import get_group
 from .term_item_listings import (
     _list_eligible_lister_party_ids,
     _resolve_item_display_info,
@@ -85,22 +85,11 @@ async def _require_group_member_or_leader(
     db: AsyncSession,
     group_id: uuid.UUID,
     viewer_party_id: uuid.UUID,
-    member_party_ids: list[uuid.UUID],
 ) -> None:
     """Membership/leadership check that can't live in the coarse
-    `AUTHORIZATION_MATRIX` — per `standards/backend/security.md`. Takes the
-    caller's already-resolved `member_party_ids` (from
-    `list_group_member_party_ids`) so this reuses that query instead of
-    running it twice."""
-    if viewer_party_id in member_party_ids:
-        return
-    leadership = await get_current_leadership(db, group_id)
-    if (
-        leadership is not None
-        and await _group_role_party_id(db, leadership.from_role_id) == viewer_party_id
-    ):
-        return
-    raise AccessDeniedException
+    `AUTHORIZATION_MATRIX` — per `standards/backend/security.md`."""
+    if not await repository.is_in_circle(db, group_id, viewer_party_id):
+        raise AccessDeniedException
 
 
 async def _resolve_family_guardians(
@@ -224,7 +213,7 @@ async def get_group_exchange_summary(
     (`_private_circle_id`)."""
     group = await get_group(db, group_id)
     member_party_ids = await list_group_member_party_ids(db, group_id)
-    await _require_group_member_or_leader(db, group_id, viewer_party_id, member_party_ids)
+    await _require_group_member_or_leader(db, group_id, viewer_party_id)
 
     family_order, family_guardians = await _resolve_family_guardians(db, member_party_ids)
     all_guardian_party_ids = {
@@ -264,7 +253,7 @@ async def get_family_exchange_offers(
     circle (`_private_circle_id`)."""
     group = await get_group(db, group_id)
     member_party_ids = set(await list_group_member_party_ids(db, group_id))
-    await _require_group_member_or_leader(db, group_id, viewer_party_id, list(member_party_ids))
+    await _require_group_member_or_leader(db, group_id, viewer_party_id)
 
     guardian_party_ids = await _guardian_party_ids_for_family(db, family_id)
     if not guardian_party_ids & member_party_ids:

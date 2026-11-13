@@ -358,7 +358,8 @@ async def test_getOrganizationGroupTerms_group_tileAndUpcomingTermsEarliestFirst
 
     body = await _group_terms(client, slug, group_id)
 
-    assert set(body) == {"owner", "group", "terms"}
+    assert set(body) == {"owner", "group", "description", "terms"}
+    assert body["description"] is None
     assert body["owner"] == {
         "party_id": str(owner_party_id),
         "display_name": "Grupowe Nutki",

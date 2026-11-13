@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useAppParams } from "../../routing/navigation";
 import { useAppData } from "../panel/appDataStore";
-import { GroupFormFields } from "./GroupFormFields";
+import { GroupFormFields, isDescriptionTooLong } from "./GroupFormFields";
 import { parseCapacity } from "../../utils/appHelpers";
 
 const TITLE = "Edytuj grupę";
@@ -40,7 +40,8 @@ export function GroupEditView() {
     );
   }
 
-  const invalid = !editGroupForm.name.trim() || parseCapacity(editGroupForm.defaultCapacity) === undefined;
+  const invalid = !editGroupForm.name.trim() || parseCapacity(editGroupForm.defaultCapacity) === undefined ||
+    isDescriptionTooLong(editGroupForm.description);
   return (
     <section aria-label={TITLE}>
       {seeded && (
@@ -51,6 +52,11 @@ export function GroupEditView() {
           }}
           className="rounded-[22px] border border-line bg-paper p-5"
         >
+          {editGroupError && (
+            <p role="alert" className="mb-3 rounded-2xl bg-danger-soft px-3.5 py-3 text-[14px] font-bold text-danger">
+              {editGroupError}
+            </p>
+          )}
           <GroupFormFields
             value={editGroupForm}
             onChange={setEditGroupForm}
@@ -58,11 +64,6 @@ export function GroupEditView() {
             idPrefix="edit-group"
             fallbackLocation={group.default_location}
           />
-          {editGroupError && (
-            <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">
-              {editGroupError}
-            </p>
-          )}
           <button
             type="submit"
             disabled={busy || invalid}

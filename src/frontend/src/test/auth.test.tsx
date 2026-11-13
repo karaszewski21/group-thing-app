@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { getQueryClient } from "../api/queryClient";
 import { sessionFromToken } from "../auth/session";
+import { CATEGORIES_KEY } from "../hooks/useCategories";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
 import { createQueryWrapper } from "./queryClient";
@@ -343,6 +345,33 @@ describe("AuthContext", () => {
     await waitFor(() => expect(mockFetch).toHaveBeenCalledWith("/api/auth/register", expect.anything()));
     const init = mockFetch.mock.calls.find(([url]) => url === "/api/auth/register")![1] as RequestInit;
     expect(JSON.parse(init.body as string)).toEqual({ role: "GUEST", email: "new@example.com", password: "pass123" });
+  });
+});
+
+describe("AuthProvider session change", () => {
+  it("marks the cached category tree stale when the session ends, since its product counts depend on the viewer", async () => {
+    const payload = btoa(JSON.stringify({ sub: "admin", permissions: ["EDIT"], exp: Math.floor(Date.now() / 1000) + 3600 }));
+    const adminToken = `eyJhbGciOiJIUzI1NiJ9.${payload}.signature`;
+    localStorage.setItem("auth_token", adminToken);
+    getQueryClient().setQueryData(CATEGORIES_KEY, []);
+    mockUseAuth.mockImplementation(realUseAuth);
+
+    function TestConsumer() {
+      const { expireSession } = mockUseAuth() as ReturnType<typeof realUseAuth>;
+      return <button onClick={expireSession}>Expire</button>;
+    }
+
+    render(
+      <RealAuthProvider initialSession={sessionFromToken(adminToken)}>
+        <TestConsumer />
+      </RealAuthProvider>,
+      { wrapper: createQueryWrapper() },
+    );
+    expect(getQueryClient().getQueryState(CATEGORIES_KEY)?.isInvalidated).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "Expire" }));
+
+    await waitFor(() => expect(getQueryClient().getQueryState(CATEGORIES_KEY)?.isInvalidated).toBe(true));
   });
 });
 

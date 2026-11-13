@@ -54,7 +54,7 @@ import {
 } from "../../utils/neededItemQuickAdd";
 import { hasStatus, serverMessageOr } from "../../api/problem";
 import { setItemListingPreference, type ItemVisibility } from "../../api/itemListingPreferences";
-import type { GroupFormValue } from "../groups/GroupFormFields";
+import { descriptionRequestValue, isDescriptionTooLong, type GroupFormValue } from "../groups/GroupFormFields";
 import { EMPTY_EVENT_DRAFT, type EventDraft } from "../events/eventDraft";
 import { newTermDraft, type TermDraft } from "../terms/termDraft";
 import { useFirstTermStepper } from "../terms/hooks/useFirstTermStepper";
@@ -111,6 +111,7 @@ function useAppDataValue() {
     name: "",
     layoutMode: "CIRCLE",
     visibility: "PUBLIC",
+    description: "",
     defaultLocationId: null,
     defaultCapacity: "",
   });
@@ -153,6 +154,7 @@ function useAppDataValue() {
   const emptyGroupForm = (): GroupFormValue => ({
     name: "",
     visibility: defaultVisibility(organizationSlug),
+    description: "",
     defaultLocationId: null,
     defaultCapacity: "",
   });
@@ -355,7 +357,7 @@ function useAppDataValue() {
 
   async function handleAddGroup() {
     const defaultCapacity = parseCapacity(groupForm.defaultCapacity);
-    if (!groupForm.name.trim() || defaultCapacity === undefined) return;
+    if (!groupForm.name.trim() || defaultCapacity === undefined || isDescriptionTooLong(groupForm.description)) return;
     setBusy(true);
     setAddGroupError(null);
     try {
@@ -364,6 +366,7 @@ function useAppDataValue() {
       await createAdditionalMyCircle({
         name: groupForm.name.trim(),
         visibility: groupForm.visibility,
+        description: descriptionRequestValue(groupForm.description),
         default_location_id: groupForm.defaultLocationId,
         default_capacity: defaultCapacity,
       });
@@ -597,6 +600,7 @@ function useAppDataValue() {
       name: group.name,
       layoutMode: group.layout_mode,
       visibility: group.visibility,
+      description: group.description ?? "",
       defaultLocationId: group.default_location?.id ?? null,
       defaultCapacity: capacityText(group.default_capacity),
     });
@@ -608,15 +612,16 @@ function useAppDataValue() {
     if (!group) return;
     const name = editGroupForm.name.trim();
     const defaultCapacity = parseCapacity(editGroupForm.defaultCapacity);
-    if (!name || defaultCapacity === undefined) return;
+    if (!name || defaultCapacity === undefined || isDescriptionTooLong(editGroupForm.description)) return;
     setBusy(true);
     setEditGroupError(null);
     try {
-      // One PATCH with every field: `name` is required, and a `null` place or capacity clears it.
+      // One PATCH with every field: `name` is required, and a `null` place, capacity or description clears it.
       await updateGroup(group.id, {
         name,
         layout_mode: editGroupForm.layoutMode,
         visibility: editGroupForm.visibility,
+        description: descriptionRequestValue(editGroupForm.description),
         default_location_id: editGroupForm.defaultLocationId,
         default_capacity: defaultCapacity,
       });

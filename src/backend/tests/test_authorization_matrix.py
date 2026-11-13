@@ -345,6 +345,7 @@ def _first_match_without(method: str, path: str, removed_pattern: str) -> Matrix
         f"/api/public/parties/{uuid.uuid4()}/meetings",
         f"/api/public/items/{uuid.uuid4()}/details",
         f"/api/public/items/{uuid.uuid4()}/actions",
+        "/api/public/search",
     ],
 )
 def test_resolveRequirement_itemsPageReadRoutes_resolveToPublic(path: str) -> None:

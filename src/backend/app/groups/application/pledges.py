@@ -30,7 +30,6 @@ from ..infrastructure import outbox_bridge, repository
 from ..infrastructure.slug_resolver import resolve_organizer_slug
 from ..models import Pledge, PledgeStatus
 from .circles import _group_role_party_id, get_current_leadership
-from .memberships import _is_active_member
 from .terms import get_needed_item, get_term
 
 NOT_ATTENDING_MESSAGE = "Zapisz się na te zajęcia, żeby zgłosić, że coś przyniesiesz"
@@ -68,11 +67,12 @@ async def _emit_pledge_event(
 
 
 async def _takes_part(db: AsyncSession, term_id: uuid.UUID, party_id: uuid.UUID) -> bool:
-    """An active RSVP to the term, or a standing membership in its Circle."""
+    """An active RSVP to the term, or a standing membership in or the
+    current leadership of its Circle."""
     if await repository.has_active_attendance(db, term_id, party_id):
         return True
     term = await get_term(db, term_id)
-    return await _is_active_member(db, term.circle_group_id, party_id)
+    return await repository.is_in_circle(db, term.circle_group_id, party_id)
 
 
 async def create_pledge(db: AsyncSession, principal: Principal, needed_item_id: uuid.UUID) -> Pledge:

@@ -20,6 +20,8 @@ export interface GroupResponse {
   id: string;
   party_id: string;
   name: string;
+  /** Shown on the group terms page and in search; set on every group response. */
+  description: string | null;
   organizer_slug: string | null;
   layout_mode: GroupLayoutMode;
   visibility: GroupVisibility;
@@ -34,6 +36,8 @@ export interface GroupResponse {
 export interface CreateCircleRequest {
   name: string;
   visibility?: GroupVisibility;
+  /** ≤500 characters after trim; blank → `null`. */
+  description?: string | null;
 }
 
 /** `POST /groups/mine/new` only — `/mine` ignores the defaults. */
@@ -43,9 +47,10 @@ export interface CreateAdditionalCircleRequest extends CreateCircleRequest {
 }
 
 /** `PATCH /groups/{id}`: `name` is required; omitted `layout_mode`/`visibility`
- * keep their value, and the two defaults are kept when omitted and cleared by `null`. */
+ * keep their value, and the two defaults and `description` are kept when omitted and cleared by `null`. */
 export interface UpdateGroupRequest {
   name: string;
+  description?: string | null;
   layout_mode?: GroupLayoutMode;
   visibility?: GroupVisibility;
   default_location_id?: string | null;

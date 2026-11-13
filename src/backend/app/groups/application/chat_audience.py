@@ -28,8 +28,11 @@ async def list_active_attendee_party_ids(db: AsyncSession, term_id: uuid.UUID) -
 
 
 async def get_chat_audience_for_party(db: AsyncSession, party_id: uuid.UUID) -> ChatAudience:
+    """GROUP chats reach both sets, TERM chats only the led circles."""
+    led = repository.group_ids_for(party_id, organizer_only=True, include_deleted=True)
+    member = repository.group_ids_for(party_id, memberships_only=True, include_deleted=True)
     return ChatAudience(
-        led_group_ids=await repository.list_led_group_ids_for_party(db, party_id),
-        member_group_ids=await repository.list_member_group_ids_for_party(db, party_id),
+        led_group_ids=set(await db.scalars(led)),
+        member_group_ids=set(await db.scalars(member)),
         attended_term_ids=await repository.list_attended_term_ids_for_party(db, party_id),
     )

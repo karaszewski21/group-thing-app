@@ -10,7 +10,6 @@ regex/operator-allowlist constants, not a parser.
 from __future__ import annotations
 
 import uuid
-
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -107,9 +106,7 @@ def _parse_plugin_filter(raw: str) -> ColumnElement[Any]:
         try:
             numeric_value = Decimal(value)
         except InvalidOperation as exc:
-            raise ValueError(
-                f"Value must be numeric for '{operator}' operator: {value}"
-            ) from exc
+            raise ValueError(f"Value must be numeric for '{operator}' operator: {value}") from exc
         numeric_path = cast(_path_as_text(plugin_id, json_path), Numeric)
         return numeric_path > numeric_value if operator == "gt" else numeric_path < numeric_value
 
@@ -137,7 +134,7 @@ def _filtered_products(
         stmt = stmt.where(Product.category_id == category_id)
 
     if search:
-        stmt = stmt.where(Product.name.ilike(f"%{search}%"))
+        stmt = stmt.where(Product.name.icontains(search, autoescape=True))
 
     for raw_filter in plugin_filters or []:
         stmt = stmt.where(_parse_plugin_filter(raw_filter))

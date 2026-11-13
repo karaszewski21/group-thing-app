@@ -62,13 +62,15 @@ interface GroupCardProps {
   tone?: "primary" | "accent";
   /** The group page's own card is its `h1`. */
   headingLevel?: 1 | 3;
+  /** Full text under the name; only the group's own page passes it. */
+  description?: string | null;
   children?: ReactNode;
 }
 
 /** The big group tile: the seat map of the next term (circle, pitch or
- * table) or an icon, the layout label, the name, the next term with the
- * term and sign-up counts, then the actions passed as `children`. */
-export function GroupCard({ group, tone = "primary", headingLevel = 3, children }: GroupCardProps) {
+ * table) or an icon, the layout label, the name, the optional description,
+ * the next term with the term and sign-up counts, then the actions passed as `children`. */
+export function GroupCard({ group, tone = "primary", headingLevel = 3, description, children }: GroupCardProps) {
   const Heading = headingLevel === 1 ? "h1" : "h3";
   return (
     <div className="overflow-hidden rounded-[28px] border border-line bg-paper">
@@ -90,6 +92,9 @@ export function GroupCard({ group, tone = "primary", headingLevel = 3, children 
       </div>
       <div className="p-4">
         <Heading className="font-serif text-xl font-bold text-ink">{group.name}</Heading>
+        {description && (
+          <p className="mt-2 mb-1.5 text-sm leading-normal whitespace-pre-line text-ink">{description}</p>
+        )}
         <GroupFacts group={group} />
         {children}
       </div>

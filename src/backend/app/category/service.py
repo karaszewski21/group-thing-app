@@ -2,6 +2,11 @@
 `sort_order` reordering) and `require_leaf_category`, the leaf-only guard
 product writes call.
 
+`path_text` (the folded root-to-self path search matches against) is
+computed in SQL with `fold_pl()`, never Python `fold_polish`, so it equals
+migration 0092's backfill byte for byte: on create from the parent's path,
+on rename for the whole subtree. `move_category` only reorders siblings.
+
 Reaches `products.category_id` via a lightweight ad-hoc Core `table(...)`
 reference (`_products` below), never `app.product.models.Product` — see
 `models.py`'s module docstring for why that ORM model can't be relied on
@@ -13,7 +18,7 @@ from __future__ import annotations
 import uuid
 from typing import Literal
 
-from sqlalchemy import ColumnElement, Select, column, exists, func, select, table
+from sqlalchemy import ColumnElement, Select, column, exists, func, literal, select, table, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import BusinessConflictException, EntityNotFoundException
@@ -27,6 +32,27 @@ from .schemas import (
 )
 
 _products = table("products", column("id"), column("category_id"))
+
+# Refreshes `path_text` of `:category_id` and every descendant, as 0092.
+_REFRESH_SUBTREE_PATH_TEXT = text(
+    """
+    WITH RECURSIVE subtree (id, path_text) AS (
+        SELECT category.id,
+               coalesce(parent.path_text || ' / ', '') || fold_pl(category.name)
+        FROM categories category
+        LEFT JOIN categories parent ON parent.id = category.parent_id
+        WHERE category.id = :category_id
+        UNION ALL
+        SELECT child.id, subtree.path_text || ' / ' || fold_pl(child.name)
+        FROM categories child
+        JOIN subtree ON child.parent_id = subtree.id
+    )
+    UPDATE categories
+    SET path_text = subtree.path_text
+    FROM subtree
+    WHERE categories.id = subtree.id
+    """
+)
 
 
 class CategoryHasProductsException(BusinessConflictException):
@@ -114,6 +140,19 @@ async def _ensure_unique_sibling_name(
         raise DuplicateSiblingCategoryException()
 
 
+def _path_text_of_new(parent_id: uuid.UUID | None, name: str) -> ColumnElement[str]:
+    """SQL for a new category's `path_text`: the parent's path, `' / '` and
+    its own folded name."""
+    folded_name = func.fold_pl(literal(name))
+    if parent_id is None:
+        return folded_name
+    return (
+        select(Category.path_text + " / " + folded_name)
+        .where(Category.id == parent_id)
+        .scalar_subquery()
+    )
+
+
 async def require_leaf_category(db: AsyncSession, category_id: uuid.UUID) -> None:
     """404 for an unknown category, 409 for one that has children."""
     row = (
@@ -129,10 +168,16 @@ async def require_leaf_category(db: AsyncSession, category_id: uuid.UUID) -> Non
         raise CategoryNotLeafException()
 
 
-async def list_categories(db: AsyncSession) -> list[CategoryResponse]:
+async def list_categories(
+    db: AsyncSession, *, with_product_counts: bool = True
+) -> list[CategoryResponse]:
     """Single aggregated `LEFT JOIN`/`GROUP BY` against `products.
     category_id` per `standards/backend/queries.md` — not one count query
-    per category (no N+1)."""
+    per category (no N+1). Without `with_product_counts` (anonymous callers)
+    no aggregate runs and every `product_count` is 0."""
+    if not with_product_counts:
+        categories = await db.scalars(select(Category).order_by(Category.sort_order, Category.name))
+        return [category_response_from(category, 0) for category in categories]
     counts_subquery = (
         select(_products.c.category_id, func.count().label("product_count"))
         .group_by(_products.c.category_id)
@@ -146,9 +191,11 @@ async def list_categories(db: AsyncSession) -> list[CategoryResponse]:
     return [category_response_from(category, int(count)) for category, count in result.all()]
 
 
-async def get_category(db: AsyncSession, category_id: uuid.UUID) -> CategoryResponse:
+async def get_category(
+    db: AsyncSession, category_id: uuid.UUID, *, with_product_count: bool = True
+) -> CategoryResponse:
     category = await _get_category_entity(db, category_id)
-    count = await _count_products(db, category_id)
+    count = await _count_products(db, category_id) if with_product_count else 0
     return category_response_from(category, count)
 
 
@@ -167,6 +214,7 @@ async def create_category(db: AsyncSession, data: CreateCategoryRequest) -> Cate
         name=data.name,
         description=data.description,
         sort_order=0 if max_sort_order is None else max_sort_order + 1,
+        path_text=_path_text_of_new(data.parent_id, data.name),
     )
     db.add(category)
     await db.commit()
@@ -179,8 +227,12 @@ async def update_category(
 ) -> CategoryResponse:
     category = await _get_category_entity(db, category_id)
     await _ensure_unique_sibling_name(db, category.parent_id, data.name, exclude_id=category_id)
+    renamed = category.name != data.name
     category.name = data.name
     category.description = data.description
+    if renamed:
+        await db.flush()
+        await db.execute(_REFRESH_SUBTREE_PATH_TEXT, {"category_id": category_id})
     await db.commit()
     await db.refresh(category)
     count = await _count_products(db, category_id)

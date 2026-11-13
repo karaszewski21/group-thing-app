@@ -1,5 +1,5 @@
 import { useAppData } from "../panel/appDataStore";
-import { GroupFormFields } from "./GroupFormFields";
+import { GroupFormFields, isDescriptionTooLong } from "./GroupFormFields";
 import { parseCapacity } from "../../utils/appHelpers";
 
 const TITLE = "Nowa grupa";
@@ -9,7 +9,8 @@ const TITLE = "Nowa grupa";
  * the save (which then goes back to "Moje grupy") live in AppDataContext. */
 export function GroupCreateView() {
   const { groupForm, setGroupForm, addGroupError, busy, handleAddGroup } = useAppData();
-  const invalid = !groupForm.name.trim() || parseCapacity(groupForm.defaultCapacity) === undefined;
+  const invalid = !groupForm.name.trim() || parseCapacity(groupForm.defaultCapacity) === undefined ||
+    isDescriptionTooLong(groupForm.description);
 
   return (
     <section aria-label={TITLE}>
@@ -20,12 +21,12 @@ export function GroupCreateView() {
         }}
         className="rounded-[22px] border border-line bg-paper p-5"
       >
-        <GroupFormFields value={groupForm} onChange={setGroupForm} idPrefix="add-group" />
         {addGroupError && (
-          <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">
+          <p role="alert" className="mb-3 rounded-2xl bg-danger-soft px-3.5 py-3 text-[14px] font-bold text-danger">
             {addGroupError}
           </p>
         )}
+        <GroupFormFields value={groupForm} onChange={setGroupForm} idPrefix="add-group" />
         <button
           type="submit"
           disabled={busy || invalid}

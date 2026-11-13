@@ -154,9 +154,14 @@ async def list_my_terms_page(
     counts) or of the PRIVATE circles they or their family belong to (without
     them), latest date first."""
     circles = (
-        repository.led_group_ids_query(party_id)
+        repository.group_ids_for(party_id, organizer_only=True)
         if role is MyTermRole.LED
-        else repository.member_group_ids_query(party_id)
+        else repository.my_member_circle_ids(
+            party_id,
+            await repository.list_family_party_ids(db, party_id),
+            only_private=True,
+            exclude_led=True,
+        )
     )
     rows, total = await repository.list_terms_page(
         db, circles, None, _today_start(), params.offset, params.size

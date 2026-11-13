@@ -1,114 +1,302 @@
-import { useState } from "react";
-import { pluralPl } from "../../utils/plural";
-import { ItemTile, MeetingRow } from "../../components/shared/appComponents";
+import { useCallback, useRef, type KeyboardEvent, type ReactNode } from "react";
+import type { SearchMode, SearchResult, SearchScope } from "../../api/search";
+import { useAuth } from "../../auth/AuthContext";
 import { CloseIcon, SearchIcon } from "../../components/shared/appIcons";
-import { matchesQuery, MOCK_SEARCH_ITEMS, MOCK_SEARCH_MEETINGS } from "../../utils/mocks";
+import { nextIndex } from "../../components/shared/rovingIndex";
+import { useLoadMoreOnScroll } from "../../hooks/useLoadMoreOnScroll";
+import { SEARCH_MAX_LENGTH, useSearch } from "../../hooks/useSearch";
+import { Link } from "../../routing/navigation";
+import { viewPath } from "../../routing/paths";
+import { pluralPl } from "../../utils/plural";
+import { OtherModeLine, SEARCH_MODE_NOUNS } from "./OtherModeLine";
+import { SearchFilters } from "./SearchFilters";
+import { SearchResultCard } from "./SearchResultCard";
+import { resolveSearchView } from "./searchViewState";
+import { useSearchUrlState } from "./useSearchUrlState";
 
-type Scope = "rzeczy" | "spotkania";
-
-const SCOPES: { id: Scope; label: string }[] = [
-  { id: "rzeczy", label: "Rzeczy" },
-  { id: "spotkania", label: "Spotkania" },
+const MODES: { id: SearchMode; label: string }[] = [
+  { id: "items", label: "Przedmioty" },
+  { id: "events", label: "Spotkania" },
 ];
 
-/** Global search over items and meetings. Results come from MOCK data until
- * the backend has a search endpoint (see utils/mocks.ts). */
-export function SearchView() {
-  const [scope, setScope] = useState<Scope>("rzeczy");
-  const [query, setQuery] = useState("");
-  const q = query.trim();
+const SCOPES: { id: SearchScope; label: string }[] = [
+  { id: "mine", label: "Moje grupy" },
+  { id: "all", label: "Wszędzie" },
+];
 
-  const items = q ? MOCK_SEARCH_ITEMS.filter((i) => matchesQuery(i.name, q)) : MOCK_SEARCH_ITEMS;
-  const meetings = q
-    ? MOCK_SEARCH_MEETINGS.filter((m) => matchesQuery(`${m.group} ${m.organizer}`, q))
-    : MOCK_SEARCH_MEETINGS;
-  const count = scope === "rzeczy" ? items.length : meetings.length;
-  const summary = q
-    ? `${count} ${
-        scope === "rzeczy"
-          ? pluralPl(count, "rzecz", "rzeczy", "rzeczy")
-          : pluralPl(count, "spotkanie", "spotkania", "spotkań")
-      } dla „${q}”`
-    : scope === "rzeczy"
-      ? "Najnowsze rzeczy w okolicy"
-      : "Nadchodzące spotkania w okolicy";
+const HINT = "Wpisz co najmniej 2 znaki, żeby zacząć szukać.";
+const PANEL_ID = "szukaj-wyniki";
+const tabId = (mode: SearchMode) => `szukaj-tab-${mode}`;
+
+const SEGMENT_CLASS =
+  "rounded-full font-extrabold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+const segmentTone = (on: boolean) =>
+  on ? "bg-paper text-ink shadow-[0_2px_8px_-2px_rgba(42,35,32,0.25)]" : "text-ink-soft hover:text-ink";
+const EMPTY_CARD_CLASS =
+  "flex flex-col items-center gap-2.5 rounded-[28px] border-[1.5px] border-dashed border-line-strong bg-paper px-5 py-7 text-center";
+
+function countLabel(mode: SearchMode, count: number): string {
+  return `${count} ${pluralPl(count, ...SEARCH_MODE_NOUNS[mode])}`;
+}
+
+/** The global search over items and meetings (terms, events, groups and
+ * organizations). Its state lives in the URL, so going back from a result
+ * restores it. A guest searches everywhere and gets no scope control. */
+export function SearchView() {
+  const { token, username } = useAuth();
+  const guest = !token;
+  const { q, mode, scope, filters, setQ, setMode, setScope, setFilters, dateRangeInvalid } = useSearchUrlState(guest);
+  const search = useSearch({ q, mode, scope, filters }, guest ? null : username, { enabled: !dateRangeInvalid });
+  const term = q.trim();
+  const view = resolveSearchView({ ...search, q: term, mode, scope, dateRangeInvalid });
+
+  const { hasNextPage, fetchNextPage, fetchingNextPage, nextPageError } = search;
+  const loadMore = useCallback(() => void fetchNextPage(), [fetchNextPage]);
+  const canLoadMore = view.kind === "results" && hasNextPage && !fetchingNextPage && nextPageError === null;
+  const sentinel = useLoadMoreOnScroll(loadMore, canLoadMore);
+
+  const otherMode: SearchMode = mode === "items" ? "events" : "items";
+  const otherModeLine = (count: number, highlighted: boolean) => (
+    <OtherModeLine otherMode={otherMode} count={count} q={term} highlighted={highlighted} onSwitch={setMode} />
+  );
+
+  let summary: string;
+  let body: ReactNode;
+  switch (view.kind) {
+    case "hint":
+      summary = HINT;
+      body = null;
+      break;
+    case "invalid-range":
+      summary = "Popraw daty, żeby zobaczyć spotkania.";
+      body = null;
+      break;
+    case "loading":
+      summary = "Szukam…";
+      body = null;
+      break;
+    case "error":
+      summary = "";
+      body = (
+        <p role="alert" className="rounded-2xl bg-danger-soft p-4 text-sm text-ink">
+          {view.message}
+        </p>
+      );
+      break;
+    case "empty-items":
+      summary = `${countLabel(mode, 0)} dla „${view.q}”`;
+      body = (
+        <>
+          <EmptyItems q={view.q} scope={view.scope} />
+          {otherModeLine(view.otherModeCount, true)}
+        </>
+      );
+      break;
+    case "empty-meetings":
+      summary = `${countLabel(mode, 0)} dla „${view.q}”`;
+      body = (
+        <>
+          <div className={EMPTY_CARD_CLASS}>
+            <h2 className="font-serif text-[20px] font-extrabold text-ink">Nie znaleźliśmy spotkań</h2>
+            <p className="max-w-70 text-[15px] leading-snug text-ink-soft">
+              Spróbuj innego słowa albo zmień daty.
+            </p>
+          </div>
+          {otherModeLine(view.otherModeCount, true)}
+        </>
+      );
+      break;
+    case "results":
+      summary = view.stale ? "Szukam…" : `${countLabel(mode, view.total)} dla „${term}”`;
+      body = (
+        <>
+          {view.refreshError && (
+            <p role="alert" className="mb-3 text-sm text-danger">
+              {view.refreshError}
+            </p>
+          )}
+          <ResultList mode={mode} items={view.items} stale={view.stale} />
+          {nextPageError && (
+            <p role="alert" className="mt-3 text-sm text-danger">
+              {nextPageError}
+            </p>
+          )}
+          {hasNextPage && (
+            <button
+              ref={sentinel}
+              type="button"
+              onClick={loadMore}
+              disabled={fetchingNextPage}
+              className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full border-[1.5px] border-line bg-paper text-sm font-extrabold text-ink disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            >
+              {fetchingNextPage ? "Wczytuję…" : "Pokaż więcej"}
+            </button>
+          )}
+          {otherModeLine(view.otherModeCount, false)}
+        </>
+      );
+      break;
+  }
 
   return (
     <>
-      <div className="mb-3 flex items-center gap-2">
-        <div className="flex min-h-12.5 min-w-0 flex-1 items-center gap-2 rounded-full border-2 border-primary bg-paper pr-1.5 pl-4">
-          <SearchIcon />
-          <label htmlFor="panel-search" className="sr-only">
-            {scope === "rzeczy" ? "Szukaj rzeczy" : "Szukaj spotkań"}
-          </label>
-          <input
-            id="panel-search"
-            type="search"
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={scope === "rzeczy" ? "Np. wózek, kurtka 104, klocki" : "Np. rytmika, joga, sensoryka"}
-            className="h-11 min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-ink-soft [&::-webkit-search-cancel-button]:hidden"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              aria-label="Wyczyść"
-              className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-cream text-ink"
-            >
-              <CloseIcon />
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div role="tablist" aria-label="Czego szukasz" className="mb-4 grid grid-cols-2 gap-1 rounded-full bg-line p-1">
-        {SCOPES.map((s) => {
-          const on = scope === s.id;
-          return (
-            <button
-              key={s.id}
-              type="button"
-              role="tab"
-              id={`szukaj-tab-${s.id}`}
-              aria-selected={on}
-              aria-controls="szukaj-wyniki"
-              onClick={() => setScope(s.id)}
-              className={`min-h-10 rounded-full text-[15px] font-extrabold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
-                on ? "bg-paper text-ink shadow-[0_2px_8px_-2px_rgba(42,35,32,0.25)]" : "text-ink-soft hover:text-ink"
-              }`}
-            >
-              {s.label}
-            </button>
-          );
-        })}
-      </div>
-
-      <div role="tabpanel" id="szukaj-wyniki" aria-labelledby={`szukaj-tab-${scope}`}>
+      <SearchInput mode={mode} value={q} onChange={setQ} />
+      <ModeTabs mode={mode} onSelect={setMode} />
+      {!guest && <ScopeToggle scope={scope} onSelect={setScope} />}
+      <SearchFilters mode={mode} filters={filters} dateRangeInvalid={dateRangeInvalid} onChange={setFilters} />
+      <div role="tabpanel" id={PANEL_ID} aria-labelledby={tabId(mode)}>
         <p aria-live="polite" className="mb-3 text-sm text-ink-soft">
           {summary}
         </p>
-        {count === 0 ? (
-          <div className="rounded-[22px] border border-dashed border-line-strong bg-paper p-6 text-center text-sm text-ink-soft">
-            Nic nie znaleźliśmy. Spróbuj innego słowa.
-          </div>
-        ) : scope === "rzeczy" ? (
-          <div className="grid grid-cols-2 gap-3">
-            {items.map((item) => (
-              <ItemTile key={item.id} name={item.name} owner={item.owner} mode={item.mode} />
-            ))}
-          </div>
-        ) : (
-          <ul className="flex flex-col gap-2.5">
-            {meetings.map((m) => (
-              <li key={m.id}>
-                <MeetingRow meeting={m} />
-              </li>
-            ))}
-          </ul>
-        )}
+        {body}
       </div>
     </>
+  );
+}
+
+function SearchInput({ mode, value, onChange }: { mode: SearchMode; value: string; onChange: (q: string) => void }) {
+  return (
+    <div className="mb-3 flex min-h-12.5 min-w-0 items-center gap-2 rounded-full border-2 border-primary bg-paper pr-1.5 pl-4">
+      <SearchIcon />
+      <label htmlFor="panel-search" className="sr-only">
+        {mode === "items" ? "Szukaj przedmiotów" : "Szukaj spotkań"}
+      </label>
+      <input
+        id="panel-search"
+        type="search"
+        autoFocus
+        maxLength={SEARCH_MAX_LENGTH}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={mode === "items" ? "Np. wózek, kurtka 104, klocki" : "Np. rytmika, joga, sensoryka"}
+        className="h-11 min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-ink-soft [&::-webkit-search-cancel-button]:hidden"
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label="Wyczyść"
+          className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-cream text-ink"
+        >
+          <CloseIcon />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ModeTabs({ mode, onSelect }: { mode: SearchMode; onSelect: (mode: SearchMode) => void }) {
+  const tabRefs = useRef<Partial<Record<SearchMode, HTMLButtonElement | null>>>({});
+
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    const index = nextIndex(event.key, MODES.findIndex((m) => m.id === mode), MODES.length, "horizontal");
+    if (index === null) return;
+    event.preventDefault();
+    const target = MODES[index].id;
+    onSelect(target);
+    tabRefs.current[target]?.focus();
+  }
+
+  return (
+    <div role="tablist" aria-label="Czego szukasz" className="mb-2 grid grid-cols-2 gap-1 rounded-full bg-line p-1">
+      {MODES.map((m) => {
+        const on = m.id === mode;
+        return (
+          <button
+            key={m.id}
+            ref={(element) => {
+              tabRefs.current[m.id] = element;
+            }}
+            type="button"
+            role="tab"
+            id={tabId(m.id)}
+            aria-selected={on}
+            aria-controls={PANEL_ID}
+            tabIndex={on ? 0 : -1}
+            onClick={() => onSelect(m.id)}
+            onKeyDown={handleKeyDown}
+            className={`min-h-11 text-[15px] ${SEGMENT_CLASS} ${segmentTone(on)}`}
+          >
+            {m.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ScopeToggle({ scope, onSelect }: { scope: SearchScope; onSelect: (scope: SearchScope) => void }) {
+  const radioRefs = useRef<Partial<Record<SearchScope, HTMLButtonElement | null>>>({});
+
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    const index = nextIndex(event.key, SCOPES.findIndex((s) => s.id === scope), SCOPES.length);
+    if (index === null) return;
+    event.preventDefault();
+    const target = SCOPES[index].id;
+    onSelect(target);
+    radioRefs.current[target]?.focus();
+  }
+
+  return (
+    <div role="radiogroup" aria-label="Zakres" className="mb-3 grid grid-cols-2 gap-1 rounded-full bg-line p-1">
+      {SCOPES.map((s) => {
+        const on = s.id === scope;
+        return (
+          <button
+            key={s.id}
+            ref={(element) => {
+              radioRefs.current[s.id] = element;
+            }}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            tabIndex={on ? 0 : -1}
+            onClick={() => onSelect(s.id)}
+            onKeyDown={handleKeyDown}
+            className={`min-h-11 text-[13px] ${SEGMENT_CLASS} ${segmentTone(on)}`}
+          >
+            {s.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ResultList({ mode, items, stale }: { mode: SearchMode; items: SearchResult[]; stale: boolean }) {
+  return (
+    <ul
+      aria-busy={stale}
+      className={`${mode === "items" ? "grid grid-cols-2 gap-3" : "flex flex-col gap-2.5"} ${stale ? "opacity-60" : ""}`}
+    >
+      {items.map((result) => (
+        <li key={`${result.kind}-${result.id}`}>
+          <SearchResultCard result={result} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function EmptyItems({ q, scope }: { q: string; scope: SearchScope }) {
+  return (
+    <div className={EMPTY_CARD_CLASS}>
+      <span aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-3xl bg-accent-soft text-accent-fg">
+        <SearchIcon c="currentColor" />
+      </span>
+      <h2 className="font-serif text-[20px] font-extrabold text-ink">
+        {scope === "mine" ? "Nikt w Twoich grupach tego nie oddaje" : "Nikt tego jeszcze nie oddaje"}
+      </h2>
+      <p className="max-w-70 text-[15px] leading-snug text-ink-soft">
+        Dodaj to do listy „szukam” — dasz znać, czego potrzebujesz.
+        {scope === "mine" && " Możesz też szukać wszędzie."}
+      </p>
+      <Link
+        to={`${viewPath("add/hunting")}?name=${encodeURIComponent(q)}`}
+        className="mt-1 flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-[15px] font-extrabold text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+      >
+        Dodaj do listy „szukam”
+      </Link>
+    </div>
   );
 }

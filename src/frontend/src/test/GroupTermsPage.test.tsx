@@ -58,6 +58,7 @@ function groupTerms(overrides: Partial<OrganizationGroupTermsResponse> = {}): Or
         path: `/${SLUG}/group/${GROUP_ID}/term/t2`,
       },
     ],
+    description: null,
     ...overrides,
   };
 }
@@ -116,6 +117,33 @@ describe("GroupTermsPage", () => {
     expect(screen.getByText("brak zaplanowanych terminów")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Zobacz najbliższy termin/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  });
+
+  it("shows the group's full description between its name and the next-term facts", async () => {
+    const text = "Rytmika dla maluchów i rodziców.\nPrzynieście wygodne ubrania.";
+    vi.mocked(organizationsApi.getOrganizationGroupTerms).mockResolvedValue(groupTerms({ description: text }));
+
+    await renderAt(`/${SLUG}/group/${GROUP_ID}/terms`);
+
+    const heading = await screen.findByRole("heading", { level: 1, name: "Zajęcia Pomelody" });
+    const description = screen.getByText(/Rytmika dla maluchów i rodziców\./);
+    expect(description.tagName).toBe("P");
+    expect(description.textContent).toBe(text);
+    expect(description).toHaveClass("whitespace-pre-line");
+    expect(description).not.toHaveClass("line-clamp-2");
+    expect(heading.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const facts = screen.getByText(/najbliższy:/);
+    expect(description.compareDocumentPosition(facts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("renders no description paragraph in the hero for a group without one", async () => {
+    vi.mocked(organizationsApi.getOrganizationGroupTerms).mockResolvedValue(groupTerms());
+
+    await renderAt(`/${SLUG}/group/${GROUP_ID}/terms`);
+
+    const heading = await screen.findByRole("heading", { level: 1, name: "Zajęcia Pomelody" });
+    expect(heading.parentElement?.querySelector("p")).toBeNull();
+    expect(heading.nextElementSibling).toHaveTextContent(/^najbliższy:/);
   });
 
   it.each([404, 400])("shows not found when the group read answers %i", async (status) => {

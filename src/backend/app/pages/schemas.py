@@ -120,11 +120,12 @@ class GroupTermResponse(BaseModel):
 
 class OrganizationGroupTermsResponse(BaseModel):
     """The group page behind `/<org-slug>/group/<group-id>/terms`: the group
-    tile and its upcoming terms, earliest first, at most
-    `GROUP_TERMS_LIMIT`."""
+    tile, the group's description (kept off the tile, which the layouts share)
+    and its upcoming terms, earliest first, at most `GROUP_TERMS_LIMIT`."""
 
     owner: OwnerSummaryResponse
     group: OrganizationGroupResponse
+    description: str | None
     terms: list[GroupTermResponse]
 
 

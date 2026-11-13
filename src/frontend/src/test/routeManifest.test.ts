@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { authPath } from "../auth/authPaths";
+import { resolveProxy } from "../proxy";
 import { INBOX_PATH, threadPath } from "../routing/messagesPaths";
 import {
   appearancePath,
@@ -152,6 +153,16 @@ describe("App Router route manifest", () => {
       authPath("login").split("?")[0],
     ];
     for (const url of urls) expect(pageFor(url), url).not.toBeNull();
+  });
+
+  it("opens only /add and /search of the panel to guests, each with its own PanelGate branch", () => {
+    const open = PANEL.filter((pattern) => !pattern.includes(":")).filter(
+      (pathname) =>
+        resolveProxy({ method: "GET", pathname, search: "", hasSession: false }, "http://backend").kind === "next",
+    );
+    expect(open.sort()).toEqual(["/add", "/search"]);
+    const gate = readFileSync(resolve(APP_DIR, "../features/panel/PanelGate.tsx"), "utf8");
+    for (const view of ["add", "search"]) expect(gate).toContain(`pathname === viewPath("${view}")`);
   });
 
   it("never puts a server redirect() page under a layout that withholds its children", () => {

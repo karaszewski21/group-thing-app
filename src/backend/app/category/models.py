@@ -16,7 +16,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import ForeignKey, Index, Integer, String, UniqueConstraint, text
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -37,6 +37,12 @@ class Category(BaseEntity):
             unique=True,
             postgresql_where=text("parent_id IS NULL"),
         ),
+        Index(
+            "ix_categories_path_text_trgm",
+            "path_text",
+            postgresql_using="gin",
+            postgresql_ops={"path_text": "gin_trgm_ops"},
+        ),
     )
 
     parent_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -48,6 +54,10 @@ class Category(BaseEntity):
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
     external_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # The `fold_pl()`-folded names from the root down, joined with " / "
+    # (migrations 0091–0092). Written only in SQL by `service.py`, so it
+    # equals the 0092 backfill byte for byte.
+    path_text: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
 
     def __eq__(self, other: Any) -> bool:
         """Business-key equality on `(parent_id, name)` (never entity `id`) —

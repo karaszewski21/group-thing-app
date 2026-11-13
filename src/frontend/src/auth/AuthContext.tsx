@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { getMyProfile } from "../api/people";
+import { getQueryClient } from "../api/queryClient";
+import { CATEGORIES_KEY } from "../hooks/useCategories";
 import { useRouterRefresh } from "../routing/navigation";
 import {
   clearSession,
@@ -101,6 +103,9 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
     if (previousToken.current === token) return;
     previousToken.current = token;
     refreshRouter();
+    // The tree's product counts are shown to staff only, and the shared
+    // query is not keyed by viewer.
+    void getQueryClient().invalidateQueries({ queryKey: CATEGORIES_KEY });
   }, [token, refreshRouter]);
 
   const login = useCallback(

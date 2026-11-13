@@ -95,6 +95,17 @@ async def get_profile_by_principal(db: AsyncSession, principal: Principal) -> Us
     return profile
 
 
+async def find_party_id_by_principal(db: AsyncSession, principal: Principal) -> uuid.UUID | None:
+    """The caller's party in one statement, `None` without a profile."""
+    return (
+        await db.execute(
+            select(UserProfile.party_id)
+            .join(User, User.id == UserProfile.account_user_id)
+            .where(User.username == principal.username)
+        )
+    ).scalar_one_or_none()
+
+
 async def update_my_profile(
     db: AsyncSession, principal: Principal, data: UpdateMyProfileRequest
 ) -> UserProfile:

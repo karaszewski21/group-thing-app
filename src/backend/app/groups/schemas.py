@@ -41,6 +41,7 @@ class GroupResponse(BaseModel):
     visibility: GroupVisibility
     default_location: LocationRefResponse | None = None
     default_capacity: int | None = None
+    description: str | None = None
     created_at: datetime
     updated_at: datetime
     # Every Term of the Circle; filled only by `GET /api/groups/{id}`.
@@ -71,23 +72,46 @@ def _reject_blank_name(value: str) -> str:
     return trimmed
 
 
+GROUP_DESCRIPTION_MAX_LENGTH = 500
+
+
+def _normalize_description(value: str | None) -> str | None:
+    """Stripped, blank → `None`. The limit counts code points after the
+    strip (as the form's counter does), so it lives here rather than in
+    `Field(max_length=...)`, which Pydantic checks before the strip."""
+    if value is None:
+        return None
+    trimmed = value.strip()
+    if not trimmed:
+        return None
+    if len(trimmed) > GROUP_DESCRIPTION_MAX_LENGTH:
+        raise ValueError(f"Opis może mieć najwyżej {GROUP_DESCRIPTION_MAX_LENGTH} znaków.")
+    return trimmed
+
+
 class CreateCircleRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+
+    _strip_description = field_validator("description")(_normalize_description)
 
 
 class UpdateGroupRequest(BaseModel):
     """In-place circle update — the active-organizer check lives in
     `service.update_group`, not the matrix. `name` is required;
-    `layout_mode`/`visibility` apply only when non-null; the defaults apply
-    only when present in `model_fields_set` (omitted = keep, `null` = clear)."""
+    `layout_mode`/`visibility` apply only when non-null; the defaults and
+    `description` apply only when present in `model_fields_set` (omitted =
+    keep, `null` or blank = clear)."""
 
     name: str = Field(min_length=1, max_length=255)
     layout_mode: GroupLayoutMode | None = None
     visibility: GroupVisibility | None = None
     default_location_id: uuid.UUID | None = None
     default_capacity: int | None = Field(default=None, ge=1, le=10000)
+    description: str | None = None
 
     _strip_name = field_validator("name")(_reject_blank_name)
+    _strip_description = field_validator("description")(_normalize_description)
 
 
 # Alias for call sites that speak of "circles" rather than "groups".
@@ -96,12 +120,16 @@ UpdateCircleRequest = UpdateGroupRequest
 
 class CreateOwnCircleRequest(BaseModel):
     """`visibility` and the defaults are honoured by `/mine/new` only;
-    `/mine` ignores them."""
+    `/mine` ignores them. `description` applies on both when a Circle is
+    created."""
 
     name: str = Field(min_length=1, max_length=255)
     visibility: GroupVisibility | None = None
     default_location_id: uuid.UUID | None = None
     default_capacity: int | None = Field(default=None, ge=1, le=10000)
+    description: str | None = None
+
+    _strip_description = field_validator("description")(_normalize_description)
 
 
 class GroupRoleResponse(BaseModel):
