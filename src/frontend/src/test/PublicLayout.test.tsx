@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthGuard } from "../auth/AuthGuard";
 import * as conversationsApi from "../api/conversations";
 import * as notificationsApi from "../api/notifications";
-import SearchPage from "../app/(site)/(panel)/search/page";
+import BackPageLayout from "../app/(public)/layout";
+import SearchPage from "../app/(public)/search/page";
 import { PublicLayout } from "../components/layout/PublicLayout";
-import { PanelGate } from "../features/panel/PanelGate";
 import { createQueryWrapper } from "./queryClient";
 import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 import { resetSnoozeStoreForTests } from "../components/layout/pending/snoozeStore";
@@ -39,10 +39,10 @@ function renderPublicPage(initialEntry = "/skrzaty") {
       ),
       "/profile": inLayout(<h1>Profil</h1>),
       "/messages/:conversationId": inLayout(<h1>Wątek</h1>),
-      "/search": inLayout(
-        <PanelGate>
+      "/search": (
+        <BackPageLayout>
           <SearchPage />
-        </PanelGate>,
+        </BackPageLayout>
       ),
       "/login": <h1>Logowanie</h1>,
     },
@@ -137,17 +137,18 @@ describe("PublicLayout", () => {
     expect(screen.getByRole("link", { name: "Szukaj rzeczy i spotkań" })).toHaveAttribute("href", "/search");
   });
 
-  it("anonymous: the search field leads to a working /search with „Zaloguj się”, not to the login page", () => {
+  it("anonymous: the search field opens /search on its own page with „Wróć” and „Zaloguj się”, no global bars", () => {
     renderPublicPage();
 
     fireEvent.click(screen.getByRole("link", { name: "Szukaj rzeczy i spotkań" }));
 
     expect(getTestLocation()).toEqual({ pathname: "/search", search: "" });
     expect(screen.getByRole("searchbox")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute(
-      "href",
-      "/login?returnTo=%2Fsearch",
-    );
+    expect(screen.queryByRole("navigation", { name: "Menu konta" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Nawigacja główna" })).not.toBeInTheDocument();
+
+    expect(screen.getByRole("link", { name: "Wróć" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute("href", "/login?returnTo=%2Fsearch");
     expect(screen.queryByRole("heading", { name: "Logowanie" })).not.toBeInTheDocument();
   });
 

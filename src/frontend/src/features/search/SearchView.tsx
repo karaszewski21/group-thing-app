@@ -11,7 +11,9 @@ import { pluralPl } from "../../utils/plural";
 import { OtherModeLine, SEARCH_MODE_NOUNS } from "./OtherModeLine";
 import { SearchFilters } from "./SearchFilters";
 import { SearchResultCard } from "./SearchResultCard";
+import { SearchResultsSkeleton } from "./SearchSkeleton";
 import { resolveSearchView } from "./searchViewState";
+import { useSearchScrollRestore } from "./useSearchScrollRestore";
 import { useSearchUrlState } from "./useSearchUrlState";
 
 const MODES: { id: SearchMode; label: string }[] = [
@@ -40,8 +42,8 @@ function countLabel(mode: SearchMode, count: number): string {
 }
 
 /** The global search over items and meetings (terms, events, groups and
- * organizations). Its state lives in the URL, so going back from a result
- * restores it. A guest searches everywhere and gets no scope control. */
+ * organizations). Its state lives in the URL and the loaded pages stay
+ * cached, so going back from a result restores them and the scroll. A guest searches everywhere and gets no scope control. */
 export function SearchView() {
   const { token, username } = useAuth();
   const guest = !token;
@@ -54,6 +56,7 @@ export function SearchView() {
   const loadMore = useCallback(() => void fetchNextPage(), [fetchNextPage]);
   const canLoadMore = view.kind === "results" && hasNextPage && !fetchingNextPage && nextPageError === null;
   const sentinel = useLoadMoreOnScroll(loadMore, canLoadMore);
+  const rememberScroll = useSearchScrollRestore(view.kind === "results" && !view.stale);
 
   const otherMode: SearchMode = mode === "items" ? "events" : "items";
   const otherModeLine = (count: number, highlighted: boolean) => (
@@ -73,7 +76,7 @@ export function SearchView() {
       break;
     case "loading":
       summary = "Szukam…";
-      body = null;
+      body = <SearchResultsSkeleton mode={mode} />;
       break;
     case "error":
       summary = "";
@@ -144,7 +147,7 @@ export function SearchView() {
       <ModeTabs mode={mode} onSelect={setMode} />
       {!guest && <ScopeToggle scope={scope} onSelect={setScope} />}
       <SearchFilters mode={mode} filters={filters} dateRangeInvalid={dateRangeInvalid} onChange={setFilters} />
-      <div role="tabpanel" id={PANEL_ID} aria-labelledby={tabId(mode)}>
+      <div role="tabpanel" id={PANEL_ID} aria-labelledby={tabId(mode)} onClickCapture={rememberScroll}>
         <p aria-live="polite" className="mb-3 text-sm text-ink-soft">
           {summary}
         </p>

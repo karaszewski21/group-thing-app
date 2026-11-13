@@ -11,8 +11,8 @@ import type { ItemActionsResponse } from "../api/itemActions";
 import type { ItemDetailsResponse } from "../api/items";
 import type { PartyProfileResponse } from "../api/ownerItems";
 import type { UserProfileResponse } from "../api/people";
-import PanelLayout from "../app/(site)/(panel)/layout";
-import SearchPage from "../app/(site)/(panel)/search/page";
+import BackPageLayout from "../app/(public)/layout";
+import SearchPage from "../app/(public)/search/page";
 import { AuthProvider } from "../auth/AuthContext";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { LoginPage } from "../features/auth/LoginPage";
@@ -230,20 +230,25 @@ describe("SSR safety", () => {
   it.each([
     { session: "anonymous", token: null },
     { session: "cookie", token: SESSION },
-  ])("renders the $session /search chrome, leaving the browser-only panel to the client", ({ token }) => {
+  ])("renders the $session /search page with the field and tabs, without the global bars", ({ token }) => {
     const html = renderOnServer(
       "/search?q=klocki",
       "/search",
-      <PublicLayout>
-        <PanelLayout>
-          <SearchPage />
-        </PanelLayout>
-      </PublicLayout>,
+      <BackPageLayout>
+        <SearchPage />
+      </BackPageLayout>,
       createTestQueryClient(),
       token,
     );
-    expect(html).toContain('aria-label="Menu konta"');
-    expect(html).not.toContain("Szukaj rzeczy i spotkań");
+    expect(html).toContain("Wróć");
+    expect(html).toContain('type="search"');
+    expect(html).toContain('value="klocki"');
+    expect(html).toContain('role="tablist"');
+    expect(html).toContain("Szukam…");
+    expect(html.includes('role="radiogroup"')).toBe(token !== null);
+    expect(html.includes("Zaloguj się")).toBe(token === null);
+    expect(html).not.toContain('aria-label="Menu konta"');
+    expect(html).not.toContain('aria-label="Nawigacja główna"');
   });
 
   it.each([

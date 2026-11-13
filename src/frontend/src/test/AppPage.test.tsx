@@ -23,7 +23,6 @@ import * as termItemListingsApi from "../api/termItemListings";
 import * as localitiesApi from "../api/localities";
 import * as locationsApi from "../api/locations";
 import * as eventsApi from "../api/events";
-import * as searchApi from "../api/search";
 import { AppPage } from "../features/panel/AppPage";
 import { emitPendingActionResolved } from "../components/layout/pending/pendingActionResolved";
 import { ApiError } from "../api/client";
@@ -2983,39 +2982,6 @@ describe("AppPage — redesigned navigation and pages", () => {
     expect(screen.queryByRole("link", { name: /Wróć/ })).not.toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Nawigacja główna" });
     expect(within(nav).getByRole("button", { name: "Konto" })).toHaveAttribute("aria-current", "true");
-  });
-
-  it("Szukaj searches items through the API and switches to meetings with the same q", async () => {
-    mockGuestDefaults();
-    vi.mocked(searchApi.searchPublic).mockImplementation(async ({ mode }) => ({
-      items:
-        mode === "items"
-          ? [
-              {
-                kind: "product",
-                id: "w1",
-                title: "Wózek spacerowy",
-                subtitle: null,
-                href: "/marta/product/w1",
-                meta: { mode: "SWAP", condition: "GOOD", thumb_url: null, reserved: false, reserved_until: null },
-              },
-            ]
-          : [],
-      total: mode === "items" ? 1 : 0,
-      page: 1,
-      size: 20,
-      other_mode_count: mode === "items" ? 0 : 1,
-    }));
-    renderPanel("/search");
-
-    fireEvent.change(await screen.findByLabelText("Szukaj przedmiotów"), { target: { value: "wozek" } });
-    expect(await screen.findByText("1 przedmiot dla „wozek”")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Wózek spacerowy" })).toHaveAttribute("href", "/marta/product/w1");
-
-    fireEvent.click(screen.getByRole("tab", { name: "Spotkania" }));
-    expect(screen.getByLabelText("Szukaj spotkań")).toHaveValue("wozek");
-    expect(await screen.findByText("0 spotkań dla „wozek”")).toBeInTheDocument();
-    expect(searchApi.searchPublic).toHaveBeenLastCalledWith(expect.objectContaining({ q: "wozek", mode: "events" }), 1, 20);
   });
 
   it("Szukam adds and removes a wanted item", async () => {

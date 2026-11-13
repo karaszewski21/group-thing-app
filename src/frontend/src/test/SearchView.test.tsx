@@ -1,13 +1,16 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as categoriesApi from "../api/categories";
 import { ApiError } from "../api/client";
 import type { Category } from "../api/categories";
 import * as searchApi from "../api/search";
 import type { SearchPage, SearchQuery, SearchResult } from "../api/search";
+import BackPageLayout from "../app/(public)/layout";
+import SearchRoutePage from "../app/(public)/search/page";
+import { SearchPageError } from "../features/search/SearchRouteStates";
 import { SearchView } from "../features/search/SearchView";
 import { createQueryWrapper, createTestQueryClient } from "./queryClient";
-import { getTestLocation, renderWithRoute } from "./renderWithRoute";
+import { getTestLocation, getTestRouter, renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/search", () => ({ searchPublic: vi.fn() }));
 vi.mock("../api/categories", () => ({ getCategories: vi.fn() }));
@@ -331,5 +334,82 @@ describe("SearchView", () => {
     renderSearch("/search?q=kar&scope=all");
     await act(() => sleep(0));
     expect(getTestLocation().search).toBe("?q=kar&scope=all");
+  });
+});
+
+describe("SearchPage", () => {
+  afterEach(() => {
+    sessionStorage.clear();
+    Object.defineProperty(window, "scrollY", { value: 0, configurable: true, writable: true });
+  });
+
+  function renderPage(url: string) {
+    return renderWithRoute(
+      <BackPageLayout>
+        <SearchRoutePage />
+      </BackPageLayout>,
+      {
+        url,
+        pattern: "/search",
+        routes: { "/": <h1>Start</h1>, "/zielony-krag/product/:id": <h1>Strona rzeczy</h1> },
+        wrapper: createQueryWrapper(createTestQueryClient()),
+      },
+    );
+  }
+
+  it("„Wróć” leads to Start; a member gets no „Zaloguj się”", async () => {
+    renderPage("/search?q=klocki");
+
+    expect(await screen.findByRole("searchbox")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Zaloguj się" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "Wróć" }));
+
+    expect(getTestLocation()).toEqual({ pathname: "/", search: "" });
+  });
+
+  it("going back from a result keeps the loaded pages and the scroll position", async () => {
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    vi.mocked(searchApi.searchPublic).mockImplementation(async (_query, pageNumber) => ({
+      items: [product(`p${pageNumber}`, `Klocki ${pageNumber}`)],
+      total: 40,
+      page: pageNumber,
+      size: 20,
+      other_mode_count: 0,
+    }));
+    renderPage("/search?q=klocki");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Pokaż więcej" }));
+    expect(await screen.findByRole("link", { name: "Klocki 2" })).toBeInTheDocument();
+    Object.defineProperty(window, "scrollY", { value: 840, configurable: true, writable: true });
+    fireEvent.click(screen.getByRole("link", { name: "Klocki 2" }));
+    expect(await screen.findByRole("heading", { name: "Strona rzeczy" })).toBeInTheDocument();
+
+    act(() => getTestRouter().navigate(-1));
+
+    expect(await screen.findByRole("link", { name: "Klocki 1" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Klocki 2" })).toBeInTheDocument();
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(0, 840));
+    scrollTo.mockRestore();
+  });
+
+  it("while the first page loads, shows result placeholders under „Szukam…”", async () => {
+    vi.mocked(searchApi.searchPublic).mockReturnValue(new Promise(() => {}));
+    const { container } = renderPage("/search?q=klocki");
+
+    expect(await screen.findByText("Szukam…")).toBeInTheDocument();
+    expect(container.querySelector('[role="tabpanel"] [aria-hidden="true"]')).not.toBeNull();
+  });
+
+  it("the route error clears the cached searches before „Spróbuj ponownie” re-renders", async () => {
+    const client = createTestQueryClient();
+    const resetQueries = vi.spyOn(client, "resetQueries");
+    const reset = vi.fn();
+    renderWithRoute(<SearchPageError reset={reset} />, { url: "/search", wrapper: createQueryWrapper(client) });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Nie udało się wczytać wyszukiwania.");
+    fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
+
+    await waitFor(() => expect(reset).toHaveBeenCalled());
+    expect(resetQueries).toHaveBeenCalledWith({ queryKey: ["search"] });
   });
 });

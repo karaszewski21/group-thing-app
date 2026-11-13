@@ -27,7 +27,6 @@ import PlacesPage from "../app/(site)/(panel)/places/page";
 import PlacesLocationIdEditPage from "../app/(site)/(panel)/places/[locationId]/edit/page";
 import PlacesNewPage from "../app/(site)/(panel)/places/new/page";
 import ProfilePage from "../app/(site)/(panel)/profile/page";
-import SearchPage from "../app/(site)/(panel)/search/page";
 import TermsTermIdAttendeesPage from "../app/(site)/(panel)/terms/[termId]/attendees/page";
 import TermsTermIdEditPage from "../app/(site)/(panel)/terms/[termId]/edit/page";
 import WantedPage from "../app/(site)/(panel)/wanted/page";
@@ -65,7 +64,6 @@ export const PANEL_PAGES: Record<string, ComponentType> = {
   "/places/:locationId/edit": PlacesLocationIdEditPage,
   "/places/new": PlacesNewPage,
   "/profile": ProfilePage,
-  "/search": SearchPage,
   "/terms/:termId/attendees": TermsTermIdAttendeesPage,
   "/terms/:termId/edit": TermsTermIdEditPage,
   "/wanted": WantedPage,

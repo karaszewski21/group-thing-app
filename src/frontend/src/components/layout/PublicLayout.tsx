@@ -5,14 +5,14 @@ import { HEADER_BUTTON } from "../shared/headerButton";
 import { NotificationBell } from "../shared/NotificationBell";
 import { PendingActionsHost } from "./pending/PendingActionsHost";
 import { BellIcon, CalendarIcon, SearchIcon } from "../shared/appIcons";
-import { matchPath, viewPath } from "../../routing/paths";
+import { viewPath } from "../../routing/paths";
 import { authPath } from "../../auth/authPaths";
 import { BottomNav } from "./BottomNav";
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
 /** The app-wide layout route (everything but the OAuth2 consent page and
- * /admin): a sticky top bar and the bottom tab bar on
+ * /admin and /search, which is a page of its own): a sticky top bar and the bottom tab bar on
  * every page, for anonymous visitors too. The top bar carries the Krąg grupy
  * mark (home), Spotkania and the notification bell — for anonymous visitors
  * a bell that leads to /login — and the search field below them. Messages
@@ -22,14 +22,11 @@ const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus
  * prompt is mounted too. */
 export function PublicLayout({ children }: { children: ReactNode }) {
   const { token } = useAuth();
-  const pathname = useAppPathname();
-  const onSearch = matchPath(viewPath("search"), pathname) !== null;
 
   return (
     <div className={`flex flex-col bg-cream min-h-dvh`}>
       <header className="sticky top-0 z-20 flex flex-none flex-col gap-3 border-b border-line bg-cream px-4 py-3">
         <nav aria-label="Menu konta" className="flex items-center gap-2">
-          {!onSearch && (
           <Link
             to={viewPath("search")}
             className={`flex flex-1 min-h-12 items-center gap-2.5 rounded-full border-[1.5px] border-line bg-paper px-4.5 text-[15px] text-ink-soft transition-colors hover:border-line-strong ${FOCUS_RING}`}
@@ -37,12 +34,11 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             <SearchIcon c="currentColor" />
             Szukaj rzeczy i spotkań
           </Link>
-        )}
           <Link to={viewPath("meetings")} aria-label="Spotkania" className={HEADER_BUTTON}>
             <CalendarIcon c="currentColor" />
           </Link>
           {token ? <NotificationBell /> : <LoginBell />}
-        </nav> 
+        </nav>
       </header>
       <main tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
         {children}
