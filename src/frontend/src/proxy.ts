@@ -67,5 +67,5 @@ export function proxy(request: NextRequest): NextResponse {
 
 // `/api/*` must stay unmatched: the proxy buffers bodies up to 10 MB, and uploads go up to 15 MB.
 export const config = {
-  matcher: "/((?!api/|_next/|assets/|\\.well-known/|favicon\\.svg|icons\\.svg).*)",
+  matcher: "/((?!api/|_next/|assets/|\\.well-known/|favicon\\.ico|icons\\.svg).*)",
 };

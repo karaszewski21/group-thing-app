@@ -109,7 +109,7 @@ describe("proxy", () => {
       "/_next/static/chunk.js",
       "/assets/plugin-sdk.js",
       "/.well-known/openid-configuration",
-      "/favicon.svg",
+      "/favicon.ico",
       "/icons.svg",
     ]) {
       expect(matcher.test(skipped), skipped).toBe(false);

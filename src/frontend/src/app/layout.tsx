@@ -6,8 +6,8 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Krąg grupy",
-  icons: { icon: { url: "/favicon.svg", type: "image/svg+xml" } },
+  title: "Gooo",
+  icons: { icon: { url: "/favicon.ico", sizes: "any" } },
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

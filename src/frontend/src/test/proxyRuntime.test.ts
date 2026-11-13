@@ -22,7 +22,7 @@ describe("proxy under Next", () => {
     ["/_next/image", false],
     ["/assets/plugin-sdk.js", false],
     ["/.well-known/openid-configuration", false],
-    ["/favicon.svg", false],
+    ["/favicon.ico", false],
     ["/icons.svg", false],
     ["/", true],
     ["/home", true],
