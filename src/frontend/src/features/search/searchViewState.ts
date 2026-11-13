@@ -37,7 +37,7 @@ export interface SearchViewInput {
   otherModeCount: number;
 }
 
-/** First match wins: under 2 characters the hint (nothing is asked for),
+/** First match wins: a 1-character `q` the hint (a blank one browses) (nothing is asked for),
  * then an inverted date range (nothing is asked for either), then the first page loading or failing, then empty or the results. An old
  * empty list is not shown as "nothing found" for a new `q`. */
 export function resolveSearchView(state: SearchViewInput): SearchViewState {

@@ -13,6 +13,7 @@ import { SearchFilters } from "./SearchFilters";
 import { SearchResultCard } from "./SearchResultCard";
 import { SearchResultsSkeleton } from "./SearchSkeleton";
 import { resolveSearchView } from "./searchViewState";
+import { SEGMENT_CLASS, segmentTone } from "./segmentStyles";
 import { useSearchScrollRestore } from "./useSearchScrollRestore";
 import { useSearchUrlState } from "./useSearchUrlState";
 
@@ -21,24 +22,22 @@ const MODES: { id: SearchMode; label: string }[] = [
   { id: "events", label: "Spotkania" },
 ];
 
-const SCOPES: { id: SearchScope; label: string }[] = [
-  { id: "mine", label: "Moje grupy" },
-  { id: "all", label: "Wszędzie" },
-];
-
-const HINT = "Wpisz co najmniej 2 znaki, żeby zacząć szukać.";
+const HINT = "Wpisz co najmniej 2 znaki albo wyczyść pole, żeby przeglądać.";
 const PANEL_ID = "szukaj-wyniki";
 const tabId = (mode: SearchMode) => `szukaj-tab-${mode}`;
 
-const SEGMENT_CLASS =
-  "rounded-full font-extrabold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
-const segmentTone = (on: boolean) =>
-  on ? "bg-paper text-ink shadow-[0_2px_8px_-2px_rgba(42,35,32,0.25)]" : "text-ink-soft hover:text-ink";
 const EMPTY_CARD_CLASS =
   "flex flex-col items-center gap-2.5 rounded-[28px] border-[1.5px] border-dashed border-line-strong bg-paper px-5 py-7 text-center";
 
-function countLabel(mode: SearchMode, count: number): string {
-  return `${count} ${pluralPl(count, ...SEARCH_MODE_NOUNS[mode])}`;
+const BROWSE_LABEL: Record<SearchMode, string> = {
+  items: "Ostatnio dodane przedmioty",
+  events: "Najbliższe spotkania",
+};
+
+/** „3 przedmioty dla „q””, or for a browse (blank `q`) what is listed. */
+function countLabel(mode: SearchMode, count: number, q: string): string {
+  if (!q) return count === 0 ? `${BROWSE_LABEL[mode]}: brak` : BROWSE_LABEL[mode];
+  return `${count} ${pluralPl(count, ...SEARCH_MODE_NOUNS[mode])} dla „${q}”`;
 }
 
 /** The global search over items and meetings (terms, events, groups and
@@ -87,7 +86,7 @@ export function SearchView() {
       );
       break;
     case "empty-items":
-      summary = `${countLabel(mode, 0)} dla „${view.q}”`;
+      summary = countLabel(mode, 0, view.q);
       body = (
         <>
           <EmptyItems q={view.q} scope={view.scope} />
@@ -96,7 +95,7 @@ export function SearchView() {
       );
       break;
     case "empty-meetings":
-      summary = `${countLabel(mode, 0)} dla „${view.q}”`;
+      summary = countLabel(mode, 0, view.q);
       body = (
         <>
           <div className={EMPTY_CARD_CLASS}>
@@ -110,7 +109,7 @@ export function SearchView() {
       );
       break;
     case "results":
-      summary = view.stale ? "Szukam…" : `${countLabel(mode, view.total)} dla „${term}”`;
+      summary = view.stale ? "Szukam…" : countLabel(mode, view.total, term);
       body = (
         <>
           {view.refreshError && (
@@ -145,8 +144,14 @@ export function SearchView() {
     <>
       <SearchInput mode={mode} value={q} onChange={setQ} />
       <ModeTabs mode={mode} onSelect={setMode} />
-      {!guest && <ScopeToggle scope={scope} onSelect={setScope} />}
-      <SearchFilters mode={mode} filters={filters} dateRangeInvalid={dateRangeInvalid} onChange={setFilters} />
+      <SearchFilters
+        mode={mode}
+        filters={filters}
+        dateRangeInvalid={dateRangeInvalid}
+        onChange={setFilters}
+        scope={guest ? null : scope}
+        onScopeChange={setScope}
+      />
       <div role="tabpanel" id={PANEL_ID} aria-labelledby={tabId(mode)} onClickCapture={rememberScroll}>
         <p aria-live="polite" className="mb-3 text-sm text-ink-soft">
           {summary}
@@ -228,44 +233,6 @@ function ModeTabs({ mode, onSelect }: { mode: SearchMode; onSelect: (mode: Searc
   );
 }
 
-function ScopeToggle({ scope, onSelect }: { scope: SearchScope; onSelect: (scope: SearchScope) => void }) {
-  const radioRefs = useRef<Partial<Record<SearchScope, HTMLButtonElement | null>>>({});
-
-  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    const index = nextIndex(event.key, SCOPES.findIndex((s) => s.id === scope), SCOPES.length);
-    if (index === null) return;
-    event.preventDefault();
-    const target = SCOPES[index].id;
-    onSelect(target);
-    radioRefs.current[target]?.focus();
-  }
-
-  return (
-    <div role="radiogroup" aria-label="Zakres" className="mb-3 grid grid-cols-2 gap-1 rounded-full bg-line p-1">
-      {SCOPES.map((s) => {
-        const on = s.id === scope;
-        return (
-          <button
-            key={s.id}
-            ref={(element) => {
-              radioRefs.current[s.id] = element;
-            }}
-            type="button"
-            role="radio"
-            aria-checked={on}
-            tabIndex={on ? 0 : -1}
-            onClick={() => onSelect(s.id)}
-            onKeyDown={handleKeyDown}
-            className={`min-h-11 text-[13px] ${SEGMENT_CLASS} ${segmentTone(on)}`}
-          >
-            {s.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 function ResultList({ mode, items, stale }: { mode: SearchMode; items: SearchResult[]; stale: boolean }) {
   return (
     <ul
@@ -295,7 +262,7 @@ function EmptyItems({ q, scope }: { q: string; scope: SearchScope }) {
         {scope === "mine" && " Możesz też szukać wszędzie."}
       </p>
       <Link
-        to={`${viewPath("add/hunting")}?name=${encodeURIComponent(q)}`}
+        to={q ? `${viewPath("add/hunting")}?name=${encodeURIComponent(q)}` : viewPath("add/hunting")}
         className="mt-1 flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-[15px] font-extrabold text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
       >
         Dodaj do listy „szukam”

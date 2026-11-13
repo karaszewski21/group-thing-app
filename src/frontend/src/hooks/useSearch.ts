@@ -18,9 +18,12 @@ export const SEARCH_MAX_PAGE = 50;
 
 const NO_RESULTS: SearchResult[] = [];
 
-/** `q` as the backend measures it: folded, trimmed, inner whitespace collapsed. */
+/** `q` as the backend measures it: folded, trimmed, inner whitespace
+ * collapsed. A blank `q` is not too short: it browses (the newest items or
+ * the upcoming meetings). */
 export function isSearchTooShort(q: string): boolean {
-  return foldCategoryText(q).trim().split(/\s+/).join(" ").length < SEARCH_MIN_LENGTH;
+  const folded = foldCategoryText(q).trim().split(/\s+/).join(" ");
+  return folded.length > 0 && folded.length < SEARCH_MIN_LENGTH;
 }
 
 export interface UseSearchResult {
@@ -28,7 +31,7 @@ export interface UseSearchResult {
   total: number;
   /** How many results the other mode has (from the first page). */
   otherModeCount: number;
-  /** The typed `q` is under 2 characters: nothing is asked for. */
+  /** The typed `q` has 1 character: nothing is asked for. */
   tooShort: boolean;
   /** No page to show yet for the typed `q` (the debounce included). */
   loading: boolean;
@@ -43,7 +46,7 @@ export interface UseSearchResult {
 }
 
 /** The global search, 20 results at a time. The typed `q` is debounced by
- * 300 ms and needs 2 characters; the previous results stay shown while a new
+ * 300 ms and needs 2 characters (none browses); the previous results stay shown while a new
  * `q` or filter loads. `viewer` (the logged-in username, `null` for a guest)
  * keys the cache, so results personalised for one account never show for
  * another; a guest's scope `all` comes from `useSearchUrlState`. `enabled`

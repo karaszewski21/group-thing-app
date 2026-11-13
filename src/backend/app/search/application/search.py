@@ -114,10 +114,20 @@ class SearchFilters:
     date_to: date | None = None
 
 
+def is_browse(q: str) -> bool:
+    """A blank query browses: the newest listed items (within the filters)
+    or the upcoming terms and events, unmatched and unranked."""
+    return not q.strip()
+
+
 def validate_search(q: str, mode: SearchMode, filters: SearchFilters) -> None:
-    """A `ValueError` (400) for a query under the minimum folded length, a
-    filter of the other mode or `date_to` before `date_from`."""
-    if len(locations_acl.fold_polish(q.strip())) < locations_acl.MIN_QUERY_LENGTH:
+    """A `ValueError` (400) for a query under the minimum folded length
+    (a blank one browses), a filter of the other mode or
+    `date_to` before `date_from`."""
+    if (
+        not is_browse(q)
+        and len(locations_acl.fold_polish(q.strip())) < locations_acl.MIN_QUERY_LENGTH
+    ):
         raise ValueError(f"Zapytanie musi mieć co najmniej {locations_acl.MIN_QUERY_LENGTH} znaki")
     item_filters = (filters.category_id, filters.condition, filters.offer_type)
     date_filters = (filters.date_from, filters.date_to)
@@ -167,22 +177,11 @@ def _category_subtree(category_id: uuid.UUID) -> Select[tuple[uuid.UUID]]:
     return select(tree.c.id)
 
 
-def _items_select(
-    query: _Query,
-    viewer: uuid.UUID | None,
-    scope: VisibilityScope,
-    filters: SearchFilters,
-    *,
-    page_columns: bool,
-) -> Select[Any]:
-    """The matching listed items the viewer may see, never their own; with
-    `page_columns` also the card columns and the ordering."""
-    preference = groups_acl.ItemListingPreference
-    product = product_acl.Product
-    category = category_acl.Category
-    listed = groups_acl.with_pending_proposer(
-        inventory_acl.listed_items_with_product_select()
-    ).subquery("listed")
+def _matching(
+    select_query: Select[Any], query: _Query, product: Any, category: Any
+) -> tuple[Select[Any], ColumnElement[float]]:
+    """`select_query` kept to products matching `query` by name, text or
+    category, and their rank."""
     matched_categories = (
         select(
             category.id.label("id"),
@@ -197,21 +196,49 @@ def _items_select(
         .cte("matched_categories")
     )
     product_name = _fold(product.name)
+    matching = select_query.outerjoin(
+        matched_categories, matched_categories.c.id == product.category_id
+    ).where(
+        or_(
+            query.in_vector(product.search_vector),
+            query.similar(product_name),
+            matched_categories.c.id.is_not(None),
+        )
+    )
+    rank = query.vector_rank(product.search_vector) + func.greatest(
+        query.similarity(product_name, WEIGHT_A),
+        func.coalesce(matched_categories.c.rank, 0.0),
+    )
+    return matching, rank
+
+
+def _items_select(
+    query: _Query | None,
+    viewer: uuid.UUID | None,
+    scope: VisibilityScope,
+    filters: SearchFilters,
+    *,
+    page_columns: bool,
+) -> Select[Any]:
+    """The matching listed items the viewer may see, never their own (all
+    of them without a `query`); with `page_columns` also the card
+    columns and the ordering."""
+    preference = groups_acl.ItemListingPreference
+    product = product_acl.Product
+    category = category_acl.Category
+    listed = groups_acl.with_pending_proposer(
+        inventory_acl.listed_items_with_product_select()
+    ).subquery("listed")
     select_query = (
         select(preference.item_id)
         .select_from(preference)
         .join(listed, listed.c.item_id == preference.item_id)
         .join(product, product.id == listed.c.product_id)
-        .outerjoin(matched_categories, matched_categories.c.id == product.category_id)
-        .where(
-            groups_acl.items_visible_to(viewer, scope),
-            or_(
-                query.in_vector(product.search_vector),
-                query.similar(product_name),
-                matched_categories.c.id.is_not(None),
-            ),
-        )
+        .where(groups_acl.items_visible_to(viewer, scope))
     )
+    rank: ColumnElement[float] = literal(0.0, Float)
+    if query is not None:
+        select_query, rank = _matching(select_query, query, product, category)
     if viewer is not None:
         select_query = select_query.where(preference.owner_party_id != viewer)
     if filters.category_id is not None:
@@ -233,13 +260,7 @@ def _items_select(
         listed.c.balance_status != inventory_acl.BalanceStatus.AVAILABLE,
         listed.c.proposer_party_id.is_not(None),
     ).label("reserved")
-    rank = (
-        query.vector_rank(product.search_vector)
-        + func.greatest(
-            query.similarity(product_name, WEIGHT_A),
-            func.coalesce(matched_categories.c.rank, 0.0),
-        )
-    ).label("rank")
+    rank = rank.label("rank")
     return select_query.add_columns(
         preference.owner_party_id,
         preference.mode,
@@ -314,13 +335,14 @@ async def search_items(
     pagination: PageParams,
     storage: ObjectStorage | None,
 ) -> SearchPage:
-    """One page of matching listed items: items of the viewer's groups
-    first, available before reserved, then by rank and newest listing."""
+    """One page of matching listed items (every one for a browse): items
+    of the viewer's groups first, available before reserved, then by rank
+    and newest listing."""
     if filters.category_id is not None:
         category = category_acl.Category
         if not await db.scalar(select(exists().where(category.id == filters.category_id))):
             raise ValueError("Nieznana kategoria")
-    query = _Query(q)
+    query = None if is_browse(q) else _Query(q)
     rows = list(
         (
             await db.execute(
@@ -412,8 +434,25 @@ def _in_window(column: Any, start: datetime, end: datetime | None) -> ColumnElem
     return and_(column >= start, column < end) if end is not None else column >= start
 
 
+def _matched(
+    query: _Query | None, fields: list[Any], vector: Any, weights: list[float]
+) -> tuple[ColumnElement[bool], ColumnElement[float]]:
+    """A meeting row's match on `vector` or any folded field, and its rank;
+    without a `query` everything matches at rank 0."""
+    if query is None:
+        return true(), literal(0.0, Float)
+    match = or_(query.in_vector(vector), *(query.similar(field) for field in fields))
+    rank = query.vector_rank(vector) + func.greatest(
+        *(query.similarity(field, weight) for field, weight in zip(fields, weights, strict=True))
+    )
+    return match, rank
+
+
+_MEETING_WEIGHTS = [WEIGHT_A, WEIGHT_B, WEIGHT_C, WEIGHT_C]
+
+
 def _terms_branch(
-    query: _Query,
+    query: _Query | None,
     viewer: uuid.UUID | None,
     scope: VisibilityScope,
     start: datetime,
@@ -424,11 +463,11 @@ def _terms_branch(
     organizer = groups_acl.current_organizer(group.id)
     organization = organizations_acl.owned_organization(organizer.c.party_id)
     address = _fold(location.formatted_address)
-    rank = query.vector_rank(term.search_vector) + func.greatest(
-        query.similarity(_fold(group.name), WEIGHT_A),
-        query.similarity(_fold(organization.c.name), WEIGHT_B),
-        query.similarity(locality.name_search, WEIGHT_C),
-        query.similarity(address, WEIGHT_C),
+    match, rank = _matched(
+        query,
+        [_fold(group.name), _fold(organization.c.name), locality.name_search, address],
+        term.search_vector,
+        _MEETING_WEIGHTS,
     )
     return (
         select(
@@ -456,27 +495,21 @@ def _terms_branch(
         .where(
             groups_acl.terms_visible_to(viewer, scope),
             _in_window(term.occurs_on, start, end),
-            or_(
-                query.in_vector(term.search_vector),
-                query.similar(_fold(group.name)),
-                query.similar(_fold(organization.c.name)),
-                query.similar(locality.name_search),
-                query.similar(address),
-            ),
+            match,
         )
     )
 
 
-def _events_branch(query: _Query, start: datetime, end: datetime | None) -> Select[Any]:
+def _events_branch(query: _Query | None, start: datetime, end: datetime | None) -> Select[Any]:
     event = events_acl.Event
     location, locality = locations_acl.Location, locations_acl.Locality
     organization = organizations_acl.owned_organization(event.author_party_id)
     address = _fold(location.formatted_address)
-    rank = query.vector_rank(event.search_vector) + func.greatest(
-        query.similarity(_fold(event.name), WEIGHT_A),
-        query.similarity(_fold(organization.c.name), WEIGHT_B),
-        query.similarity(locality.name_search, WEIGHT_C),
-        query.similarity(address, WEIGHT_C),
+    match, rank = _matched(
+        query,
+        [_fold(event.name), _fold(organization.c.name), locality.name_search, address],
+        event.search_vector,
+        _MEETING_WEIGHTS,
     )
     return (
         select(
@@ -501,13 +534,7 @@ def _events_branch(query: _Query, start: datetime, end: datetime | None) -> Sele
         .where(
             # A running event is hidden: only upcoming starts.
             _in_window(event.starts_at, start, end),
-            or_(
-                query.in_vector(event.search_vector),
-                query.similar(_fold(event.name)),
-                query.similar(_fold(organization.c.name)),
-                query.similar(locality.name_search),
-                query.similar(address),
-            ),
+            match,
         )
     )
 
@@ -599,26 +626,22 @@ def _organizations_branch(query: _Query) -> Select[Any]:
 
 
 def _meetings_union(
-    query: _Query, viewer: uuid.UUID | None, scope: VisibilityScope, filters: SearchFilters
+    query: _Query | None, viewer: uuid.UUID | None, scope: VisibilityScope, filters: SearchFilters
 ) -> Select[Any]:
     """Every matching meeting row, one `UNION ALL`; events and organizations
-    only in `ALL`. Selected from as `results`."""
+    only in `ALL`; a browse (no `query`) only the terms and events. Selected
+    from as `results`."""
     # Warsaw wall clock, the clock of `Term.occurs_on` and `Event.starts_at`.
     now = clock.local_now()
     start, end = _date_window(now, filters)
-    branches = [
-        _terms_branch(query, viewer, scope, start, end),
-        _groups_branch(
-            query,
-            viewer,
-            scope,
-            start,
-            end,
-            windowed=filters.date_from is not None or filters.date_to is not None,
-        ),
-    ]
+    branches = [_terms_branch(query, viewer, scope, start, end)]
+    if query is not None:
+        windowed = filters.date_from is not None or filters.date_to is not None
+        branches.append(_groups_branch(query, viewer, scope, start, end, windowed=windowed))
     if scope == VisibilityScope.ALL:
-        branches += [_events_branch(query, start, end), _organizations_branch(query)]
+        branches.append(_events_branch(query, start, end))
+        if query is not None:
+            branches.append(_organizations_branch(query))
     results = union_all(*branches).subquery("results")
     return select(results)
 
@@ -717,8 +740,9 @@ async def search_meetings(
 ) -> SearchPage:
     """One page of matching meetings: name matches before description-only
     groups, then the soonest first (dateless last), the viewer's groups
-    first, then by rank, kind and id."""
-    query = _Query(q)
+    first, then by rank, kind and id. A browse lists the upcoming terms
+    and events, soonest first."""
+    query = None if is_browse(q) else _Query(q)
     union = _meetings_union(query, viewer, scope, filters)
     results = union.subquery("page")
     rows = list(
@@ -751,7 +775,7 @@ async def search_meetings(
 
 async def _count_other_mode(
     db: AsyncSession,
-    query: _Query,
+    query: _Query | None,
     viewer: uuid.UUID | None,
     scope: VisibilityScope,
     mode: SearchMode,

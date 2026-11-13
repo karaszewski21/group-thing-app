@@ -46,9 +46,9 @@ async def search(
     storage: Storage,
     pagination: SearchPagination,
     response: Response,
-    q: Annotated[str, Query(max_length=100)],
+    q: Annotated[str, Query(max_length=100)] = "",
     mode: search_service.SearchMode = "items",
-    scope: Literal["mine", "all"] = "mine",
+    scope: Literal["mine", "all"] = "all",
     category: uuid.UUID | None = None,
     condition: ItemCondition | None = None,
     offer_type: ExchangeMode | None = None,
@@ -58,7 +58,8 @@ async def search(
 ) -> SearchPage:
     """Unauthenticated — matched by the `GET ^/api/public/.*$` PUBLIC row in
     `AUTHORIZATION_MATRIX`; a valid token personalises the results. 400 for
-    a query under 2 folded characters, a bad parameter, a page past
+    a query under 2 folded characters (a blank one is an items browse of
+    `category`), a bad parameter, a page past
     `MAX_SEARCH_PAGE`, a filter of the other mode, `date_to` before
     `date_from` or an unknown category. A guest
     always searches everywhere."""

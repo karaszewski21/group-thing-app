@@ -76,7 +76,7 @@ describe("useSearch", () => {
     vi.mocked(searchApi.searchPublic).mockResolvedValue(page(["a"], 1, 1, 0));
     const { result, rerender } = renderHook(({ q }: { q: string }) => useSearch(query(q), "anna"), {
       wrapper: createQueryWrapper(),
-      initialProps: { q: "" },
+      initialProps: { q: "k" },
     });
     rerender({ q: "kl" });
     rerender({ q: "klo" });
@@ -89,6 +89,14 @@ describe("useSearch", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(searchApi.searchPublic).toHaveBeenCalledTimes(1);
     expect(searchApi.searchPublic).toHaveBeenCalledWith(query("klocki"), 1, 20);
+  });
+
+  it("asks for a blank q at once: it browses", async () => {
+    vi.mocked(searchApi.searchPublic).mockResolvedValue(page(["a"], 1, 1, 0));
+    const { result } = renderHook(() => useSearch(query("  "), "anna"), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => expect(searchApi.searchPublic).toHaveBeenCalledWith(query(""), 1, 20));
+    expect(result.current.tooShort).toBe(false);
   });
 
   it("asks at once for a q restored from the URL on mount", async () => {
@@ -198,15 +206,15 @@ describe("useSearch", () => {
 describe("useSearchUrlState", () => {
   it("reads the URL and, switching mode, keeps q and scope and clears the filters", () => {
     const { result } = renderHook(() => useSearchUrlState(false), {
-      wrapper: routeWrapper({ url: "/search?q=klocki&scope=all&category=c-1&condition=GOOD&offer_type=GIFT" }),
+      wrapper: routeWrapper({ url: "/search?q=klocki&scope=mine&category=c-1&condition=GOOD&offer_type=GIFT" }),
     });
     expect(result.current.mode).toBe("items");
-    expect(result.current.scope).toBe("all");
+    expect(result.current.scope).toBe("mine");
     expect(result.current.filters).toEqual({ ...NO_FILTERS, category: "c-1", condition: "GOOD", offer_type: "GIFT" });
 
     act(() => result.current.setMode("events"));
 
-    expect(getTestLocation()).toEqual({ pathname: "/search", search: "?q=klocki&scope=all&mode=events" });
+    expect(getTestLocation()).toEqual({ pathname: "/search", search: "?q=klocki&scope=mine&mode=events" });
     expect(result.current.filters).toEqual(NO_FILTERS);
   });
 

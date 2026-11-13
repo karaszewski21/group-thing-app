@@ -245,7 +245,9 @@ describe("SSR safety", () => {
     expect(html).toContain('value="klocki"');
     expect(html).toContain('role="tablist"');
     expect(html).toContain("Szukam…");
-    expect(html.includes('role="radiogroup"')).toBe(token !== null);
+    expect(html).toContain('aria-label="Kategoria"');
+    // The scope control sits in the closed „Filtry” sheet.
+    expect(html).not.toContain('role="radiogroup"');
     expect(html.includes("Zaloguj się")).toBe(token === null);
     expect(html).not.toContain('aria-label="Menu konta"');
     expect(html).not.toContain('aria-label="Nawigacja główna"');

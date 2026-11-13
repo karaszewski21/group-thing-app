@@ -7,8 +7,8 @@ export const SEARCH_MODE_NOUNS: Record<SearchMode, [string, string, string]> = {
   events: ["spotkanie", "spotkania", "spotkań"],
 };
 
-/** „3 spotkania pasują do „q” →”: switches to the other mode with the same
- * `q`. Highlighted under an empty list; nothing when the other mode has no
+/** „3 spotkania pasują do „q” →” (a browse: „Zobacz 3 spotkania →”):
+ * switches to the other mode with the same `q`. Highlighted under an empty list; nothing when the other mode has no
  * results. */
 export function OtherModeLine({
   otherMode,
@@ -35,7 +35,7 @@ export function OtherModeLine({
         highlighted ? "bg-primary-soft py-3" : ""
       }`}
     >
-      {count} {noun} {verb} do „{q}”{" "}
+      {q ? `${count} ${noun} ${verb} do „${q}”` : `Zobacz ${count} ${noun}`}{" "}
       <span aria-hidden="true">→</span>
     </button>
   );

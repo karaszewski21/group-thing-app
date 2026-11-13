@@ -85,7 +85,7 @@ describe("SearchView", () => {
     expect(getTestLocation()).toEqual({ pathname: "/search", search: "?q=klocki&mode=events" });
   });
 
-  it("hides the scope control from a guest and shows it, on Moje grupy, to a member", async () => {
+  it("hides the scope control from a guest and shows it, on Wszędzie, to a member", async () => {
     mockAuth = { token: null, username: null };
     const { unmount } = renderSearch("/search?q=klocki");
     expect(screen.queryByRole("radiogroup", { name: "Zakres" })).not.toBeInTheDocument();
@@ -100,9 +100,28 @@ describe("SearchView", () => {
 
     mockAuth = { token: "test-token", username: "anna" };
     renderSearch("/search?q=klocki");
+    expect(screen.queryByRole("radiogroup", { name: "Zakres" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Filtry" }));
     const scope = screen.getByRole("radiogroup", { name: "Zakres" });
-    expect(within(scope).getByRole("radio", { name: "Moje grupy" })).toHaveAttribute("aria-checked", "true");
-    expect(within(scope).getByRole("radio", { name: "Wszędzie" })).toHaveAttribute("aria-checked", "false");
+    expect(within(scope).getByRole("radio", { name: "Wszędzie" })).toHaveAttribute("aria-checked", "true");
+    expect(within(scope).getByRole("radio", { name: "Moje grupy" })).toHaveAttribute("aria-checked", "false");
+
+    fireEvent.click(within(scope).getByRole("radio", { name: "Moje grupy" }));
+    expect(getTestLocation().search).toBe("?q=klocki&scope=mine");
+  });
+
+  it("meetings keep the scope and the dates in the „Filtry” sheet; „Wyczyść” resets them", async () => {
+    renderSearch("/search?q=joga&mode=events&scope=mine&date_to=2026-11-21");
+
+    expect(screen.queryByRole("radiogroup", { name: "Zakres" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Od:")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Filtry\s*2$/ }));
+    const sheet = await screen.findByRole("dialog", { name: "Filtry" });
+    expect(within(sheet).getByRole("radio", { name: "Moje grupy" })).toHaveAttribute("aria-checked", "true");
+    expect(within(sheet).getByLabelText("Do:")).toHaveValue("2026-11-21");
+
+    fireEvent.click(within(sheet).getByRole("button", { name: "Wyczyść" }));
+    expect(getTestLocation().search).toBe("?q=joga&mode=events");
   });
 
   it("caps the search input at the backend's 100 characters", async () => {
@@ -114,15 +133,24 @@ describe("SearchView", () => {
   it("under 2 characters shows the hint and sends no request", async () => {
     renderSearch("/search?q=k");
 
-    expect(screen.getByText("Wpisz co najmniej 2 znaki, żeby zacząć szukać.")).toBeInTheDocument();
+    expect(screen.getByText("Wpisz co najmniej 2 znaki albo wyczyść pole, żeby przeglądać.")).toBeInTheDocument();
     await act(() => sleep(400));
     expect(searchApi.searchPublic).not.toHaveBeenCalled();
     expect(screen.queryByText(/pasuj/)).not.toBeInTheDocument();
   });
 
+  it("without q lists the newest items and offers the other mode without a query", async () => {
+    vi.mocked(searchApi.searchPublic).mockResolvedValue(page([product("p1", "Klocki")], 3));
+    renderSearch("/search");
+
+    expect(await screen.findByText("Ostatnio dodane przedmioty")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Zobacz 3 spotkania" })).toBeInTheDocument();
+    expect(vi.mocked(searchApi.searchPublic).mock.calls[0][0].q).toBe("");
+  });
+
   it("an empty items list offers the „szukam” link with the encoded q and a highlighted other-mode line", async () => {
     vi.mocked(searchApi.searchPublic).mockResolvedValue(page([], 2));
-    renderSearch("/search?q=rowerek%20biegowy");
+    renderSearch("/search?q=rowerek%20biegowy&scope=mine");
 
     expect(await screen.findByRole("heading", { name: "Nikt w Twoich grupach tego nie oddaje" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Dodaj do listy „szukam”" })).toHaveAttribute(
@@ -138,11 +166,11 @@ describe("SearchView", () => {
 
   it("the other-mode line switches the mode and keeps q", async () => {
     vi.mocked(searchApi.searchPublic).mockResolvedValue(page([product("a", "Klocki drewniane")], 3));
-    renderSearch("/search?q=klocki&scope=all");
+    renderSearch("/search?q=klocki&scope=mine");
 
     fireEvent.click(await screen.findByRole("button", { name: /3 spotkania pasują do „klocki”/ }));
 
-    expect(getTestLocation()).toEqual({ pathname: "/search", search: "?q=klocki&scope=all&mode=events" });
+    expect(getTestLocation()).toEqual({ pathname: "/search", search: "?q=klocki&scope=mine&mode=events" });
   });
 
   it("renders reserved items with and without the reservation date", async () => {
@@ -183,11 +211,12 @@ describe("SearchView", () => {
         },
       ]),
     );
-    renderSearch("/search?q=dzieci%C4%99ce&mode=events&scope=all&date_from=2026-11-20");
+    renderSearch("/search?q=dzieci%C4%99ce&mode=events&date_from=2026-11-20");
 
     expect(screen.getByRole("searchbox")).toHaveValue("dziecięce");
     expect(screen.getByRole("tab", { name: "Spotkania" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("radio", { name: "Wszędzie" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.queryByRole("radiogroup", { name: "Zakres" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Filtry\s*1$/ })).toBeInTheDocument();
     expect(searchApi.searchPublic).toHaveBeenCalledWith(
       { q: "dziecięce", mode: "events", scope: "all", filters: { ...NO_FILTERS, date_from: "2026-11-20" } },
       1,
@@ -268,10 +297,14 @@ describe("SearchView", () => {
     mockAuth = { token: null, username: null };
     renderSearch("/search?q=klocki");
 
-    fireEvent.click(screen.getByRole("button", { name: /Kategoria/ }));
-    const sheet = await screen.findByRole("dialog", { name: "Wybierz kategorię" });
-    fireEvent.click(await within(sheet).findByRole("button", { name: /Dzieci/ }));
-    fireEvent.click(await within(sheet).findByRole("button", { name: /Zabawki/ }));
+    const tiles = screen.getByRole("group", { name: "Kategoria" });
+    fireEvent.click(await within(tiles).findByRole("button", { name: "Dzieci" }));
+    await waitFor(() => expect(getTestLocation().search).toBe("?q=klocki&category=kids"));
+    expect(within(tiles).queryByRole("button", { name: "Zabawki" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Filtry" }));
+    const sheet = await screen.findByRole("dialog", { name: "Filtry" });
+    fireEvent.click(within(sheet).getByRole("button", { name: "Zabawki" }));
 
     await waitFor(() => expect(getTestLocation().search).toBe("?q=klocki&category=toys"));
   });
@@ -279,9 +312,11 @@ describe("SearchView", () => {
   it("two filter changes in the same tick both land in the URL", async () => {
     renderSearch("/search?q=klocki");
 
+    fireEvent.click(screen.getByRole("button", { name: "Filtry" }));
+    const sheet = await screen.findByRole("dialog", { name: "Filtry" });
     act(() => {
-      fireEvent.change(screen.getByRole("combobox", { name: "Stan" }), { target: { value: "GOOD" } });
-      fireEvent.click(screen.getByRole("button", { name: "oddam" }));
+      fireEvent.click(within(sheet).getByRole("button", { name: "Dobry" }));
+      fireEvent.click(within(sheet).getByRole("button", { name: "oddam" }));
     });
 
     expect(getTestLocation().search).toBe("?q=klocki&condition=GOOD&offer_type=GIFT");
@@ -290,6 +325,8 @@ describe("SearchView", () => {
   it("an inverted date range shows an inline error at „Do” and sends no request", async () => {
     renderSearch("/search?q=joga&mode=events&date_from=2026-11-20&date_to=2026-11-19");
 
+    expect(screen.queryByLabelText("Do:")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Filtry/ }));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Data „Do” nie może być wcześniejsza niż „Od”.");
     const to = screen.getByLabelText("Do:");
@@ -306,7 +343,7 @@ describe("SearchView", () => {
         {
           q: "joga",
           mode: "events",
-          scope: "mine",
+          scope: "all",
           filters: { ...NO_FILTERS, date_from: "2026-11-20", date_to: "2026-11-21" },
         },
         1,
@@ -315,13 +352,19 @@ describe("SearchView", () => {
     );
   });
 
-  it("names the Kategoria trigger once, and with the picked category", async () => {
-    const { unmount } = renderSearch("/search?q=klocki");
-    expect(screen.getByRole("button", { name: "Kategoria" })).toHaveAttribute("aria-haspopup", "dialog");
-    unmount();
+  it("a subcategory keeps its main tile pressed and counts as a filter; „Wyczyść” goes back to the main category", async () => {
+    renderSearch("/search?q=klocki&category=toys&condition=GOOD");
 
-    renderSearch("/search?q=klocki&category=toys");
-    expect(await screen.findByRole("button", { name: /^Kategoria Dzieci .*Zabawki$/ })).toBeInTheDocument();
+    const tiles = screen.getByRole("group", { name: "Kategoria" });
+    expect(await within(tiles).findByRole("button", { name: "Dzieci" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(tiles).getByRole("button", { name: "Wszystkie" })).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(screen.getByRole("button", { name: /^Filtry\s*2$/ }));
+    const sheet = await screen.findByRole("dialog", { name: "Filtry" });
+    expect(within(sheet).getByRole("button", { name: "Zabawki" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(within(sheet).getByRole("button", { name: "Wyczyść" }));
+
+    expect(getTestLocation().search).toBe("?q=klocki&category=kids");
   });
 
   it("drops a scope from a guest's URL and the default scope from a member's", async () => {
@@ -332,8 +375,7 @@ describe("SearchView", () => {
 
     mockAuth = { token: "test-token", username: "anna" };
     renderSearch("/search?q=kar&scope=all");
-    await act(() => sleep(0));
-    expect(getTestLocation().search).toBe("?q=kar&scope=all");
+    await waitFor(() => expect(getTestLocation().search).toBe("?q=kar"));
   });
 });
 

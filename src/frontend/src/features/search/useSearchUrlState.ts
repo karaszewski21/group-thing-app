@@ -38,14 +38,14 @@ export interface SearchUrlState {
 
 /** The search state held in the URL (`q, mode, scope, category, condition,
  * offer_type, date_from, date_to`), so going back from a result card
- * restores the results. Defaults (`items`, `mine`) are left out of the URL;
+ * restores the results. Defaults (`items`, `all`) are left out of the URL;
  * a guest's scope is never written, and one already there is dropped. */
 export function useSearchUrlState(guest: boolean): SearchUrlState {
   const [params, setParams] = useAppSearchParams();
 
   const q = params.get("q") ?? "";
   const mode: SearchMode = params.get("mode") === "events" ? "events" : "items";
-  const scope: SearchScope = guest || params.get("scope") === "all" ? "all" : "mine";
+  const scope: SearchScope = !guest && params.get("scope") === "mine" ? "mine" : "all";
   const category = params.get("category");
   const condition = params.get("condition");
   const offerType = params.get("offer_type");
@@ -83,7 +83,7 @@ export function useSearchUrlState(guest: boolean): SearchUrlState {
     [setParams, guest],
   );
 
-  const strayScope = guest ? params.has("scope") : params.has("scope") && params.get("scope") !== "all";
+  const strayScope = guest ? params.has("scope") : params.has("scope") && params.get("scope") !== "mine";
   useEffect(() => {
     if (strayScope) update((next) => next.delete("scope"), true);
   }, [strayScope, update]);
@@ -109,7 +109,7 @@ export function useSearchUrlState(guest: boolean): SearchUrlState {
     (value: SearchScope) => {
       if (guest) return;
       update((next) => {
-        if (value === "all") next.set("scope", value);
+        if (value === "mine") next.set("scope", value);
         else next.delete("scope");
       });
     },

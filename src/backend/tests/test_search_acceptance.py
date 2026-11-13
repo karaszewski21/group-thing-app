@@ -458,3 +458,45 @@ async def test_updateGroup_descriptionModerationUnavailable_returns503AndKeepsDe
     assert response.json()["message"] == UNAVAILABLE_MESSAGE
     kept = await client.get(url, headers=_auth(organizer))
     assert kept.json()["description"] == "Spotykamy się w parku."
+
+
+async def test_search_blankQueryWithCategory_listsTheSubtreeWhateverTheName(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    owner, _ = await _register(client, "GUEST", "sa-browse-cat.o@example.com")
+    root = await _category(db_session, "Perkozowo")
+    leaf = await _category(db_session, "Perkozowo sukienki", root)
+    other = await _category(db_session, "Czaplowo")
+    await db_session.commit()
+    on_leaf, _ = await _listed_in(client, owner, ("Letnia kiecka", leaf), ("Kalosze", other))
+
+    without_q = await _search(client, mode="items", category=str(root))
+    blank_q = await _search(client, q="  ", mode="items", category=str(root))
+
+    assert _ids(without_q) == _ids(blank_q) == {str(on_leaf)}
+    assert without_q["total"] == 1
+
+
+async def test_search_blankQuery_newestItemsAndUpcomingTermsAndEventsOnly(
+    client: AsyncClient,
+) -> None:
+    owner, _ = await _register(client, "ORGANIZER", "sa-browse.o@example.com")
+    await _organization_slug(client, owner, "Fundacja Bekasowo")
+    group_id = await _circle(client, owner, "Bekasowo dzieci")
+    later_term = await _term(client, owner, group_id, _in_days(6))
+    sooner_term = await _term(client, owner, group_id, _in_days(2))
+    event_id = await _event(client, owner, "Bekasowo piknik", 4)
+    older, newer = await _listed_items(client, owner, ("Bączek", "GIFT"), ("Hulajnoga", "SWAP"))
+
+    items = await _search(client, q="", mode="items")
+    meetings = await _search(client, q="", mode="events")
+
+    assert [result["id"] for result in items["items"]] == [str(newer), str(older)]
+    # No groups or organizations without a query: the soonest meetings first.
+    assert [result["id"] for result in meetings["items"]] == [
+        str(sooner_term),
+        str(event_id),
+        str(later_term),
+    ]
+    assert items["other_mode_count"] == meetings["total"] == 3
+    assert meetings["other_mode_count"] == items["total"] == 2
