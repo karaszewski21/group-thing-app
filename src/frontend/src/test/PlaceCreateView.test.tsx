@@ -44,7 +44,7 @@ function renderCreate(url: string) {
 }
 
 async function pickKetyAndSave() {
-  fireEvent.change(screen.getByRole("combobox", { name: "Lokalizacja" }), { target: { value: "Kę" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "Miejscowość" }), { target: { value: "Kę" } });
   fireEvent.click(await screen.findByRole("option", { name: /Kęty/ }));
   fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
 }

@@ -14,6 +14,7 @@
 const SCRIPT_URL = "https://maps.googleapis.com/maps/api/js";
 const SCRIPT_ID = "google-maps-js";
 const LOAD_TIMEOUT_MS = 10_000;
+const READY_CALLBACK = "__googleMapsReady";
 
 export interface PlacesApi {
   AutocompleteSuggestion: typeof google.maps.places.AutocompleteSuggestion;
@@ -97,9 +98,7 @@ async function importWithTimeout<T>(load: (key: string) => Promise<T>): Promise<
 }
 
 async function ensureMapsScript(key: string): Promise<void> {
-  if (typeof google === "undefined" || !google.maps?.importLibrary) {
-    await injectScript(key);
-  }
+  if (!importLibraryReady()) await injectScript(key);
 }
 
 async function importPlacesLibrary(key: string): Promise<PlacesApi> {
@@ -126,9 +125,16 @@ async function importMapsLibraries(key: string): Promise<MapsApi> {
   };
 }
 
-/** A retry after a timeout waits on the tag still loading instead of adding a
- * second one (Google rejects a page that includes the API twice). A tag that
- * already loaded yet left no `importLibrary` is stale and gets replaced. */
+function importLibraryReady(): boolean {
+  return typeof google !== "undefined" && Boolean(google.maps?.importLibrary);
+}
+
+/** With `loading=async` the tag's `load` event can fire before the API has
+ * defined `importLibrary`, so readiness is Google's `callback` (or a `load`
+ * that already finds `importLibrary`). A retry after a timeout waits on the
+ * tag still loading instead of adding a second one (Google rejects a page
+ * that includes the API twice). A tag that already loaded yet left no
+ * `importLibrary` is stale and gets replaced. */
 function injectScript(key: string): Promise<void> {
   return new Promise((resolve, reject) => {
     let pending = document.getElementById(SCRIPT_ID);
@@ -137,9 +143,15 @@ function injectScript(key: string): Promise<void> {
       pending = null;
     }
     const script = pending instanceof HTMLScriptElement ? pending : document.createElement("script");
+    const callbacks = window as unknown as Record<string, (() => void) | undefined>;
+    const earlier = callbacks[READY_CALLBACK];
+    callbacks[READY_CALLBACK] = () => {
+      earlier?.();
+      resolve();
+    };
     script.addEventListener("load", () => {
       script.dataset.loaded = "true";
-      resolve();
+      if (importLibraryReady()) resolve();
     });
     script.addEventListener("error", () => {
       script.remove();
@@ -148,7 +160,7 @@ function injectScript(key: string): Promise<void> {
     if (script === pending) return;
     script.id = SCRIPT_ID;
     script.async = true;
-    script.src = `${SCRIPT_URL}?key=${encodeURIComponent(key)}&v=weekly&loading=async`;
+    script.src = `${SCRIPT_URL}?key=${encodeURIComponent(key)}&v=weekly&loading=async&callback=${READY_CALLBACK}`;
     document.head.appendChild(script);
   });
 }

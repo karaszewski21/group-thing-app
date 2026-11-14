@@ -10,35 +10,40 @@ const COUNTRY_ZOOM = 6;
 // Advanced markers need a map id; Google's demo id needs no Cloud styling.
 const MAP_ID = "DEMO_MAP_ID";
 
-/** The place form's map: clicking it or dragging the pin picks the point and
- * reverse-geocodes its address into `onPick`. `pin` is the parent's picked
- * place (from search or an earlier pick); without it the map centres on the
- * locality. `onUnavailable` fires when the map cannot load. */
+type PickHandler =
+  | { onPick: (place: ResolvedPlace) => void; onPoint?: undefined }
+  | { onPoint: (point: LatLng) => void; onPick?: undefined };
+
+/** The place form's map: clicking it or dragging the pin picks the point.
+ * With `onPick` the point's address is reverse-geocoded; with `onPoint` the
+ * bare point is handed over (a hand-typed address keeps its text). `pin` is
+ * the parent's picked point (from search or an earlier pick); without it the
+ * map centres on the locality. `onUnavailable` fires when the map cannot load. */
 export function PlaceMapPicker({
   idPrefix,
   locality,
   pin,
   onPick,
+  onPoint,
   onUnavailable,
 }: {
   idPrefix: string;
   locality: Locality;
   pin: LatLng | null;
-  onPick: (place: ResolvedPlace) => void;
   onUnavailable: () => void;
-}) {
+} & PickHandler) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [api, setApi] = useState<MapsApi | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const callbacks = useRef({ onPick, onUnavailable });
+  const callbacks = useRef({ onPick, onPoint, onUnavailable });
   const pinRef = useRef(pin);
   const hintId = `${idPrefix}-map-hint`;
 
   useEffect(() => {
-    callbacks.current = { onPick, onUnavailable };
+    callbacks.current = { onPick, onPoint, onUnavailable };
     pinRef.current = pin;
   });
 
@@ -76,11 +81,15 @@ export function PlaceMapPicker({
     async function pickAt(position: LatLng) {
       marker.position = position;
       marker.map = map;
-      setLocating(true);
       setError(null);
+      if (callbacks.current.onPoint) {
+        callbacks.current.onPoint(position);
+        return;
+      }
+      setLocating(true);
       try {
         const place = await reverseGeocode(api!, position);
-        if (!disposed) callbacks.current.onPick(place);
+        if (!disposed) callbacks.current.onPick?.(place);
       } catch (err) {
         console.warn("Google Geocoding unavailable", err);
         if (disposed) return;

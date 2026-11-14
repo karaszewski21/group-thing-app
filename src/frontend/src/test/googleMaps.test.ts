@@ -112,29 +112,54 @@ describe("googleMaps loader", () => {
     }
   });
 
-  it("replaces a script that loaded without defining importLibrary instead of reusing it", async () => {
+  it("a load event before importLibrary exists waits for Google's ready callback", async () => {
     vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "test-key");
     const { fakePlaces } = makeFakePlaces();
     const importLibrary = vi.fn(async (name: string) => (name === "places" ? fakePlaces : {}));
     const maps = await loadModule();
 
-    const broken = maps.loadPlaces();
-    const [stale] = injectedScripts();
-    stale.dispatchEvent(new Event("load"));
-    await expect(broken).resolves.toBeNull();
-    expect(injectedScripts()).toEqual([stale]);
-
-    const retry = maps.loadPlaces();
-    const [fresh] = injectedScripts();
-    expect(injectedScripts()).toHaveLength(1);
-    expect(fresh).not.toBe(stale);
-    expect(stale.isConnected).toBe(false);
+    const pending = maps.loadPlaces();
+    const [script] = injectedScripts();
+    const callbackName = new URL(script.src).searchParams.get("callback");
+    expect(callbackName).toBe("__googleMapsReady");
+    script.dispatchEvent(new Event("load"));
     vi.stubGlobal("google", { maps: { importLibrary } });
-    fresh.dispatchEvent(new Event("load"));
+    (window as unknown as Record<string, () => void>)[callbackName!]();
 
-    const api = await retry;
+    const api = await pending;
     expect(api?.AutocompleteSuggestion).toBe(fakePlaces.AutocompleteSuggestion);
-    expect(importLibrary).toHaveBeenCalledTimes(1);
+    expect(injectedScripts()).toHaveLength(1);
+  });
+
+  it("replaces a script that loaded yet never became ready instead of reusing it", async () => {
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "test-key");
+    vi.useFakeTimers();
+    try {
+      const { fakePlaces } = makeFakePlaces();
+      const importLibrary = vi.fn(async (name: string) => (name === "places" ? fakePlaces : {}));
+      const maps = await loadModule();
+
+      const broken = maps.loadPlaces();
+      const [stale] = injectedScripts();
+      stale.dispatchEvent(new Event("load"));
+      await vi.advanceTimersByTimeAsync(10_000);
+      await expect(broken).resolves.toBeNull();
+      expect(injectedScripts()).toEqual([stale]);
+
+      const retry = maps.loadPlaces();
+      const [fresh] = injectedScripts();
+      expect(injectedScripts()).toHaveLength(1);
+      expect(fresh).not.toBe(stale);
+      expect(stale.isConnected).toBe(false);
+      vi.stubGlobal("google", { maps: { importLibrary } });
+      fresh.dispatchEvent(new Event("load"));
+
+      const api = await retry;
+      expect(api?.AutocompleteSuggestion).toBe(fakePlaces.AutocompleteSuggestion);
+      expect(importLibrary).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("imports the places library once across calls", async () => {

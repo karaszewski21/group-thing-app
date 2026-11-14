@@ -2622,7 +2622,7 @@ describe("AppPage — moderation errors inline in the add-group page and add-ter
 
     fireEvent.click(await within(page).findByRole("link", { name: "Dodaj nowe miejsce" }));
     const placePage = await screen.findByRole("region", { name: "Nowe miejsce" });
-    fireEvent.change(within(placePage).getByRole("combobox", { name: "Lokalizacja" }), { target: { value: "Kę" } });
+    fireEvent.change(within(placePage).getByRole("combobox", { name: "Miejscowość" }), { target: { value: "Kę" } });
     fireEvent.click(await within(placePage).findByRole("option", { name: /Kęty/ }));
     fireEvent.click(within(placePage).getByRole("button", { name: "Zapisz" }));
 

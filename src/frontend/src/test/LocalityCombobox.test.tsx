@@ -39,7 +39,7 @@ function renderCombobox(onPick?: (locality: Locality | null) => void) {
 }
 
 async function typeAndWaitForOptions(text: string) {
-  const input = screen.getByRole("combobox", { name: "Lokalizacja" });
+  const input = screen.getByRole("combobox", { name: "Miejscowość" });
   fireEvent.change(input, { target: { value: text } });
   await screen.findByRole("listbox");
   return input;
@@ -54,7 +54,7 @@ describe("LocalityCombobox", () => {
     vi.mocked(localitiesApi.searchLocalities).mockResolvedValue({ results: [NOWA_WIES_ELCKA, NOWA_WIES], total: 414 });
     renderCombobox();
 
-    expect(screen.getByPlaceholderText("Miejscowość lub kod pocztowy")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Nazwa lub kod pocztowy")).toBeInTheDocument();
     expect(screen.getByText("Np. „Kęty”, „Nowa Wieś” albo „32-650”.")).toBeInTheDocument();
     await typeAndWaitForOptions("Nowa Wie");
 
@@ -94,13 +94,13 @@ describe("LocalityCombobox", () => {
     fireEvent.keyDown(input, { key: "Enter" });
 
     expect(onPick).toHaveBeenLastCalledWith(makeLocality({ id: "0937999", name: "Nowa Wieś", kind: "VILLAGE" }));
-    const chip = screen.getByRole("group", { name: "Lokalizacja" });
+    const chip = screen.getByRole("group", { name: "Miejscowość" });
     expect(chip).toHaveTextContent("Nowa Wieś");
     expect(chip).toHaveTextContent("gm. Kęty, pow. oświęcimski, małopolskie");
 
     fireEvent.click(within(chip).getByRole("button", { name: "Zmień miejscowość Nowa Wieś" }));
     expect(onPick).toHaveBeenLastCalledWith(null);
-    expect(screen.getByRole("combobox", { name: "Lokalizacja" })).toHaveFocus();
+    expect(screen.getByRole("combobox", { name: "Miejscowość" })).toHaveFocus();
   });
 
   it("Esc closes only the listbox: the event is default-prevented and does not reach the parent", async () => {
@@ -125,7 +125,7 @@ describe("LocalityCombobox", () => {
   it("typed text never picked shows 'Wybierz miejscowość z listy' with aria-invalid", async () => {
     vi.mocked(localitiesApi.searchLocalities).mockResolvedValue({ results: [], total: 0 });
     renderCombobox();
-    const input = screen.getByRole("combobox", { name: "Lokalizacja" });
+    const input = screen.getByRole("combobox", { name: "Miejscowość" });
 
     fireEvent.change(input, { target: { value: "Kenty" } });
     fireEvent.blur(input);
@@ -152,7 +152,7 @@ describe("LocalityCombobox", () => {
     expect(input).not.toHaveAttribute("aria-activedescendant");
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onPick).not.toHaveBeenCalled();
-    expect(screen.getByRole("combobox", { name: "Lokalizacja" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Miejscowość" })).toBeInTheDocument();
   });
 
   it("a query with no matches says so in the status region, outside any listbox", async () => {
@@ -161,7 +161,7 @@ describe("LocalityCombobox", () => {
     const status = screen.getByRole("status");
     expect(status).toBeEmptyDOMElement();
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Lokalizacja" }), { target: { value: "Kenty" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Miejscowość" }), { target: { value: "Kenty" } });
 
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent("Brak wyników — sprawdź pisownię albo wpisz kod pocztowy"),

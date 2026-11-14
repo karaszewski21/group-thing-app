@@ -58,7 +58,8 @@ export interface PublicLocationResponse {
 
 /** Body of both `POST` and `PUT /api/locations`. Without `formatted_address`
  * no other address field may be sent; with one, `source` is required:
- * `GOOGLE` requires `google_place_id`, `lat` and `lng`, `MANUAL` forbids them. */
+ * `GOOGLE` requires `google_place_id`, `lat` and `lng`; `MANUAL` forbids
+ * `google_place_id` and takes an optional pinned point (`lat` with `lng`). */
 export interface LocationRequest {
   locality_id: string;
   formatted_address?: string | null;

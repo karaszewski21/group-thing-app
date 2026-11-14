@@ -32,6 +32,25 @@ The Polish locality dictionary seeded by revision 0079 into `localities` and `lo
 
 The 54440 localities are 1026 `TOWN` and 53414 `VILLAGE`. Sizes: `localities_pl.csv.gz` 734700 bytes, `locality_postal_codes_pl.csv.gz` 214405 bytes. Both files are gzip with mtime 0, so rebuilding from the same inputs is byte-identical.
 
+## Locality coordinates (`locality_coordinates_pl.csv.gz`, revision 0098)
+The main point of each locality as WGS 84 decimal degrees (`locality_id`, `lat`, `lng`), written into `localities.lat`/`lng`.
+
+- **PRNG localities** (GUGiK, Państwowy Rejestr Nazw Geograficznych, miejscowości), the SHP package exported 2026-11-12, downloaded 2026-11-14: https://opendata.geoportal.gov.pl/prng/PRNG_MIEJSCOWOSCI_SHP.zip (20 MB; extract `PRNG_MIEJSCOWOSCI_SHP.dbf`, 825 MB). Only the `systemZewn`, `idZewnetrz` and `wspGeograf` attributes are read.
+  - SHA-256 of `PRNG_MIEJSCOWOSCI_SHP.zip`: `753972b7c23945d7ee43ed4d375dc84084a100160a0dca38b69557172ca1dcb0`.
+- Licence: PRNG is published by GUGiK free of charge for any use, like PRG. Attribute it as "Źródło: GUGiK, PRNG". The project owner confirms it at review.
+- A PRNG record is matched to a dictionary locality when `systemZewn` is `TERYT (SIMC)` and `idZewnetrz` is the locality's SIMC id. Records of locality parts are not used, so a city has its own main point, not a district's.
+- `wspGeograf` is degrees, minutes and seconds (latitude, then longitude). It is converted to decimal degrees with six places, so a point is exact to one arc second (about 30 m).
+- 21 dictionary localities (all `VILLAGE`) have no PRNG record with their SIMC id. Their `lat`/`lng` stay null.
+- localities with coordinates: 54419 rows
+
+Size: `locality_coordinates_pl.csv.gz` 471849 bytes, gzip with mtime 0. Rebuild from `src/backend`, with the download unpacked (about 2 seconds):
+
+```
+uv run python scripts/build_locality_coordinates.py --prng PRNG_MIEJSCOWOSCI_SHP.dbf --out alembic/data
+```
+
+It reads the ids from `localities_pl.csv.gz` in `--out`, so rebuild that file first when the dictionary itself changes.
+
 ## Rebuild
 From `src/backend`, with the downloads unpacked:
 

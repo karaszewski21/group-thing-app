@@ -6,7 +6,7 @@ import { localityDetail } from "../../utils/locationLabel";
 import { LOCATION_ERROR_CLASS, LOCATION_INPUT_CLASS, LOCATION_LABEL_CLASS } from "./LocationAddForm";
 
 /* ------------------------------------------------------------------ */
-/*  "Lokalizacja *": a TERYT locality picked by name or postal code    */
+/*  "Miejscowość *": a TERYT locality picked by name or postal code    */
 /*  from the server's dictionary (`useLocalitySearch`).                */
 /* ------------------------------------------------------------------ */
 
@@ -119,7 +119,7 @@ export function LocalityCombobox({
   return (
     <div className="flex flex-col gap-1.5">
       <label id={labelId} htmlFor={inputId} className={LOCATION_LABEL_CLASS}>
-        Lokalizacja{" "}
+        Miejscowość{" "}
         <span aria-hidden="true" className="text-danger">
           *
         </span>
@@ -157,7 +157,7 @@ export function LocalityCombobox({
             aria-invalid={showError || undefined}
             aria-describedby={showError ? `${errorId} ${hintId}` : hintId}
             autoComplete="off"
-            placeholder="Miejscowość lub kod pocztowy"
+            placeholder="Nazwa lub kod pocztowy"
             value={text}
             onChange={(e) => {
               setText(e.target.value);

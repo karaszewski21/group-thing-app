@@ -94,7 +94,7 @@ describe("Moje miejsca — list and edit page", () => {
 
     fireEvent.click(await screen.findByRole("link", { name: "Edytuj miejsce Kraków — Klub Sąsiedzki, ul. Długa 5" }));
     const page = await screen.findByRole("region", { name: "Edytuj miejsce" });
-    expect(within(page).getByRole("group", { name: "Lokalizacja" })).toHaveTextContent("Kraków");
+    expect(within(page).getByRole("group", { name: "Miejscowość" })).toHaveTextContent("Kraków");
     const address = within(page).getByLabelText("Adres (opcjonalnie)");
     expect(address).toHaveValue("Klub Sąsiedzki, ul. Długa 5");
 

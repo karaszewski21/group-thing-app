@@ -1,6 +1,6 @@
 import { useAppNavigate, useAppParams } from "../../routing/navigation";
 import { useAppData, usePanelReload } from "../panel/appDataStore";
-import { LOCATION_ERROR_CLASS, LocationAddForm } from "../../components/shared/LocationAddForm";
+import { LOCATION_ERROR_CLASS, LocationAddForm, PLACE_TITLE_CLASS } from "../../components/shared/LocationAddForm";
 import { useMyLocations } from "../../hooks/useMyLocations";
 import { viewPath } from "../../routing/paths";
 
@@ -19,7 +19,10 @@ export function PlaceEditView() {
   const location = locations.find((l) => l.id === locationId) ?? null;
 
   return (
-    <section aria-label={TITLE}>
+    <section aria-labelledby="miejsce-edycja-tytul" className="flex flex-col gap-3">
+      <h1 id="miejsce-edycja-tytul" className={PLACE_TITLE_CLASS}>
+        {TITLE}
+      </h1>
       {loading ? (
         <p className="text-[13px] text-ink-soft">Ładowanie miejsc…</p>
       ) : error ? (

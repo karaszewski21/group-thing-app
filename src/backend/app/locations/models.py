@@ -43,11 +43,14 @@ class LocalityKind(enum.StrEnum):
 class Locality(Base):
     """An independent TERYT SIMC locality, seeded by migration 0079. The
     7-character SIMC id is a natural string PK on plain `Base`.
-    `name_search` is `localities.fold_polish(name)` for prefix search."""
+    `name_search` is `localities.fold_polish(name)` for prefix search.
+    `lat`/`lng` are the locality's main point (WGS 84, seeded by 0098),
+    null for the few localities the source register has no point for."""
 
     __tablename__ = "localities"
     __table_args__ = (
         CheckConstraint("kind IN ('TOWN', 'VILLAGE')", name="ck_localities_kind"),
+        CheckConstraint("(lat IS NULL) = (lng IS NULL)", name="ck_localities_coordinates"),
         Index(
             "ix_localities_name_search",
             "name_search",
@@ -62,6 +65,8 @@ class Locality(Base):
     gmina: Mapped[str] = mapped_column(String(100), nullable=False)
     powiat: Mapped[str] = mapped_column(String(100), nullable=False)
     voivodeship: Mapped[str] = mapped_column(String(50), nullable=False)
+    lat: Mapped[Decimal | None] = mapped_column(Numeric(9, 6), nullable=True)
+    lng: Mapped[Decimal | None] = mapped_column(Numeric(9, 6), nullable=True)
 
 
 class LocalityPostalCode(Base):

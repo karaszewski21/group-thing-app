@@ -1,6 +1,6 @@
 import { useAppNavigate, useAppSearchParams } from "../../routing/navigation";
 import { useAppData } from "../panel/appDataStore";
-import { LocationAddForm } from "../../components/shared/LocationAddForm";
+import { LocationAddForm, PLACE_TITLE_CLASS } from "../../components/shared/LocationAddForm";
 import { useMyLocations } from "../../hooks/useMyLocations";
 import { type PickedLocationState } from "../../utils/appHelpers";
 import { viewPath } from "../../routing/paths";
@@ -32,7 +32,10 @@ export function PlaceCreateView() {
   }
 
   return (
-    <section aria-label={TITLE}>
+    <section aria-labelledby="miejsca-tytul" className="flex flex-col gap-3">
+      <h1 id="miejsca-tytul" className={PLACE_TITLE_CLASS}>
+        {TITLE}
+      </h1>
       <div className="rounded-[22px] border border-line bg-paper p-5">
         <LocationAddForm
           idPrefix="miejsca"

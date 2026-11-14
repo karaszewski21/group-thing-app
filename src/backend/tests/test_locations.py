@@ -84,6 +84,7 @@ async def test_createLocation_localityOnlyManualGoogle_return201WithLabel_andNoD
 
     bare = await _create(client, token, {"locality_id": KETY, "formatted_address": "   "})
     manual = await _create(client, token, _manual())
+    pinned = await _create(client, token, _manual(lat=49.8811, lng=19.2233))
     google = await _create(client, token, _google())
     google_again = await _create(client, token, _google())
 
@@ -93,6 +94,9 @@ async def test_createLocation_localityOnlyManualGoogle_return201WithLabel_andNoD
     assert (bare["formatted_address"], bare["source"], bare["lat"]) == (None, None, None)
     assert manual["label"] == "Kęty — ul. Długa 1, 32-650 Kęty"
     assert manual["source"] == "MANUAL" and manual["google_place_id"] is None
+    assert (manual["lat"], manual["lng"]) == (None, None)
+    assert (pinned["source"], pinned["google_place_id"]) == ("MANUAL", None)
+    assert (pinned["lat"], pinned["lng"]) == (49.8811, 19.2233)
     assert google["source"] == "GOOGLE"
     assert isinstance(google["lat"], float) and google["lat"] == 49.883333
     assert google_again["id"] != google["id"]
@@ -102,6 +106,7 @@ async def test_createLocation_localityOnlyManualGoogle_return201WithLabel_andNoD
     assert [row["id"] for row in mine.json()] == [
         bare["id"],
         manual["id"],
+        pinned["id"],
         google["id"],
         google_again["id"],
     ]
@@ -117,7 +122,8 @@ async def test_createLocation_localityOnlyManualGoogle_return201WithLabel_andNoD
         {"locality_id": KETY, "google_place_id": "ChIJ-x", "lat": 49.0, "lng": 19.0},
         {"locality_id": KETY, "formatted_address": "ul. Długa 1"},
         _manual(google_place_id="ChIJ-x"),
-        _manual(lat=49.0, lng=19.0),
+        _manual(lat=49.0),
+        _manual(lng=19.0),
         _google(google_place_id=None),
         _google(lat=91.0),
         _manual(formatted_address="x" * 501),

@@ -89,8 +89,9 @@ class PublicLocationResponse(BaseModel):
 class LocationRequest(BaseModel):
     """`POST` and `PUT` (full replacement) body. A blank address is stored
     as null. `source` is required with an address and forbidden without
-    one; GOOGLE requires `google_place_id`, `lat` and `lng`, MANUAL forbids
-    them. The owner is always the caller, never a body field."""
+    one; GOOGLE requires `google_place_id`, `lat` and `lng`; MANUAL forbids
+    `google_place_id` and takes an optional pinned point (`lat` and `lng`
+    together). The owner is always the caller, never a body field."""
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
@@ -117,6 +118,9 @@ class LocationRequest(BaseModel):
             raise ValueError("an address requires a source")
         if self.source == LocationSource.GOOGLE and any(v is None for v in google_fields):
             raise ValueError("GOOGLE locations require google_place_id, lat and lng")
-        if self.source == LocationSource.MANUAL and any(v is not None for v in google_fields):
-            raise ValueError("MANUAL locations must not carry google_place_id, lat or lng")
+        if self.source == LocationSource.MANUAL:
+            if self.google_place_id is not None:
+                raise ValueError("MANUAL locations must not carry google_place_id")
+            if (self.lat is None) != (self.lng is None):
+                raise ValueError("MANUAL locations take lat and lng together or not at all")
         return self
