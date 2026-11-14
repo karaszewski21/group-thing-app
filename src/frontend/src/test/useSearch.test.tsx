@@ -16,6 +16,8 @@ const NO_FILTERS: SearchQuery["filters"] = {
   offer_type: null,
   date_from: null,
   date_to: null,
+  locality: null,
+  radius: null,
 };
 
 function product(id: string): SearchResult {

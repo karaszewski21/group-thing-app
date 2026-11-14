@@ -26,17 +26,20 @@ function toLocality({ id, name, kind, gmina, powiat, voivodeship }: LocalitySear
 
 /** Controlled by the host form: `value` is the chosen locality, `invalid`
  * asks for the pick error (a save attempted without a locality). Typed text
- * left without a pick shows the same error once the field loses focus. */
+ * left without a pick shows the same error once the field loses focus.
+ * `required={false}` (a filter) drops the required mark. */
 export function LocalityCombobox({
   idPrefix,
   value,
   onChange,
   invalid = false,
+  required = true,
 }: {
   idPrefix: string;
   value: Locality | null;
   onChange: (locality: Locality | null) => void;
   invalid?: boolean;
+  required?: boolean;
 }) {
   const [text, setText] = useState("");
   const [open, setOpen] = useState(false);
@@ -119,10 +122,15 @@ export function LocalityCombobox({
   return (
     <div className="flex flex-col gap-1.5">
       <label id={labelId} htmlFor={inputId} className={LOCATION_LABEL_CLASS}>
-        Miejscowość{" "}
-        <span aria-hidden="true" className="text-danger">
-          *
-        </span>
+        Miejscowość
+        {required && (
+          <>
+            {" "}
+            <span aria-hidden="true" className="text-danger">
+              *
+            </span>
+          </>
+        )}
       </label>
       {value ? (
         <div
@@ -150,7 +158,7 @@ export function LocalityCombobox({
             id={inputId}
             role="combobox"
             aria-autocomplete="list"
-            aria-required="true"
+            aria-required={required || undefined}
             aria-expanded={expanded}
             aria-controls={expanded ? listboxId : undefined}
             aria-activedescendant={expanded && active >= 0 ? optionId(active) : undefined}

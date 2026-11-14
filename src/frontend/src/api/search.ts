@@ -10,13 +10,17 @@ export type SearchMode = "items" | "events";
 export type SearchScope = "mine" | "all";
 
 /** The per-mode filters: `category`, `condition` and `offer_type` apply to
- * items only, `date_from` and `date_to` (ISO dates) to meetings only. */
+ * items only, `date_from` and `date_to` (ISO dates) to meetings only.
+ * `locality` (a SIMC id) with `radius` (km around it, `null` = that locality
+ * alone) applies to both modes. */
 export interface SearchFilters {
   category: string | null;
   condition: ItemCondition | null;
   offer_type: ExchangeMode | null;
   date_from: string | null;
   date_to: string | null;
+  locality: string | null;
+  radius: number | null;
 }
 
 export interface SearchQuery {
@@ -80,7 +84,7 @@ export interface SearchPage extends Page<SearchResult> {
   other_mode_count: number;
 }
 
-/** `GET /api/public/search`: only the filters of the searched mode are sent. */
+/** `GET /api/public/search`: only the filters of the searched mode are sent, plus the locality. */
 export function searchPublic({ q, mode, scope, filters }: SearchQuery, page: number, size?: number): Promise<SearchPage> {
   const params = new URLSearchParams({ q, mode, scope });
   const modeFilters =
@@ -89,6 +93,10 @@ export function searchPublic({ q, mode, scope, filters }: SearchQuery, page: num
       : { date_from: filters.date_from, date_to: filters.date_to };
   for (const [key, value] of Object.entries(modeFilters)) {
     if (value) params.set(key, value);
+  }
+  if (filters.locality) {
+    params.set("locality", filters.locality);
+    if (filters.radius) params.set("radius", String(filters.radius));
   }
   for (const [key, value] of pageParams(page, size)) params.set(key, value);
   return api.get(`/public/search?${params}`);

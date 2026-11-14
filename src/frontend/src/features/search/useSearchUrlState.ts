@@ -8,6 +8,8 @@ const CONDITIONS: readonly ItemCondition[] = ["NEW", "LIKE_NEW", "GOOD", "FAIR",
 const OFFER_TYPES: readonly ExchangeMode[] = ["GIFT", "SWAP"];
 const FILTER_KEYS = ["category", "condition", "offer_type", "date_from", "date_to"] as const;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const LOCALITY_ID = /^\d{7}$/;
+export const SEARCH_RADII_KM: readonly number[] = [10, 25, 50];
 
 function oneOf<T extends string>(allowed: readonly T[], value: string | null): T | null {
   return allowed.find((candidate) => candidate === value) ?? null;
@@ -27,7 +29,7 @@ export interface SearchUrlState {
   filters: SearchFilters;
   /** Typing: replaces the history entry. */
   setQ: (q: string) => void;
-  /** Keeps `q` and the scope, clears every filter. */
+  /** Keeps `q`, the scope and the locality, clears the mode's own filters. */
   setMode: (mode: SearchMode) => void;
   /** Ignored for a guest. */
   setScope: (scope: SearchScope) => void;
@@ -37,7 +39,7 @@ export interface SearchUrlState {
 }
 
 /** The search state held in the URL (`q, mode, scope, category, condition,
- * offer_type, date_from, date_to`), so going back from a result card
+ * offer_type, date_from, date_to, locality, radius`), so going back from a result card
  * restores the results. Defaults (`items`, `all`) are left out of the URL;
  * a guest's scope is never written, and one already there is dropped. */
 export function useSearchUrlState(guest: boolean): SearchUrlState {
@@ -51,6 +53,10 @@ export function useSearchUrlState(guest: boolean): SearchUrlState {
   const offerType = params.get("offer_type");
   const dateFrom = params.get("date_from");
   const dateTo = params.get("date_to");
+  const localityParam = params.get("locality");
+  const locality = localityParam !== null && LOCALITY_ID.test(localityParam) ? localityParam : null;
+  // A radius counts only with a locality and only from the offered ones.
+  const radius = (locality && SEARCH_RADII_KM.find((km) => String(km) === params.get("radius"))) || null;
   const filters = useMemo<SearchFilters>(
     () =>
       mode === "items"
@@ -60,9 +66,19 @@ export function useSearchUrlState(guest: boolean): SearchUrlState {
             offer_type: oneOf(OFFER_TYPES, offerType),
             date_from: null,
             date_to: null,
+            locality,
+            radius,
           }
-        : { category: null, condition: null, offer_type: null, date_from: isoDate(dateFrom), date_to: isoDate(dateTo) },
-    [mode, category, condition, offerType, dateFrom, dateTo],
+        : {
+            category: null,
+            condition: null,
+            offer_type: null,
+            date_from: isoDate(dateFrom),
+            date_to: isoDate(dateTo),
+            locality,
+            radius,
+          },
+    [mode, category, condition, offerType, dateFrom, dateTo, locality, radius],
   );
 
   // Each write starts from the previous write, not the last render's params,
@@ -124,6 +140,15 @@ export function useSearchUrlState(guest: boolean): SearchUrlState {
           if (value) next.set(key, value);
           else next.delete(key);
         }
+        if ("locality" in patch) {
+          if (patch.locality) next.set("locality", patch.locality);
+          else next.delete("locality");
+        }
+        if ("radius" in patch) {
+          if (patch.radius) next.set("radius", String(patch.radius));
+          else next.delete("radius");
+        }
+        if (!next.has("locality")) next.delete("radius");
       }),
     [update],
   );

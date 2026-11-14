@@ -76,7 +76,14 @@ export const SearchIcon = ({ c = "#1E2E27" }: { c?: string }) => (
     <path d="m20 20-3.5-3.5" stroke={c} strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
-export const ChatIcon = ({ c = "#1E2E27" }: { c?: string }) => (
+export const FilterIcon = ({ c = "currentColor" }: { c?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
+    <path d="M4 7h10M18 7h2M4 17h2M10 17h10" stroke={c} strokeWidth="2" strokeLinecap="round" />
+    <circle cx="16" cy="7" r="2" stroke={c} strokeWidth="2" />
+    <circle cx="8" cy="17" r="2" stroke={c} strokeWidth="2" />
+  </svg>
+);
+export const ChatIcon =({ c = "#1E2E27" }: { c?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-[22px] w-[22px]">
     <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" stroke={c} strokeWidth="2" strokeLinejoin="round" />
   </svg>

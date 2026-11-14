@@ -9,7 +9,8 @@ word-similarity operator `<%` on folded names; `:q` is always a bound
 parameter. Visibility comes from the groups predicates; listed-only (R12)
 is the items base select. Every read is a fixed number of statements,
 independent of the number of rows: viewer, category check (items with a
-category filter), page rows, total, other-mode count, then one batch each
+category filter), origin locality (with a locality filter), page rows,
+total, other-mode count, then one batch each
 for the owners' Organizations and the thumbnails (items) or for the display
 names and the places (meetings). The statements run under a
 `SET LOCAL statement_timeout` (`STATEMENT_TIMEOUT`), so an expensive public
@@ -105,13 +106,31 @@ _UUID = postgresql.UUID(as_uuid=True)
 @dataclass(frozen=True)
 class SearchFilters:
     """Items: `category_id` (with its descendants), `condition`,
-    `offer_type`. Meetings: the inclusive Warsaw days `date_from`..`date_to`."""
+    `offer_type`. Meetings: the inclusive Warsaw days `date_from`..`date_to`.
+    Both modes: `locality_id` with `radius_km` around it (the locality alone
+    when the radius is unset)."""
 
     category_id: uuid.UUID | None = None
     condition: ItemCondition | None = None
     offer_type: ExchangeMode | None = None
     date_from: date | None = None
     date_to: date | None = None
+    locality_id: str | None = None
+    radius_km: int | None = None
+
+
+@dataclass(frozen=True)
+class _Origin:
+    """The locality searched around. `lat`/`lng` are `None` for the few
+    localities without a point, which then match by id only."""
+
+    locality_id: str
+    lat: float | None
+    lng: float | None
+    radius_km: int
+
+
+EARTH_RADIUS_KM = 6371.0
 
 
 def is_browse(q: str) -> bool:
@@ -122,8 +141,8 @@ def is_browse(q: str) -> bool:
 
 def validate_search(q: str, mode: SearchMode, filters: SearchFilters) -> None:
     """A `ValueError` (400) for a query under the minimum folded length
-    (a blank one browses), a filter of the other mode or
-    `date_to` before `date_from`."""
+    (a blank one browses), a filter of the other mode,
+    `date_to` before `date_from` or a radius without a locality."""
     if (
         not is_browse(q)
         and len(locations_acl.fold_polish(q.strip())) < locations_acl.MIN_QUERY_LENGTH
@@ -137,6 +156,44 @@ def validate_search(q: str, mode: SearchMode, filters: SearchFilters) -> None:
         raise ValueError("Filtry dat dotyczą tylko spotkań")
     if filters.date_from and filters.date_to and filters.date_to < filters.date_from:
         raise ValueError("Data końcowa nie może być wcześniejsza niż początkowa")
+    if filters.radius_km is not None and filters.locality_id is None:
+        raise ValueError("Promień wymaga wybranej miejscowości")
+
+
+async def _load_origin(db: AsyncSession, filters: SearchFilters) -> _Origin | None:
+    """One statement, only with a locality filter; an unknown id is a 400."""
+    if filters.locality_id is None:
+        return None
+    locality = locations_acl.Locality
+    row = (
+        await db.execute(
+            select(locality.lat, locality.lng).where(locality.id == filters.locality_id)
+        )
+    ).one_or_none()
+    if row is None:
+        raise ValueError("Nieznana miejscowość")
+    return _Origin(
+        locality_id=filters.locality_id,
+        lat=float(row.lat) if row.lat is not None else None,
+        lng=float(row.lng) if row.lng is not None else None,
+        radius_km=filters.radius_km or 0,
+    )
+
+
+def _near(origin: _Origin, locality_id: Any, lat: Any, lng: Any) -> ColumnElement[bool]:
+    """A place in the origin locality, or with its point (`lat`, `lng`)
+    within the radius of the origin's point (haversine, in km)."""
+    same_locality = cast(ColumnElement[bool], locality_id == origin.locality_id)
+    if origin.radius_km == 0 or origin.lat is None or origin.lng is None:
+        return same_locality
+    place_lat = sql_cast(lat, Float)
+    half_lat = func.radians(place_lat - origin.lat) / 2
+    half_lng = func.radians(sql_cast(lng, Float) - origin.lng) / 2
+    haversine = func.pow(func.sin(half_lat), 2) + func.cos(func.radians(origin.lat)) * func.cos(
+        func.radians(place_lat)
+    ) * func.pow(func.sin(half_lng), 2)
+    distance_km = 2 * EARTH_RADIUS_KM * func.asin(func.least(1.0, func.sqrt(haversine)))
+    return or_(same_locality, distance_km <= origin.radius_km)
 
 
 class _Query:
@@ -217,12 +274,14 @@ def _items_select(
     viewer: uuid.UUID | None,
     scope: VisibilityScope,
     filters: SearchFilters,
+    origin: _Origin | None,
     *,
     page_columns: bool,
 ) -> Select[Any]:
     """The matching listed items the viewer may see, never their own (all
     of them without a `query`); with `page_columns` also the card
-    columns and the ordering."""
+    columns and the ordering. Near an `origin` an item is placed by its
+    place's locality, never by the exact address."""
     preference = groups_acl.ItemListingPreference
     product = product_acl.Product
     category = category_acl.Category
@@ -249,6 +308,15 @@ def _items_select(
         select_query = select_query.where(listed.c.condition == filters.condition)
     if filters.offer_type is not None:
         select_query = select_query.where(preference.mode == filters.offer_type)
+    if origin is not None:
+        item = inventory_acl.InventoryItem
+        location, locality = locations_acl.Location, locations_acl.Locality
+        select_query = (
+            select_query.join(item, item.id == preference.item_id)
+            .join(location, location.id == item.location_id)
+            .join(locality, locality.id == location.locality_id)
+            .where(_near(origin, locality.id, locality.lat, locality.lng))
+        )
     if not page_columns:
         return select_query
 
@@ -334,6 +402,7 @@ async def search_items(
     filters: SearchFilters,
     pagination: PageParams,
     storage: ObjectStorage | None,
+    origin: _Origin | None = None,
 ) -> SearchPage:
     """One page of matching listed items (every one for a browse): items
     of the viewer's groups first, available before reserved, then by rank
@@ -346,14 +415,16 @@ async def search_items(
     rows = list(
         (
             await db.execute(
-                _items_select(query, viewer, scope, filters, page_columns=True)
+                _items_select(query, viewer, scope, filters, origin, page_columns=True)
                 .offset(pagination.offset)
                 .limit(pagination.size)
             )
         ).all()
     )
-    total = await _count(db, _items_select(query, viewer, scope, filters, page_columns=False))
-    other_mode_count = await _count_other_mode(db, query, viewer, scope, "items")
+    total = await _count(
+        db, _items_select(query, viewer, scope, filters, origin, page_columns=False)
+    )
+    other_mode_count = await _count_other_mode(db, query, viewer, scope, origin, "items")
     return SearchPage(
         items=await _product_results(db, rows, storage, guest=viewer is None),
         total=total,
@@ -451,12 +522,26 @@ def _matched(
 _MEETING_WEIGHTS = [WEIGHT_A, WEIGHT_B, WEIGHT_C, WEIGHT_C]
 
 
+def _place_near(origin: _Origin | None, location: Any, locality: Any) -> ColumnElement[bool]:
+    """A meeting's place near `origin`: its exact point when the address has
+    one, else its locality's point. Everything matches without an origin."""
+    if origin is None:
+        return true()
+    return _near(
+        origin,
+        location.locality_id,
+        func.coalesce(location.lat, locality.lat),
+        func.coalesce(location.lng, locality.lng),
+    )
+
+
 def _terms_branch(
     query: _Query | None,
     viewer: uuid.UUID | None,
     scope: VisibilityScope,
     start: datetime,
     end: datetime | None,
+    origin: _Origin | None,
 ) -> Select[Any]:
     group, term = groups_acl.Group, groups_acl.Term
     location, locality = locations_acl.Location, locations_acl.Locality
@@ -496,11 +581,14 @@ def _terms_branch(
             groups_acl.terms_visible_to(viewer, scope),
             _in_window(term.occurs_on, start, end),
             match,
+            _place_near(origin, location, locality),
         )
     )
 
 
-def _events_branch(query: _Query | None, start: datetime, end: datetime | None) -> Select[Any]:
+def _events_branch(
+    query: _Query | None, start: datetime, end: datetime | None, origin: _Origin | None
+) -> Select[Any]:
     event = events_acl.Event
     location, locality = locations_acl.Location, locations_acl.Locality
     organization = organizations_acl.owned_organization(event.author_party_id)
@@ -535,6 +623,7 @@ def _events_branch(query: _Query | None, start: datetime, end: datetime | None) 
             # A running event is hidden: only upcoming starts.
             _in_window(event.starts_at, start, end),
             match,
+            _place_near(origin, location, locality),
         )
     )
 
@@ -626,21 +715,26 @@ def _organizations_branch(query: _Query) -> Select[Any]:
 
 
 def _meetings_union(
-    query: _Query | None, viewer: uuid.UUID | None, scope: VisibilityScope, filters: SearchFilters
+    query: _Query | None,
+    viewer: uuid.UUID | None,
+    scope: VisibilityScope,
+    filters: SearchFilters,
+    origin: _Origin | None,
 ) -> Select[Any]:
     """Every matching meeting row, one `UNION ALL`; events and organizations
-    only in `ALL`; a browse (no `query`) only the terms and events. Selected
-    from as `results`."""
+    only in `ALL`; a browse (no `query`) or a search near an `origin` only
+    the terms and events, the rows that have a place. Selected from as
+    `results`."""
     # Warsaw wall clock, the clock of `Term.occurs_on` and `Event.starts_at`.
     now = clock.local_now()
     start, end = _date_window(now, filters)
-    branches = [_terms_branch(query, viewer, scope, start, end)]
-    if query is not None:
+    branches = [_terms_branch(query, viewer, scope, start, end, origin)]
+    if query is not None and origin is None:
         windowed = filters.date_from is not None or filters.date_to is not None
         branches.append(_groups_branch(query, viewer, scope, start, end, windowed=windowed))
     if scope == VisibilityScope.ALL:
-        branches.append(_events_branch(query, start, end))
-        if query is not None:
+        branches.append(_events_branch(query, start, end, origin))
+        if query is not None and origin is None:
             branches.append(_organizations_branch(query))
     results = union_all(*branches).subquery("results")
     return select(results)
@@ -737,13 +831,14 @@ async def search_meetings(
     scope: VisibilityScope,
     filters: SearchFilters,
     pagination: PageParams,
+    origin: _Origin | None = None,
 ) -> SearchPage:
     """One page of matching meetings: name matches before description-only
     groups, then the soonest first (dateless last), the viewer's groups
     first, then by rank, kind and id. A browse lists the upcoming terms
     and events, soonest first."""
     query = None if is_browse(q) else _Query(q)
-    union = _meetings_union(query, viewer, scope, filters)
+    union = _meetings_union(query, viewer, scope, filters, origin)
     results = union.subquery("page")
     rows = list(
         (
@@ -763,7 +858,7 @@ async def search_meetings(
         ).all()
     )
     total = await _count(db, union)
-    other_mode_count = await _count_other_mode(db, query, viewer, scope, "events")
+    other_mode_count = await _count_other_mode(db, query, viewer, scope, origin, "events")
     return SearchPage(
         items=await _meeting_results(db, rows),
         total=total,
@@ -778,15 +873,17 @@ async def _count_other_mode(
     query: _Query | None,
     viewer: uuid.UUID | None,
     scope: VisibilityScope,
+    origin: _Origin | None,
     mode: SearchMode,
 ) -> int:
-    """The total of the mode other than `mode` for the same query and scope,
-    without filters: the filters belong to one mode and are cleared when it
-    switches, so this is the total the viewer sees after switching."""
+    """The total of the mode other than `mode` for the same query, scope
+    and `origin`, without the per-mode filters: those belong to one mode and
+    are cleared when it switches, while the locality stays, so this is the
+    total the viewer sees after switching."""
     if mode == "items":
-        return await _count(db, _meetings_union(query, viewer, scope, SearchFilters()))
+        return await _count(db, _meetings_union(query, viewer, scope, SearchFilters(), origin))
     return await _count(
-        db, _items_select(query, viewer, scope, SearchFilters(), page_columns=False)
+        db, _items_select(query, viewer, scope, SearchFilters(), origin, page_columns=False)
     )
 
 
@@ -814,9 +911,10 @@ async def search(
         )
         if viewer is None:
             scope = VisibilityScope.ALL
+        origin = await _load_origin(db, filters)
         if mode == "items":
-            return await search_items(db, q, viewer, scope, filters, pagination, storage)
-        return await search_meetings(db, q, viewer, scope, filters, pagination)
+            return await search_items(db, q, viewer, scope, filters, pagination, storage, origin)
+        return await search_meetings(db, q, viewer, scope, filters, pagination, origin)
     except DBAPIError as exc:
         if getattr(exc.orig, "sqlstate", None) == QUERY_CANCELED:
             raise ServiceUnavailableException(TIMED_OUT_MESSAGE) from exc

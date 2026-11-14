@@ -1,16 +1,24 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { Category } from "../../api/categories";
 import type { ItemCondition } from "../../api/inventories";
+import type { Locality } from "../../api/locations";
 import type { SearchFilters as SearchFilterValues, SearchMode, SearchScope } from "../../api/search";
+import { FilterIcon } from "../../components/shared/appIcons";
+import { LocalityCombobox } from "../../components/shared/LocalityCombobox";
+import { LOCATION_INPUT_CLASS, LOCATION_LABEL_CLASS } from "../../components/shared/LocationAddForm";
 import { ModalSheet } from "../../components/shared/ModalSheet";
 import { nextIndex } from "../../components/shared/rovingIndex";
 import { useCategories } from "../../hooks/useCategories";
+import { useLocality } from "../../hooks/useLocality";
+import { useMajorTowns } from "../../hooks/useMajorTowns";
 import { useClientValue } from "../../lib/useClientValue";
 import { ITEM_MODE_TO_RESERVATION_TYPE, ITEM_MODES } from "../../utils/appHelpers";
 import { buildCategoryIndex, type CategoryIndex } from "../../utils/categoryTree";
 import dayjs from "../../utils/dayjs";
 import { CONDITION_LABELS } from "../../utils/productCategory";
+import { readLastLocality, saveLastLocality } from "./lastLocality";
 import { SEGMENT_CLASS, segmentTone } from "./segmentStyles";
+import { SEARCH_RADII_KM } from "./useSearchUrlState";
 
 const SCOPES: { id: SearchScope; label: string }[] = [
   { id: "mine", label: "Moje grupy" },
@@ -34,49 +42,40 @@ interface SearchFiltersProps {
   /** `null` for a guest, who always searches everywhere and gets no control. */
   scope: SearchScope | null;
   onScopeChange: (scope: SearchScope) => void;
+  /** The „Filtry” sheet, opened by the host's `FiltersButton`. */
+  open: boolean;
+  onClose: () => void;
 }
 
 /** The searched mode's filters. Items: a row of main-category tiles, and a
- * „Filtry” sheet with the scope, a subcategory, Stan and Oddam/Zamienię.
- * Meetings: a „Filtry” sheet with the scope, Od (today when unset) and Do. */
-export function SearchFilters({ mode, filters, dateRangeInvalid, onChange, scope, onScopeChange }: SearchFiltersProps) {
-  return mode === "items" ? (
-    <ItemFilters filters={filters} onChange={onChange} scope={scope} onScopeChange={onScopeChange} />
-  ) : (
-    <MeetingFilters
-      filters={filters}
-      dateRangeInvalid={dateRangeInvalid}
-      onChange={onChange}
-      scope={scope}
-      onScopeChange={onScopeChange}
-    />
-  );
+ * „Filtry” sheet with the scope, the locality, a subcategory, Stan and
+ * Oddam/Zamienię. Meetings: a „Filtry” sheet with the scope, the locality,
+ * Od (today when unset) and Do. */
+export function SearchFilters({ mode, dateRangeInvalid, ...rest }: SearchFiltersProps) {
+  if (mode === "items") return <ItemFilters {...rest} />;
+  return rest.open ? <MeetingFilterSheet dateRangeInvalid={dateRangeInvalid} {...rest} /> : null;
 }
 
 type ItemFiltersProps = Omit<SearchFiltersProps, "mode" | "dateRangeInvalid">;
-type MeetingFiltersProps = Omit<SearchFiltersProps, "mode">;
+type SheetProps = Omit<ItemFiltersProps, "open">;
 
-/** „Filtry” with the count of set refinements, and their labels beside it. */
-function FiltersButton({ refinements, onOpen }: { refinements: string[]; onOpen: () => void }) {
+/** The round „Filtry” button beside the search field, with the count of set refinements. */
+export function FiltersButton({ count, onOpen }: { count: number; onOpen: () => void }) {
   return (
-    <div className="flex min-w-0 items-center gap-2.5">
-      <button
-        type="button"
-        aria-haspopup="dialog"
-        onClick={onOpen}
-        className={`${CHIP_CLASS} flex flex-none items-center gap-2 ${chipTone(refinements.length > 0)}`}
-      >
-        Filtry
-        {refinements.length > 0 && (
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs text-on-primary">
-            {refinements.length}
-          </span>
-        )}
-      </button>
-      <span aria-hidden="true" className="min-w-0 truncate text-sm text-ink-soft">
-        {refinements.join(" · ")}
-      </span>
-    </div>
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      onClick={onOpen}
+      className={`relative flex h-12.5 w-12.5 flex-none items-center justify-center rounded-full border-2 ${chipTone(count > 0)} ${FOCUS_CLASS}`}
+    >
+      <FilterIcon />
+      <span className="sr-only">Filtry</span>
+      {count > 0 && (
+        <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-on-primary">
+          {count}
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -85,6 +84,131 @@ function ScopeSection({ scope, onSelect }: { scope: SearchScope; onSelect: (scop
     <div className="flex flex-col gap-2">
       <h4 className={SECTION_TITLE_CLASS}>Gdzie szukać</h4>
       <ScopeToggle scope={scope} onSelect={onSelect} />
+    </div>
+  );
+}
+
+const DEFAULT_RADIUS_KM = SEARCH_RADII_KM[0];
+
+const byPolishName = (a: string, b: string) => a.localeCompare(b, "pl");
+
+/** A voivodeship select and its larger towns as chips: a pick without typing.
+ * Renders nothing until the towns load, the search field works without it. */
+function MajorTownPicker({ idPrefix, onPick }: { idPrefix: string; onPick: (town: Locality) => void }) {
+  const { data: towns } = useMajorTowns();
+  const [voivodeship, setVoivodeship] = useState("");
+  const voivodeships = useMemo(() => [...new Set(towns.map((town) => town.voivodeship))].sort(byPolishName), [towns]);
+  if (towns.length === 0) return null;
+  const selectId = `${idPrefix}-voivodeship`;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label htmlFor={selectId} className={LOCATION_LABEL_CLASS}>
+        Albo wybierz z listy
+      </label>
+      <select
+        id={selectId}
+        value={voivodeship}
+        onChange={(event) => setVoivodeship(event.target.value)}
+        className={LOCATION_INPUT_CLASS}
+      >
+        <option value="">Województwo…</option>
+        {voivodeships.map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ))}
+      </select>
+      {voivodeship && (
+        <div role="group" aria-label={`Większe miasta, ${voivodeship}`} className="flex flex-wrap gap-2">
+          {towns
+            .filter((town) => town.voivodeship === voivodeship)
+            .sort((a, b) => byPolishName(a.name, b.name))
+            .map((town) => (
+              <button key={town.id} type="button" onClick={() => onPick(town)} className={`${CHIP_CLASS} ${chipTone(false)}`}>
+                {town.name}
+              </button>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A locality and how far around it to search; picking one starts at the
+ * smallest radius, „zmień” on the picked one clears the filter. Without one:
+ * the search field, the locality picked last time and the larger towns. */
+function LocationSection({
+  filters,
+  onChange,
+}: {
+  filters: SearchFilterValues;
+  onChange: (patch: Partial<SearchFilterValues>) => void;
+}) {
+  const id = useId();
+  // The picked locality is shown at once; a locality from the URL is loaded by its id.
+  const [picked, setPicked] = useState<Locality | null>(null);
+  const [last, setLast] = useState(readLastLocality);
+  const known = picked?.id === filters.locality;
+  const { data: loaded, loading } = useLocality(known ? null : filters.locality);
+  const locality = known ? picked : loaded;
+
+  function pick(next: Locality | null) {
+    setPicked(next);
+    if (next) {
+      saveLastLocality(next);
+      setLast(next);
+    }
+    onChange({ locality: next?.id ?? null, radius: next ? DEFAULT_RADIUS_KM : null });
+  }
+
+  return (
+    <div role="group" aria-label="Lokalizacja" className="flex flex-col gap-2">
+      <h4 className={SECTION_TITLE_CLASS}>Lokalizacja</h4>
+      {filters.locality && !locality ? (
+        <div className="flex items-center justify-between gap-2">
+          <p role={loading ? "status" : "alert"} className="text-sm text-ink-soft">
+            {loading ? "Wczytuję miejscowość…" : "Nie udało się wczytać miejscowości."}
+          </p>
+          <button
+            type="button"
+            onClick={() => onChange({ locality: null, radius: null })}
+            className={`${CHIP_CLASS} ${chipTone(false)}`}
+          >
+            Usuń
+          </button>
+        </div>
+      ) : (
+        <LocalityCombobox idPrefix={id} value={locality} required={false} onChange={pick} />
+      )}
+      {!filters.locality && (
+        <>
+          {last && (
+            <button type="button" onClick={() => pick(last)} className={`${CHIP_CLASS} self-start ${chipTone(false)}`}>
+              Ostatnio: {last.name}, {last.voivodeship}
+            </button>
+          )}
+          <MajorTownPicker idPrefix={id} onPick={pick} />
+        </>
+      )}
+      {filters.locality && locality && (
+        <div role="group" aria-label="Odległość" className="flex flex-wrap gap-2">
+          {[null, ...SEARCH_RADII_KM].map((km) => {
+            const on = filters.radius === km;
+            return (
+              <button
+                key={km ?? 0}
+                type="button"
+                aria-pressed={on}
+                onClick={() => onChange({ radius: km })}
+                className={`${CHIP_CLASS} ${chipTone(on)}`}
+              >
+                {km === null ? "Tylko tu" : `+${km} km`}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -121,24 +245,15 @@ function categoryPath(index: CategoryIndex, id: string | null): Category[] {
   return path;
 }
 
-function ItemFilters({ filters, onChange, scope, onScopeChange }: ItemFiltersProps) {
+function ItemFilters({ filters, onChange, scope, onScopeChange, open, onClose }: ItemFiltersProps) {
   const { data } = useCategories();
   const index = useMemo(() => buildCategoryIndex(data), [data]);
-  const [open, setOpen] = useState(false);
 
   const path = categoryPath(index, filters.category);
   const root = path.at(0);
-  const subcategory = path.length > 1 ? path[path.length - 1] : undefined;
-  const offerMode = ITEM_MODES.find((itemMode) => ITEM_MODE_TO_RESERVATION_TYPE[itemMode] === filters.offer_type);
-  const refinements = [
-    scope === "mine" && "Moje grupy",
-    subcategory?.name,
-    filters.condition && CONDITION_LABELS[filters.condition],
-    offerMode,
-  ].filter((label): label is string => Boolean(label));
 
   return (
-    <div className="mb-3 flex flex-col gap-2">
+    <div className="mb-3">
       <div
         role="group"
         aria-label="Kategoria"
@@ -167,7 +282,6 @@ function ItemFilters({ filters, onChange, scope, onScopeChange }: ItemFiltersPro
           );
         })}
       </div>
-      <FiltersButton refinements={refinements} onOpen={() => setOpen(true)} />
       {open && (
         <ItemFilterSheet
           index={index}
@@ -176,7 +290,7 @@ function ItemFilters({ filters, onChange, scope, onScopeChange }: ItemFiltersPro
           onChange={onChange}
           scope={scope}
           onScopeChange={onScopeChange}
-          onClose={() => setOpen(false)}
+          onClose={onClose}
         />
       )}
     </div>
@@ -193,7 +307,7 @@ function ItemFilterSheet({
   scope,
   onScopeChange,
   onClose,
-}: ItemFiltersProps & { index: CategoryIndex; path: Category[]; onClose: () => void }) {
+}: SheetProps & { index: CategoryIndex; path: Category[] }) {
   const subcategoriesRef = useRef<HTMLDivElement>(null);
   const refocus = useRef(false);
   const root = path.at(0);
@@ -219,6 +333,7 @@ function ItemFilterSheet({
     <ModalSheet title="Filtry" onClose={onClose}>
       <div className="flex flex-col gap-5">
         {scope && <ScopeSection scope={scope} onSelect={onScopeChange} />}
+        <LocationSection filters={filters} onChange={onChange} />
         <div
           ref={subcategoriesRef}
           role="group"
@@ -308,7 +423,7 @@ function ItemFilterSheet({
 
         <SheetActions
           onClear={() => {
-            onChange({ category: root?.id ?? null, condition: null, offer_type: null });
+            onChange({ category: root?.id ?? null, condition: null, offer_type: null, locality: null, radius: null });
             if (scope) onScopeChange("all");
           }}
           onClose={onClose}
@@ -356,31 +471,6 @@ export function ScopeToggle({ scope, onSelect }: { scope: SearchScope; onSelect:
   );
 }
 
-function MeetingFilters({ filters, dateRangeInvalid, onChange, scope, onScopeChange }: MeetingFiltersProps) {
-  const [open, setOpen] = useState(false);
-  const refinements = [
-    scope === "mine" && "Moje grupy",
-    filters.date_from && `od ${dayjs(filters.date_from).format("D MMM")}`,
-    filters.date_to && `do ${dayjs(filters.date_to).format("D MMM")}`,
-  ].filter((label): label is string => Boolean(label));
-
-  return (
-    <div className="mb-3">
-      <FiltersButton refinements={refinements} onOpen={() => setOpen(true)} />
-      {open && (
-        <MeetingFilterSheet
-          filters={filters}
-          dateRangeInvalid={dateRangeInvalid}
-          onChange={onChange}
-          scope={scope}
-          onScopeChange={onScopeChange}
-          onClose={() => setOpen(false)}
-        />
-      )}
-    </div>
-  );
-}
-
 /** The scope, then Od (today when unset) and Do. Every change applies at once. */
 function MeetingFilterSheet({
   filters,
@@ -389,7 +479,7 @@ function MeetingFilterSheet({
   scope,
   onScopeChange,
   onClose,
-}: MeetingFiltersProps & { onClose: () => void }) {
+}: SheetProps & { dateRangeInvalid: boolean }) {
   const id = useId();
   const rangeErrorId = `${id}-range-error`;
   const today = useClientValue(() => dayjs().format("YYYY-MM-DD"), "");
@@ -399,6 +489,7 @@ function MeetingFilterSheet({
     <ModalSheet title="Filtry" onClose={onClose}>
       <div className="flex flex-col gap-5">
         {scope && <ScopeSection scope={scope} onSelect={onScopeChange} />}
+        <LocationSection filters={filters} onChange={onChange} />
         <div role="group" aria-label="Kiedy" className="flex flex-col gap-2">
           <h4 className={SECTION_TITLE_CLASS}>Kiedy</h4>
           <div className="flex flex-wrap gap-2">
@@ -440,7 +531,7 @@ function MeetingFilterSheet({
         </div>
         <SheetActions
           onClear={() => {
-            onChange({ date_from: null, date_to: null });
+            onChange({ date_from: null, date_to: null, locality: null, radius: null });
             if (scope) onScopeChange("all");
           }}
           onClose={onClose}

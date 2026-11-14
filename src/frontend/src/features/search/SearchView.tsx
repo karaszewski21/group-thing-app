@@ -1,4 +1,4 @@
-import { useCallback, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { SearchMode, SearchResult, SearchScope } from "../../api/search";
 import { useAuth } from "../../auth/AuthContext";
 import { CloseIcon, SearchIcon } from "../../components/shared/appIcons";
@@ -9,11 +9,12 @@ import { Link } from "../../routing/navigation";
 import { viewPath } from "../../routing/paths";
 import { pluralPl } from "../../utils/plural";
 import { OtherModeLine, SEARCH_MODE_NOUNS } from "./OtherModeLine";
-import { SearchFilters } from "./SearchFilters";
+import { FiltersButton, SearchFilters } from "./SearchFilters";
 import { SearchResultCard } from "./SearchResultCard";
 import { SearchResultsSkeleton } from "./SearchSkeleton";
 import { resolveSearchView } from "./searchViewState";
 import { SEGMENT_CLASS, segmentTone } from "./segmentStyles";
+import { useRefinementCount } from "./useRefinementCount";
 import { useSearchScrollRestore } from "./useSearchScrollRestore";
 import { useSearchUrlState } from "./useSearchUrlState";
 
@@ -48,8 +49,11 @@ export function SearchView() {
   const guest = !token;
   const { q, mode, scope, filters, setQ, setMode, setScope, setFilters, dateRangeInvalid } = useSearchUrlState(guest);
   const search = useSearch({ q, mode, scope, filters }, guest ? null : username, { enabled: !dateRangeInvalid });
+  const filterScope = guest ? null : scope;
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const refinementCount = useRefinementCount(mode, filters, filterScope);
   const term = q.trim();
-  const view = resolveSearchView({ ...search, q: term, mode, scope, dateRangeInvalid });
+  const view =resolveSearchView({ ...search, q: term, mode, scope, dateRangeInvalid });
 
   const { hasNextPage, fetchNextPage, fetchingNextPage, nextPageError } = search;
   const loadMore = useCallback(() => void fetchNextPage(), [fetchNextPage]);
@@ -142,15 +146,20 @@ export function SearchView() {
 
   return (
     <>
-      <SearchInput mode={mode} value={q} onChange={setQ} />
+      <div className="mb-3 flex items-center gap-2">
+        <SearchInput mode={mode} value={q} onChange={setQ} />
+        <FiltersButton count={refinementCount} onOpen={() => setFiltersOpen(true)} />
+      </div>
       <ModeTabs mode={mode} onSelect={setMode} />
       <SearchFilters
         mode={mode}
         filters={filters}
         dateRangeInvalid={dateRangeInvalid}
         onChange={setFilters}
-        scope={guest ? null : scope}
+        scope={filterScope}
         onScopeChange={setScope}
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
       />
       <div role="tabpanel" id={PANEL_ID} aria-labelledby={tabId(mode)} onClickCapture={rememberScroll}>
         <p aria-live="polite" className="mb-3 text-sm text-ink-soft">
@@ -164,7 +173,7 @@ export function SearchView() {
 
 function SearchInput({ mode, value, onChange }: { mode: SearchMode; value: string; onChange: (q: string) => void }) {
   return (
-    <div className="mb-3 flex min-h-12.5 min-w-0 items-center gap-2 rounded-full border-2 border-primary bg-paper pr-1.5 pl-4">
+    <div className="flex min-h-12.5 min-w-0 flex-1 items-center gap-2 rounded-full border-2 border-primary bg-paper pr-1.5 pl-4">
       <SearchIcon />
       <label htmlFor="panel-search" className="sr-only">
         {mode === "items" ? "Szukaj przedmiotów" : "Szukaj spotkań"}

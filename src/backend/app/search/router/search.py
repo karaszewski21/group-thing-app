@@ -28,6 +28,7 @@ Storage = Annotated[ObjectStorage | None, Depends(get_storage)]
 # The search is public: deep pages (large OFFSETs over the full match) are a
 # 400, not an expensive scan.
 MAX_SEARCH_PAGE = 50
+MAX_RADIUS_KM = 100
 
 
 def _search_page(
@@ -54,6 +55,8 @@ async def search(
     offer_type: ExchangeMode | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
+    locality: Annotated[str | None, Query(pattern=r"^\d{7}$")] = None,
+    radius: Annotated[int | None, Query(ge=0, le=MAX_RADIUS_KM)] = None,
     principal: OptionalPrincipal = None,
 ) -> SearchPage:
     """Unauthenticated — matched by the `GET ^/api/public/.*$` PUBLIC row in
@@ -61,7 +64,8 @@ async def search(
     a query under 2 folded characters (a blank one is an items browse of
     `category`), a bad parameter, a page past
     `MAX_SEARCH_PAGE`, a filter of the other mode, `date_to` before
-    `date_from` or an unknown category. A guest
+    `date_from`, an unknown category or locality, or a `radius` (km around
+    `locality`, in both modes) without a locality. A guest
     always searches everywhere."""
     page = await search_service.search(
         db,
@@ -75,6 +79,8 @@ async def search(
             offer_type=offer_type,
             date_from=date_from,
             date_to=date_to,
+            locality_id=locality,
+            radius_km=radius,
         ),
         pagination,
         storage,

@@ -3,17 +3,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as categoriesApi from "../api/categories";
 import { ApiError } from "../api/client";
 import type { Category } from "../api/categories";
+import * as localitiesApi from "../api/localities";
 import * as searchApi from "../api/search";
 import type { SearchPage, SearchQuery, SearchResult } from "../api/search";
 import BackPageLayout from "../app/(public)/layout";
 import SearchRoutePage from "../app/(public)/search/page";
 import { SearchPageError } from "../features/search/SearchRouteStates";
 import { SearchView } from "../features/search/SearchView";
+import { makeLocality, makeLocalitySearchResult } from "./fixtures/locations";
 import { createQueryWrapper, createTestQueryClient } from "./queryClient";
 import { getTestLocation, getTestRouter, renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/search", () => ({ searchPublic: vi.fn() }));
 vi.mock("../api/categories", () => ({ getCategories: vi.fn() }));
+vi.mock("../api/localities", () => ({ searchLocalities: vi.fn(), getLocality: vi.fn(), getMajorTowns: vi.fn() }));
 
 let mockAuth: { token: string | null; username: string | null } = { token: "test-token", username: "anna" };
 vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
@@ -24,6 +27,8 @@ const NO_FILTERS: SearchQuery["filters"] = {
   offer_type: null,
   date_from: null,
   date_to: null,
+  locality: null,
+  radius: null,
 };
 
 function category(id: string, name: string, parent_id: string | null): Category {
@@ -74,6 +79,8 @@ beforeEach(() => {
   mockAuth = { token: "test-token", username: "anna" };
   vi.mocked(categoriesApi.getCategories).mockResolvedValue(CATEGORIES);
   vi.mocked(searchApi.searchPublic).mockResolvedValue(page([]));
+  vi.mocked(localitiesApi.getMajorTowns).mockResolvedValue([]);
+  localStorage.clear();
 });
 
 describe("SearchView", () => {
@@ -122,6 +129,81 @@ describe("SearchView", () => {
 
     fireEvent.click(within(sheet).getByRole("button", { name: "Wyczyść" }));
     expect(getTestLocation().search).toBe("?q=joga&mode=events");
+  });
+
+  it("a picked locality starts at +10 km, takes another radius and survives the mode switch", async () => {
+    vi.mocked(localitiesApi.searchLocalities).mockResolvedValue({ results: [makeLocalitySearchResult()], total: 1 });
+    renderSearch("/search?q=klocki");
+
+    fireEvent.click(screen.getByRole("button", { name: "Filtry" }));
+    const sheet = await screen.findByRole("dialog", { name: "Filtry" });
+    fireEvent.change(within(sheet).getByRole("combobox", { name: "Miejscowość" }), { target: { value: "Kę" } });
+    fireEvent.click(await within(sheet).findByRole("option", { name: /^Kęty/ }));
+
+    expect(getTestLocation().search).toBe("?q=klocki&locality=0937730&radius=10");
+    expect(within(sheet).getByRole("group", { name: "Miejscowość" })).toHaveTextContent("Kęty");
+    expect(within(sheet).getByRole("button", { name: "+10 km" })).toHaveAttribute("aria-pressed", "true");
+    expect(localitiesApi.getLocality).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(searchApi.searchPublic).toHaveBeenLastCalledWith(
+        { q: "klocki", mode: "items", scope: "all", filters: { ...NO_FILTERS, locality: "0937730", radius: 10 } },
+        1,
+        20,
+      ),
+    );
+
+    fireEvent.click(within(sheet).getByRole("button", { name: "+25 km" }));
+    expect(getTestLocation().search).toBe("?q=klocki&locality=0937730&radius=25");
+    fireEvent.click(within(sheet).getByRole("button", { name: "Tylko tu" }));
+    expect(getTestLocation().search).toBe("?q=klocki&locality=0937730");
+
+    fireEvent.click(within(sheet).getByRole("button", { name: "Pokaż wyniki" }));
+    expect(screen.getByRole("button", { name: /^Filtry\s*1$/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Spotkania" }));
+    expect(getTestLocation().search).toBe("?q=klocki&locality=0937730&mode=events");
+  });
+
+  it("a locality from the URL is loaded by its id; „Wyczyść” removes it with its radius", async () => {
+    vi.mocked(localitiesApi.getLocality).mockResolvedValue(makeLocality());
+    renderSearch("/search?mode=events&locality=0937730&radius=25");
+
+    fireEvent.click(screen.getByRole("button", { name: /^Filtry\s*1$/ }));
+    const sheet = await screen.findByRole("dialog", { name: "Filtry" });
+    expect(await within(sheet).findByRole("group", { name: "Miejscowość" })).toHaveTextContent("Kęty");
+    expect(localitiesApi.getLocality).toHaveBeenCalledWith("0937730");
+    expect(within(sheet).getByRole("button", { name: "+25 km" })).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(within(sheet).getByRole("button", { name: "Wyczyść" }));
+    expect(getTestLocation().search).toBe("?mode=events");
+  });
+
+  it("a larger town is picked from its voivodeship and offered again as the last one", async () => {
+    const krakow = makeLocality({ id: "0950463", name: "Kraków", gmina: "Kraków", powiat: "Kraków" });
+    const lodz = makeLocality({ id: "0957650", name: "Łódź", gmina: "Łódź", powiat: "Łódź", voivodeship: "łódzkie" });
+    vi.mocked(localitiesApi.getMajorTowns).mockResolvedValue([lodz, krakow]);
+    const { unmount } = renderSearch("/search?mode=events");
+
+    fireEvent.click(screen.getByRole("button", { name: "Filtry" }));
+    const sheet = await screen.findByRole("dialog", { name: "Filtry" });
+    expect(within(sheet).queryByRole("button", { name: /^Ostatnio/ })).not.toBeInTheDocument();
+    const select = await within(sheet).findByLabelText("Albo wybierz z listy");
+    expect(within(sheet).queryByRole("button", { name: "Kraków" })).not.toBeInTheDocument();
+    fireEvent.change(select, { target: { value: "małopolskie" } });
+    expect(within(sheet).queryByRole("button", { name: "Łódź" })).not.toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole("button", { name: "Kraków" }));
+
+    expect(getTestLocation().search).toBe("?mode=events&locality=0950463&radius=10");
+    expect(within(sheet).getByRole("group", { name: "Miejscowość" })).toHaveTextContent("Kraków");
+    expect(within(sheet).queryByLabelText("Albo wybierz z listy")).not.toBeInTheDocument();
+    unmount();
+
+    renderSearch("/search");
+    fireEvent.click(screen.getByRole("button", { name: "Filtry" }));
+    const reopened = await screen.findByRole("dialog", { name: "Filtry" });
+    fireEvent.click(within(reopened).getByRole("button", { name: "Ostatnio: Kraków, małopolskie" }));
+
+    expect(getTestLocation().search).toBe("?locality=0950463&radius=10");
+    expect(localitiesApi.getLocality).not.toHaveBeenCalled();
   });
 
   it("caps the search input at the backend's 100 characters", async () => {

@@ -13,7 +13,19 @@ export interface LocalitySearchResponse {
   total: number;
 }
 
-/** `GET /api/localities`: by name prefix or postal code; `limit` 1–20. */
+/** `GET /api/public/localities`: by name prefix or postal code; `limit`
+ * 1–20. Public, so a guest can filter `/search` by a locality. */
 export function searchLocalities(q: string, limit: number): Promise<LocalitySearchResponse> {
-  return api.get(`/localities?${new URLSearchParams({ q, limit: String(limit) })}`);
+  return api.get(`/public/localities?${new URLSearchParams({ q, limit: String(limit) })}`);
+}
+
+/** `GET /api/public/localities/major`: the larger towns (cities with county
+ * rights) of every voivodeship, by voivodeship then name. */
+export function getMajorTowns(): Promise<Locality[]> {
+  return api.get("/public/localities/major");
+}
+
+/** `GET /api/public/localities/{id}`: one locality by its SIMC id. */
+export function getLocality(id: string): Promise<Locality> {
+  return api.get(`/public/localities/${encodeURIComponent(id)}`);
 }

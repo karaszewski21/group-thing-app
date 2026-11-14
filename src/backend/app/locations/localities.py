@@ -55,6 +55,17 @@ def _ordering(exact: Any) -> list[Any]:
     ]
 
 
+async def list_major_towns(db: AsyncSession) -> list[Locality]:
+    """The cities with county rights (their powiat carries their own name),
+    66 in the 2026 register: the larger towns of each voivodeship."""
+    rows = await db.scalars(
+        select(Locality)
+        .where(Locality.kind == LocalityKind.TOWN, Locality.powiat == Locality.name)
+        .order_by(Locality.voivodeship, Locality.name, Locality.id)
+    )
+    return list(rows)
+
+
 async def search_localities(
     db: AsyncSession, query: str, limit: int
 ) -> tuple[list[LocalityMatch], int]:
