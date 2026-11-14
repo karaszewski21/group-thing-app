@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { Link, useAppNavigate, useAppParams, useHasInAppHistory } from "../../routing/navigation";
+import { Link, useAppParams } from "../../routing/navigation";
 import type { ConversationKind, ConversationResponse, MessageResponse, ReadOnlyReason } from "../../api/conversations";
 import { Avatar } from "../../components/shared/Avatar";
 import { useConversation } from "../../hooks/useConversation";
@@ -7,7 +7,6 @@ import { useThread } from "../../hooks/useThread";
 import { INBOX_PATH } from "../../routing/messagesPaths";
 import { itemPagePath } from "../product/useItemRoutes";
 import { pluralPl } from "../../utils/plural";
-import { BackIcon } from "../../components/shared/appIcons";
 import { MessageBubble } from "./MessageBubble";
 import { MessageComposer } from "./MessageComposer";
 import { formatDaySeparator, localDayKey } from "./messageTime";

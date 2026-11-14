@@ -3,7 +3,6 @@ import type { ReservedByResponse } from "../../api/groups";
 import type { ListingMode } from "../../api/itemListingPreferences";
 import { SafeImage } from "../../features/product/ItemGallery";
 import { itemPagePath } from "../../features/product/useItemRoutes";
-import dayjs from "../../utils/dayjs";
 import { PhotoPlaceholder } from "./Icons";
 import { ItemTileBadges } from "./ItemTileBadges";
 

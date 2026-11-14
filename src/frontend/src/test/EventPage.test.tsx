@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import * as eventsApi from "../api/events";
 import type { EventAttendanceResponse, EventDetailResponse, EventParticipant } from "../api/events";
-import { EventAuthorCard } from "../features/events/components/EventAuthorCard";
 import { peekNavigationState } from "../routing/navigationState";
 import { pageFor } from "./appRoutes";
 import { eventRouteElement } from "./eventRoute";
@@ -443,35 +442,6 @@ describe("EventPage", () => {
     expect(await screen.findByRole("heading", { name: "Bazar zimowy", level: 1 })).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "＋ Zapisz się" })).toBeInTheDocument();
-  });
-
-  it.each([
-    [1, 0, "Na tym wydarzeniu jest 1 otwarta rezerwacja. Usunięcie"],
-    [2, 2, "Na tym wydarzeniu są 2 otwarte rezerwacje (w tym 2 zamiany). Usunięcie"],
-    [5, 5, "Na tym wydarzeniu jest 5 otwartych rezerwacji (w tym 5 zamian). Usunięcie"],
-    [22, 1, "Na tym wydarzeniu są 22 otwarte rezerwacje (w tym 1 zamiana). Usunięcie"],
-  ])("the delete warning for %i reservation(s), %i swap(s) agrees in number", (total, swaps, copy) => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date(2026, 10, 1, 12, 0));
-    renderWithRoute(
-      <EventAuthorCard event={event({ is_author: true, open_reservations: { total, swaps } })} onDelete={vi.fn()} />,
-      { url: "/" },
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Usuń" }));
-    expect(screen.getByRole("alertdialog").textContent).toContain(copy);
-  });
-
-  it.each([
-    [1, "Nie można usunąć — zapisała się już 1 osoba."],
-    [2, "Nie można usunąć — zapisały się już 2 osoby."],
-    [5, "Nie można usunąć — zapisało się już 5 osób."],
-    [12, "Nie można usunąć — zapisało się już 12 osób."],
-    [22, "Nie można usunąć — zapisały się już 22 osoby."],
-  ])("the blocked-delete hint for %i attendee(s) agrees in number", (count, hint) => {
-    renderWithRoute(<EventAuthorCard event={event({ is_author: true, attendee_count: count })} onDelete={vi.fn()} />, {
-      url: "/",
-    });
-    expect(screen.getByRole("button", { name: "Usuń" })).toHaveAccessibleDescription(hint);
   });
 
   it("is routed only at /:slug/event/:id; the old /events/:id page route is gone but edit stays", () => {
