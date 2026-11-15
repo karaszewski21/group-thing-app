@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Plan — "Szukam" (wanted) mechanism</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.step.todo::before  { content:"☐ "; color:var(--dim); }
+.step.done::before  { content:"☑ "; color:var(--ok); }
+.step.done          { color:var(--dim); }
+.group.todo .g-badge::after { content:"pending"; }
+.group.done .g-badge::after { content:"✓ completed"; color:var(--ok); }
+.group { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:14px 18px; margin:14px 0; overflow-wrap:anywhere; }
+.group h3 { margin:0 0 4px; font-size:15px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.gnum { display:inline-block; min-width:26px; text-align:center; background:var(--accent); color:#fff;
+  border-radius:6px; padding:1px 6px; font-size:13px; }
+.uib { background:var(--info-soft); color:var(--info); }
+.dep { font-size:12px; color:var(--dim); font-weight:400; margin-left:auto; }
+.meta { color:var(--dim); font-size:12px; margin:0 0 8px; }
+.group p { margin:6px 0; }
+ul.steps { list-style:none; padding-left:0; margin:8px 0; }
+ul.steps > li { padding:5px 0; border-top:1px solid var(--border); }
+ul.sub { margin:4px 0 2px 22px; padding-left:16px; color:var(--dim); font-size:13px; }
+span.sub { color:var(--dim); font-size:13px; }
+.tldr { background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--accent);
+  border-radius:var(--radius); padding:12px 18px; margin:14px 0; }
+.tldr h2 { margin-top:12px; } .tldr h2:first-child { margin-top:0; }
+.rules { border-left-color:var(--warn); }
+.toc { font-size:13px; margin:10px 0; }
+.stage { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.sl { font-weight:700; color:var(--dim); width:18px; }
+.node { border:1px solid var(--border); background:var(--bg); border-radius:8px; padding:5px 9px;
+  font-size:12.5px; color:var(--text); }
+.arrow { color:var(--dim); padding:2px 0 2px 40px; }
+.scroll { overflow-x:auto; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">&larr; Dashboard</a>
+  <a href="spec.html">Spec</a> <span class="here">Plan</span>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="implementation-plan.md" target="_blank" rel="noopener" class="md">md twin &nearr;</a>
+</nav>
+<header>
+  <h1>Implementation Plan: "Szukam" (wanted) mechanism</h1>
+  <p><span class="badge">implementation plan</span> &nbsp; generated 2026-11-15 &middot; source of truth: <a href="spec.md" target="_blank" rel="noopener">spec.md</a> &middot; coverage: <a href="visual-coverage.md" target="_blank" rel="noopener">visual-coverage.md</a></p>
+</header>
+<div class="tiles">
+  <div class="tile"><b>19</b><span>task groups</span></div>
+  <div class="tile"><b>139</b><span>total steps</span></div>
+  <div class="tile"><b>120&ndash;150</b><span>expected tests</span></div>
+  <div class="tile"><b>8</b><span>dependency stages</span></div>
+  <div class="tile"><b>11 / 11</b><span>design ids covered</span></div>
+</div>
+<section class="tldr">
+<h2>TL;DR</h2><ul><li>19 task groups, 139 steps: a baseline run, 9 backend groups (foreign-module edits, <code>app/wants</code> model + migration 0099, domain + ACLs, match statement, measurement, writes + API, match list API, scan job), 7 frontend groups (data layer, shared components, three views, routes + entry points + mock removal, closing prompt), documentation, and a closing test review with a full-suite comparison against the baseline.</li><li>Backend and frontend chains are independent after the baseline; inside each chain the order follows imports and shared files (<code>app/main.py</code>, <code>routing/paths.ts</code>, <code>test/AppPage.test.tsx</code>).</li><li>Every group is test-first (2-8 scenario tests per feature file) and runs only its own tests; the full suites run twice only: group 1 and group 19.</li><li>No commit, checkpoint commit or push anywhere; all work stays uncommitted.</li><li>The spec (<code>implementation/spec.md</code>) is the source of truth; ids <code>FR-*</code> / <code>AC-*</code> below refer to it.</li></ul>
+<h2>Key Decisions</h2><ul><li>The <code>EXPLAIN ANALYZE</code> measurement (group 7) runs right after the match statement (group 6) and before the scan job (group 10) — the spec wants the run-only checks before code is built on them, and the "fold once per listing" lever changes <code>matcher.py</code>, which the scan calls.</li><li>The page views (groups 13-15) are built and tested without route files; one group (16) switches all routes, wires the three entry points and deletes the mock — <code>test/AppPage.test.tsx</code>, <code>test/routeManifest.test.ts</code>, <code>test/panelPages.ts</code> and <code>routing/paths.ts</code> are then edited by one group, and the three views can be built side by side.</li><li><code>routing/paths.ts</code>: group 11 adds <code>"add/wanted"</code>, <code>wantPath</code>, <code>wantEditPath</code> and keeps <code>"add/hunting"</code>; group 16 removes the old member — no group leaves the typecheck with new errors.</li><li>Want responses with counters (list statement, FR-A-11) are built in group 8, match cards in group 9 — create must return <code>match_count</code> / <code>new_match_count</code>, so the read-time filter cannot wait for the match list.</li><li>The auto-extension pin of FR-T-14 ("seen" inside the last 30 days) is written in <code>tests/test_wants_matches_api.py</code> (group 9), not in <code>tests/test_wants_lifecycle.py</code> — the route lives in group 9, and groups 9 and 10 then share no file.</li><li>Exceptions (<code>WantNotFound</code>, conflict and timeout errors) live in <code>app/wants/application/errors.py</code> — <code>domain/</code> may import only <code>app.wants.domain</code>, and the exceptions subclass <code>app.core.errors</code> types.</li><li><code>component:bell-rows</code> needs no new UI: the copy is produced by the backend (groups 5 and 10); group 11 pins that the unchanged bell renders the three rows.</li><li>Groups 1, 7 and 18 write no unit tests first (run-and-record, measurement, documentation); each states its own check instead.</li><li>File names inside <code>app/wants/</code> and <code>features/wanted/</code> are fixed by this plan (the spec names only folders) so that <code>Files to Modify</code> can drive scheduling; an implementer who needs another split stays inside the group's file list or reports the change.</li></ul>
+<h2>Open Questions / Risks</h2><ul><li><b>Generated <code>tsquery</code> column (O1)</b>: unproven on PostgreSQL 18 until step 4.2 runs. Fallback: <code>name_query</code> becomes an application-written column filled by the same SQL expression helper as <code>short_words_query</code> (groups 6 and 8); record the outcome in the work log before group 6 starts.</li><li><b>Reverse-scan budget</b>: 500 listings x 10,000 wants is expected to miss 2 s. Lever order in group 7: fold product names once per listing (materialised CTE of the window), then plain-column pre-filters, then report. A longer interval or the outbox fallback is a user decision, not a plan step.</li><li><b>Unstable frontend baseline</b>: project memory records 24 Vitest, 5 typecheck and 2 backend failures on an earlier HEAD and a mypy baseline of 15; <code>AppPage</code>, <code>ItemDetailPage</code>, <code>routeManifest</code> are among the failing files this task edits. Without group 1 a regression cannot be told from an old failure.</li><li><b>Shared test files</b>: <code>test/AppPage.test.tsx</code> is edited by groups 12 (only if a <code>BottomNav</code> assertion changes) and 16; <code>tests/test_wants_notifications.py</code> by 3 and 10; <code>tests/test_wants_lifecycle.py</code> by 8 and 10; <code>app/main.py</code> by 8 and 10. The dependencies below make each pair sequential.</li><li><b>"Konto" prefix highlight</b> changes pages outside wants (<code>/places/...</code>, <code>/groups/:id</code>, <code>/family/...</code>); their existing assertions need a look in group 12.</li><li><b>Docker load</b>: backend groups that could run side by side each start their own testcontainers PostgreSQL 18.</li><li><b>Expected test count</b> (about 120-150) is far above the framework's usual 16-34, because the spec lists 21 test rows over 19 groups.</li><li><b>FR-D-13</b> asks for a pointer to the new user guide "only if this workflow produces user documentation"; that is a later phase, so group 18 corrects the text only.</li><li><b>Task items</b>: the task-tracking tool (<code>TaskCreate</code>) was not available to the planner; group-level items were not created. The markdown checkboxes are the only progress source.</li><li>Risks carried from the spec unchanged: mandatory short prepositions, unbounded match list, thresholds 0.70 / 0.60 unmeasured (release gate), 0099 rollback rule.</li></ul>
+</section>
+<nav class="toc">Contents: <a href="#rules">Rules</a> &middot; <a href="#order">Execution order</a> &middot; <a href="#groups">Task groups</a> &middot; <a href="#coverage">Visual coverage</a> &middot; <a href="#trace">Traceability</a> &middot; <a href="#unrun">Unrun checks</a> &middot; <a href="#standards">Standards</a></nav>
+<main>
+<section class="tldr rules" id="rules"><h2>Rules for every implementer</h2><ul><li><b>Secrets</b>: never print secret values. No <code>env</code>, <code>printenv</code>, <code>docker compose exec &lt;svc&gt; env</code>, <code>docker inspect</code> (Env section) or <code>cat .env</code>. Presence checks only (exit code or <code>set</code> / <code>missing</code>). Never write a secret or a connection string into a report, the work log, the task folder, a screenshot or a script output.</li><li><b>No git writes</b>: no <code>git commit</code>, no checkpoint commit, no <code>git push</code>, no branch change. Leave all work uncommitted.</li><li><b>Backend commands</b> (from <code>src/backend</code>, Docker must be running for tests): <code>uv run python -m pytest tests/&lt;file&gt;.py -q</code>, <code>uv run python -m mypy app</code>, <code>uv run python -m ruff check</code>. Never <code>uv run pytest</code> / <code>uv run mypy</code> / <code>uv run ruff</code>.</li><li><b>Frontend commands</b> (from <code>src/frontend</code>): <code>npm run test -- src/test/&lt;file&gt;</code> (Vitest, <code>vitest run</code>), <code>npm run typecheck</code> (<code>tsc --noEmit</code>), <code>npm run lint</code> (<code>eslint .</code>).</li><li><b>No new failures</b>: compare with <code>implementation/baseline/</code> (group 1). A failure listed there is fixed only where this task rewrites the failing test.</li><li><b>Test-first</b>: write the group's tests, then the code, then run only that group's test files (plus the named regression file where a step says so). The full suites run in groups 1 and 19 only.</li><li><b>Standards</b>: read <code>.maister/docs/INDEX.md</code> and the standards named in the group before writing code.</li><li><b>Spec wins</b>: where a mockup and the spec differ, follow the spec (see <code>implementation/visual-coverage.md</code>, "Spec overrides").</li><li><b>Work log</b>: record deviations, the outcome of run-only checks and every "to confirm" text used in <code>implementation/work-log.md</code>.</li></ul></section>
+<h2 id="order">Execution order and dependencies</h2>
+<div class="card flow"><div class="stage"><span class="sl">A</span><a class="node" href="#g1"><b>1</b> Test and static-check baseline</a></div><div class="arrow">&darr;</div><div class="stage"><span class="sl">B</span><a class="node" href="#g2"><b>2</b> Groups visibility annotations</a><a class="node" href="#g3"><b>3</b> Moderation fields and notification kinds and writers</a><a class="node" href="#g4"><b>4</b> Wants data model and migration 0099</a><a class="node" href="#g11"><b>11</b> Frontend data layer and paths</a><a class="node" href="#g12"><b>12</b> Shared component changes</a></div><div class="arrow">&darr;</div><div class="stage"><span class="sl">C</span><a class="node" href="#g5"><b>5</b> Wants domain rules, links and anti-corruption layers</a><a class="node" href="#g13"><b>13</b> Want list view</a><a class="node" href="#g14"><b>14</b> Want form view</a><a class="node" href="#g15"><b>15</b> Match list view</a><a class="node" href="#g17"><b>17</b> Closing prompt on the item page</a></div><div class="arrow">&darr;</div><div class="stage"><span class="sl">D</span><a class="node" href="#g6"><b>6</b> Match statement</a><a class="node" href="#g16"><b>16</b> Routes, entry points and mock removal</a></div><div class="arrow">&darr;</div><div class="stage"><span class="sl">E</span><a class="node" href="#g7"><b>7</b> Match statement measurement and index decision</a><a class="node" href="#g8"><b>8</b> Want writes, lifecycle transitions and want API</a></div><div class="arrow">&darr;</div><div class="stage"><span class="sl">F</span><a class="node" href="#g9"><b>9</b> Match list API</a><a class="node" href="#g10"><b>10</b> Scan job, sweep and scheduler wiring</a></div><div class="arrow">&darr;</div><div class="stage"><span class="sl">G</span><a class="node" href="#g18"><b>18</b> Project documentation</a></div><div class="arrow">&darr;</div><div class="stage"><span class="sl">H</span><a class="node" href="#g19"><b>19</b> Test review, gap analysis and baseline comparison</a></div>
+<p class="meta" style="margin-top:10px">Stages are information only: the executor derives the schedule from each group's dependencies and files, and its derivation wins.</p>
+<p>Files that force an order: <code>app/main.py</code> (8 then 10); <code>app/wants/application/reads.py</code>, <code>writes.py</code>, <code>router/wants.py</code>, <code>schemas.py</code> (8 then 9); <code>app/wants/application/matcher.py</code> and <code>tests/test_wants_matcher.py</code> (6 then 7, conditional); <code>tests/test_wants_migration.py</code> (4 then 7, conditional); <code>tests/test_wants_notifications.py</code> (3 then 10); <code>tests/test_wants_lifecycle.py</code> (8 then 10); <code>routing/paths.ts</code> (11 then 16); <code>test/AppPage.test.tsx</code> (12 then 16); <code>test/SearchView.test.tsx</code> (12 runs it, 16 edits it).</p>
+<details><summary>Ordered list</summary><ul><li>Group 1: Test and static-check baseline (6 steps)</li><li>Group 2: Groups visibility annotations (4 steps, depends on 1)</li><li>Group 3: Moderation fields and notification kinds and writers (7 steps, depends on 1)</li><li>Group 4: Wants data model and migration 0099 (7 steps, depends on 1)</li><li>Group 5: Wants domain rules, links and anti-corruption layers (8 steps, depends on 2, 3, 4)</li><li>Group 6: Match statement (8 steps, depends on 5)</li><li>Group 7: Match statement measurement and index decision (7 steps, depends on 6)</li><li>Group 8: Want writes, lifecycle transitions and want API (10 steps, depends on 6)</li><li>Group 9: Match list API (7 steps, depends on 8)</li><li>Group 10: Scan job, sweep and scheduler wiring (9 steps, depends on 7, 8)</li><li>Group 11: Frontend data layer and paths (8 steps, depends on 1)</li><li>Group 12: Shared component changes (8 steps, depends on 1)</li><li>Group 13: Want list view (6 steps, depends on 11, 12)</li><li>Group 14: Want form view (8 steps, depends on 11, 12)</li><li>Group 15: Match list view (8 steps, depends on 11, 12)</li><li>Group 16: Routes, entry points and mock removal (9 steps, depends on 13, 14, 15)</li><li>Group 17: Closing prompt on the item page (7 steps, depends on 11)</li><li>Group 18: Project documentation (6 steps, depends on 7, 9, 10, 16, 17)</li><li>Group 19: Test review, gap analysis and baseline comparison (6 steps, depends on all)</li></ul></details></div>
+<h2 id="groups">Task groups</h2>
+<p class="meta">Expected tests: about 120-150 new or rewritten tests (2-8 scenario tests per feature file; up to 10 more in group 19). Paths: backend relative to <code>src/backend/</code>, frontend to <code>src/frontend/src/</code>.</p>
+<section data-group="1" class="group todo" id="g1">
+<h3><span class="gnum">1</span> Test and static-check baseline <span class="badge g-badge"></span>  <span class="dep">no dependencies</span></h3>
+<p class="meta">6 steps</p>
+<p><b>Goal:</b> Record what fails before the first change, so later groups can tell a regression from an old failure.</p>
+<p><b>Satisfies:</b> FR-T-01; AC-35 (first half)</p>
+<p><b>Standards:</b> testing/backend-testing.md, testing/frontend-testing.md, global/conventions.md</p>
+<p><b>Files to modify:</b> <code>implementation/work-log.md</code>, <code>implementation/baseline/backend-pytest.txt</code>, <code>implementation/baseline/backend-mypy.txt</code>, <code>implementation/baseline/backend-ruff.txt</code>, <code>implementation/baseline/frontend-vitest.txt</code>, <code>implementation/baseline/frontend-typecheck.txt</code>, <code>implementation/baseline/frontend-lint.txt</code></p>
+
+<p class="parent"><b>1.0</b> Record the baseline (no source change in this group)</p>
+<ul class="steps">
+<li data-step="1.1" class="step todo"><b>1.1</b> Check the preconditions without printing configuration<ul class="sub"><li><code>git status --short</code> shows only the task folder as untracked; Docker answers (<code>docker info</code> exit code only)</li><li>Record HEAD (<code>git rev-parse --short HEAD</code>) in the work log</li></ul></li>
+<li data-step="1.2" class="step todo"><b>1.2</b> Run the backend suite from <code>src/backend</code>: <code>uv run python -m pytest -q</code><ul class="sub"><li>Save the summary line and the ids of failing / erroring tests to <code>implementation/baseline/backend-pytest.txt</code> (ids only, no environment output)</li></ul></li>
+<li data-step="1.3" class="step todo"><b>1.3</b> Run <code>uv run python -m mypy app</code> and <code>uv run python -m ruff check</code><ul class="sub"><li>Save the error count and the error lines to <code>backend-mypy.txt</code> / <code>backend-ruff.txt</code> (memory says mypy baseline 15; record the real number)</li></ul></li>
+<li data-step="1.4" class="step todo"><b>1.4</b> Run the frontend suite from <code>src/frontend</code>: <code>npm run test</code><ul class="sub"><li>Save failing file and test names to <code>frontend-vitest.txt</code>; run a failing file a second time when it looks flaky (memory: <code>OrganizerEditor</code>) and mark it "flaky"</li></ul></li>
+<li data-step="1.5" class="step todo"><b>1.5</b> Run <code>npm run typecheck</code> and <code>npm run lint</code>; save the error lines to <code>frontend-typecheck.txt</code> / <code>frontend-lint.txt</code></li>
+<li data-step="1.6" class="step todo"><b>1.6</b> Write the baseline summary into <code>implementation/work-log.md</code><ul class="sub"><li>Counts per check, the failing set, and which failing files this task edits (<code>AppPage</code>, <code>ItemDetailPage</code>, <code>routeManifest</code>, others found)</li></ul></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>Six baseline files and a work-log entry exist; no source file changed</li><li>The failing set is listed by test id, not only by count</li><li>No secret, connection string or environment dump is in any recorded file</li></ul></details>
+</section>
+<section data-group="2" class="group todo" id="g2">
+<h3><span class="gnum">2</span> Groups visibility annotations <span class="badge g-badge"></span>  <span class="dep">&larr; depends on 1</span></h3>
+<p class="meta">4 steps</p>
+<p><b>Goal:</b> Let the group-sharing predicate be called with a column on the viewer side, by annotations only, and pin the column form.</p>
+<p><b>Satisfies:</b> FR-X-12, FR-T-17; AC-24</p>
+<p><b>Standards:</b> backend/models.md, backend/queries.md, testing/backend-testing.md, global/minimal-implementation.md</p>
+<p><b>Files to modify:</b> <code>app/groups/infrastructure/visibility.py</code>, <code>tests/test_visible_to.py</code></p>
+
+<p class="parent"><b>2.0</b> Widen the group-sharing predicate annotations</p>
+<ul class="steps">
+<li data-step="2.1" class="step todo"><b>2.1</b> Write 3 tests in <code>tests/test_visible_to.py</code> for the column form of <code>parties_share_group</code> / <code>owner_shares_group_with(&lt;column&gt;, private_only=True)</code><ul class="sub"><li>Shared live PRIVATE group gives true; soft-deleted group gives false; PUBLIC-only shared group gives false</li><li>Reuse the private-group world of <code>tests/test_visible_to.py:98-160</code>; the viewer side is a column of a selected row, not a Python value</li></ul></li>
+<li data-step="2.2" class="step todo"><b>2.2</b> Widen <code>other_party</code> of <code>parties_share_group</code> (:42) and <code>viewer</code> of <code>owner_shares_group_with</code> (:53) to <code>Parties</code>; update both docstrings<ul class="sub"><li>No runtime change, no facade change, no new function</li></ul></li>
+<li data-step="2.3" class="step todo"><b>2.3</b> Run <code>uv run python -m mypy app</code> and compare with the baseline (the widening must add no error)</li>
+<li data-step="2.4" class="step todo"><b>2.4</b> Run only <code>uv run python -m pytest tests/test_visible_to.py tests/test_membership_definition_guard.py -q</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>The 3 new tests pass; the existing tests of the file pass as in the baseline</li><li><code>git diff</code> of <code>visibility.py</code> shows annotations and docstrings only</li><li>mypy count not above the baseline</li></ul></details>
+</section>
+<section data-group="3" class="group todo" id="g3">
+<h3><span class="gnum">3</span> Moderation fields and notification kinds and writers <span class="badge g-badge"></span>  <span class="dep">&larr; depends on 1</span></h3>
+<p class="meta">7 steps</p>
+<p><b>Goal:</b> Add the two text fields, the two notification kinds, the batch delete-unread-then-insert writer and the delete-only function.</p>
+<p><b>Satisfies:</b> FR-X-13, FR-X-14, FR-N-01, FR-N-02, FR-N-09, FR-W-08 (messages), FR-T-13 (writer pins); AC-40 (writer half)</p>
+<p><b>Standards:</b> backend/queries.md, backend/models.md, global/error-handling.md, testing/backend-testing.md, global/minimal-implementation.md</p>
+<p><b>Files to modify:</b> <code>app/moderation/text_guard.py</code>, <code>app/notifications/models.py</code>, <code>app/notifications/service.py</code>, <code>tests/test_wants_notifications.py</code></p>
+
+<p class="parent"><b>3.0</b> Extend moderation and notifications</p>
+<ul class="steps">
+<li data-step="3.1" class="step todo"><b>3.1</b> Write 4-6 tests in <code>tests/test_wants_notifications.py</code> (writer level, no wants tables needed)<ul class="sub"><li>Batch writer: several entries in one call give distinct ids, and exactly two statements run (<code>count_queries</code>)</li><li>An unread previous row is deleted and reported as deleted; a read previous row is left and reported as not deleted</li><li>Delete-only function removes unread rows only, in one statement, and returns the deleted ids</li><li><code>check_text(TextField.WANT_NAME, ...)</code> rejection carries the fixed message of FR-W-08 (classifier stubbed as the existing text-guard tests do)</li></ul></li>
+<li data-step="3.2" class="step todo"><b>3.2</b> <code>app/moderation/text_guard.py</code>: add <code>TextField.WANT_NAME</code>, <code>TextField.WANT_NOTE</code> and their <code>MESSAGES</code> entries<ul class="sub"><li>"Nazwa poszukiwania narusza zasady społeczności. Zmień ją i spróbuj ponownie." / "Notatka narusza zasady społeczności. Zmień ją i spróbuj ponownie."</li></ul></li>
+<li data-step="3.3" class="step todo"><b>3.3</b> <code>app/notifications/models.py</code>: add <code>WANT_MATCH_FOUND</code>, <code>WANT_EXPIRING</code> to <code>NotificationKind</code>; update the docstring (no migration: VARCHAR(30), no CHECK)</li>
+<li data-step="3.4" class="step todo"><b>3.4</b> <code>app/notifications/service.py</code>: batch writer, exported in <code>__all__</code><ul class="sub"><li>Input: entries (recipient party, kind, message, link, previous row id or none)</li><li>One <code>DELETE ... WHERE id IN (...) AND read_at IS NULL RETURNING id</code>, then one batched <code>INSERT</code> supplying <code>id</code>, <code>created_at</code>, <code>updated_at</code> explicitly; returns the new ids and which previous rows were deleted; no flush or commit beyond the two statements</li></ul></li>
+<li data-step="3.5" class="step todo"><b>3.5</b> <code>app/notifications/service.py</code>: delete-only function, exported in <code>__all__</code> (one statement, unread rows only, returns deleted ids)</li>
+<li data-step="3.6" class="step todo"><b>3.6</b> Run mypy and ruff on the touched files; compare with the baseline</li>
+<li data-step="3.7" class="step todo"><b>3.7</b> Run only <code>uv run python -m pytest tests/test_wants_notifications.py -q</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>The 4-6 tests pass</li><li><code>create_notification</code> and <code>mark_read</code> are unchanged</li><li>The writer never updates a row in place</li></ul></details>
+</section>
+<section data-group="4" class="group todo" id="g4">
+<h3><span class="gnum">4</span> Wants data model and migration 0099 <span class="badge g-badge"></span>  <span class="dep">&larr; depends on 1</span></h3>
+<p class="meta">7 steps</p>
+<p><b>Goal:</b> Create the package skeleton, the three tables, and prove the generated columns on PostgreSQL 18.</p>
+<p><b>Satisfies:</b> FR-X-01 (package, boundary docstring), FR-X-03 (status enum), FR-D-01, FR-D-02, FR-D-03, FR-D-04, FR-D-05, FR-T-10; AC-22</p>
+<p><b>Standards:</b> backend/models.md, backend/migrations.md, backend/time.md, testing/backend-testing.md</p>
+<p><b>Files to modify:</b> <code>app/wants/__init__.py</code>, <code>app/wants/models.py</code>, <code>app/wants/domain/__init__.py</code>, <code>app/wants/domain/status.py</code>, <code>alembic/versions/0099_wants.py</code>, <code>tests/test_wants_migration.py</code></p>
+
+<p class="parent"><b>4.0</b> Build the wants tables</p>
+<ul class="steps">
+<li data-step="4.1" class="step todo"><b>4.1</b> Write 4 tests in <code>tests/test_wants_migration.py</code> (template <code>tests/test_locality_coordinates_migration.py:32-45</code>)<ul class="sub"><li>Downgrade to 0098 then upgrade head (restore head in <code>finally</code>, <code>engine.dispose()</code>)</li><li><code>name_folded</code> and <code>name_query</code> exist as generated columns and are filled for an inserted row</li><li>CHECKs reject radius 0, radius 101 and a radius without a locality</li><li>CHECK rejects <code>closed_at</code> not matching the status (both directions)</li></ul></li>
+<li data-step="4.2" class="step todo"><b>4.2</b> Run-only check O1 first: write <code>alembic/versions/0099_wants.py</code> by hand and apply it<ul class="sub"><li><code>SET LOCAL lock_timeout = '5s'</code> first in upgrade and downgrade; templates <code>0082_media.py</code>, <code>0070_events.py</code></li><li>Generated columns by raw <code>ALTER TABLE ... GENERATED ALWAYS AS (...) STORED</code>: <code>fold_pl(name)</code> and <code>plainto_tsquery('simple'::regconfig, fold_pl(name))</code> (two-argument form)</li><li>If PostgreSQL 18 refuses the <code>tsquery</code> column: make <code>name_query</code> a plain NOT NULL column written by the application, and record the fallback in the work log (groups 6 and 8 then write it)</li></ul></li>
+<li data-step="4.3" class="step todo"><b>4.3</b> Complete 0099: <code>wants</code>, <code>want_matches</code>, <code>want_scan_markers</code> with every constraint and index of FR-D-01..03<ul class="sub"><li>Names: <code>pk_wants</code>, <code>fk_wants_seeker_party_id_parties</code>, <code>fk_wants_category_id_categories</code> (SET NULL), <code>fk_wants_locality_id_localities</code> (RESTRICT), <code>ck_wants_radius_requires_locality</code>, <code>ck_wants_closed_at_matches_status</code>, <code>ix_wants_seeker_party_id_status</code>, <code>ix_wants_active_expires_at</code> (partial), <code>ix_wants_closed_at</code> (partial), <code>pk_want_matches</code>, <code>fk_want_matches_want_id_wants</code> (CASCADE), <code>uq_want_matches_want_id_item_id</code>, <code>ix_want_matches_item_id</code>, <code>uq_want_scan_markers_scan_name</code></li><li>UUID PKs with <code>gen_random_uuid()</code> server default; no data revision; no extension; the <code>item_listing_preferences.created_at</code> index is NOT here (FR-D-06)</li><li>Downgrade drops <code>want_matches</code>, <code>want_scan_markers</code>, <code>wants</code> (indexes and FKs before tables); unguarded</li></ul></li>
+<li data-step="4.4" class="step todo"><b>4.4</b> <code>app/wants/__init__.py</code> (boundary docstring: only <code>app/main.py</code> imports <code>app.wants</code>) and <code>app/wants/domain/status.py</code> (<code>WantStatus</code>, match source values; no imports outside <code>app.wants.domain</code>)</li>
+<li data-step="4.5" class="step todo"><b>4.5</b> <code>app/wants/models.py</code> in the <code>app/events/models.py</code> style<ul class="sub"><li><code>BaseEntity</code>, <code>_enum_column</code>, business-key <code>__eq__</code> / <code>__hash__</code>, plain FK-id columns, no <code>relationship()</code>, loose <code>item_id</code> and <code>match_notification_id</code> pointers</li><li>Generated columns as <code>Computed(..., persisted=True)</code>, deferred with <code>deferred_raiseload=True</code></li></ul></li>
+<li data-step="4.6" class="step todo"><b>4.6</b> Run mypy and ruff on <code>app/wants</code>; compare with the baseline</li>
+<li data-step="4.7" class="step todo"><b>4.7</b> Run only <code>uv run python -m pytest tests/test_wants_migration.py -q</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>The 4 tests pass; the database is at head after the file runs</li><li>The O1 outcome (generated column or fallback) is written in the work log</li><li>Model columns and migration columns agree one to one with FR-D-01..03</li></ul></details>
+</section>
+<section data-group="5" class="group todo" id="g5">
+<h3><span class="gnum">5</span> Wants domain rules, links and anti-corruption layers <span class="badge g-badge"></span>  <span class="dep">&larr; depends on 2, 3, 4</span></h3>
+<p class="meta">8 steps</p>
+<p><b>Goal:</b> Constants, pure rules, link and message builders, the nine ACLs, and the guards that keep the module boundary.</p>
+<p><b>Satisfies:</b> FR-X-01 (boundary guard), FR-X-02, FR-X-03, FR-X-04, FR-X-15 (boundary and clock parts), FR-N-04 (text builders), FR-W-01 and FR-W-02 (pure rules), FR-T-18 (boundary, clock, membership parts); AC-23</p>
+<p><b>Standards:</b> backend/models.md (one ACL per foreign module), backend/time.md, global/validation.md, global/minimal-implementation.md, global/commenting.md, testing/backend-testing.md</p>
+<p><b>Files to modify:</b> <code>app/wants/domain/limits.py</code>, <code>app/wants/domain/lifecycle.py</code>, <code>app/wants/domain/validation.py</code>, <code>app/wants/domain/links.py</code>, <code>app/wants/domain/messages.py</code>, <code>app/wants/infrastructure/__init__.py</code>, <code>app/wants/infrastructure/groups_acl.py</code>, <code>app/wants/infrastructure/inventory_acl.py</code>, <code>app/wants/infrastructure/product_acl.py</code>, <code>app/wants/infrastructure/category_acl.py</code>, <code>app/wants/infrastructure/locations_acl.py</code>, <code>app/wants/infrastructure/users_acl.py</code>, <code>app/wants/infrastructure/organizations_acl.py</code>, <code>app/wants/infrastructure/moderation_acl.py</code>, <code>app/wants/infrastructure/notifications_acl.py</code>, <code>tests/test_wants_domain.py</code>, <code>tests/test_module_boundaries.py</code>, <code>tests/test_domain_clock_guard.py</code></p>
+
+<p class="parent"><b>5.0</b> Build the domain layer and the ACLs</p>
+<ul class="steps">
+<li data-step="5.1" class="step todo"><b>5.1</b> Write 5-7 tests in <code>tests/test_wants_domain.py</code> (pure, no database)<ul class="sub"><li>Name rule: trimmed, 3-80 code points, at least one letter or digit; note: trimmed, up to 300, blank to null</li><li>Radius rule: 0 or null to null; 1-100 only with a locality; clearing the locality clears the radius</li><li>State machine: allowed transitions of FR-L-01..07 and the refused ones (edit / extend / close of a non-ACTIVE want, resume of an ACTIVE one)</li><li>Match message for count 1, 2-4, 5+, 22-24 and the expiring message (table test; the 500-character cap is applied by the caller in group 10, because <code>domain/</code> imports only <code>app.wants.domain</code>)</li><li><code>want_path(id)</code> is <code>/wanted/{id}</code></li></ul></li>
+<li data-step="5.2" class="step todo"><b>5.2</b> Extend the guards first: <code>"wants"</code> in <code>MODULES</code> and a <code>product_path</code> parity test against <code>app.search.domain.links.product_path</code> in <code>tests/test_module_boundaries.py</code>; <code>app/wants</code> in <code>_GUARDED_DIRS</code> of <code>tests/test_domain_clock_guard.py</code></li>
+<li data-step="5.3" class="step todo"><b>5.3</b> <code>domain/limits.py</code>: every constant of FR-X-03 (name 3-80, note 300, cap 30, top 20, validity 90 d, reminder 7 d, retention 30 d, auto-extension window 30 d, scan interval 15 min, overlap 5 min, thresholds 0.70 / 0.60, forward timeout 3 s)</li>
+<li data-step="5.4" class="step todo"><b>5.4</b> <code>domain/validation.py</code> and <code>domain/lifecycle.py</code>: pure functions for the name, note and radius rules and for the state machine (files import only <code>app.wants.domain</code>)</li>
+<li data-step="5.5" class="step todo"><b>5.5</b> <code>domain/links.py</code> (<code>product_path(slug, item_id)</code> as a pure copy of the search one, <code>want_path(id)</code>) and <code>domain/messages.py</code> (the four notification texts of FR-N-04 and the Polish error texts of FR-A-20 as constants; the cap text of FR-W-07)</li>
+<li data-step="5.6" class="step todo"><b>5.6</b> Nine ACL files, each the only importer of its foreign module, none importing <code>..schemas</code> (shape of <code>app/search/infrastructure/*_acl.py</code>)<ul class="sub"><li>Contents exactly as FR-X-02; <code>derive_party_slug</code> in <code>groups_acl</code>; <code>users_acl</code> raises 401 on a missing profile and gives <code>party_id</code> and <code>account_user_id</code> (template <code>app/messaging/infrastructure/users_acl.py:25-32</code>); <code>notifications_acl</code> on the <code>notifications_bridge.py</code> template, exposing <code>create_notification</code>, the batch writer, the delete-only function and <code>NotificationKind</code></li><li>Offer modes stay the plain strings <code>"GIFT"</code> / <code>"SWAP"</code></li></ul></li>
+<li data-step="5.7" class="step todo"><b>5.7</b> Run mypy and ruff on <code>app/wants</code>; compare with the baseline</li>
+<li data-step="5.8" class="step todo"><b>5.8</b> Run only <code>uv run python -m pytest tests/test_wants_domain.py tests/test_module_boundaries.py tests/test_domain_clock_guard.py tests/test_membership_definition_guard.py -q</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>The domain tests and the three guard files pass</li><li><code>app/wants/domain/</code> imports nothing outside <code>app.wants.domain</code> (the notification cap <code>clock.fit_notification_message</code> is applied by the caller)</li><li>No own shares-a-group SQL in <code>app/wants</code>; no <code>datetime.now(</code> / <code>date.today(</code></li></ul></details>
+</section>
+<section data-group="6" class="group todo" id="g6">
+<h3><span class="gnum">6</span> Match statement <span class="badge g-badge"></span>  <span class="dep">&larr; depends on 5</span></h3>
+<p class="meta">8 steps</p>
+<p><b>Goal:</b> One statement builder for both directions that stores pairs and returns the inserted ones.</p>
+<p><b>Satisfies:</b> FR-M-01, FR-M-02, FR-M-03, FR-M-04, FR-M-05, FR-L-08, FR-W-10 (SQL expression), FR-T-11; AC-05, AC-06, AC-07 (operator present), AC-08 (radius match), AC-38, AC-40 (matcher half), AC-41</p>
+<p><b>Standards:</b> backend/queries.md, backend/jooq.md, backend/models.md (safe-by-default PRIVATE), backend/time.md, testing/backend-testing.md</p>
+<p><b>Files to modify:</b> <code>app/wants/application/__init__.py</code>, <code>app/wants/application/matcher.py</code>, <code>app/wants/application/text_queries.py</code>, <code>tests/test_wants_matcher.py</code></p>
+
+<p class="parent"><b>6.0</b> Build the match statement</p>
+<ul class="steps">
+<li data-step="6.1" class="step todo"><b>6.1</b> Write up to 8 scenario tests in <code>tests/test_wants_matcher.py</code> (grouped pins of FR-T-11; wants seeded by direct inserts with a per-file helper that fills <code>short_words_query</code> through <code>text_queries.py</code>; items listed through the existing endpoints; categories via <code>leaf_category_ids</code> per test)<ul class="sub"><li>Text: full-text hit; trigram hit at 0.70 without and 0.60 with a category; the compiled statement contains the <code>&lt;%</code> operator and the <code>word_similarity</code> cut-off</li><li>Short words: "TV LG 43" never by trigram alone; "kurtka 3-5 lat" matches an identical product name</li><li>Narrowing: category subtree narrows and never matches alone; offer mode equal or null</li><li>Locality: same locality; radius 10 hits ANDRYCHOW from KETY (8.8 km) and "Tylko tu" misses; BIELSKO 14.4 km and LODZ 209 km misses; null-point fallback to "same locality"</li><li>Must not match: own item, PRIVATE without a shared live PRIVATE group, reserved, pending proposal, deleted place; only ACTIVE unexpired wants</li><li>Top-20 cap and order (score, then newest listing); several rows of one statement get distinct ids</li><li>Stored pairs are excluded before the ranking: a second forward run over 25 candidates adds the 5 not stored yet</li><li>Forward and reverse give the same pairs for the same data</li></ul></li>
+<li data-step="6.2" class="step todo"><b>6.2</b> <code>application/text_queries.py</code>: the SQL expression for <code>short_words_query</code> (lexemes of <code>to_tsvector('simple'::regconfig, fold_pl(:name))</code> of length up to 3 joined with <code>&amp;</code>, null when none), and, only under the O1 fallback, the expression for <code>name_query</code></li>
+<li data-step="6.3" class="step todo"><b>6.3</b> <code>application/matcher.py</code>: base rows of FR-M-02<ul class="sub"><li><code>wants</code> joined to <code>item_listing_preferences</code> UNALIASED, the listed-items select, <code>products</code>, <code>inventory_items</code>, a live <code>locations</code> row and its <code>localities</code> row, left join to the want's locality; only <code>status = 'ACTIVE'</code> and <code>expires_at &gt; now</code></li></ul></li>
+<li data-step="6.4" class="step todo"><b>6.4</b> Predicates of FR-M-03 as column forms (copies, not imports, of the search recipes; the category-only branch of search is NOT copied)<ul class="sub"><li>Own items, takeable (<code>AVAILABLE</code> and <code>proposer_party_id IS NULL</code> over <code>with_pending_proposer</code>), visibility (<code>PUBLIC</code>, or <code>PRIVATE</code> with <code>owner_shares_group_with(&lt;seeker column&gt;, private_only=True)</code>), offer mode, category ancestry, locality with haversine and the null-point fallback, text (full text OR indexable trigram branch with the CASE threshold and the short-words condition)</li></ul></li>
+<li data-step="6.5" class="step todo"><b>6.5</b> Ranking and insert of FR-M-01 / FR-M-04<ul class="sub"><li>Anti-join on <code>want_matches</code> before <code>row_number()</code>; top 20 per want by score desc, then <code>item_listing_preferences.created_at</code> desc</li><li><code>INSERT ... SELECT</code> with <code>include_defaults=False</code>, explicit <code>gen_random_uuid()</code>, <code>created_at</code>, <code>updated_at</code>; <code>ON CONFLICT (want_id, item_id) DO NOTHING RETURNING want_id, item_id</code></li><li><code>score</code> = <code>word_similarity(name_folded, fold_pl(product name))</code> for every stored pair</li></ul></li>
+<li data-step="6.6" class="step todo"><b>6.6</b> Two entry functions over the one builder: forward (one want id, <code>source = FORWARD</code>, <code>seen_at = now</code>) and reverse (listing window <code>created_at &gt; start AND &lt;= now</code>, <code>source = SCAN</code>, <code>seen_at</code> null); both take <code>now</code></li>
+<li data-step="6.7" class="step todo"><b>6.7</b> Run mypy and ruff on <code>app/wants</code>; run the boundary and membership guards</li>
+<li data-step="6.8" class="step todo"><b>6.8</b> Run only <code>uv run python -m pytest tests/test_wants_matcher.py -q</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>The matcher tests pass</li><li>One builder serves both directions; the predicates are not duplicated</li><li>Bind parameters for every value; no unvalidated splicing; no incidental DISTINCT</li></ul></details>
+</section>
+<section data-group="7" class="group todo" id="g7">
+<h3><span class="gnum">7</span> Match statement measurement and index decision <span class="badge g-badge"></span>  <span class="dep">&larr; depends on 6</span></h3>
+<p class="meta">7 steps</p>
+<p><b>Goal:</b> Measure both directions on realistic data, record the result and decide the <code>item_listing_preferences.created_at</code> index.</p>
+<p><b>Satisfies:</b> FR-T-30, FR-D-06; AC-07 (plan at 20,000 items), AC-36</p>
+<p><b>Standards:</b> backend/queries.md, backend/jooq.md, backend/migrations.md (concurrent index, separate revision), global/conventions.md, global/minimal-implementation.md</p>
+<p><b>Files to modify:</b> <code>implementation/measurement/polish_names.py</code>, <code>implementation/measurement/seed_measurement.py</code>, <code>implementation/measurement/explain_match.py</code>, <code>implementation/measurement/results.md</code>, <code>implementation/work-log.md</code>; only if the measurement requires it: <code>alembic/versions/0100_listing_preferences_created_at_index.py</code>, <code>tests/test_wants_migration.py</code>, <code>app/wants/application/matcher.py</code>, <code>tests/test_wants_matcher.py</code></p>
+
+<p class="parent"><b>7.0</b> Measure the match statement (scripts stay in the task folder, never in <code>src/</code>)</p>
+<ul class="steps">
+<li data-step="7.1" class="step todo"><b>7.1</b> Write <code>seed_measurement.py</code> and <code>polish_names.py</code><ul class="sub"><li>The script starts its own disposable PostgreSQL 18 (testcontainers, as <code>tests/conftest.py</code>), runs <code>alembic upgrade head</code>, and never prints or writes a connection string, password or environment value; it refuses to run against any configured application database</li><li>Names drawn from realistic Polish product names (inflection, sizes, brands), not random strings</li><li>Sizes: 5,000 and 20,000 listed items; 1,000 and 10,000 active wants, half with a category, a third with a locality</li></ul></li>
+<li data-step="7.2" class="step todo"><b>7.2</b> Write <code>explain_match.py</code>: <code>EXPLAIN (ANALYZE, BUFFERS)</code> of the reverse statement for windows of 20 and 500 new listings and of the forward statement for one want, using the builders of group 6 unchanged</li>
+<li data-step="7.3" class="step todo"><b>7.3</b> Run the eight reverse points and the forward points; write plans, timings and buffers to <code>results.md</code><ul class="sub"><li>Budgets: forward under 300 ms; reverse under 2 s at 500 listings x 10,000 wants</li><li>Checks: at 20,000 items the forward plan uses <code>ix_products_name_trgm</code> and the full-text index (a sequential scan at 5,000 is not a failure)</li></ul></li>
+<li data-step="7.4" class="step todo"><b>7.4</b> If the reverse budget fails, apply the levers in order and re-measure after each: fold product names once per listing (materialised CTE of the window's listings, predicates still shared by both directions); then plain-column pre-filters; then report the remaining gap<ul class="sub"><li>Any change to <code>matcher.py</code> re-runs <code>tests/test_wants_matcher.py</code> unchanged in meaning</li><li>A longer interval or the outbox fallback is NOT applied; it is reported for the user</li></ul></li>
+<li data-step="7.5" class="step todo"><b>7.5</b> Decide the <code>created_at</code> index and record the decision with its evidence in <code>results.md</code><ul class="sub"><li>If needed: a separate revision <code>0100_*</code> with a concurrent build inside <code>autocommit_block()</code>, an exact-reverse downgrade, and one round-trip test added to <code>tests/test_wants_migration.py</code></li></ul></li>
+<li data-step="7.6" class="step todo"><b>7.6</b> Record in <code>implementation/work-log.md</code>: budgets met or missed, levers applied, the index decision, and that thresholds 0.70 / 0.60 remain unmeasured (release gate)</li>
+<li data-step="7.7" class="step todo"><b>7.7</b> Run only the tests touched by this group (<code>tests/test_wants_matcher.py</code>, and <code>tests/test_wants_migration.py</code> if 0100 was added)</li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li><code>implementation/measurement/results.md</code> holds the plans, the timings against both budgets and the index decision</li><li>No secret or connection string appears in the scripts' output or in the results</li><li>Matcher tests pass after any lever</li></ul></details>
+</section>
+<section data-group="8" class="group todo" id="g8">
+<h3><span class="gnum">8</span> Want writes, lifecycle transitions and want API <span class="badge g-badge"></span>  <span class="dep">&larr; depends on 6</span></h3>
+<p class="meta">10 steps</p>
+<p><b>Goal:</b> Create, edit, extend, close and resume a want, return it with filtered counters, and expose the want-returning routes with authorization.</p>
+<p><b>Satisfies:</b> FR-X-10 (router), FR-X-11, FR-X-15 (matrix test), FR-M-06, FR-M-07 (counters), FR-N-06, FR-L-01, FR-L-02 (extend route), FR-L-03, FR-L-04, FR-L-06, FR-L-09, FR-L-10, FR-W-01..FR-W-10, FR-A-01 (list), FR-A-02..FR-A-07, FR-A-11, FR-A-14, FR-A-15, FR-A-20, FR-T-14 (transition pins), FR-T-15, FR-T-18 (matrix part); AC-01, AC-08 (radius 0), AC-09 (create, list), AC-10, AC-11, AC-12, AC-13, AC-14, AC-15, AC-21, AC-31 (backend half), AC-45 (response), AC-47</p>
+<p><b>Standards:</b> backend/api.md, backend/security.md, backend/queries.md, backend/models.md, backend/time.md, global/validation.md, global/error-handling.md, testing/backend-testing.md</p>
+<p><b>Files to modify:</b> <code>app/wants/schemas.py</code>, <code>app/wants/application/errors.py</code>, <code>app/wants/application/writes.py</code>, <code>app/wants/application/reads.py</code>, <code>app/wants/router/__init__.py</code>, <code>app/wants/router/wants.py</code>, <code>app/main.py</code>, <code>app/core/authorization_matrix.py</code>, <code>tests/test_authorization_matrix.py</code>, <code>tests/test_wants_api.py</code>, <code>tests/test_wants_lifecycle.py</code></p>
+
+<p class="parent"><b>8.0</b> Build the want writes and the want API</p>
+<ul class="steps">
+<li data-step="8.1" class="step todo"><b>8.1</b> Write up to 8 scenario tests in <code>tests/test_wants_api.py</code> (grouped pins of FR-T-15; per-file <code>_register</code> / <code>_auth</code> / <code>_create_want</code> helpers)<ul class="sub"><li>Create 201: a want inserted through the ORM over asyncpg matches with its generated columns; forward matches born seen; <code>new_match_count</code> 0; no notification row; exact key set including <code>category_name</code>, <code>category_path</code>, <code>locality_name</code></li><li>Validation 400s with the texts of FR-A-20 (length, no letter or digit, note length, radius rules, unknown category / locality, unknown field); radius 0 stored as null</li><li>PATCH clearing the locality clears the radius, 200</li><li>Contact details (existing <code>CONTACT_INFO_MESSAGE</code> verbatim) and classifier rejection 400; outage 503; nothing saved; on create no database statement before the checks</li><li>Cap: 31st want 409 with the cap text, nothing written</li><li>Forward timeout (monkeypatched sqlstate 57014) 503 with nothing saved</li><li>Foreign and withdrawn want 404 on every <code>/{id}</code> route of this group; edit of a non-ACTIVE want 409</li><li>Note-only and switch-only PATCH keep matches; a matching-field PATCH deletes matches and the unread bell row (row seeded directly, pointer set), resets pointer and count, stores fresh forward matches</li><li>Statement counts of create and list constant with 1 and several wants / matches</li></ul></li>
+<li data-step="8.2" class="step todo"><b>8.2</b> Write 4-6 tests in <code>tests/test_wants_lifecycle.py</code> (transition pins of FR-T-14) and the rows in <code>tests/test_authorization_matrix.py</code><ul class="sub"><li>Extend sets <code>expires_at = now + 90 d</code>, clears <code>reminded_at</code>, keeps matches, 409 when not ACTIVE</li><li>Close FULFILLED keeps bell rows; close WITHDRAWN deletes the unread match row and hides the want; 409 when not ACTIVE</li><li>Resume / reopen: cap check (409 with 30 active), <code>closed_at</code> null, new period, stored matches kept, forward match adds pairs born seen; 409 when already ACTIVE</li><li>Matrix: the two wants rows resolve; an OAuth token with only <code>mcp:*</code> scopes gets 403, a login token 200</li></ul></li>
+<li data-step="8.3" class="step todo"><b>8.3</b> <code>app/wants/schemas.py</code>: request schemas with <code>extra="forbid"</code> (create, patch, close with <code>outcome</code>), the want response of the spec; foreign types only through the module's own ACL files</li>
+<li data-step="8.4" class="step todo"><b>8.4</b> <code>application/errors.py</code>: <code>WantNotFound</code> (404, Polish), the conflict exceptions (409) and the forward-timeout error (503) with the texts from <code>domain/messages.py</code> (template <code>app/events/service.py:33-104</code>)</li>
+<li data-step="8.5" class="step todo"><b>8.5</b> <code>application/reads.py</code>: one statement that returns wants with <code>match_count</code> / <code>new_match_count</code> through the read-time filter (listed, <code>items_visible_to</code> with the seeker as viewer, <code>owner_party_id &lt;&gt; seeker_party_id</code>), <code>category_name</code>, <code>category_path</code>, <code>locality_name</code> by join or one batch; list order ACTIVE first then newest; never WITHDRAWN; selection always by <code>(id, seeker_party_id)</code></li>
+<li data-step="8.6" class="step todo"><b>8.6</b> <code>application/writes.py</code>: create in the order of FR-W-04 (text checks, profile, <code>SET LOCAL statement_timeout = '3s'</code>, cap count, existence checks, insert with <code>short_words_query</code> computed in SQL, forward match, commit); sqlstate 57014 rolls back and raises the 503 error</li>
+<li data-step="8.7" class="step todo"><b>8.7</b> <code>application/writes.py</code>: PATCH through <code>model_fields_set</code> on the merged state (reference ids not re-validated when unchanged; <code>current</code> passed to <code>check_text</code>); a changed matching field deletes matches, deletes the unread bell row through the delete-only function, resets pointer and count and re-runs the forward match under the timeout</li>
+<li data-step="8.8" class="step todo"><b>8.8</b> <code>application/writes.py</code>: extend, close (FULFILLED / WITHDRAWN with the bell-row delete) and resume / reopen, using <code>domain/lifecycle.py</code></li>
+<li data-step="8.9" class="step todo"><b>8.9</b> Router and wiring: <code>router/wants.py</code> on the <code>app/messaging/router.py</code> pattern (<code>require_any("READ")</code> for GET, <code>require_any("EDIT")</code> for POST / PATCH; literal paths before <code>/{id}</code>; no DELETE); <code>app/main.py</code> includes the router before <code>system_router</code>; two rows in <code>app/core/authorization_matrix.py</code> before the catch-all, copied from conversations rows 53-54<ul class="sub"><li>Routes of this group: <code>GET /api/wants</code>, <code>POST /api/wants</code>, <code>GET /{id}</code>, <code>PATCH /{id}</code>, <code>POST /{id}/extend</code>, <code>POST /{id}/close</code>, <code>POST /{id}/resume</code></li></ul></li>
+<li data-step="8.10" class="step todo"><b>8.10</b> Run mypy and ruff; run only <code>uv run python -m pytest tests/test_wants_api.py tests/test_wants_lifecycle.py tests/test_authorization_matrix.py tests/test_module_boundaries.py -q</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>The API, lifecycle and matrix tests pass</li><li>Every <code>/{id}</code> route answers 404 for a foreign, withdrawn or unknown want</li><li>GET routes write nothing; validation errors are 400, never 422</li><li>Statement counts of create and list do not grow with rows</li></ul></details>
+</section>
+<section data-group="9" class="group todo" id="g9">
+<h3><span class="gnum">9</span> Match list API <span class="badge g-badge"></span>  <span class="dep">&larr; depends on 8</span></h3>
+<p class="meta">7 steps</p>
+<p><b>Goal:</b> Serve the match cards, the "seen" and "opened" marks and the <code>matched_item_id</code> lookup.</p>
+<p><b>Satisfies:</b> FR-M-07 (list), FR-L-02 (auto-extension inside "seen"), FR-A-01 (<code>matched_item_id</code>), FR-A-08, FR-A-09, FR-A-10, FR-A-12, FR-A-13, FR-A-15, FR-A-20 (unknown pair), FR-T-14 (auto-extension pin), FR-T-16; AC-09 (match list), AC-18, AC-19, AC-20, AC-42</p>
+<p><b>Standards:</b> backend/api.md, backend/queries.md, backend/security.md, backend/models.md, testing/backend-testing.md</p>
+<p><b>Files to modify:</b> <code>app/wants/schemas.py</code>, <code>app/wants/application/reads.py</code>, <code>app/wants/application/writes.py</code>, <code>app/wants/router/wants.py</code>, <code>tests/test_wants_matches_api.py</code></p>
+
+<p class="parent"><b>9.0</b> Build the match list API</p>
+<ul class="steps">
+<li data-step="9.1" class="step todo"><b>9.1</b> Write up to 8 scenario tests in <code>tests/test_wants_matches_api.py</code> (grouped pins of FR-T-16)<ul class="sub"><li>Exact card key set (<code>id</code>, <code>title</code>, <code>subtitle</code>, <code>href</code>, <code>meta</code> {<code>mode</code>, <code>condition</code>, <code>thumb_url</code>, <code>reserved</code>, <code>reserved_until</code>}, <code>is_new</code>, <code>reserved_by_me</code>, <code>proposed_by_me</code>)</li><li>Order: available first, then reserved; inside, new first then score</li><li><code>reserved</code>, <code>reserved_by_me</code>, and <code>proposed_by_me</code> for an own pending proposal that is not the oldest</li><li>Unlisted and no-longer-visible items are left out and not counted; an item the seeker now owns and lists again is left out and not counted; <code>match_count</code> / <code>new_match_count</code> of the want equal the list</li><li><code>GET /api/wants?matched_item_id=</code> returns only ACTIVE wants holding the item</li><li>"seen" resets <code>new_match_count</code>; extends an ACTIVE want only inside its last 30 days; for a non-ACTIVE want only the counter is reset</li><li>"opened" sets <code>opened_at</code> once; an unknown pair is 404 "Nie znaleziono dopasowania."</li><li>Statement count of the match list constant with 1 and several matches</li></ul></li>
+<li data-step="9.2" class="step todo"><b>9.2</b> <code>schemas.py</code>: the match card response</li>
+<li data-step="9.3" class="step todo"><b>9.3</b> <code>reads.py</code>: the match list statement over stored pairs joined to the current state (same read-time filter as the counters, shared code), <code>proposed_by_me</code> as an own <code>EXISTS</code>, <code>reserved_by_me</code> from <code>reserved_by_user_id</code> against the caller's <code>account_user_id</code>; photos and organization slugs batched; <code>href</code> from <code>product_path(owner slug, item_id)</code></li>
+<li data-step="9.4" class="step todo"><b>9.4</b> <code>reads.py</code>: the <code>matched_item_id</code> filter on the list statement</li>
+<li data-step="9.5" class="step todo"><b>9.5</b> <code>writes.py</code>: "seen" (set <code>seen_at</code> on unseen pairs; auto-extension through the extend rule) and "opened" (first open only)</li>
+<li data-step="9.6" class="step todo"><b>9.6</b> <code>router/wants.py</code>: <code>GET /{id}/matches</code>, <code>POST /{id}/matches/seen</code>, <code>POST /{id}/matches/{item_id}/opened</code> (204), the <code>matched_item_id</code> query parameter</li>
+<li data-step="9.7" class="step todo"><b>9.7</b> Run mypy and ruff; run only <code>uv run python -m pytest tests/test_wants_matches_api.py tests/test_wants_api.py -q</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>The match-list tests pass; the tests of group 8 still pass</li><li>Counters and list agree in every test that changes item state</li><li>No limit and no paging on the match list (v1)</li></ul></details>
+</section>
+<section data-group="10" class="group todo" id="g10">
+<h3><span class="gnum">10</span> Scan job, sweep and scheduler wiring <span class="badge g-badge"></span>  <span class="dep">&larr; depends on 7, 8</span></h3>
+<p class="meta">9 steps</p>
+<p><b>Goal:</b> The 15-minute job: sweep, reverse match, grouped bell rows, marker, one commit, and a wrapper that survives a lost race.</p>
+<p><b>Satisfies:</b> FR-X-10 (job), FR-S-01..FR-S-08, FR-N-03, FR-N-04, FR-N-05, FR-N-08, FR-L-05, FR-L-07, FR-T-12, FR-T-13 (scan pins), FR-T-14 (sweep pins); AC-02, AC-03, AC-04, AC-09 (scan), AC-16, AC-17, AC-25, AC-39, AC-43, AC-50</p>
+<p><b>Standards:</b> backend/queries.md, backend/jooq.md, backend/time.md, backend/models.md, global/error-handling.md, testing/backend-testing.md</p>
+<p><b>Files to modify:</b> <code>app/wants/application/scan.py</code>, <code>app/wants/application/match_notifications.py</code>, <code>app/main.py</code>, <code>tests/test_wants_scan.py</code>, <code>tests/test_wants_notifications.py</code>, <code>tests/test_wants_lifecycle.py</code></p>
+
+<p class="parent"><b>10.0</b> Build the scan job</p>
+<ul class="steps">
+<li data-step="10.1" class="step todo"><b>10.1</b> Write up to 8 scenario tests in <code>tests/test_wants_scan.py</code> (grouped pins of FR-T-12; every call passes <code>now</code>; rows are dated by setting columns directly)<ul class="sub"><li>A new listing gives one pair and one bell row; a second run over the same window adds nothing</li><li>First run without a marker uses a window of 15 + 5 minutes and creates the row; the overlap is honoured</li><li>The register insert path (<code>list_registered_item</code>) is seen</li><li>Switch off: pairs stored, no bell row, pointer and bell count untouched; after re-enabling the first row counts only that run's pairs</li><li>Race: a want loaded through the ORM before a run that updates it raises <code>StaleDataError</code> on its write (the scan set <code>updated_at</code>)</li><li>The job wrapper swallows <code>StaleDataError</code> and the marker <code>IntegrityError</code>, rolls back, and the next run works; two first runs leave one marker row</li><li>Statement count constant with 1 and several wants / listings, at most 16</li><li>One log line per run (INFO when work was done, DEBUG otherwise)</li></ul></li>
+<li data-step="10.2" class="step todo"><b>10.2</b> Append 3-4 tests to <code>tests/test_wants_notifications.py</code> (scan pins of FR-T-13)<ul class="sub"><li>Count 1 names the item and links to its page; count 2+ gives the count and links to <code>/wanted/{id}</code></li><li>An unread row is replaced by one row with the summed count; a read row is left and the new row starts from the run's count</li><li>End to end: withdraw and a matching-field edit delete the unread row created by a scan; read rows and reminder rows stay</li></ul></li>
+<li data-step="10.3" class="step todo"><b>10.3</b> Append 3-4 tests to <code>tests/test_wants_lifecycle.py</code> (sweep pins of FR-T-14)<ul class="sub"><li>Expire sets <code>EXPIRED</code> and <code>closed_at = expires_at</code></li><li>Reminder once per period, also with the switch off, again after an extension</li><li>Purge 30 days after <code>closed_at</code> with cascade; an ACTIVE want is never purged; bell rows of purged wants stay</li></ul></li>
+<li data-step="10.4" class="step todo"><b>10.4</b> <code>application/scan.py</code>: <code>scan_wants(db, *, now=None)</code> with the sweep (expire, remind, purge) as set-based <code>UPDATE</code> / <code>DELETE ... RETURNING</code>; every set-based <code>UPDATE</code> of <code>wants</code> also sets <code>updated_at = now</code></li>
+<li data-step="10.5" class="step todo"><b>10.5</b> <code>application/scan.py</code>: marker as an ORM entity (version column checked), first-run window, reverse match over <code>(scanned_through - 5 min, now]</code>, marker moved to <code>now</code>, one commit, one log line with the fields of FR-S-05</li>
+<li data-step="10.6" class="step todo"><b>10.6</b> <code>application/match_notifications.py</code>: group the inserted pairs per want with the switch on; batched owner slugs and product names; texts from <code>domain/messages.py</code> capped with <code>clock.fit_notification_message</code>; one call of the batch writer; pointer and count set in one multi-row <code>UPDATE</code> (summed count only when the writer deleted the unread row); <code>WANT_EXPIRING</code> rows as plain inserts</li>
+<li data-step="10.7" class="step todo"><b>10.7</b> <code>app/main.py</code>: interval constant from the wants domain, the job wrapper (catches <code>StaleDataError</code> and the marker <code>IntegrityError</code>, logs, rolls back; other exceptions propagate), <code>add_job</code> on the existing <code>AsyncIOScheduler</code>; no statement timeout on the scan (OQ1 default)</li>
+<li data-step="10.8" class="step todo"><b>10.8</b> Run mypy and ruff; run the boundary, clock and membership guards</li>
+<li data-step="10.9" class="step todo"><b>10.9</b> Run only <code>uv run python -m pytest tests/test_wants_scan.py tests/test_wants_notifications.py tests/test_wants_lifecycle.py -q</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>The scan, notification and sweep tests pass</li><li>At most one unread match row per want after any sequence of runs</li><li>The run is one transaction; statement count does not grow with wants, listings or matches</li><li>Bell copy equals the three rows of <code>analysis/design-context/mockups/bell-rows.html</code> (one match naming the item, several with a count, the expiry reminder)</li></ul></details>
+</section>
+<section data-group="11" class="group todo" id="g11">
+<h3><span class="gnum">11</span> Frontend data layer and paths <span class="badge g-badge"></span> <span class="badge uib">UI</span> <span class="dep">&larr; depends on 1</span></h3>
+<p class="meta">8 steps</p>
+<p><b>Goal:</b> Typed API client, the two hooks, the fixture factory, shared text helpers, the path builders and the notification kind union.</p>
+<p><b>Satisfies:</b> FR-F-02 (builders, new member), FR-F-04, FR-F-05 (UTC day counts), FR-F-15 (plural helper), FR-F-64, FR-N-07, FR-T-21, FR-T-29 (pending actions, kind list); AC-34</p>
+<p><b>Standards:</b> frontend/data-fetching.md, frontend/components.md, testing/frontend-testing.md, global/coding-style.md</p>
+<p><b>Files to modify:</b> <code>routing/paths.ts</code>, <code>api/wants.ts</code>, <code>hooks/useWants.ts</code>, <code>hooks/useWantMatches.ts</code>, <code>features/wanted/wantText.ts</code>, <code>features/wanted/WantNotFound.tsx</code>, <code>api/notifications.ts</code>, <code>test/fixtures/wants.ts</code>, <code>test/useWants.test.tsx</code>, <code>test/useWantMatches.test.tsx</code>, <code>test/wantText.test.ts</code>, <code>test/pendingActions.test.ts</code>, <code>test/MyItemsViewCategory.test.tsx</code>, <code>test/NotificationBell.test.tsx</code></p>
+<details><summary>Visual References (2)</summary><div class="scroll"><table><tr><th>Element</th><th>Mockup</th><th>Locator</th><th>Acceptance</th></tr><tr><td><code>component:bell-rows</code></td><td><a href="../analysis/design-context/mockups/bell-rows.html">bell-rows.html</a></td><td>the three bell rows, approx. lines 278-280</td><td>the unchanged <code>NotificationBell</code> renders a <code>WANT_MATCH_FOUND</code> row with the message "Szukasz: «…». Ktoś wystawił: «…»." linking to the item page, a row "… 3 nowe pasujące rzeczy." linking to <code>/wanted/{id}</code>, and a <code>WANT_EXPIRING</code> row "Poszukiwanie «…» wygaśnie za 7 dni. Przedłuż je, jeśli nadal szukasz." linking to <code>/wanted/{id}</code>; no new bell markup</td></tr><tr><td><code>screen:wanted-matches-states</code></td><td><a href="../analysis/design-context/mockups/wanted-matches-states.html">wanted-matches-states.html</a></td><td>fourth frame (own not-found state), approx. lines 308-313</td><td><code>WantNotFound</code> shows "Nie ma takiego poszukiwania", "Mogło zostać wycofane albo usunięte po zakończeniu." and the link "Wróć do listy „Szukam”" to <code>/wanted</code></td></tr></table></div></details>
+<p class="parent"><b>11.0</b> Build the frontend data layer</p>
+<ul class="steps">
+<li data-step="11.1" class="step todo"><b>11.1</b> Write the typed factory <code>test/fixtures/wants.ts</code> (no <code>as</code> casts) and 6-8 tests across <code>test/useWants.test.tsx</code>, <code>test/useWantMatches.test.tsx</code>, <code>test/wantText.test.ts</code><ul class="sub"><li><code>useWants</code>: token in the key, disabled without a token, stable empty fallback, each mutation awaits invalidation of the whole prefix and passes the server message through</li><li><code>useWantMatches</code>: want + matches, not-found flag on 404, <code>markSeen</code>, <code>markOpened</code></li><li><code>wantText</code>: filter summary variants of FR-F-12 (node name / full path, "Oddam" / "Zamiana", "Kęty +10 km", "Kęty", "cała Polska", "Bez doprecyzowania", "powiadomienia wyłączone"), plural forms ("1 pasująca rzecz", "3 pasujące rzeczy", "5 pasujących rzeczy", "1 nowa", "2 nowe", "5 nowych"), day counts from naive-UTC timestamps with a pinned clock</li></ul></li>
+<li data-step="11.2" class="step todo"><b>11.2</b> Add or adjust the kind tests: a <code>test/pendingActions.test.ts</code> row showing the two new kinds create no blocking sheet; rewrite the hard-coded kind list of <code>test/MyItemsViewCategory.test.tsx:508-526</code>; one <code>test/NotificationBell.test.tsx</code> case for the three wants rows</li>
+<li data-step="11.3" class="step todo"><b>11.3</b> <code>routing/paths.ts</code>: add the <code>View</code> member <code>"add/wanted"</code> (keep <code>"add/hunting"</code> until group 16), <code>wantPath(id)</code>, <code>wantEditPath(id)</code> (as <code>placeEditPath</code>)</li>
+<li data-step="11.4" class="step todo"><b>11.4</b> <code>api/wants.ts</code>: request and response types and calls for FR-A-01..10; <code>api/notifications.ts</code>: add <code>WANT_MATCH_FOUND</code>, <code>WANT_EXPIRING</code>, remove the stale <code>PLEDGE_ITEM_REGISTERED</code></li>
+<li data-step="11.5" class="step todo"><b>11.5</b> <code>hooks/useWants.ts</code> on the <code>hooks/useMyLocations.ts</code> template (key <code>[WANTS_KEY, "mine", token]</code>, <code>enabled: token !== null</code>, <code>create</code>, <code>update</code>, <code>extend</code>, <code>close</code>, <code>resume</code>, the <code>matched_item_id</code> lookup) and <code>hooks/useWantMatches.ts</code> on the <code>hooks/useEvent.ts</code> template under the same prefix</li>
+<li data-step="11.6" class="step todo"><b>11.6</b> <code>features/wanted/wantText.ts</code> (summary line, plural forms through <code>utils/plural.ts</code>, day counts with the UTC plugin of <code>utils/dayjs.ts</code>) and <code>features/wanted/WantNotFound.tsx</code> (shared by the edit form and the match page)</li>
+<li data-step="11.7" class="step todo"><b>11.7</b> Run <code>npm run typecheck</code> and <code>npm run lint</code>; compare with the baseline</li>
+<li data-step="11.8" class="step todo"><b>11.8</b> Run only <code>npm run test -- src/test/useWants.test.tsx src/test/useWantMatches.test.tsx src/test/wantText.test.ts src/test/pendingActions.test.ts src/test/MyItemsViewCategory.test.tsx src/test/NotificationBell.test.tsx</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>The new and adjusted tests pass</li><li>No ad hoc <code>useQuery</code> in components; <code>dayjs</code> only from <code>utils/dayjs.ts</code></li><li>Typecheck errors not above the baseline (the old <code>View</code> member still exists)</li><li>Each <code>acceptance</code> of the Visual References holds</li></ul></details>
+</section>
+<section data-group="12" class="group todo" id="g12">
+<h3><span class="gnum">12</span> Shared component changes <span class="badge g-badge"></span> <span class="badge uib">UI</span> <span class="dep">&larr; depends on 1</span></h3>
+<p class="meta">8 steps</p>
+<p><b>Goal:</b> The small optional props and the one extraction that the wants views need, with existing callers unchanged.</p>
+<p><b>Satisfies:</b> FR-F-60, FR-F-61, FR-F-62, FR-F-63, FR-F-65, FR-T-29 (BottomNav, picker, combobox, card); AC-32, AC-33</p>
+<p><b>Standards:</b> frontend/components.md, frontend/accessibility.md, frontend/css.md, frontend/responsive.md, testing/frontend-testing.md, global/minimal-implementation.md</p>
+<p><b>Files to modify:</b> <code>components/shared/RadiusChips.tsx</code>, <code>components/shared/chipStyles.ts</code>, <code>features/search/SearchFilters.tsx</code>, <code>features/search/useSearchUrlState.ts</code>, <code>components/shared/ItemCard.tsx</code>, <code>components/shared/CategoryTreePicker.tsx</code>, <code>components/shared/LocalityCombobox.tsx</code>, <code>components/layout/BottomNav.tsx</code>, <code>utils/appHelpers.ts</code>, <code>test/RadiusChips.test.tsx</code>, <code>test/ItemCard.test.tsx</code>, <code>test/BottomNav.test.tsx</code>, <code>test/CategoryTreePicker.test.tsx</code>, <code>test/LocalityCombobox.test.tsx</code>, <code>test/AppPage.test.tsx</code> (only if an existing "Konto" highlight assertion changes)</p>
+<details><summary>Visual References (2)</summary><div class="scroll"><table><tr><th>Element</th><th>Mockup</th><th>Locator</th><th>Acceptance</th></tr><tr><td><code>screen:wanted-form</code></td><td><a href="../analysis/design-context/mockups/wanted-form.html">wanted-form.html</a></td><td>second frame (prefilled, "Doprecyzuj" expanded), the "Miejscowość" and "Kategoria" fields, approx. lines 296-303</td><td>radius chips in the order "Tylko tu", "+10 km", "+25 km", "+50 km" with <code>aria-pressed</code>; <code>LocalityCombobox</code> accepts the placeholder "Cała Polska — wpisz, aby zawęzić"; <code>CategoryTreePicker</code> accepts the clear label "Dowolna kategoria"; defaults of both props unchanged</td></tr><tr><td><code>component:match-card</code></td><td><a href="../analysis/design-context/mockups/wanted-matches.html">wanted-matches.html</a></td><td>first frame, card grid, approx. lines 281-309</td><td><code>ItemCard</code> shows a "nowe" marker when the optional prop is passed and nothing new when it is not; the intent pill keeps today's labels</td></tr></table></div></details>
+<p class="parent"><b>12.0</b> Change the shared components</p>
+<ul class="steps">
+<li data-step="12.1" class="step todo"><b>12.1</b> Run <code>npm run test -- src/test/SearchView.test.tsx</code> first and record the result for L134-210 (must be the same after step 12.3)</li>
+<li data-step="12.2" class="step todo"><b>12.2</b> Write 6-8 tests: <code>test/RadiusChips.test.tsx</code> (four chips, pressed state, null for "Tylko tu"), <code>test/ItemCard.test.tsx</code> (marker shown / absent), <code>test/BottomNav.test.tsx</code> ("Konto" highlighted on <code>/wanted/abc</code>, <code>/wanted/abc/edit</code>, <code>/places/new</code>; not on <code>/search</code>), one case each in <code>test/CategoryTreePicker.test.tsx</code> and <code>test/LocalityCombobox.test.tsx</code> (prop given; default unchanged)</li>
+<li data-step="12.3" class="step todo"><b>12.3</b> Extract only the radius chips and the chip style constants from <code>features/search/SearchFilters.tsx</code> (L196-208, L30-34) into <code>components/shared/RadiusChips.tsx</code> and <code>components/shared/chipStyles.ts</code>; <code>SearchFilters.tsx</code> uses them<ul class="sub"><li>The heading, the "Ostatnio" chip, <code>MajorTownPicker</code>, the +10 km default on pick and the offer toggles stay in <code>SearchFilters.tsx</code> unchanged</li></ul></li>
+<li data-step="12.4" class="step todo"><b>12.4</b> <code>ItemCard</code>: one optional marker prop; <code>CategoryTreePicker</code>: one optional clear-label prop (default "Kategoria główna (brak)"); <code>LocalityCombobox</code>: one optional <code>placeholder</code> prop (default "Nazwa lub kod pocztowy")</li>
+<li data-step="12.5" class="step todo"><b>12.5</b> <code>BottomNav</code> / <code>utils/appHelpers.ts</code>: "Konto" highlighted by prefix (exact path or path + "/...") for all <code>ACCOUNT_SUBVIEWS</code></li>
+<li data-step="12.6" class="step todo"><b>12.6</b> Check the pages the prefix now touches (<code>/places/...</code>, <code>/groups/:id</code>, <code>/family/...</code>): run the test files that assert the active tab and adjust only an assertion the new rule changes on purpose</li>
+<li data-step="12.7" class="step todo"><b>12.7</b> Run <code>npm run typecheck</code> and <code>npm run lint</code>; compare with the baseline</li>
+<li data-step="12.8" class="step todo"><b>12.8</b> Run only the five test files of 12.2 plus <code>src/test/SearchView.test.tsx</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>The new tests pass; <code>test/SearchView.test.tsx</code> L134-210 has the same result as in 12.1</li><li>Every existing caller of the three components compiles unchanged</li><li>Each <code>acceptance</code> of the Visual References holds</li></ul></details>
+</section>
+<section data-group="13" class="group todo" id="g13">
+<h3><span class="gnum">13</span> Want list view <span class="badge g-badge"></span> <span class="badge uib">UI</span> <span class="dep">&larr; depends on 11, 12</span></h3>
+<p class="meta">6 steps</p>
+<p><b>Goal:</b> The <code>/wanted</code> list as a feature view with its view state (no route file here).</p>
+<p><b>Satisfies:</b> FR-F-03 (list), FR-F-10, FR-F-11, FR-F-12, FR-F-13, FR-F-14, FR-F-15, FR-F-39 (list actions), FR-T-20 (list), FR-T-23; AC-26 (list), AC-45 (node name), AC-49 (list)</p>
+<p><b>Standards:</b> frontend/components.md, frontend/accessibility.md, frontend/data-fetching.md, frontend/css.md, frontend/responsive.md, global/error-handling.md, testing/frontend-testing.md</p>
+<p><b>Files to modify:</b> <code>features/wanted/WantedListView.tsx</code>, <code>features/wanted/wantedListViewState.ts</code>, <code>test/wantedListViewState.test.ts</code>, <code>test/WantedListView.test.tsx</code></p>
+<details><summary>Visual References (1)</summary><div class="scroll"><table><tr><th>Element</th><th>Mockup</th><th>Locator</th><th>Acceptance</th></tr><tr><td><code>screen:wanted-list</code></td><td><a href="../analysis/design-context/mockups/wanted-list.html">wanted-list.html</a></td><td>first frame (list with five cards), approx. lines 276-298; second frame (empty state), approx. lines 300-308</td><td>header order: back "‹ Konto", h1 "Szukam", link "+ Dodaj", intro "Zapisz, czego potrzebujesz. Damy znać, gdy ktoś doda pasującą rzecz."; no inline add field; active card: name link, summary joined with " · ", pill "N nowe", match band ("N pasujących rzeczy" or "Jeszcze nic · powiadomimy Cię" with a bell icon), "Ważne jeszcze N dni" with "Przedłuż" at 7 days or fewer; expired card: "Wygasło N dni temu", pill "Wygasło", "Zniknie z listy za M dni", "Wznów"; fulfilled card: "Znalezione N dni temu", pill "Znalezione", "Szukam znowu"; empty state: "Czego potrzebujesz?", "Dodaj rzecz, której szukasz, np. fotelik albo kurtkę na zimę.", "+ Dodaj poszukiwanie". Spec override: the summary shows the category node name (<code>category_name</code>), not the mockup's top-level name</td></tr></table></div></details>
+<p class="parent"><b>13.0</b> Build the list view</p>
+<ul class="steps">
+<li data-step="13.1" class="step todo"><b>13.1</b> Write the <code>it.each</code> table in <code>test/wantedListViewState.test.ts</code> (<code>loading</code>, <code>error</code>, <code>empty</code>, <code>list</code>, including a stale list with a refresh error) and up to 8 tests in <code>test/WantedListView.test.tsx</code> (<code>vi.mock("../api/wants")</code>, <code>renderWithRoute</code>, pinned clock)<ul class="sub"><li>Header copy and links; summary line variants; "N nowe"; match band at 0 and above; expiry hint and "Przedłuż"; expired and fulfilled rows with their actions; a 409 on resume shown verbatim in an inline <code>role="alert"</code> by the action; empty state</li></ul></li>
+<li data-step="13.2" class="step todo"><b>13.2</b> <code>wantedListViewState.ts</code>: pure <code>resolveWantedListView()</code> returning one discriminated state</li>
+<li data-step="13.3" class="step todo"><b>13.3</b> <code>WantedListView.tsx</code>: header, intro, cards (active / expired / fulfilled) and the empty state; the page only switches on <code>view.kind</code>; icons from <code>components/shared/appIcons.tsx</code>; text from <code>features/wanted/wantText.ts</code></li>
+<li data-step="13.4" class="step todo"><b>13.4</b> Actions: "Przedłuż" (extend), "Wznów" / "Szukam znowu" (resume) through <code>useWants</code>; failures inline next to the action, no toast</li>
+<li data-step="13.5" class="step todo"><b>13.5</b> Run <code>npm run typecheck</code> and <code>npm run lint</code>; compare with the baseline</li>
+<li data-step="13.6" class="step todo"><b>13.6</b> Run only <code>npm run test -- src/test/wantedListViewState.test.ts src/test/WantedListView.test.tsx</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>Both test files pass</li><li>No category-tree load; router access only through <code>routing/navigation.tsx</code></li><li>Each <code>acceptance</code> of the Visual References holds (with the spec override)</li></ul></details>
+</section>
+<section data-group="14" class="group todo" id="g14">
+<h3><span class="gnum">14</span> Want form view <span class="badge g-badge"></span> <span class="badge uib">UI</span> <span class="dep">&larr; depends on 11, 12</span></h3>
+<p class="meta">8 steps</p>
+<p><b>Goal:</b> One form view for <code>/add/wanted</code> and <code>/wanted/:id/edit</code> (no route file here).</p>
+<p><b>Satisfies:</b> FR-F-03 (form), FR-F-20..FR-F-29, FR-T-20 (form), FR-T-22; AC-26 (form), AC-27, AC-46</p>
+<p><b>Standards:</b> frontend/components.md, frontend/accessibility.md, global/validation.md, global/error-handling.md, frontend/data-fetching.md, frontend/css.md, frontend/responsive.md, testing/frontend-testing.md</p>
+<p><b>Files to modify:</b> <code>features/wanted/WantFormView.tsx</code>, <code>features/wanted/wantFormViewState.ts</code>, <code>features/wanted/WantDisclosure.tsx</code>, <code>features/wanted/OfferModeChips.tsx</code>, <code>test/wantFormViewState.test.ts</code>, <code>test/WantFormView.test.tsx</code></p>
+<details><summary>Visual References (3)</summary><div class="scroll"><table><tr><th>Element</th><th>Mockup</th><th>Locator</th><th>Acceptance</th></tr><tr><td><code>screen:wanted-form</code></td><td><a href="../analysis/design-context/mockups/wanted-form.html">wanted-form.html</a></td><td>three frames: empty create (approx. lines 276-288), prefilled with "Doprecyzuj" expanded (approx. lines 290-308), edit (approx. lines 310-329)</td><td>titles "Szukam rzeczy" / "Edytuj poszukiwanie"; create intro "Napisz, czego szukasz — damy znać, gdy ktoś doda pasującą rzecz."; field order: name ("Czego szukasz?", placeholder "Np. kask rowerowy dla dziecka", counter "N/80 znaków"), disclosure, "Kategoria", "Jak chcesz dostać rzecz?" chips "Obojętnie" / "Oddam" / "Zamiana", "Miejscowość" with radius chips after a pick, "Notatka dla siebie" (placeholder "Rozmiar, kolor, do kiedy potrzebujesz", helper "Widzisz ją tylko Ty. N/300 znaków"); buttons "Zapisz poszukiwanie" / "Zapisz zmiany" + "Anuluj"; edit hint "Zmiana nazwy, kategorii, sposobu lub miejsca wyszuka dopasowania od nowa."; back link "‹ Dodaj" / "‹ {want name}". Spec override: only the locality field and the radius chips (no "Lokalizacja" heading, no <code>MajorTownPicker</code>, no "Ostatnio" chip)</td></tr><tr><td><code>component:want-disclosure</code></td><td><a href="../analysis/design-context/mockups/wanted-form.html">wanted-form.html</a></td><td>the "Doprecyzuj (opcjonalnie)" button in each frame, approx. lines 282, 296, 315</td><td><code>&lt;button type="button"&gt;</code> with <code>aria-expanded</code>, <code>aria-controls</code> and an <code>aria-hidden</code> ▸/▾; collapsed on an empty create form; expanded on edit and when opened with <code>category</code>, <code>offer_type</code>, <code>locality</code> or <code>radius</code></td></tr><tr><td><code>screen:wanted-form-errors</code></td><td><a href="../analysis/design-context/mockups/wanted-form-errors.html">wanted-form-errors.html</a></td><td>three frames: prefilled name out of range (approx. lines 276-293), 409 limit (approx. lines 295-306), contact / moderation / 503 (approx. lines 308-323)</td><td>out-of-range name shown as typed with the inline <code>role="alert"</code> "Nazwa musi mieć od 3 do 80 znaków.", <code>aria-invalid</code>, <code>aria-describedby</code>, blocked submit; server errors in a <code>role="alert"</code> block above the name field, verbatim; the 409 on create adds the link "Zobacz listę" to <code>/wanted</code>; the form stays filled. Spec override: the contact-details message is the server's existing <code>CONTACT_INFO_MESSAGE</code> verbatim, not the mockup's shortened text</td></tr></table></div></details>
+<p class="parent"><b>14.0</b> Build the form view</p>
+<ul class="steps">
+<li data-step="14.1" class="step todo"><b>14.1</b> Write the <code>it.each</code> table in <code>test/wantFormViewState.test.ts</code> (create <code>ready</code>; edit <code>loading</code>, <code>error</code>, <code>notFound</code>, <code>ready</code>, non-ACTIVE redirect) and up to 8 tests in <code>test/WantFormView.test.tsx</code> (grouped pins of FR-T-22)<ul class="sub"><li>Field order and copy; disclosure state and ARIA in the three openings</li><li>Prefill from <code>name</code>, <code>category</code>, <code>offer_type</code>, <code>locality</code>, <code>radius</code>; out-of-range prefilled name with the inline error and blocked submit</li><li><code>aria-disabled</code> + hint "Wpisz, czego szukasz (3–80 znaków)."; native <code>disabled</code> only while saving; over-length note blocks the submit</li><li>"Obojętnie" sends null and the three chips are exclusive; picking a locality selects "Tylko tu", which sends null; clear label "Dowolna kategoria"</li><li>No <code>MajorTownPicker</code>, no "Ostatnio" chip; <code>features/search/lastLocality.ts</code> storage neither read nor written</li><li>Server error block and the 409 link; <code>replace</code> to <code>wantPath(id)</code> after save; edit hint, "Anuluj", back links (including "‹ Szukaj" with prefill)</li></ul></li>
+<li data-step="14.2" class="step todo"><b>14.2</b> <code>wantFormViewState.ts</code>: pure <code>resolveWantFormView()</code> for create and edit</li>
+<li data-step="14.3" class="step todo"><b>14.3</b> <code>WantDisclosure.tsx</code> and <code>OfferModeChips.tsx</code> (the form's own three exclusive chips with <code>aria-pressed</code>, styled with <code>components/shared/chipStyles.ts</code>)</li>
+<li data-step="14.4" class="step todo"><b>14.4</b> <code>WantFormView.tsx</code>: fields in the mockup order with <code>CategoryTreePicker</code> (<code>mode="any"</code>, clear label), <code>LocalityCombobox</code> (placeholder prop; prefilled locality loaded with <code>hooks/useLocality</code>), <code>RadiusChips</code>, the note with its counter</li>
+<li data-step="14.5" class="step todo"><b>14.5</b> Validation and submit: raw strings in state, inline Polish errors, <code>aria-disabled</code> + <code>aria-describedby</code> with a handler guard, create / update through <code>useWants</code>, navigate with <code>replace</code> to <code>wantPath(id)</code></li>
+<li data-step="14.6" class="step todo"><b>14.6</b> Edit mode: load through <code>useWantMatches</code> or the list hook, <code>notFound</code> with <code>WantNotFound</code>, a non-ACTIVE want navigates with <code>replace</code> to <code>wantPath(id)</code>, "Anuluj" and the hint</li>
+<li data-step="14.7" class="step todo"><b>14.7</b> Run <code>npm run typecheck</code> and <code>npm run lint</code>; compare with the baseline</li>
+<li data-step="14.8" class="step todo"><b>14.8</b> Run only <code>npm run test -- src/test/wantFormViewState.test.ts src/test/WantFormView.test.tsx</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>Both test files pass</li><li>Every inner button of pickers is <code>type="button"</code>; no native <code>disabled</code> for input-blocked submit</li><li>Each <code>acceptance</code> of the Visual References holds (with the spec overrides)</li></ul></details>
+</section>
+<section data-group="15" class="group todo" id="g15">
+<h3><span class="gnum">15</span> Match list view <span class="badge g-badge"></span> <span class="badge uib">UI</span> <span class="dep">&larr; depends on 11, 12</span></h3>
+<p class="meta">8 steps</p>
+<p><b>Goal:</b> The <code>/wanted/:id</code> page view with its states, toggle, cards and actions (no route file here).</p>
+<p><b>Satisfies:</b> FR-F-03 (match list), FR-F-30..FR-F-39, FR-T-20 (match list), FR-T-24; AC-20 (captions), AC-26 (match list), AC-31, AC-44, AC-45 (full path), AC-49</p>
+<p><b>Standards:</b> frontend/components.md, frontend/accessibility.md, frontend/data-fetching.md, global/error-handling.md, frontend/css.md, frontend/responsive.md, testing/frontend-testing.md</p>
+<p><b>Files to modify:</b> <code>features/wanted/WantMatchesView.tsx</code>, <code>features/wanted/wantMatchesViewState.ts</code>, <code>features/wanted/WantNotificationToggle.tsx</code>, <code>features/wanted/MatchCard.tsx</code>, <code>test/wantMatchesViewState.test.ts</code>, <code>test/WantMatchesView.test.tsx</code></p>
+<details><summary>Visual References (4)</summary><div class="scroll"><table><tr><th>Element</th><th>Mockup</th><th>Locator</th><th>Acceptance</th></tr><tr><td><code>screen:wanted-matches</code></td><td><a href="../analysis/design-context/mockups/wanted-matches.html">wanted-matches.html</a></td><td>two frames (5 matches, 3 matches), approx. lines 276-331</td><td>back "‹ Szukam", link "Edytuj"; h1 name; filter line with the full category path ("Zabawki › Pojazdy dla dzieci"); "Notatka: …" when a note exists; toggle row; heading "N pasujących rzeczy" / "1 pasująca rzecz"; card grid; "Ważne jeszcze N dni"; actions "Znalezione — zamknij", "Przedłuż", "Wycofaj"</td></tr><tr><td><code>component:want-notification-toggle</code></td><td><a href="../analysis/design-context/mockups/wanted-matches.html">wanted-matches.html</a></td><td>the toggle row in each frame, approx. lines 280 and 313</td><td>label "Powiadomienia o nowych rzeczach", sub-text "Damy znać w dzwonku" (on) / "Wyłączone" (off), <code>role="switch"</code> with <code>aria-checked</code>, accessible name = the visible label; a change sends a PATCH of <code>notifications_enabled</code> alone; a failure reverts and shows the server message in an inline <code>role="alert"</code></td></tr><tr><td><code>component:match-card</code></td><td><a href="../analysis/design-context/mockups/wanted-matches.html">wanted-matches.html</a></td><td>the cards of both frames, approx. lines 281-325</td><td><code>ItemCard</code> with the "nowe" marker for items new on first load; caption "Zarezerwowane przez Ciebie", else "Twoja propozycja", else "Zarezerwowane". Spec override: the intent pill keeps the labels <code>ItemCard</code> renders today (the mockup's "Oddam" / "Zamiana" pills are not copied)</td></tr><tr><td><code>screen:wanted-matches-states</code></td><td><a href="../analysis/design-context/mockups/wanted-matches-states.html">wanted-matches-states.html</a></td><td>four frames: no matches (approx. lines 276-285), expired (approx. lines 287-298), withdraw confirmation (approx. lines 300-306), not found (approx. lines 308-313)</td><td>no matches: bell icon, "Jeszcze nic nie pasuje", "Damy znać, gdy ktoś doda pasującą rzecz.", actions "Przedłuż o 90 dni", "Znalezione", "Wycofaj"; expired: "To poszukiwanie wygasło N dni temu. Nie szukamy już nowych rzeczy. Zniknie z listy za M dni.", "Wznów na 90 dni", stored matches below, no "Edytuj", no toggle; withdraw dialog: "Wycofać poszukiwanie?", "„{name}” zniknie z listy razem z dopasowaniami. Nie damy już znać o nowych rzeczach.", "Wycofaj" / "Anuluj"; not found: the shared <code>WantNotFound</code></td></tr></table></div></details>
+<p class="parent"><b>15.0</b> Build the match list view</p>
+<ul class="steps">
+<li data-step="15.1" class="step todo"><b>15.1</b> Write the <code>it.each</code> table in <code>test/wantMatchesViewState.test.ts</code> (<code>loading</code>, <code>error</code>, <code>notFound</code>, <code>active</code>, <code>activeEmpty</code>, <code>expired</code>, <code>fulfilled</code>, stale data with a refresh error) and up to 8 tests in <code>test/WantMatchesView.test.tsx</code> (grouped pins of FR-T-24)<ul class="sub"><li>Header with <code>category_path</code> and the note; "Edytuj" only in active states</li><li>Toggle PATCH with <code>notifications_enabled</code> alone; a failed toggle reverts and shows the inline alert</li><li>"seen" called once across re-renders; "nowe" markers still shown after the refetch that follows "seen"</li><li>The three captions; "opened" fired on card open without blocking navigation, its failure ignored</li><li>Actions and the primary-action default (extend first at 7 days or fewer); "Znalezione" leaves the page on the fulfilled state</li><li>Withdraw dialog: confirm navigates to <code>/wanted</code>; an error stays inline in the open dialog</li><li>Expired state, fulfilled state ("Oznaczone jako znalezione N dni temu. …", "Szukam znowu"), own not-found state</li></ul></li>
+<li data-step="15.2" class="step todo"><b>15.2</b> <code>wantMatchesViewState.ts</code>: pure <code>resolveWantMatchesView()</code> with an <code>Extract&lt;…&gt;</code> sub-union for the states that show matches</li>
+<li data-step="15.3" class="step todo"><b>15.3</b> <code>WantNotificationToggle.tsx</code> and <code>MatchCard.tsx</code> (wraps <code>ItemCard</code>, marker and caption)</li>
+<li data-step="15.4" class="step todo"><b>15.4</b> <code>WantMatchesView.tsx</code>: header, filter line, note, toggle, heading, grid, expiry line; switch on <code>view.kind</code> only</li>
+<li data-step="15.5" class="step todo"><b>15.5</b> "seen" effect guarded by a ref after the matches have loaded; the ids that were new on first load kept in page state for the markers</li>
+<li data-step="15.6" class="step todo"><b>15.6</b> Actions: close as <code>FULFILLED</code>, extend, resume, withdraw through <code>components/shared/ConfirmDeleteDialog</code>; failures inline by the action (FR-F-39)</li>
+<li data-step="15.7" class="step todo"><b>15.7</b> Run <code>npm run typecheck</code> and <code>npm run lint</code>; compare with the baseline</li>
+<li data-step="15.8" class="step todo"><b>15.8</b> Run only <code>npm run test -- src/test/wantMatchesViewState.test.ts src/test/WantMatchesView.test.tsx</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>Both test files pass</li><li>No category-tree load; no closing sheet on this page</li><li>Each <code>acceptance</code> of the Visual References holds (with the spec override)</li></ul></details>
+</section>
+<section data-group="16" class="group todo" id="g16">
+<h3><span class="gnum">16</span> Routes, entry points and mock removal <span class="badge g-badge"></span> <span class="badge uib">UI</span> <span class="dep">&larr; depends on 13, 14, 15</span></h3>
+<p class="meta">9 steps</p>
+<p><b>Goal:</b> Mount the three views on their routes, wire the three entry points with real counts, and delete the demo.</p>
+<p><b>Satisfies:</b> FR-F-01, FR-F-02 (old member removed), FR-F-05 (no wants query on the server), FR-F-40, FR-F-41, FR-F-42, FR-F-43, FR-F-70, FR-T-26, FR-T-27, FR-T-28, FR-T-29 (<code>ssrSafety</code>); AC-26 (routes, <code>/add/hunting</code> gone), AC-28, AC-30</p>
+<p><b>Standards:</b> frontend/components.md (thin route files, no redirect page, server-safe rendering), frontend/data-fetching.md, frontend/accessibility.md, testing/frontend-testing.md, global/minimal-implementation.md</p>
+<p><b>Files to modify:</b> <code>app/(site)/(panel)/wanted/page.tsx</code>, <code>app/(site)/(panel)/wanted/[id]/page.tsx</code>, <code>app/(site)/(panel)/wanted/[id]/edit/page.tsx</code>, <code>app/(site)/(panel)/add/wanted/page.tsx</code>, <code>app/(site)/(panel)/add/hunting/page.tsx</code> (deleted), <code>routing/paths.ts</code>, <code>features/add/AddView.tsx</code>, <code>features/panel/PanelGate.tsx</code>, <code>features/account/AccountView.tsx</code>, <code>features/search/SearchView.tsx</code>, <code>features/search/WantedView.tsx</code> (deleted), <code>features/add/HuntingCreateView.tsx</code> (deleted), <code>utils/mocks.ts</code>, <code>test/HuntingCreateView.test.tsx</code> (deleted), <code>test/AppPage.test.tsx</code>, <code>test/addRoute.test.tsx</code>, <code>test/SearchView.test.tsx</code>, <code>test/routeManifest.test.ts</code>, <code>test/panelPages.ts</code>, <code>test/panelPages.test.ts</code>, <code>test/auth.test.tsx</code>, <code>test/ssrSafety.test.tsx</code></p>
+<details><summary>Visual References (2)</summary><div class="scroll"><table><tr><th>Element</th><th>Mockup</th><th>Locator</th><th>Acceptance</th></tr><tr><td><code>component:entry-points</code></td><td><a href="../analysis/design-context/mockups/entry-points.html">entry-points.html</a></td><td>three frames: <code>/add</code> tile (approx. lines 279-285), "Konto" row (approx. lines 287-295), empty-search prompt (approx. lines 297-306)</td><td>tile "Szukam rzeczy" / "Damy znać, gdy ktoś doda pasującą" links to <code>/add/wanted</code> and shows the pill "N nowe" when the summed <code>new_match_count</code> is above 0; "Konto" row "Szukam" shows "N rzeczy · M nowe dopasowania" (second part only when M &gt; 0; "brak" at zero; N = ACTIVE wants) and links to <code>/wanted</code>; empty search: sentence "Damy znać, gdy ktoś doda pasującą rzecz." and link "Dodaj do listy „Szukam”" to <code>/add/wanted</code> with <code>name</code>, <code>category</code>, <code>offer_type</code>, <code>locality</code>, <code>radius</code> for each set value. Spec override: only the prompt block changes; today's heading, body and the scope-"mine" suffix stay; the mockup's "Szukaj wszędzie" button is not built</td></tr><tr><td><code>screen:wanted-list</code></td><td><a href="../analysis/design-context/mockups/wanted-list.html">wanted-list.html</a></td><td>whole first frame as mounted at <code>/wanted</code>, approx. lines 276-298</td><td><code>/wanted</code> renders <code>WantedListView</code>; <code>/wanted/:id</code> renders <code>WantMatchesView</code>; <code>/wanted/:id/edit</code> and <code>/add/wanted</code> render <code>WantFormView</code>; <code>/add/hunting</code> does not exist and no redirect page is added</td></tr></table></div></details>
+<p class="parent"><b>16.0</b> Mount the routes and wire the entry points</p>
+<ul class="steps">
+<li data-step="16.1" class="step todo"><b>16.1</b> Rewrite the mock-bound tests first (they must fail for the right reason before the code changes)<ul class="sub"><li><code>test/routeManifest.test.ts</code>, <code>test/panelPages.ts</code>, <code>test/panelPages.test.ts</code>: <code>/add/wanted</code>, <code>/wanted/:id</code>, <code>/wanted/:id/edit</code> present; <code>/add/hunting</code> gone; no redirect page</li><li><code>test/AppPage.test.tsx</code> (mocks L50-192, defaults L488, wants section L2926-3038): <code>vi.mock("../api/wants")</code>; <code>/wanted</code> shows the new list; "Konto" row counts ("brak", "N rzeczy", "N rzeczy · M nowe dopasowania")</li><li><code>test/addRoute.test.tsx</code>: tile link <code>/add/wanted</code>, pill with the count from <code>AddView</code>, no count and no wants call on <code>PublicAddView</code></li><li><code>test/SearchView.test.tsx</code> (L233-247): link with all five parameters; condition and scope dropped; heading and scope-"mine" suffix unchanged</li><li><code>test/auth.test.tsx</code>: registration (not only login) follows a <code>returnTo</code> with a multi-parameter query</li></ul></li>
+<li data-step="16.2" class="step todo"><b>16.2</b> Route files (thin, client): switch <code>wanted/page.tsx</code> to <code>WantedListView</code>; add <code>wanted/[id]/page.tsx</code> and <code>wanted/[id]/edit/page.tsx</code>; rename <code>add/hunting/</code> to <code>add/wanted/</code> with <code>WantFormView</code>; keep the existing <code>wanted/error.tsx</code>, <code>loading.tsx</code>, <code>not-found.tsx</code></li>
+<li data-step="16.3" class="step todo"><b>16.3</b> <code>routing/paths.ts</code>: remove the <code>View</code> member <code>"add/hunting"</code>; fix every reference the typecheck reports</li>
+<li data-step="16.4" class="step todo"><b>16.4</b> <code>/add</code> tile: <code>AddView</code> reads the summed <code>new_match_count</code> from <code>useWants</code> and passes it as a prop; the shared <code>AddTiles</code> and <code>PublicAddView</code> (also where <code>features/panel/PanelGate.tsx</code> renders them) do not call <code>useWants</code></li>
+<li data-step="16.5" class="step todo"><b>16.5</b> "Konto" row in <code>features/account/AccountView.tsx</code>: real counts from <code>useWants</code> instead of <code>MOCK_WANTS</code></li>
+<li data-step="16.6" class="step todo"><b>16.6</b> Empty-search prompt in <code>features/search/SearchView.tsx</code> (L260-281): new sentence and link with the five parameters; server-safe (no browser globals, no wants hook during render)</li>
+<li data-step="16.7" class="step todo"><b>16.7</b> Delete <code>features/search/WantedView.tsx</code>, <code>features/add/HuntingCreateView.tsx</code>, <code>test/HuntingCreateView.test.tsx</code>, and <code>MockWant</code>, <code>MOCK_WANTS</code> and the header comment line in <code>utils/mocks.ts</code>; search the source for leftover references (<code>hunting</code>, <code>MOCK_WANTS</code>, <code>WantedView</code>, <code>HuntingCreateView</code>)</li>
+<li data-step="16.8" class="step todo"><b>16.8</b> Run <code>npm run typecheck</code> and <code>npm run lint</code>; compare with the baseline (tests of this group that failed in the baseline and were rewritten here must now pass)</li>
+<li data-step="16.9" class="step todo"><b>16.9</b> Run only <code>npm run test -- src/test/AppPage.test.tsx src/test/addRoute.test.tsx src/test/SearchView.test.tsx src/test/routeManifest.test.ts src/test/panelPages.test.ts src/test/auth.test.tsx src/test/ssrSafety.test.tsx</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>The rewritten tests pass; failures left in these files are all in the baseline and outside the rewritten tests</li><li>No wants query during server render (<code>ssrSafety.test.tsx</code> green as in the baseline); <code>PublicAddView</code> makes no wants call</li><li>No reference to the mock is left in <code>src/frontend/src</code></li><li>Each <code>acceptance</code> of the Visual References holds (with the spec override)</li></ul></details>
+</section>
+<section data-group="17" class="group todo" id="g17">
+<h3><span class="gnum">17</span> Closing prompt on the item page <span class="badge g-badge"></span> <span class="badge uib">UI</span> <span class="dep">&larr; depends on 11</span></h3>
+<p class="meta">7 steps</p>
+<p><b>Goal:</b> After a personal or term / event take of a matched item, offer to close the matching wants.</p>
+<p><b>Satisfies:</b> FR-F-03 (closing sheet), FR-F-05 (item page), FR-F-50..FR-F-55, FR-F-66, FR-T-25; AC-29, AC-48</p>
+<p><b>Standards:</b> frontend/accessibility.md (<code>ModalSheet</code>, <code>useRegisterOpenSheet</code>, focus return), frontend/components.md, frontend/data-fetching.md, global/error-handling.md, testing/frontend-testing.md</p>
+<p><b>Files to modify:</b> <code>features/product/useItemTake.ts</code>, <code>features/product/blocks/ItemPickupActions.tsx</code>, <code>features/product/TakeSuccessSheet.tsx</code>, <code>features/wanted/CloseWantSheet.tsx</code>, <code>test/CloseWantSheet.test.tsx</code>, <code>test/useItemTake.test.tsx</code>, <code>test/ItemDetailPage.test.tsx</code></p>
+<details><summary>Visual References (1)</summary><div class="scroll"><table><tr><th>Element</th><th>Mockup</th><th>Locator</th><th>Acceptance</th></tr><tr><td><code>component:close-want-sheet</code></td><td><a href="../analysis/design-context/mockups/close-want-sheet.html">close-want-sheet.html</a></td><td>two frames: one want (approx. lines 278-290), several wants (approx. lines 292-300)</td><td><code>ModalSheet</code> title "Znalezione?", <code>ariaLabel</code> "Zamknąć poszukiwanie?"; one want: "Ta rzecz pasuje do Twojego poszukiwania:", „{name}”, primary "Zamknij poszukiwanie", secondary "Szukam dalej", hint "Zamknięte poszukiwanie możesz wznowić przez 30 dni."; several: "Ta rzecz pasuje do Twoich poszukiwań:", the list of names, "Zamknij oba poszukiwania" for two ("Zamknij wszystkie poszukiwania" for three or more), "Szukam dalej", "Zamknięte poszukiwania możesz wznowić przez 30 dni."; never stacked on <code>TakeSuccessSheet</code></td></tr></table></div></details>
+<p class="parent"><b>17.0</b> Build the closing prompt</p>
+<ul class="steps">
+<li data-step="17.1" class="step todo"><b>17.1</b> Write up to 8 tests across <code>test/CloseWantSheet.test.tsx</code>, <code>test/useItemTake.test.tsx</code>, <code>test/ItemDetailPage.test.tsx</code> (<code>vi.mock("../api/wants")</code> added to <code>ItemDetailPage.test.tsx</code>)<ul class="sub"><li><code>useItemTake</code> returns the taken item id after a personal take and after a term / event take, never after a swap proposal</li><li>Sheet copy for one and for several wants; <code>ariaLabel</code></li><li>Prompt after a personal take once the lookup answers; after a term / event take only once <code>TakeSuccessSheet</code> is closed; "Zobacz rzecz" closes <code>TakeSuccessSheet</code> and the prompt opens</li><li>No lookup for a guest; no sheet when the lookup returns no want</li><li>"Zamknij" closes every returned want; a failure is inline and the sheet stays open; a retry treats 409 and 404 as done</li><li>"Szukam dalej", ✕ and Esc close with no request; the prompt is not shown again for that take</li></ul></li>
+<li data-step="17.2" class="step todo"><b>17.2</b> <code>features/product/useItemTake.ts</code>: one more returned field with the item id of the last successful take (personal, term / event)</li>
+<li data-step="17.3" class="step todo"><b>17.3</b> <code>features/product/TakeSuccessSheet.tsx</code>: "Zobacz rzecz" also calls <code>onClose</code></li>
+<li data-step="17.4" class="step todo"><b>17.4</b> <code>features/wanted/CloseWantSheet.tsx</code>: <code>ModalSheet</code> registered with <code>useRegisterOpenSheet</code>, copy for one / two / three or more wants, inline error, every button <code>type="button"</code></li>
+<li data-step="17.5" class="step todo"><b>17.5</b> <code>features/product/blocks/ItemPickupActions.tsx</code>: when the field is set and the viewer is logged in, look up <code>GET /api/wants?matched_item_id=</code> through <code>useWants</code>; open the sheet only with at least one want and only when <code>TakeSuccessSheet</code> is not open; close all as <code>FULFILLED</code>; no wants hook call during server render</li>
+<li data-step="17.6" class="step todo"><b>17.6</b> Run <code>npm run typecheck</code> and <code>npm run lint</code>; compare with the baseline</li>
+<li data-step="17.7" class="step todo"><b>17.7</b> Run only <code>npm run test -- src/test/CloseWantSheet.test.tsx src/test/useItemTake.test.tsx src/test/ItemDetailPage.test.tsx src/test/ssrSafety.test.tsx</code></li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>The new tests pass; failures left in <code>ItemDetailPage.test.tsx</code> are all in the baseline</li><li>Two <code>ModalSheet</code>s never open together</li><li>Each <code>acceptance</code> of the Visual References holds</li></ul></details>
+</section>
+<section data-group="18" class="group todo" id="g18">
+<h3><span class="gnum">18</span> Project documentation <span class="badge g-badge"></span>  <span class="dep">&larr; depends on 7, 9, 10, 16, 17</span></h3>
+<p class="meta">6 steps</p>
+<p><b>Goal:</b> Describe the module, the 0099 runbook and the release gate; correct the old search guide.</p>
+<p><b>Satisfies:</b> FR-D-07, FR-D-10, FR-D-11, FR-D-12, FR-D-13; AC-37</p>
+<p><b>Standards:</b> global/conventions.md, global/commenting.md, backend/migrations.md (runbook rules)</p>
+<p><b>Files to modify:</b> <code>.maister/docs/project/architecture.md</code>, <code>.maister/docs/INDEX.md</code>, <code>.maister/tasks/development/2026-11-12-global-search-group-description/documentation/user-guide.md</code></p>
+
+<p class="parent"><b>18.0</b> Update the project documentation (no unit tests; step 18.6 is the check)</p>
+<ul class="steps">
+<li data-step="18.1" class="step todo"><b>18.1</b> <code>architecture.md</code>: a Wants section (module and boundary, the three tables, the match statement and its predicates, the scan steps, notification rules, lifecycle, API) written from the code as built, including the O1 outcome and any lever applied in group 7</li>
+<li data-step="18.2" class="step todo"><b>18.2</b> <code>architecture.md</code>: the package tree; the guarded-module sentences (boundary and clock guards now name <code>app/wants</code>); remove the <code>HuntingCreateView</code> mention; the note that account deletion, when built, must handle <code>wants.seeker_party_id</code></li>
+<li data-step="18.3" class="step todo"><b>18.3</b> <code>architecture.md</code>: the 0099 runbook (delete <code>notifications</code> rows of kinds <code>WANT_MATCH_FOUND</code> and <code>WANT_EXPIRING</code> before a downgrade or an image-only rollback; lossy unguarded downgrade; the two generated <code>wants</code> columns join the DROP / ADD list when <code>fold_pl</code> changes; 0100 if group 7 added it)</li>
+<li data-step="18.4" class="step todo"><b>18.4</b> <code>architecture.md</code>: the release gate — no feature switch; do not deploy until the labelled Polish sample (at least 200 pairs, follow-up task) is scored and the thresholds are set from it</li>
+<li data-step="18.5" class="step todo"><b>18.5</b> <code>.maister/docs/INDEX.md</code>: extend the architecture entry with the wants summary; old search user guide (L8, L12, L143-152): remove the demo warning and correct the steps (no pointer to a new guide and no screenshot change here; those belong to the user-documentation phase)</li>
+<li data-step="18.6" class="step todo"><b>18.6</b> Check by search: <code>architecture.md</code> contains the Wants section, "0099", both kind names and the release gate; no "HuntingCreateView" and no "/add/hunting" remain in <code>.maister/docs/</code>; the old guide no longer calls the list a demo</li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>The three documents are updated and consistent with the code</li><li>The runbook names the rows to delete and the release gate is stated as a rule</li><li>No secret value in any document</li></ul></details>
+</section>
+<section data-group="19" class="group todo" id="g19">
+<h3><span class="gnum">19</span> Test review, gap analysis and baseline comparison <span class="badge g-badge"></span>  <span class="dep">&larr; depends on All previous groups (1-18)</span></h3>
+<p class="meta">6 steps</p>
+<p><b>Goal:</b> Close the critical test gaps of this feature and prove that no failure is new.</p>
+<p><b>Satisfies:</b> FR-T-01 (comparison), FR-T-10..FR-T-29 (review); AC-09 (re-check), AC-35</p>
+<p><b>Standards:</b> testing/backend-testing.md, testing/frontend-testing.md</p>
+<p><b>Files to modify:</b> <code>tests/test_wants_*.py</code>, <code>src/frontend/src/test/*Want*.test.tsx</code>, <code>src/frontend/src/test/want*.test.ts</code>, <code>implementation/baseline/final-comparison.md</code>, <code>implementation/work-log.md</code></p>
+
+<p class="parent"><b>19.0</b> Review the tests and compare with the baseline</p>
+<ul class="steps">
+<li data-step="19.1" class="step todo"><b>19.1</b> Review the tests written by groups 2-17 against the pins of FR-T-10..FR-T-29 and against AC-01..AC-50; list every pin with no test</li>
+<li data-step="19.2" class="step todo"><b>19.2</b> Analyse gaps for THIS feature only (critical flows first: must-not-match cases, one unread row per want, 404 for a foreign want, statement counts, closing prompt)</li>
+<li data-step="19.3" class="step todo"><b>19.3</b> Write up to 10 additional strategic tests for the listed gaps; no refactoring of passing tests</li>
+<li data-step="19.4" class="step todo"><b>19.4</b> Run the feature tests only: <code>uv run python -m pytest tests/test_wants_*.py tests/test_visible_to.py tests/test_module_boundaries.py tests/test_domain_clock_guard.py tests/test_authorization_matrix.py tests/test_membership_definition_guard.py -q</code> and the frontend files of groups 11-17</li>
+<li data-step="19.5" class="step todo"><b>19.5</b> Run the full checks once, exactly as in group 1: backend pytest, mypy, ruff; frontend Vitest, typecheck, lint</li>
+<li data-step="19.6" class="step todo"><b>19.6</b> Write <code>implementation/baseline/final-comparison.md</code> and the work-log entry: per check, the baseline set, the final set, the difference; every difference is either a baseline failure fixed by a rewritten test or is reported as a new failure with its file (new failures are fixed in the owning group's files before this group is done)</li>
+</ul>
+<details><summary>Acceptance criteria</summary><ul><li>All feature tests pass</li><li>No more than 10 additional tests added</li><li>The final failing set is a subset of the baseline set for all six checks; mypy count not above the baseline</li><li>Nothing committed; <code>git status</code> shows only uncommitted work</li></ul></details>
+</section>
+<h2 id="coverage">Visual coverage</h2>
+<div class="card scroll"><table>
+<tr><th>Screen/Component ID</th><th>Mockup</th><th>Covered By Task Group(s)</th><th>Status</th></tr>
+<tr><td>screen:wanted-list</td><td><code>mockups/wanted-list.html</code></td><td>Group 13 (Want list view), Group 16 (Routes, entry points and mock removal: mounted at <code>/wanted</code>)</td><td>✅</td></tr>
+<tr><td>screen:wanted-form</td><td><code>mockups/wanted-form.html</code></td><td>Group 14 (Want form view), Group 12 (Shared component changes: radius chips, placeholder and clear-label props), Group 16 (mounted at <code>/add/wanted</code> and <code>/wanted/:id/edit</code>)</td><td>✅</td></tr>
+<tr><td>screen:wanted-form-errors</td><td><code>mockups/wanted-form-errors.html</code></td><td>Group 14 (Want form view)</td><td>✅</td></tr>
+<tr><td>screen:wanted-matches</td><td><code>mockups/wanted-matches.html</code></td><td>Group 15 (Match list view), Group 16 (mounted at <code>/wanted/:id</code>)</td><td>✅</td></tr>
+<tr><td>screen:wanted-matches-states</td><td><code>mockups/wanted-matches-states.html</code></td><td>Group 15 (Match list view: no matches, expired, withdraw confirmation), Group 11 (Frontend data layer and paths: shared <code>WantNotFound</code>)</td><td>✅</td></tr>
+<tr><td>component:close-want-sheet</td><td><code>mockups/close-want-sheet.html</code></td><td>Group 17 (Closing prompt on the item page)</td><td>✅</td></tr>
+<tr><td>component:want-disclosure</td><td><code>mockups/wanted-form.html</code></td><td>Group 14 (Want form view)</td><td>✅</td></tr>
+<tr><td>component:want-notification-toggle</td><td><code>mockups/wanted-matches.html</code></td><td>Group 15 (Match list view)</td><td>✅</td></tr>
+<tr><td>component:match-card</td><td><code>mockups/wanted-matches.html</code></td><td>Group 12 (Shared component changes: <code>ItemCard</code> marker), Group 15 (Match list view: <code>MatchCard</code>, captions)</td><td>✅</td></tr>
+<tr><td>component:entry-points</td><td><code>mockups/entry-points.html</code></td><td>Group 16 (Routes, entry points and mock removal)</td><td>✅</td></tr>
+<tr><td>component:bell-rows</td><td><code>mockups/bell-rows.html</code></td><td>Group 11 (render pin of the unchanged bell), Group 5 (message builders), Group 10 (scan writes the rows)</td><td>✅</td></tr>
+</table>
+<details><summary>Spec overrides (the spec wins over the mockup)</summary><table>
+<tr><th>Mockup</th><th>Mockup detail</th><th>What is built instead</th><th>Spec</th><th>Group</th></tr>
+<tr><td><code>wanted-matches.html</code> (component:match-card)</td><td>Intent pills "Oddam" / "Zamiana" on the cards</td><td><code>ItemCard</code> keeps the intent labels it renders today; only the "nowe" marker and the captions are new</td><td>FR-F-34, Key Decisions</td><td>12, 15</td></tr>
+<tr><td><code>entry-points.html</code> (component:entry-points), empty-search frame</td><td>New heading, body and a "Szukaj wszędzie" button</td><td>Only the prompt block changes: sentence "Damy znać, gdy ktoś doda pasującą rzecz." and link "Dodaj do listy „Szukam”"; today's heading and the scope-"mine" suffix stay</td><td>FR-F-42, Key Decisions</td><td>16</td></tr>
+<tr><td><code>wanted-form-errors.html</code> (screen:wanted-form-errors)</td><td>Shortened contact-details message</td><td>The server's existing <code>CONTACT_INFO_MESSAGE</code>, verbatim</td><td>FR-A-20, Key Decisions</td><td>8, 14</td></tr>
+<tr><td><code>wanted-list.html</code> (screen:wanted-list)</td><td>Summary shows the top-level category ("Zabawki")</td><td>The category node's own name from <code>category_name</code>; the full path (<code>category_path</code>) only on the match page</td><td>FR-F-12, FR-F-15, Key Decisions</td><td>13, 15</td></tr>
+<tr><td><code>wanted-form.html</code> (screen:wanted-form)</td><td>Location block as in search</td><td>Only the locality field (placeholder "Cała Polska — wpisz, aby zawęzić") and the radius chips; no "Lokalizacja" heading, no <code>MajorTownPicker</code>, no "Ostatnio" chip; offer-mode chips are the form's own</td><td>FR-F-21, Key Decisions</td><td>12, 14</td></tr>
+<tr><td>all mockups</td><td>Placeholder glyph icons</td><td>Icons from <code>components/shared/appIcons.tsx</code></td><td>Visual Design (fidelity note)</td><td>13-17</td></tr>
+</table></details></div>
+<h2 id="trace">Requirement traceability</h2>
+<div class="card scroll"><details open><summary>Functional requirements (151)</summary><table>
+<tr><th>Requirement</th><th>Group(s)</th></tr>
+<tr><td>FR-X-01</td><td>4, 5</td></tr>
+<tr><td>FR-X-02</td><td>5</td></tr>
+<tr><td>FR-X-03</td><td>4, 5</td></tr>
+<tr><td>FR-X-04</td><td>5 (guard), 6, 8, 10</td></tr>
+<tr><td>FR-X-10</td><td>8 (router), 10 (job)</td></tr>
+<tr><td>FR-X-11</td><td>8</td></tr>
+<tr><td>FR-X-12</td><td>2</td></tr>
+<tr><td>FR-X-13</td><td>3</td></tr>
+<tr><td>FR-X-14</td><td>3</td></tr>
+<tr><td>FR-X-15</td><td>5 (boundary, clock), 8 (matrix)</td></tr>
+<tr><td>FR-D-01, FR-D-02, FR-D-03, FR-D-04, FR-D-05</td><td>4</td></tr>
+<tr><td>FR-D-06</td><td>7</td></tr>
+<tr><td>FR-D-07</td><td>18</td></tr>
+<tr><td>FR-D-10, FR-D-11, FR-D-12, FR-D-13</td><td>18</td></tr>
+<tr><td>FR-M-01, FR-M-02, FR-M-03, FR-M-04, FR-M-05</td><td>6</td></tr>
+<tr><td>FR-M-06</td><td>8</td></tr>
+<tr><td>FR-M-07</td><td>8 (counters), 9 (list)</td></tr>
+<tr><td>FR-S-01, FR-S-02, FR-S-03, FR-S-04, FR-S-05, FR-S-06, FR-S-07, FR-S-08</td><td>10</td></tr>
+<tr><td>FR-N-01, FR-N-02, FR-N-09</td><td>3</td></tr>
+<tr><td>FR-N-03, FR-N-05, FR-N-08</td><td>10</td></tr>
+<tr><td>FR-N-04</td><td>5 (texts), 10 (use)</td></tr>
+<tr><td>FR-N-06</td><td>8, 10 (end-to-end test)</td></tr>
+<tr><td>FR-N-07</td><td>11</td></tr>
+<tr><td>FR-L-01, FR-L-03, FR-L-04, FR-L-06, FR-L-09, FR-L-10</td><td>8</td></tr>
+<tr><td>FR-L-02</td><td>8 (extend), 9 (inside "seen")</td></tr>
+<tr><td>FR-L-05, FR-L-07</td><td>10</td></tr>
+<tr><td>FR-L-08</td><td>6</td></tr>
+<tr><td>FR-W-01, FR-W-02</td><td>5 (pure rules), 8</td></tr>
+<tr><td>FR-W-03, FR-W-04, FR-W-05, FR-W-06, FR-W-07, FR-W-09</td><td>8</td></tr>
+<tr><td>FR-W-08</td><td>3 (messages), 8</td></tr>
+<tr><td>FR-W-10</td><td>6 (expression), 8 (use)</td></tr>
+<tr><td>FR-A-01</td><td>8 (list), 9 (<code>matched_item_id</code>)</td></tr>
+<tr><td>FR-A-02, FR-A-03, FR-A-04, FR-A-05, FR-A-06, FR-A-07</td><td>8</td></tr>
+<tr><td>FR-A-08, FR-A-09, FR-A-10</td><td>9</td></tr>
+<tr><td>FR-A-11</td><td>8, 9 (agreement test)</td></tr>
+<tr><td>FR-A-12, FR-A-13</td><td>9</td></tr>
+<tr><td>FR-A-14</td><td>8</td></tr>
+<tr><td>FR-A-15</td><td>8, 9</td></tr>
+<tr><td>FR-A-20</td><td>5 (texts), 8, 9 (unknown pair)</td></tr>
+<tr><td>FR-F-01</td><td>16</td></tr>
+<tr><td>FR-F-02</td><td>11 (builders, new member), 16 (old member removed)</td></tr>
+<tr><td>FR-F-03</td><td>13, 14, 15, 17</td></tr>
+<tr><td>FR-F-04</td><td>11</td></tr>
+<tr><td>FR-F-05</td><td>11 (UTC day counts), 16, 17 (no server-render query)</td></tr>
+<tr><td>FR-F-10, FR-F-11, FR-F-12, FR-F-13, FR-F-14</td><td>13</td></tr>
+<tr><td>FR-F-15</td><td>11 (helper), 13</td></tr>
+<tr><td>FR-F-20, FR-F-21, FR-F-22, FR-F-23, FR-F-24, FR-F-25, FR-F-26, FR-F-27, FR-F-28, FR-F-29</td><td>14</td></tr>
+<tr><td>FR-F-30, FR-F-31, FR-F-32, FR-F-33, FR-F-34, FR-F-35, FR-F-36, FR-F-37, FR-F-38</td><td>15</td></tr>
+<tr><td>FR-F-39</td><td>13, 15</td></tr>
+<tr><td>FR-F-40, FR-F-41, FR-F-42, FR-F-43</td><td>16</td></tr>
+<tr><td>FR-F-50, FR-F-51, FR-F-52, FR-F-53, FR-F-54, FR-F-55</td><td>17</td></tr>
+<tr><td>FR-F-60, FR-F-61, FR-F-62, FR-F-63, FR-F-65</td><td>12</td></tr>
+<tr><td>FR-F-64</td><td>11</td></tr>
+<tr><td>FR-F-66</td><td>17</td></tr>
+<tr><td>FR-F-70</td><td>16</td></tr>
+<tr><td>FR-T-01</td><td>1, 19</td></tr>
+<tr><td>FR-T-10</td><td>4</td></tr>
+<tr><td>FR-T-11</td><td>6</td></tr>
+<tr><td>FR-T-12</td><td>10</td></tr>
+<tr><td>FR-T-13</td><td>3 (writer), 8 (edit-reset with a seeded row), 10 (scan)</td></tr>
+<tr><td>FR-T-14</td><td>8 (transitions), 9 (auto-extension), 10 (sweep)</td></tr>
+<tr><td>FR-T-15</td><td>8</td></tr>
+<tr><td>FR-T-16</td><td>9</td></tr>
+<tr><td>FR-T-17</td><td>2</td></tr>
+<tr><td>FR-T-18</td><td>5 (boundary, clock, membership), 8 (matrix)</td></tr>
+<tr><td>FR-T-20</td><td>13, 14, 15</td></tr>
+<tr><td>FR-T-21</td><td>11</td></tr>
+<tr><td>FR-T-22</td><td>14</td></tr>
+<tr><td>FR-T-23</td><td>13</td></tr>
+<tr><td>FR-T-24</td><td>15</td></tr>
+<tr><td>FR-T-25</td><td>17</td></tr>
+<tr><td>FR-T-26, FR-T-27, FR-T-28</td><td>16</td></tr>
+<tr><td>FR-T-29</td><td>11 (pending actions, kind list), 12 (nav, picker, combobox, card), 16 and 17 (<code>ssrSafety</code>)</td></tr>
+<tr><td>FR-T-30</td><td>7</td></tr>
+</table></details>
+<details><summary>Acceptance criteria (50)</summary><table>
+<tr><th>Criterion</th><th>Group(s)</th><th>Criterion</th><th>Group(s)</th></tr>
+<tr><td>AC-01</td><td>8, 9</td><td>AC-26</td><td>13, 14, 15, 16</td></tr>
+<tr><td>AC-02</td><td>10</td><td>AC-27</td><td>14</td></tr>
+<tr><td>AC-03</td><td>10</td><td>AC-28</td><td>16</td></tr>
+<tr><td>AC-04</td><td>10</td><td>AC-29</td><td>17</td></tr>
+<tr><td>AC-05</td><td>6</td><td>AC-30</td><td>16</td></tr>
+<tr><td>AC-06</td><td>6</td><td>AC-31</td><td>8, 15</td></tr>
+<tr><td>AC-07</td><td>6, 7</td><td>AC-32</td><td>12</td></tr>
+<tr><td>AC-08</td><td>6, 8</td><td>AC-33</td><td>12</td></tr>
+<tr><td>AC-09</td><td>8, 9, 10, 19</td><td>AC-34</td><td>11</td></tr>
+<tr><td>AC-10</td><td>8</td><td>AC-35</td><td>1, 19</td></tr>
+<tr><td>AC-11</td><td>8</td><td>AC-36</td><td>7</td></tr>
+<tr><td>AC-12</td><td>8</td><td>AC-37</td><td>18</td></tr>
+<tr><td>AC-13</td><td>8, 9</td><td>AC-38</td><td>6</td></tr>
+<tr><td>AC-14</td><td>8, 10</td><td>AC-39</td><td>10</td></tr>
+<tr><td>AC-15</td><td>8, 10</td><td>AC-40</td><td>3, 6</td></tr>
+<tr><td>AC-16</td><td>10</td><td>AC-41</td><td>6</td></tr>
+<tr><td>AC-17</td><td>10</td><td>AC-42</td><td>9</td></tr>
+<tr><td>AC-18</td><td>9</td><td>AC-43</td><td>10</td></tr>
+<tr><td>AC-19</td><td>9</td><td>AC-44</td><td>15</td></tr>
+<tr><td>AC-20</td><td>9, 15</td><td>AC-45</td><td>8, 13, 15</td></tr>
+<tr><td>AC-21</td><td>8</td><td>AC-46</td><td>14</td></tr>
+<tr><td>AC-22</td><td>4</td><td>AC-47</td><td>8</td></tr>
+<tr><td>AC-23</td><td>5</td><td>AC-48</td><td>17</td></tr>
+<tr><td>AC-24</td><td>2</td><td>AC-49</td><td>13, 15</td></tr>
+<tr><td>AC-25</td><td>10</td><td>AC-50</td><td>10</td></tr>
+</table></details></div>
+<h2 id="unrun">Unrun checks</h2>
+<div class="card scroll"><table>
+<tr><th>Check</th><th>Where it runs</th><th>If it fails</th></tr>
+<tr><td>Generated stored <code>tsquery</code> column on PostgreSQL 18 (O1)</td><td>Step 4.2, proven by <code>tests/test_wants_migration.py</code> and the create-and-match test of group 8</td><td><code>name_query</code> becomes an application-written column filled by the SQL helper of step 6.2; work-log entry before group 6</td></tr>
+<tr><td><code>EXPLAIN (ANALYZE, BUFFERS)</code> forward, under 300 ms, index use at 20,000 items</td><td>Step 7.3</td><td>Report; check the <code>&lt;%</code> pre-filter form before anything else</td></tr>
+<tr><td><code>EXPLAIN (ANALYZE, BUFFERS)</code> reverse, under 2 s at 500 listings x 10,000 wants</td><td>Steps 7.3-7.4</td><td>Lever 1: fold product names once per listing (materialised CTE); lever 2: plain-column pre-filters; then report. Longer interval / outbox fallback = user decision</td></tr>
+<tr><td>Need for an index on <code>item_listing_preferences.created_at</code></td><td>Step 7.5</td><td>Separate revision 0100 with a concurrent build</td></tr>
+<tr><td>Thresholds 0.70 / 0.60 on a labelled Polish sample</td><td>Not in this task (follow-up; release gate written in group 18)</td><td>Do not deploy</td></tr>
+<tr><td>Browser E2E and user documentation</td><td>Later workflow phases, not planned here</td><td>-</td></tr>
+</table></div>
+<h2 id="standards">Standards compliance and notes</h2>
+<div class="card"><ul><li>global/ — always applicable: error-handling, validation, conventions, coding-style, commenting, minimal-implementation</li><li>backend/ — groups 2-10: models, migrations, queries, jooq (Core query rules), security, api, time</li><li>frontend/ — groups 11-17: components, accessibility, data-fetching, css, responsive</li><li>testing/ — backend-testing (groups 1-10, 19), frontend-testing (groups 1, 11-17, 19)</li></ul><h2>Notes</h2><ul><li>Test-Driven: each group starts with its tests (2-8 scenario tests per feature file); groups 1, 7 and 18 state their own check instead</li><li>Run Incrementally: only the group's test files after each group; full suites in groups 1 and 19</li><li>Mark Progress: check off steps as completed (the HTML companion carries the same markers)</li><li>Reuse First: the templates of the spec's "Existing Code to Leverage" table are named in the steps; copy recipes from <code>app/search</code>, never import it</li><li>No commits, no pushes; secrets are never printed (rules at the top of this plan)</li><li>Polish texts marked "to confirm" in the spec are used as written and listed in the work log for the user</li></ul></div>
+</main>
+</body>
+</html>

@@ -1,0 +1,371 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases:
+  - phase-1
+  - phase-2
+  - phase-4
+  - phase-5
+  - phase-6
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    sequential: null
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: '2026-11-15T10:58:08Z'
+  updated: '2026-11-15T16:56:21Z'
+  task_path: .maister/tasks/development/2026-11-15-szukam-wanted-mechanism
+  task_ids: {}
+  phases:
+    phase-1:
+      started: '2026-11-15T10:58:08Z'
+      completed: '2026-11-15T11:21:37Z'
+    phase-2:
+      started: '2026-11-15T11:21:37Z'
+      completed: '2026-11-15T13:15:19Z'
+      gate: 'Continue to Phase 4 (UI mockups): yes'
+    phase-3:
+      skipped: no reproducible defect
+    phase-4:
+      started: '2026-11-15T13:15:19Z'
+      completed: '2026-11-15T14:14:11Z'
+      gate: 'Mockups approved, continue to Phase 5'
+    phase-5:
+      started: '2026-11-15T14:14:11Z'
+      completed: '2026-11-15T16:22:45Z'
+      gate: 'OQ2 existing contact-info message; OQ3 ItemCard labels unchanged; OQ4 only the prompt block of the empty-search state changes; run the specification audit'
+    phase-6:
+      started: '2026-11-15T16:22:45Z'
+      completed: '2026-11-15T16:44:42Z'
+      gate: 'Apply all audit fixes, then plan; M8 list shows the node name and the match page the full path; M6 form has only the locality field and radius chips'
+    phase-7:
+      started: '2026-11-15T16:44:42Z'
+      completed: null
+task:
+  title: Szukam (wanted posts) mechanism
+  description: 'Implement the szukam (wanted / in-search-of) mechanism designed in the research task: a private seeker-owned want in a new backend module app/wants (tables wants, want_matches, want_scan_markers), matched to listed items by one statement used at want creation and by a periodic scan, with grouped in-app notifications to the seeker, a 90-day lifecycle, and the frontend list, form and match list replacing the /wanted and /add/hunting mock.'
+  status: in_progress
+  tags:
+  - wanted
+  - matching
+  - notifications
+  priority: null
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: true
+  architecture_decision: 'New bounded context app/wants with one ACL per foreign module; one match statement for both directions; periodic marker scan in the existing scheduler (research ADR-001 to ADR-013, P1-P13 accepted, corrections X1-X16 applied)'
+  tech_clarified: true
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: .maister/tasks/research/2026-11-14-szukam-wanted-mechanism
+    research_question: How should the platform implement a szukam (wanted / in-search-of) mechanism - data model, matching, notifications, visibility, moderation and UX - based on the best patterns used by comparable platforms, and how does it fit the existing architecture?
+    research_type: mixed
+    confidence_level: medium
+  design_reference:
+    source: phase-4-mockup-studio
+    product_design_path: null
+    mockup_count: 8
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  design_resources:
+    ran: true
+    standards:
+    - path: .maister/docs/standards/frontend/components.md
+      topic: components
+    - path: .maister/docs/standards/frontend/accessibility.md
+      topic: accessibility
+    - path: .maister/docs/standards/frontend/responsive.md
+      topic: responsive
+    - path: .maister/docs/standards/frontend/css.md
+      topic: css
+    - path: .maister/docs/standards/global/validation.md
+      topic: validation
+    design_system:
+    - kind: tailwind
+      path: src/frontend/src/app/globals.css
+      note: '@theme static tokens (primary, accent, cream, line, paper, ink, teal-soft, danger) and fonts Bricolage Grotesque / Figtree'
+    - kind: component-lib
+      path: src/frontend/src/components/shared
+      note: ItemCard, ModalSheet, ConfirmDeleteDialog, CategoryTreePicker, LocalityCombobox, NotificationBell
+    - kind: icon-lib
+      path: src/frontend/src/components/shared/appIcons.tsx
+      note: local icon set
+    skill_hints: []
+    found_any: true
+  project_context:
+    project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+  phase_summaries:
+    research:
+      summary: 'Research complete (confidence: medium). No comparable platform matches wants to listings or notifies owners. The user chose a private seeker-first want in a new module app/wants with three tables, one match statement for both directions (forward at creation, reverse in a 15-minute marker scan), grouped replace-while-unread bell rows, a 90-day lifecycle with a 30-day purge, and the existing take / propose flow as the response.'
+      key_findings:
+      - Supply side is ready (listing row with created_at, fold_pl, products.search_vector, name trigram index, category tree, locality points, visibility predicate); no listed signal, reverse matching or notification controls exist.
+      - app/search is closed to imports; the wants module needs its own copies of the radius, category and link builders behind ACLs.
+      - The frontend ships a disconnected mock at /wanted and /add/hunting with three entry points.
+      - 'Pre-implementation checks still open: owner_shares_group_with with a seeker column, a generated stored tsquery column, facade exports for the ACLs, EXPLAIN ANALYZE of the match statement, search parameters through the login and registration gate.'
+      recommended_approach: Follow outputs/high-level-design.md (ADR-001 to ADR-013); the 13 items in its section Proposals to confirm (P1 to P13) need the user's confirmation before specification.
+      decisions_made:
+      - ADR-001 private seeker alert in v1, owner signal as a second step (user)
+      - ADR-002 the want is the single standing-demand object, name required (user)
+      - ADR-003 want and match tables, hard delete after retention (user; columns proposed)
+      - ADR-004 new module app/wants with one ACL per foreign module (user; name proposed)
+      - ADR-005 periodic scan with a created_at marker, 15-minute interval, 5-minute overlap (user; numbers proposed)
+      - ADR-006 one match statement for both directions (proposed)
+      - ADR-007 text signal always required, category narrows and loosens, short words exact only, thresholds 0.70 / 0.60 (user; numbers proposed)
+      - ADR-008 takeable means AVAILABLE, no pending proposal, live pickup place (user; definition proposed)
+      - ADR-009 notifications written by the scan, replaced while unread (user; mechanism proposed)
+      - ADR-010 lifecycle as a stored status with a sweep in the scan job (user; mechanism proposed)
+      - ADR-011 synchronous text checks and a database-count cap of 30 (user)
+      - ADR-012 response through take / propose, want found by lookup in the match table (user)
+      - ADR-013 routes /add/wanted, /wanted, /wanted/:id, one hook, logged-in-only /api/wants (user; API shape proposed)
+      decisions: []
+      risks:
+      - Match quality on inflected Polish is unmeasured; thresholds are guesses until a labelled sample is scored.
+      - Scan cost is argued, not measured.
+      - Items that become takeable after their listing time are missed by the marker scan (accepted for v1).
+      - In-app only; no e-mail or push.
+      - An image-only rollback needs the rows of the two new notification kinds deleted first.
+      artifacts:
+      - path: analysis/research-context/research-report.md
+        label: Research report
+        html: null
+      - path: analysis/research-context/solution-exploration.md
+        label: Solution exploration
+        html: null
+      - path: analysis/research-context/high-level-design.md
+        label: High-level design
+        html: null
+      - path: analysis/research-context/decision-log.md
+        label: Decision log
+        html: null
+    design:
+      summary: 'Eight HTML mockups bound to the real Tailwind tokens and shared components: want list (with empty state), form (empty, from search, edit), form errors, match list, match-list states (no matches, expired, withdraw confirm, not found), close-want sheet, entry points and bell rows. Layout, Polish copy, field order and states are binding.'
+      screen_count: 5
+      component_count: 6
+      index_path: analysis/design-context/INDEX.md
+    codebase_analysis:
+      key_files:
+      - src/backend/app/main.py
+      - src/backend/app/core/authorization_matrix.py
+      - src/backend/app/groups/infrastructure/visibility.py
+      - src/backend/app/notifications/service.py
+      - src/backend/app/notifications/models.py
+      - src/backend/app/moderation/text_guard.py
+      - src/backend/app/search/application/search.py
+      - src/backend/app/groups/application/term_end_scan.py
+      - src/backend/tests/test_module_boundaries.py
+      - src/frontend/src/features/search/WantedView.tsx
+      - src/frontend/src/features/add/HuntingCreateView.tsx
+      - src/frontend/src/features/product/useItemTake.ts
+      - src/frontend/src/features/product/blocks/ItemPickupActions.tsx
+      - src/frontend/src/features/search/SearchFilters.tsx
+      - src/frontend/src/routing/paths.ts
+      primary_language: Python and TypeScript
+      summary: 'The design is buildable as written: every name the ACLs need exists, the next migration is 0099 and foreign-module edits are small. The report corrects 16 design statements (tables Confirmed C1-C14, Corrected X1-X16, Open O1-O5); complexity complex, risk medium.'
+      decisions:
+      - decision: Layout = search/pages layering plus models.py like app/events
+        rationale: no existing module both owns tables and passes the boundary guard, so no single template fits.
+      - decision: Widen parties_share_group / owner_shares_group_with by annotations only
+        rationale: a column already works at runtime; the membership AST guard forbids app/wants writing its own shares-a-group SQL.
+      - decision: Join item_listing_preferences unaliased in the match statement
+        rationale: owner_shares_group_with is fixed over the unaliased ItemListingPreference.owner_party_id.
+      - decision: Trigram branch = w.name_folded <% fold_pl(p.name) AND word_similarity(...) >= CASE ...
+        rationale: the function form alone never uses ix_products_name_trgm.
+      - decision: Replace an unread bell row by DELETE ... RETURNING plus a batched INSERT with explicit ids
+        rationale: an in-place update breaks created_at set once and races mark_read on the version column.
+      - decision: Scan entry point takes now as a parameter
+        rationale: freeze_local_now patches only clock.local_now(); nothing freezes datetime.utcnow().
+      - decision: Authorization rows copy conversations (rows 53-54), not notifications (rows 51-52)
+        rationale: notifications accept mcp scopes, which P11 excludes.
+      - decision: Links come from an own domain/links.py (product_path, want_path) pinned by a parity test
+        rationale: item_links.item_path runs several statements per item and cannot be used in a set scan.
+      - decision: useWants follows hooks/useMyLocations.ts (token in the key, enabled when token is set)
+        rationale: a want list is private and has mutations; useNeededItems has neither property.
+      - decision: Closing prompt is owned by features/product/blocks/ItemPickupActions.tsx and shown after TakeSuccessSheet closes
+        rationale: two ModalSheets must never stack, and the item page is server-rendered.
+      risks:
+      - 'Q1 limits: design says name 3-80 and note up to 300; the mock allows 120 / 1000 and search q is 2-100 characters, so a prefilled name can be invalid on arrival.'
+      - 'Q2 radius: decide whether Tylko tu is stored as null or 0.'
+      - 'Q4 proposed by me: with_pending_proposer exposes only the oldest pending proposer.'
+      - 'Q7 small UI choices: not-found link target for /wanted/:id, own clear control for the category, Konto tab highlight on sub-routes.'
+      - 'Unrun checks: generated stored tsquery on PostgreSQL 18; EXPLAIN (ANALYZE, BUFFERS) in both directions; the labelled Polish sample.'
+      - 'Test baseline: project memory records 24 Vitest, 5 typecheck and 2 backend failures on HEAD b8c45e0; several files this task edits are among them.'
+      artifacts:
+      - path: analysis/codebase-analysis.md
+        label: Codebase analysis
+        html: null
+      - path: analysis/clarifications.md
+        label: Clarifications
+        html: null
+    clarifications:
+    - 'P1-P13 of the high-level design: all accepted as written.'
+    - 'Bell row for new matches: delete the previous unread row and insert a new one with the summed count (not an in-place update).'
+    - 'Closing prompt: after a personal or term/event take only, not after a swap proposal.'
+    - 'Measurement: EXPLAIN ANALYZE on seeded data in scope, incl. the decision on the item_listing_preferences.created_at index; the labelled Polish sample is a follow-up before release.'
+    gap_analysis:
+      integration_points:
+      - 'app/main.py: include wants router before system_router; add 15-minute scan job that catches StaleDataError itself'
+      - 'app/core/authorization_matrix.py: two /api/wants rows copied from conversations (rows 53-54), no mcp scopes'
+      - 'app/groups/infrastructure/visibility.py: widen parties_share_group / owner_shares_group_with annotations to accept a column'
+      - 'app/moderation/text_guard.py: TextField WANT_NAME, WANT_NOTE and messages'
+      - 'app/notifications/models.py + service.py: kinds WANT_MATCH_FOUND, WANT_EXPIRING; delete-unread-then-insert batch writer'
+      - 'alembic/versions/0099: three tables, hand-written, two generated columns on wants'
+      - 'read-only through ACLs: inventory, product, category, locations, users, organizations'
+      - 'tests: test_module_boundaries (MODULES + product_path parity), test_domain_clock_guard, test_authorization_matrix'
+      - 'frontend routes: /wanted, /wanted/[id], /wanted/[id]/edit, /add/wanted (rename of /add/hunting); routing/paths.ts'
+      - 'frontend entry points: features/add/AddView.tsx, features/account/AccountView.tsx, features/search/SearchView.tsx (empty state)'
+      - 'frontend take flow: features/product/useItemTake.ts + blocks/ItemPickupActions.tsx'
+      - 'frontend shared: SearchFilters.tsx extraction, ItemCard new slot, CategoryTreePicker clear label, BottomNav highlight, api/notifications.ts kind union, utils/mocks.ts'
+      - 'docs: .maister/docs/project/architecture.md (module, runbook 0099, release gate), INDEX.md, old search user guide'
+      summary: 'The whole capability is missing today (no wants backend; the frontend is a demo that stores nothing) and the design plus corrections X1-X16 is a buildable target. Additive change, effort high, risk medium; 1 critical and 14 important decisions, all answered by the user.'
+      decisions: []
+      risks:
+      - A deleted category sets wants.category_id to null and silently moves the want to the strict threshold.
+      - wants.seeker_party_id has no ON DELETE rule; a future account-deletion feature must handle wants.
+      artifacts:
+      - path: analysis/gap-analysis.md
+        label: Gap analysis
+        html: null
+      - path: analysis/scope-clarifications.md
+        label: Scope clarifications
+        html: null
+    scope_clarifications:
+      scope_expanded: true
+      summary: 'All 15 gap decisions answered; 14 as recommended. Differs: the Konto tab highlight uses a prefix match for every deeper account sub-page (also /places/...), a small expansion outside wants. Switch as a toggle on /wanted/:id; Tylko tu = null; both by-me flags; counters use the match-list filter; unread match row deleted on withdraw and edit-reset, withdrawn want = 404; Dodaj/Edytuj links, no inline add; one closing prompt closing all matched wants, sheet only on the item page; prefilled name shown as typed with inline error; own not-found state linking to /wanted; picker label prop Dowolna kategoria; baseline first, no new failures; no feature switch, release gate written in architecture.md; old user guide text corrected.'
+    ui_mockups:
+      components_designed:
+      - screen:wanted-list
+      - screen:wanted-form
+      - screen:wanted-form-errors
+      - screen:wanted-matches
+      - screen:wanted-matches-states
+      - component:close-want-sheet
+      - component:want-disclosure
+      - component:want-notification-toggle
+      - component:match-card
+      - component:entry-points
+      - component:bell-rows
+      summary: 'format_used html; 8 mockup files in analysis/design-context/mockups; live gallery on http://localhost:3847 kept running for the Phase 4 gate; no fallback.'
+      decisions: []
+      risks: []
+      artifacts:
+      - path: analysis/design-context/INDEX.md
+        label: Design index
+        html: null
+      - path: analysis/design-context/design-resources.md
+        label: Design resources
+        html: null
+      - path: analysis/design-context/mockups/wanted-list.html
+        label: 'Mockup: want list'
+        html: analysis/design-context/mockups/wanted-list.html
+      - path: analysis/design-context/mockups/wanted-form.html
+        label: 'Mockup: want form'
+        html: analysis/design-context/mockups/wanted-form.html
+      - path: analysis/design-context/mockups/wanted-form-errors.html
+        label: 'Mockup: form errors'
+        html: analysis/design-context/mockups/wanted-form-errors.html
+      - path: analysis/design-context/mockups/wanted-matches.html
+        label: 'Mockup: match list'
+        html: analysis/design-context/mockups/wanted-matches.html
+      - path: analysis/design-context/mockups/wanted-matches-states.html
+        label: 'Mockup: match list states'
+        html: analysis/design-context/mockups/wanted-matches-states.html
+      - path: analysis/design-context/mockups/close-want-sheet.html
+        label: 'Mockup: close-want sheet'
+        html: analysis/design-context/mockups/close-want-sheet.html
+      - path: analysis/design-context/mockups/entry-points.html
+        label: 'Mockup: entry points'
+        html: analysis/design-context/mockups/entry-points.html
+      - path: analysis/design-context/mockups/bell-rows.html
+        label: 'Mockup: bell rows'
+        html: analysis/design-context/mockups/bell-rows.html
+    specification:
+      summary: 'Spec covers the private seeker-owned want end to end (app/wants, migration 0099, one match statement, 15-minute scan, two notification kinds with a delete-and-insert writer, lifecycle, /api/wants, features/wanted). After the audit revision: 11 core and 151 detailed requirements, 50 acceptance criteria, 11 design ids mapped; corrections X1-X16 and all 32 audit findings applied; OQ2-OQ4 decided by the user; OQ1, OQ5, OQ6 carry stated defaults.'
+      audit: 'verification/spec-audit.md: pass-with-concerns, 0 Critical, 3 High, 12 Medium, 17 Low; all applied to the spec on user request. User decisions: category_name on the list card and category_path in the match header; the want form has only the locality field and radius chips (default Tylko tu), no remembered locality.'
+      decisions:
+      - decision: Trigram branch = name_folded <% fold_pl(p.name) AND word_similarity(...) >= CASE
+        rationale: the operator is the only form that uses ix_products_name_trgm (X1).
+      - decision: Bell row = delete the unread row, insert a new one with the summed count, in one batch writer
+        rationale: an in-place update breaks created_at set once and races mark_read (X2, Phase 1 answer 2).
+      - decision: Scan entry point takes now; the scheduler wrapper catches StaleDataError itself
+        rationale: nothing freezes datetime.utcnow(), and jobs have no HTTP handler (X3).
+      - decision: Tylko tu is stored as null; CHECK allows 1-100; the API turns 0 into null (I1).
+        rationale: ''
+      - decision: Counters (match_count, new_match_count) go through the same read-time filter as the match list (I3).
+        rationale: ''
+      - decision: A foreign or withdrawn want is 404 through an own Polish WantNotFound; the want is always selected by (id, seeker_party_id) (X9, I4).
+        rationale: ''
+      - decision: Authorization rows copy conversations (login token only), not notifications (P11).
+        rationale: ''
+      - decision: Closing prompt is owned by ItemPickupActions, shown after a personal or term/event take only, never stacked on TakeSuccessSheet, and closes every returned want.
+        rationale: ''
+      - decision: No feature switch; the release gate is a written rule in architecture.md (I13).
+        rationale: ''
+      risks:
+      - 'OQ1: statement timeout on the scan job; default none.'
+      - 'OQ2: contact-details message, mockup short text vs the existing constant; default the existing constant.'
+      - 'OQ3: match-card intent pill, mockup Oddam / Zamiana vs existing ItemCard labels; default ItemCard labels unchanged.'
+      - 'OQ4: empty-search state, mockup texts vs existing scope-dependent texts; default only the prompt block changes.'
+      - 'OQ5: UI details no mockup shows (FULFILLED state of /wanted/:id, edit of a non-ACTIVE want, orders, plural labels); defaults in the Frontend section.'
+      - 'OQ6: API details left open (action route bodies, locality_name, score definition, Polish messages marked to confirm); defaults in the spec.'
+      - Thresholds 0.70 / 0.60 are starting values, unmeasured at the end of this task (release gate).
+      - A scan run and a seeker's PATCH can race on the want's version column; the user then gets the existing 409.
+      - The Konto prefix match changes pages outside wants (/places/..., /groups/:id, /family/...).
+      artifacts:
+      - path: implementation/spec.md
+        label: Specification
+        html: implementation/spec.html
+      - path: analysis/requirements.md
+        label: Requirements
+        html: null
+    architecture_decision:
+      decision: New bounded context app/wants with ACLs, one match statement, marker scan
+      summary: Chosen by the user in the research workflow (ADR-001 to ADR-013); no Phase 5 technical round was needed.
+    implementation_plan:
+      summary: '19 task groups, 139 steps, about 120-150 tests; complexity high. Waves: A 1 (baseline) | B 2, 3, 4, 11, 12 | C 5, 13, 14, 15, 17 | D 6, 16 | E 7, 8 | F 9, 10 | G 18 | H 19. No commit, E2E or user-documentation steps. Visual coverage 11 of 11 ids.'
+      task_groups: 19
+      total_steps: 139
+      decisions:
+      - decision: Measurement (group 7) runs right after the matcher and before the scan job
+        rationale: the fold-once-per-listing lever changes matcher.py, which the scan calls.
+      - decision: Groups 13-15 build and test the views only; group 16 alone switches routes, wires the entry points and deletes the mock
+        rationale: shared test files have one editor and the three views can be built side by side.
+      - decision: Exceptions live in app/wants/application/errors.py
+        rationale: domain/ may import only app.wants.domain.
+      - decision: File names inside app/wants and features/wanted are fixed by the plan
+        rationale: the spec names only folders; Files to Modify drives scheduling.
+      risks:
+      - 'Generated tsquery column (O1): checked in step 4.2; fallback is an application-written name_query.'
+      - 'Reverse-scan budget: 500 listings x 10,000 wants is expected to miss 2 s; levers in steps 7.3-7.4, a longer interval or the outbox fallback is left for the user.'
+      - 'item_listing_preferences.created_at index: decided in step 7.5; if needed a separate revision 0100 with a concurrent build.'
+      - 'Unstable frontend baseline: AppPage, ItemDetailPage and routeManifest are among the files this task edits.'
+      - 'Docker load: backend groups in the same wave each start their own testcontainers PostgreSQL.'
+      - 'Test count about 120-150, far above the usual, because the spec lists 21 test rows.'
+      artifacts:
+      - path: implementation/implementation-plan.md
+        label: Implementation plan
+        html: implementation/implementation-plan.html
+      - path: implementation/visual-coverage.md
+        label: Visual coverage
+        html: null
+verification_context:
+  last_status: null
+  issues_found: []
+  fixes_applied: []
+  decisions_made: []
+  reverify_count: 0
