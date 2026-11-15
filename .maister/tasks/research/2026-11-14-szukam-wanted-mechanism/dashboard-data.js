@@ -1,0 +1,439 @@
+window.MAISTER_DATA = {
+  "generated": "2026-11-14T19:00:46Z",
+  "task": {
+    "title": "Szukam (wanted posts) mechanism",
+    "type": "research",
+    "status": "completed",
+    "description": "Research how to implement a wanted / in-search-of mechanism based on the best patterns of comparable platforms and how it fits the existing architecture.",
+    "path": ".maister/tasks/research/2026-11-14-szukam-wanted-mechanism",
+    "current_activity": null
+  },
+  "characteristics": {},
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Research foundation (init, plan, gather, synthesize)",
+      "icon_hint": "analysis",
+      "status": "completed",
+      "started": "2026-11-14T17:31:40Z",
+      "completed": "2026-11-14T18:03:58Z",
+      "skip_reason": null,
+      "summary": "Research report written (overall confidence: medium). None of eleven platforms matches wants to listings or notifies item owners; recommended start is a private want in its own module with two-way asynchronous matching and an in-app notification to the seeker.",
+      "decisions": [
+        {
+          "decision": "Scope is wanted posts, not saved searches or search-engine improvements",
+          "rationale": "chosen by the user at intake (2026-11-14)"
+        },
+        {
+          "decision": "Start from the seeker-only private want",
+          "rationale": "it is what the shipped mock promises, what the earlier search task assumed, and the only half with platform precedent (saved-search alerts) and ready code."
+        },
+        {
+          "decision": "Treat owner notification as an experiment, not a best pattern",
+          "rationale": "no platform or engineering source shows it; the owner did not ask for the message and the existing take/propose flow already notifies the owner once the seeker acts."
+        },
+        {
+          "decision": "Keep needed items separate",
+          "rationale": "author, scope, response and lifecycle differ in code; migrations 0018–0020, 0063 and 0067–0068 removed the product link and the pledge-to-reservation link."
+        },
+        {
+          "decision": "New module with its own ACLs, not `app/search`",
+          "rationale": "`app/search` is documented as read-only and may be imported only by `app/main.py`."
+        },
+        {
+          "decision": "Match asynchronously in both directions, deduplicate on (want, item)",
+          "rationale": "three independent sources recommend it; the outbox exists; nothing else prevents repeat alerts."
+        },
+        {
+          "decision": "Use the existing `'simple'` full-text plus trigram recipe with a stricter threshold and measure before adding a Polish dictionary or embeddings",
+          "rationale": "PostgreSQL 18 has no Polish stemmer, PostgreSQL 19 is a release candidate, and no quality measurement exists."
+        },
+        {
+          "decision": "In-app notifications only at the start, with grouping, a per-want mute and a database-count cap shipped together with the feature",
+          "rationale": "the system has no preferences, deduplication or caps today."
+        }
+      ],
+      "risks": [
+        "Product decision: does a match notify only the seeker (mock) or both sides (brief)? The research cannot settle it; it can only say the second has no precedent.",
+        "Product decision: are wants private, visible to group members, or public? Public wants bring begging, trade buyers, stale posts and an Article 9 GDPR question.",
+        "Scope: a private want with matching is functionally a saved-search alert, which the brief excludes \"as a separate feature\". Confirm the line.",
+        "Polish inflection: exact-word matching misses inflected forms; trigram tolerance is unmeasured. Match precision and recall are unknown until tested on real pairs.",
+        "Scan cost of reverse matching is argued, not measured; expected numbers of wants and items are assumed.",
+        "Legal: Article 9 GDPR (wants revealing health or belief), Article 398 of the Polish Electronic Communications Law (consent per channel) and the DSA report duty rest on commentary and unofficial mirrors. A lawyer must confirm before public wants, owner notifications or email.",
+        "The bell shows only the newest 50 rows; match rows can push action prompts (`SWAP_PROPOSED`, `TERM_CONFIRMATION_NEEDED`) out of view.",
+        "Out-of-scope observation, unverified: `PUT /api/products/{id}` may lack an ownership check (see Appendix D)."
+      ],
+      "artifacts": [
+        {
+          "path": "outputs/research-report.md",
+          "label": "Research report",
+          "html": "outputs/research-report.html"
+        },
+        {
+          "path": "analysis/synthesis.md",
+          "label": "Synthesis",
+          "html": null
+        },
+        {
+          "path": "planning/research-brief.md",
+          "label": "Research brief",
+          "html": null
+        },
+        {
+          "path": "planning/research-plan.md",
+          "label": "Research plan",
+          "html": null
+        },
+        {
+          "path": "planning/sources.md",
+          "label": "Sources",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/codebase-frontend-needed-items-and-reuse.md",
+          "label": "Findings: codebase-frontend-needed-items-and-reuse",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/codebase-frontend-wanted-mock.md",
+          "label": "Findings: codebase-frontend-wanted-mock",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/codebase-items-search-supply-and-matching.md",
+          "label": "Findings: codebase-items-search-supply-and-matching",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/codebase-items-search-visibility-signals-boundaries.md",
+          "label": "Findings: codebase-items-search-visibility-signals-boundaries",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/codebase-needs-signals-needed-items.md",
+          "label": "Findings: codebase-needs-signals-needed-items",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/codebase-needs-signals-notifications-outbox.md",
+          "label": "Findings: codebase-needs-signals-notifications-outbox",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/external-classifieds-patterns.md",
+          "label": "Findings: external-classifieds-patterns",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/external-classifieds-platform-comparison.md",
+          "label": "Findings: external-classifieds-platform-comparison",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/external-gift-platforms-comparison.md",
+          "label": "Findings: external-gift-platforms-comparison",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/external-gift-platforms-patterns.md",
+          "label": "Findings: external-gift-platforms-patterns",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/external-matching-alerts-matching.md",
+          "label": "Findings: external-matching-alerts-matching",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/external-matching-alerts-notifications.md",
+          "label": "Findings: external-matching-alerts-notifications",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/external-ux-trust-abuse-privacy.md",
+          "label": "Findings: external-ux-trust-abuse-privacy",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/external-ux-trust-forms-entry-response.md",
+          "label": "Findings: external-ux-trust-forms-entry-response",
+          "html": null
+        },
+        {
+          "path": "analysis/findings/external-ux-trust-lifecycle-notifications.md",
+          "label": "Findings: external-ux-trust-lifecycle-notifications",
+          "html": null
+        }
+      ],
+      "gate": {
+        "question": "Research foundation complete. Continue to brainstorming evaluation?",
+        "answer": "Tak, kontynuuj"
+      },
+      "progress": null
+    },
+    {
+      "id": "phase-2",
+      "name": "Evaluate brainstorming value",
+      "icon_hint": "plan",
+      "status": "completed",
+      "started": "2026-11-14T18:03:58Z",
+      "completed": "2026-11-14T18:05:10Z",
+      "skip_reason": null,
+      "summary": "Brainstorming and high-level design both enabled by the user.",
+      "decisions": [
+        {
+          "decision": "Brainstorming enabled",
+          "rationale": "eight decision areas with several viable approaches; three product decisions have no market precedent; chosen by the user"
+        },
+        {
+          "decision": "High-level design enabled",
+          "rationale": "the findings call for architectural decisions and the output feeds a development workflow; chosen by the user"
+        }
+      ],
+      "risks": [],
+      "artifacts": [],
+      "gate": {
+        "question": "Explore solution alternatives? Generate a high-level design?",
+        "answer": "Yes to both"
+      },
+      "progress": null
+    },
+    {
+      "id": "phase-3",
+      "name": "Generate solution alternatives",
+      "icon_hint": "spec",
+      "status": "completed",
+      "started": "2026-11-14T18:05:10Z",
+      "completed": "2026-11-14T18:12:34Z",
+      "skip_reason": null,
+      "summary": "Nine decision areas with 50 alternatives; recommended path is a staged seeker-first private want, with the owner signal as a second step. Seventeen ideas deferred.",
+      "decisions": [
+        {
+          "decision": "Stage the product shape: private seeker alert first (1A), anonymous owner signal second behind a switch (1B)",
+          "rationale": "the first half has precedent and ready code, the second is what the brief asked for and is unproven."
+        },
+        {
+          "decision": "Treat the want as the one standing-demand object (2A)",
+          "rationale": "a private matched want is a saved-search alert in function; building a second parallel list is what the brief's exclusion should mean."
+        },
+        {
+          "decision": "New want entity with a required name and optional structured filters (3.1B), plus a unique (want, item) match table (3.2A), in a new module with ACLs (3.3A)",
+          "rationale": "search already filters on these fields, and nothing else deduplicates alerts."
+        },
+        {
+          "decision": "Match in both directions from outbox events raised at the listing write points (4.1C), with the existing full-text plus trigram recipe under a stricter threshold (4.2A), on takeable items only (4.3B)",
+          "rationale": "no new infrastructure, and no alerts for items the seeker cannot take."
+        },
+        {
+          "decision": "Grouped in-app notifications with pair deduplication, a per-want mute and a database-count cap in the same increment (5B)",
+          "rationale": "the system has no notification controls today."
+        },
+        {
+          "decision": "Default expiry with a reminder and one-tap extension (6.1B); closing by the seeker, prompted after a reservation (6.2B)",
+          "rationale": "auto-closing has no hook in the code and no source."
+        },
+        {
+          "decision": "Existing synchronous text checks plus a database-count cap (7B) for a private want; the community rule set (7C) becomes mandatory the moment anyone else can read a want.",
+          "rationale": ""
+        },
+        {
+          "decision": "Response through the existing take/propose flow only (8A); keep both UI entries on one form and one hook, and let the empty-search prompt carry the active filters (9A).",
+          "rationale": ""
+        }
+      ],
+      "risks": [
+        "Who is notified: the recommendation stages \"both sides\". If the user wants the literal brief from day one, 1A and 1B ship together and the first increment grows by an owner notification kind, an off switch and a legal check.",
+        "Visibility: private (recommended), group-scoped or public. Choosing 1C, 1D or 1E changes the recommendations in areas 5, 7, 8 and 9.",
+        "Scope line: a private matched want is functionally a saved-search alert, which the brief excluded \"as a separate feature\". Recommendation 2A reads the exclusion as \"no second, parallel list\"; the user must confirm that reading.",
+        "Match quality on inflected Polish is unmeasured. The 4.2A threshold cannot be set responsibly without a labelled sample of real want/item pairs.",
+        "Reverse-match cost is argued, not measured; the expected numbers of wants and items are assumed (\"thousands\").",
+        "The owner signal (1B) computed for a PRIVATE item tells its owner that demand exists outside the item's audience. It leaks nothing to the seeker, but it is a new kind of information flow and needs a deliberate yes or no.",
+        "Legal: Article 9 GDPR (wants revealing health or belief), Article 398 of the Polish Electronic Communications Law and the DSA report duty rest on commentary. A lawyer must confirm before owner notifications, visible wants or e-mail.",
+        "The bell shows the newest 50 rows and nothing is deleted; even grouped match rows can push action prompts (`SWAP_PROPOSED`, `TERM_CONFIRMATION_NEEDED`) out of view.",
+        "Numbers are product guesses everywhere: expiry period, cap on active wants, grouping window. No source gives tested values."
+      ],
+      "artifacts": [
+        {
+          "path": "outputs/solution-exploration.md",
+          "label": "Solution exploration",
+          "html": "outputs/solution-exploration.html"
+        }
+      ],
+      "gate": null,
+      "progress": null
+    },
+    {
+      "id": "phase-4",
+      "name": "Evaluate brainstorming alternatives",
+      "icon_hint": "plan",
+      "status": "completed",
+      "started": "2026-11-14T18:12:34Z",
+      "completed": "2026-11-14T18:40:50Z",
+      "skip_reason": null,
+      "summary": "All nine decision areas resolved by the user: a private seeker-first want as the single standing-demand object, in its own module, matched by a periodic scan with grouped in-app notifications; owner-side signal deferred to a second step.",
+      "decisions": [
+        {
+          "decision": "1. Product shape: visibility and who is notified",
+          "rationale": "1A private seeker alert first, then 1B anonymous owner signal as a designed second increment behind a switch"
+        },
+        {
+          "decision": "2. Scope line against saved searches",
+          "rationale": "2A the want is the single standing-demand object; no separate saved-search feature; name stays required"
+        },
+        {
+          "decision": "3. Data model and module home",
+          "rationale": "3.1B name plus optional structured filters, 3.2A unique (want, item) match table, 3.3A new module with its own ACLs"
+        },
+        {
+          "decision": "4. Matching: timing, text comparison, eligibility",
+          "rationale": "User-defined: 4.1D + modified 4.2A + 4.3B. 4.1: periodic scan with a marker for new listings; scan window = notification grouping window. Before implementation verify the creation time on the listing row (otherwise marker by id, as a last resort 4.1C). On want creation the existing matches are shown at once on screen with one query, without a notification. 4.2: a text signal is always required (FTS or name trigram); a category, if given, narrows to the subtree (AND, not OR) and allows a looser threshold; words up to 3 characters match exactly only; start with a strict threshold and log opens and takes for tuning. 4.3: only items takeable at the moment of matching. Out of scope for v1: released reservations, item edits, lemmatisation, embeddings."
+        },
+        {
+          "decision": "5. Notification delivery and controls",
+          "rationale": "User-defined: 5B + the 5D count. At most one row per want per scan window (window = scan interval). One match: link straight to the item with its name; two or more: a count + link to the want's match list. If the previous row for the want is unread, update it (count, time) instead of creating a new one. Notification switch per want. Count of new matches on the szukam list and the tile, reset after opening the want's list. Known v1 gap: no e-mail/push, 'Damy znac' reaches only returning users."
+        },
+        {
+          "decision": "6. Lifecycle: expiry and closing",
+          "rationale": "User-defined: 6.1B, 6.2B (+ the manual actions of 6.2A). Validity 90 days; a bell reminder 7 days before the end; 'extend' keeps the want and its matches. An expired want stays on the list with a 'resume' action. Expired, fulfilled and withdrawn wants are deleted with their matches after 30 days. Closing: manually 'found' / 'withdraw'; after a reservation or an agreed swap of an item from the match list a prompt 'Close the want' / 'Keep looking'. A fulfilled want can be reopened until the end of retention. A closed want drops out of the scan. Optional: opening the match list in the last 30 days before the end extends the want automatically."
+        },
+        {
+          "decision": "7. Moderation and abuse limits",
+          "rationale": "User-defined: 7B. Synchronous checks on write (contact details, then the classifier) for the name and the note. Limit of 30 active wants per user, counted in the database in the write transaction, without locks. Name 3-80 characters, note up to 300. Limit of the 20 best matches per want per scan run. Classifier outage: 503 as in the rest of the system. 7C (period limits, specificity, abuse reporting) deferred to the step with want visibility in a group; aggregate demand without text does not require it."
+        },
+        {
+          "decision": "8. Response flow",
+          "rationale": "User-defined: 8A in v1. A match leads to the item page; the seeker uses the existing take / propose swap. Link to the want through a lookup in the match table (closing prompt, measuring match-to-reservation conversion), without an origin field on the reservation. Second step to settle later: 8B with the signal for a single owner (1B), 8D with a shortened item form with aggregate demand in a group. 8C out of scope."
+        },
+        {
+          "decision": "9. UX entry points",
+          "rationale": "User-defined: 9A. Tile /add -> /add/wanted (routing changes from hunting to wanted) and the row in 'Konto' -> /wanted; one hook for the list, the count and the form. The empty-search prompt passes the query and the active filters. Before implementation verify whether the parameters survive a guest's login (otherwise carry them in the return address). Form: the name visible, the rest under 'Doprecyzuj' (expanded and filled when entering from search). After saving, redirect to the want's match list (/wanted/:id); the same route for the bell and the count, opening resets the count."
+        }
+      ],
+      "risks": [
+        "Before implementation: verify the creation time on the listing row (otherwise marker by id, as a last resort 4.1C)",
+        "Before implementation: verify whether search parameters survive a guest's login",
+        "Match quality on inflected Polish is unmeasured; start with a strict threshold and log opens and takes",
+        "Known v1 gap: no e-mail or push, so the alert reaches only returning users"
+      ],
+      "artifacts": [],
+      "gate": {
+        "question": "Brainstorming complete. Continue to high-level design?",
+        "answer": "Tak, projektuj"
+      },
+      "progress": null
+    },
+    {
+      "id": "phase-5",
+      "name": "Design high-level architecture",
+      "icon_hint": "spec",
+      "status": "completed",
+      "started": "2026-11-14T18:40:50Z",
+      "completed": "2026-11-14T19:00:46Z",
+      "skip_reason": null,
+      "summary": "High-level design written: a new module app/wants (proposed name) with ACLs, three tables, one match statement used at want creation and by a 15-minute scan; 13 decision records, 13 proposals awaiting the user's confirmation.",
+      "decisions": [
+        {
+          "decision": "Private seeker alert in v1, anonymous owner signal as a designed second step",
+          "rationale": "the first half has precedent and ready code (ADR-001, user)."
+        },
+        {
+          "decision": "The want is the only standing-demand object; the name stays required",
+          "rationale": "no second saved-search list (ADR-002, user)."
+        },
+        {
+          "decision": "Name plus optional filters, a unique (want, item) match table, hard delete after retention",
+          "rationale": "the pair table is the only deduplication the system has (ADR-003, user; columns proposed)."
+        },
+        {
+          "decision": "New module `app/wants` with one ACL per foreign module, added to the boundary guard",
+          "rationale": "the pattern the tests already enforce (ADR-004, user; name proposed)."
+        },
+        {
+          "decision": "Periodic scan with a `created_at` marker on the listing row, 15-minute interval, 5-minute overlap",
+          "rationale": "no change to the inventory or groups write paths (ADR-005, user; numbers proposed)."
+        },
+        {
+          "decision": "One match statement for both directions",
+          "rationale": "forward and reverse can never disagree about a pair (ADR-006, proposed)."
+        },
+        {
+          "decision": "Text signal always required, category narrows and loosens, short words exact only",
+          "rationale": "thresholds 0.70 / 0.60 are starting values to tune (ADR-007, user; numbers proposed)."
+        },
+        {
+          "decision": "\"Takeable\" means AVAILABLE, no pending proposal and a live pickup place (ADR-008, user; definition proposed).",
+          "rationale": ""
+        },
+        {
+          "decision": "Notifications written by the scan itself, the previous row replaced while unread through a pointer kept on the want (ADR-009, user; mechanism proposed).",
+          "rationale": ""
+        },
+        {
+          "decision": "Lifecycle as a stored status with one sweep inside the scan job (ADR-010, user; mechanism proposed).",
+          "rationale": ""
+        },
+        {
+          "decision": "Synchronous text checks and a database-count cap of 30 (ADR-011, user).",
+          "rationale": ""
+        },
+        {
+          "decision": "Response through take / propose; the want is found by a lookup in the match table (ADR-012, user).",
+          "rationale": ""
+        },
+        {
+          "decision": "Routes `/add/wanted`, `/wanted`, `/wanted/:id`; one hook; `/api/wants` for logged-in users only (ADR-013, user; API shape proposed).",
+          "rationale": ""
+        }
+      ],
+      "risks": [
+        "Match quality on inflected Polish is unmeasured. The thresholds are guesses until the labelled sample is scored (section \"Measurement plan\").",
+        "Scan cost is argued, not measured. The reverse direction has no text index; it relies on a small window of new listings and plain-column pre-filters.",
+        "Items that become takeable after their listing time are missed: a released reservation, a PRIVATE item turned PUBLIC, a restored pickup place, an item edit. This is the accepted cost of the marker scan.",
+        "In-app only: \"Damy znać\" reaches only users who come back. No e-mail or push exists.",
+        "The bell shows the newest 50 rows. Up to 30 match rows per user (one per active want) can still push action prompts out of view.",
+        "An image-only rollback breaks the bell while rows of the two new notification kinds exist; they must be deleted first (section \"Migration and rollback\").",
+        "Two code facts are inferred from reading, not run: the group-sharing predicate with a column on both sides, and a generated `tsquery` column. Both are pre-implementation checks.",
+        "All numbers marked \"proposed\" need the user's confirmation: module and table names, 15-minute interval, thresholds, the automatic extension, the reminder ignoring the per-want switch, hiding withdrawn wants.",
+        "Legal review (Article 9 GDPR, Article 398 of the Polish Electronic Communications Law, DSA reporting) is still open and blocks the second step, not v1."
+      ],
+      "artifacts": [
+        {
+          "path": "outputs/high-level-design.md",
+          "label": "High-level design",
+          "html": "outputs/high-level-design.html"
+        },
+        {
+          "path": "outputs/decision-log.md",
+          "label": "Decision log",
+          "html": "outputs/decision-log.html"
+        }
+      ],
+      "gate": {
+        "question": "Design complete. Continue to output generation?",
+        "answer": "Tak, zakończ"
+      },
+      "progress": null
+    },
+    {
+      "id": "phase-6",
+      "name": "Summarize research and suggest next steps",
+      "icon_hint": "done",
+      "status": "completed",
+      "started": "2026-11-14T19:00:46Z",
+      "completed": "2026-11-14T19:00:46Z",
+      "skip_reason": null,
+      "summary": "Research complete: report, solution exploration with nine user decisions, high-level design and decision log. Next step is /maister:development in a fresh session.",
+      "decisions": [],
+      "risks": [],
+      "artifacts": [],
+      "gate": null,
+      "progress": null
+    }
+  ],
+  "verification": {
+    "status": null,
+    "issues": [],
+    "fixes": [],
+    "reverify_count": 0
+  }
+};

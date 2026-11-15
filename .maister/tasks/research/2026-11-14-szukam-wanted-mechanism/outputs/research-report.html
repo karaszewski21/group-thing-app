@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research Report — Szukam (wanted) mechanism</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+/* extensions */
+.conf { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; white-space:nowrap; }
+.conf.high { background:var(--ok-soft); color:var(--ok); }
+.conf.medium { background:var(--warn-soft); color:var(--warn); }
+.conf.low { background:var(--crit-soft); color:var(--crit); }
+.grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; }
+.grid2 .card { margin:0; }
+.rec { border-color:var(--accent); border-width:2px; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0 0; }
+.scroll { overflow-x:auto; }
+.tldr ul, .card ul { margin:6px 0; padding-left:20px; }
+h3 { font-size:14px; margin:18px 0 6px; }
+.dim { color:var(--dim); }
+.callout { border-left:4px solid var(--warn); }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Report</span>
+  <a href="solution-exploration.html">Exploration</a>
+  <a href="high-level-design.html">Design</a>
+  <a href="decision-log.html">Decision Log</a>
+  <a href="research-report.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <h1>Research Report: "Szukam" (wanted) mechanism</h1>
+  <p><span class="badge">research report</span> <span class="dim">mixed (literature + technical) · generated 2026-11-14 · full text in
+  <a href="research-report.md" target="_blank" rel="noopener">research-report.md</a> · reasoning log in
+  <a href="../analysis/synthesis.md" target="_blank" rel="noopener">synthesis.md</a></span></p>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>22</b><span>findings</span></div>
+  <div class="tile"><b>11</b><span>platforms compared</span></div>
+  <div class="tile"><b>15</b><span>findings files</span></div>
+  <div class="tile"><b>7</b><span>gatherers</span></div>
+  <div class="tile"><b>Medium</b><span>overall confidence</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul>
+    <li>None of the eleven platforms matches a wanted post to listings or tells an item's owner that someone wants it; machine matching exists only as the seeker's own saved search or keyword alert. "Notify both sides" is new ground with no proven pattern behind it (confidence: medium, inferred from documentation).</li>
+    <li>Recommended first step: a private want (name plus optional search-shaped filters, default expiry) in its own backend module, matched to listings in both directions through the outbox into a unique (want, item) match table, with an in-app notification to the seeker only.</li>
+    <li>Owner-side notification and public or group-visible wants are separate, later decisions; they need an opt-out, a seeker-identity rule, a response channel and legal review, none of which exist today.</li>
+    <li>Per-term needed items are a different concept and stay separate; their structured form was already tried and removed.</li>
+    <li>Overall confidence: medium — code facts are high; match quality in Polish, scan cost and the legal points are unmeasured or unreviewed.</li>
+  </ul>
+
+  <h2>Key Decisions</h2>
+  <ul>
+    <li><b>Start from the seeker-only private want</b> — it is what the shipped mock promises, what the earlier search task assumed, and the only half with platform precedent (saved-search alerts) and ready code.</li>
+    <li><b>Treat owner notification as an experiment, not a best pattern</b> — no platform or engineering source shows it; the owner did not ask for the message and the existing take/propose flow already notifies the owner once the seeker acts.</li>
+    <li><b>Keep needed items separate</b> — author, scope, response and lifecycle differ in code; migrations 0018–0020, 0063 and 0067–0068 removed the product link and the pledge-to-reservation link.</li>
+    <li><b>New module with its own ACLs, not <code>app/search</code></b> — <code>app/search</code> is documented as read-only and may be imported only by <code>app/main.py</code>.</li>
+    <li><b>Match asynchronously in both directions, deduplicate on (want, item)</b> — three independent sources recommend it; the outbox exists; nothing else prevents repeat alerts.</li>
+    <li><b>Use the existing <code>'simple'</code> full-text plus trigram recipe with a stricter threshold and measure before adding a Polish dictionary or embeddings</b> — PostgreSQL 18 has no Polish stemmer, PostgreSQL 19 is a release candidate, and no quality measurement exists.</li>
+    <li><b>In-app notifications only at the start, with grouping, a per-want mute and a database-count cap shipped together with the feature</b> — the system has no preferences, deduplication or caps today.</li>
+  </ul>
+
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li><span class="sev critical">decision</span>Does a match notify only the seeker (mock) or both sides (brief)? The research cannot settle it; it can only say the second has no precedent.</li>
+    <li><span class="sev critical">decision</span>Are wants private, visible to group members, or public? Public wants bring begging, trade buyers, stale posts and an Article 9 GDPR question.</li>
+    <li><span class="sev warning">scope</span>A private want with matching is functionally a saved-search alert, which the brief excludes "as a separate feature". Confirm the line.</li>
+    <li><span class="sev warning">quality</span>Polish inflection: exact-word matching misses inflected forms; trigram tolerance is unmeasured. Match precision and recall are unknown until tested on real pairs.</li>
+    <li><span class="sev warning">performance</span>Scan cost of reverse matching is argued, not measured; expected numbers of wants and items are assumed.</li>
+    <li><span class="sev warning">legal</span>Article 9 GDPR (wants revealing health or belief), Article 398 of the Polish Electronic Communications Law (consent per channel) and the DSA report duty rest on commentary and unofficial mirrors. A lawyer must confirm before public wants, owner notifications or email.</li>
+    <li><span class="sev warning">ux</span>The bell shows only the newest 50 rows; match rows can push action prompts (<code>SWAP_PROPOSED</code>, <code>TERM_CONFIRMATION_NEEDED</code>) out of view.</li>
+    <li><span class="sev info">out of scope</span>Unverified: <code>PUT /api/products/{id}</code> may lack an ownership check (see the last section).</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents:
+  <a href="#answer">Direct answer</a> ·
+  <a href="#findings">Findings</a> ·
+  <a href="#platforms">Platform comparison</a> ·
+  <a href="#patterns">Patterns and failure modes</a> ·
+  <a href="#code">Code map</a> ·
+  <a href="#needed">Needed items</a> ·
+  <a href="#options">Options per decision area</a> ·
+  <a href="#recs">Recommendations</a> ·
+  <a href="#quality">Evidence quality</a> ·
+  <a href="#subq">Sub-questions</a> ·
+  <a href="#appendix">Gaps, contradictions, sources</a>
+</nav>
+
+<main>
+
+<h2 id="answer">Direct answer to the research question</h2>
+<div class="card rec">
+  <p>Implement "szukam" as a <b>seeker-owned want</b> stored in a new backend module: a required name, optional filters in the shape search already uses, a status and a default expiry. Match it to listings <b>in both directions</b>, asynchronously through the outbox, with the existing folded full-text and trigram comparison under a stricter threshold, always behind the visibility predicate, and record each pair once in a match table. Notify <b>the seeker</b>, in-app, grouped. Moderate the text with the existing synchronous checks and cap wants by a database count. Leave needed items alone.</p>
+  <p>This follows the best available patterns for everything except the brief's "notifies both sides". <b>No comparable platform does that.</b> If the product wants it, it should be added as a clearly separate, opt-out, identity-hiding experiment after the first increment, and after a lawyer has looked at the privacy and consent points.</p>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Conclusions with confidence</h3>
+  <table>
+    <tr><th>#</th><th>Conclusion</th><th>Confidence</th></tr>
+    <tr><td>C1</td><td>Owner-side notification and automatic want-to-listing matching have no precedent on the eleven platforms</td><td><span class="conf medium">medium</span></td></tr>
+    <tr><td>C2</td><td>A private seeker-side want fits the existing architecture with mostly wiring</td><td><span class="conf high">high</span> inventory · <span class="conf medium">medium</span> effort</td></tr>
+    <tr><td>C3</td><td>Needed items stay separate</td><td><span class="conf high">high</span> facts · medium-high recommendation</td></tr>
+    <tr><td>C4</td><td>The feature belongs in its own module, not in <code>app/search</code></td><td><span class="conf high">high</span></td></tr>
+    <tr><td>C5</td><td>Reverse matching is feasible on PostgreSQL 18 without new infrastructure</td><td><span class="conf medium">medium</span> (documented mechanics, unmeasured cost)</td></tr>
+    <tr><td>C6</td><td>Match quality on inflected Polish is the main technical unknown</td><td><span class="conf medium">medium</span></td></tr>
+    <tr><td>C7</td><td>Notification controls must ship with the feature</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>C8</td><td>Public wants bring known abuse patterns and an open legal question</td><td><span class="conf medium">medium</span></td></tr>
+  </table>
+</div>
+
+<h2 id="findings">Findings</h2>
+<div class="card scroll">
+  <table>
+    <tr><th>#</th><th>Finding</th><th>Category</th><th>Confidence</th><th>Main sources</th></tr>
+    <tr><td>F1</td><td>No platform matches a wanted post to listings or notifies the owner of a matching item</td><td>Platforms</td><td><span class="conf medium">medium</span></td><td>Both platform pattern files; matching-alerts notifications file</td></tr>
+    <tr><td>F2</td><td>Two halves never joined: public wanted post answered by people; private standing query matched for the seeker</td><td>Platforms</td><td><span class="conf high">high</span></td><td>classifieds patterns P1; gift patterns P10</td></tr>
+    <tr><td>F3</td><td>Wanted posts are minimal; no platform asks for condition</td><td>Platforms</td><td><span class="conf high">high</span></td><td>Comparison tables</td></tr>
+    <tr><td>F4</td><td>Fixed expiry (90 or 30 days), seeker-closed, explicit outcomes</td><td>Lifecycle</td><td><span class="conf high">high</span> / medium</td><td>Freecycle, Trash Nothing, OLX</td></tr>
+    <tr><td>F5</td><td>Wants are throttled, never tied to giving first; cultures differ on caps</td><td>Abuse</td><td><span class="conf high">high</span> for rules</td><td>Freecycle, Freegle, Buy Nothing</td></tr>
+    <tr><td>F6</td><td>Public wants attract begging, trade buyers, misfiled offers and stale posts</td><td>Abuse</td><td><span class="conf medium">medium</span> to low</td><td>Failure-mode table</td></tr>
+    <tr><td>F7</td><td>The mock promises a seeker notification only; the brief says both sides</td><td>Product</td><td><span class="conf high">high</span></td><td>codebase-frontend-wanted-mock</td></tr>
+    <tr><td>F8</td><td>Needed items are a separate concept; structure was added and removed</td><td>Codebase</td><td><span class="conf high">high</span></td><td>codebase-needs-signals-needed-items</td></tr>
+    <tr><td>F9</td><td>Supply side is ready: listing row, folded full-text and trigram, category subtree, locality radius</td><td>Codebase</td><td><span class="conf high">high</span></td><td>codebase-items-search-supply-and-matching</td></tr>
+    <tr><td>F10</td><td>Matching runs one way; matching code is private to <code>app/search</code>, which is closed</td><td>Codebase</td><td><span class="conf high">high</span></td><td>same; boundary test</td></tr>
+    <tr><td>F11</td><td>No "item listed" signal; three write points known</td><td>Codebase</td><td><span class="conf high">high</span></td><td>visibility-signals-boundaries §2</td></tr>
+    <tr><td>F12</td><td>One visibility predicate must gate every match; re-check at read time</td><td>Codebase</td><td><span class="conf high">high</span></td><td><code>groups/infrastructure/visibility.py:91-108</code></td></tr>
+    <tr><td>F13</td><td>Notifications are in-app only with no preferences, digest, cap, dedup or retention; bell shows newest 50</td><td>Codebase</td><td><span class="conf high">high</span></td><td>notifications-outbox F1–F5</td></tr>
+    <tr><td>F14</td><td>Outbox (60 s) and one in-process scheduler exist; <code>term_end_scan</code> is the model for periodic work</td><td>Codebase</td><td><span class="conf high">high</span></td><td>notifications-outbox F8–F10</td></tr>
+    <tr><td>F15</td><td>Synchronous text moderation and a contact-info rule exist; limiters are in-memory only</td><td>Codebase</td><td><span class="conf high">high</span></td><td>notifications-outbox F11–F13</td></tr>
+    <tr><td>F16</td><td>Seeker→item response exists (take/propose); owner→seeker does not; no want-anchored chat; no origin on a reservation</td><td>Codebase</td><td><span class="conf high">high</span> / medium</td><td>notifications-outbox F14–F17; needed-items-and-reuse B6</td></tr>
+    <tr><td>F17</td><td>A stored <code>tsquery</code> matches with <code>@@</code> but no index serves it; pre-filter then scan</td><td>Matching</td><td><span class="conf high">high</span> docs · <span class="conf medium">medium</span> adequacy</td><td>PostgreSQL 18 docs <code>gist.html</code>, <code>gin.html</code></td></tr>
+    <tr><td>F18</td><td>PostgreSQL 18 has no Polish stemmer; 19 RC 2 adds Snowball Polish; hunspell on 18 is possible at operational cost</td><td>Matching</td><td><span class="conf high">high</span> facts · quality unconfirmed</td><td>matching-alerts-matching §3</td></tr>
+    <tr><td>F19</td><td>Alert fatigue is real; grouping, stored matches, caps and per-type controls are the documented answers</td><td>Notifications</td><td><span class="conf high">high</span> sources · <span class="conf medium">medium</span> transfer</td><td>YouGov, NN/g, LinkedIn, Funda, Fitz et al.</td></tr>
+    <tr><td>F20</td><td>A want can reveal sensitive facts; expiry is backed by storage limitation; a report channel is a legal duty; commercial messages need per-channel consent in Poland</td><td>Legal</td><td><span class="conf medium">medium</span> texts · <span class="conf low">low</span> application</td><td>abuse-privacy §3; lifecycle-notifications §2.4</td></tr>
+    <tr><td>F21</td><td>Short form, query carried from empty search, recovery paths kept</td><td>UX</td><td><span class="conf high">high</span> guidance · <span class="conf medium">medium</span> application</td><td>NN/g, Baymard</td></tr>
+    <tr><td>F22</td><td>Request-first products push requests to people directly (outside the eleven; unlisted supply)</td><td>Platforms</td><td><span class="conf medium">medium</span> / low</td><td>Peerby, Sharetribe</td></tr>
+  </table>
+</div>
+
+<h2 id="platforms">Platform comparison</h2>
+<div class="card callout">
+  <b>What the comparison says.</b> Across all eleven platforms, no page read describes (a) automatic matching of a wanted post to listings, (b) a notification to the owner of a matching item, or (c) a structured "I have this" answer that links a listed item to a want.
+  <span class="conf medium">medium</span> — absence is inferred from help, policy and API pages, not from using the apps; several help centres were unreadable (OLX, Gumtree UK, Facebook, Bunz) and Olio does not document its wanted listing. No platform states why it has no matching.
+  <ul>
+    <li>The owner-side notification in the brief is <b>novel</b>. It must not be presented as a best pattern. The owner did not ask for it, there is no evidence on how owners react, and general evidence says irrelevant alerts lead people to switch notifications off (YouGov 2021: 39 % turn them off entirely when too frequent).</li>
+    <li>Nearest precedents are weaker: an <b>opt-in</b> alert a giver sets on Requests (Trash Nothing), and <b>request-first</b> products where requests are pushed to nearby people who have listed nothing (Peerby; company claim, 2013, low confidence). Research supports asking directly (Flynn and Lake 2008, medium).</li>
+    <li>Seeker-side matching is well supported as a pattern, under the name "saved search alert".</li>
+  </ul>
+</div>
+
+<details class="card" open>
+  <summary>Gift and swap platforms (5)</summary>
+  <div class="scroll">
+  <table>
+    <tr><th></th><th>Freecycle</th><th>Trash Nothing</th><th>Olio</th><th>Buy Nothing (app)</th><th>Bunz</th></tr>
+    <tr><td><b>Wanted type</b></td><td>"Wanted"</td><td>"wanted", shown as "Requests"</td><td>"Wanted", non-food only</td><td>"Ask"</td><td>"ISO"</td></tr>
+    <tr><td><b>Fields</b></td><td>Type, town, title, general location, description, up to 3 photos, optional preset tags</td><td>Title, content, photos, map point, expiration, <code>reselling</code> flag</td><td>n.d.; specific item required, representative photo recommended</td><td>Optional photo, title, description, optional category, location, visibility toggle, optional private community</td><td>2016: images, title, description, "what you want in return", location; current n.d.</td></tr>
+    <tr><td><b>Who sees it</b></td><td>Town group or own Friends Circle</td><td>Group members; some public</td><td>n.d.</td><td>App-wide, a radius, or one private community</td><td>Nearby users (unconfirmed)</td></tr>
+    <tr><td><b>How givers answer</b></td><td>Private message or e-mail</td><td>Private message</td><td>"at their own discretion"</td><td>Comment or "interested", then message</td><td>Like, comment, chat</td></tr>
+    <tr><td><b>Want matched to listings</b></td><td class="fail">Absent</td><td class="fail">Absent</td><td class="fail">Absent (n.d.)</td><td class="fail">Absent</td><td class="fail">Absent</td></tr>
+    <tr><td><b>Owner told about a matching want</b></td><td class="fail">Absent</td><td>Only if the giver saves an alert on Requests</td><td class="fail">Absent (n.d.)</td><td class="fail">Absent</td><td class="fail">Absent</td></tr>
+    <tr><td><b>Seeker alerts</b></td><td>Tag alerts, in-site counter</td><td>Keyword alerts on Offers and/or Requests, e-mail or push, digests</td><td>n.d.</td><td>n.d.</td><td>Saved searches (2025 release notes)</td></tr>
+    <tr><td><b>Expiry</b></td><td>90 days, fixed</td><td>90 days</td><td>Offers 1–28 days; wanted n.d.</td><td>n.d.</td><td>n.d.; visibility decays</td></tr>
+    <tr><td><b>Renewal</b></td><td>New post only</td><td>"Repost" pre-fills; repost count kept 90 days</td><td>n.d.</td><td>Repost encouraged</td><td>Repost for BTZ (snippet)</td></tr>
+    <tr><td><b>Closing</b></td><td>"Mark as received" / "Cancel post"</td><td>satisfied / withdrawn / expired</td><td>n.d.</td><td>"Fulfilled", post stays visible</td><td>Hide or delete</td></tr>
+    <tr><td><b>Limits</b></td><td>"Used sparingly"; weekly cap allowed</td><td>Requests repostable after about two weeks</td><td>Vague requests removed</td><td>None; identical flooding removed</td><td>"No spamming"</td></tr>
+    <tr><td><b>Offer-first rule</b></td><td>Forbidden to require</td><td>not found</td><td>not found</td><td>not found</td><td>n/a</td></tr>
+    <tr><td><b>Confidence</b></td><td><span class="conf high">high</span></td><td><span class="conf high">high</span></td><td>high policy · <span class="conf low">low</span> mechanics</td><td><span class="conf high">high</span>; expiry unconfirmed</td><td><span class="conf medium">medium</span> to low; status after 2026-09-01 unconfirmed</td></tr>
+  </table>
+  </div>
+  <p class="dim">n.d. = not documented on the pages read (not the same as absent).</p>
+</details>
+
+<details class="card" open>
+  <summary>Classifieds and marketplaces (6)</summary>
+  <div class="scroll">
+  <table>
+    <tr><th></th><th>OLX (Poland)</th><th>Vinted</th><th>Facebook Marketplace / groups</th><th>Gumtree (UK / AU)</th><th>Wallapop</th><th>Craigslist</th></tr>
+    <tr><td><b>Wanted posts</b></td><td>In practice, as ordinary adverts ("Kupię…", "Przyjmę…", "Poszukujemy…"); no type or filter</td><td>Forbidden: "requests for an item" are reportable</td><td>Marketplace: none (medium). Groups: ISO / "wanted" / "szukam" by convention</td><td>UK: "Stuff Wanted" and two more wanted categories. AU: unconfirmed</td><td>Reported as forbidden ("compro…/busco…")</td><td>"wanted" category</td></tr>
+    <tr><td><b>Fields</b></td><td>Normal advert form</td><td>—</td><td>Free-form group post</td><td>Normal advert form</td><td>—</td><td>Title, location, body</td></tr>
+    <tr><td><b>Visibility</b></td><td>Public, mixed into categories</td><td>—</td><td>Group members</td><td>Public, radius filter</td><td>—</td><td>Public, per city</td></tr>
+    <tr><td><b>Want matched to listings</b></td><td class="fail">None</td><td>—</td><td class="fail">None</td><td class="fail">None</td><td>—</td><td class="fail">None</td></tr>
+    <tr><td><b>Owner told about a want</b></td><td class="fail">None</td><td>—</td><td class="fail">None (sellers search the group by hand)</td><td class="fail">None</td><td>—</td><td class="fail">None</td></tr>
+    <tr><td><b>Seeker alerts</b></td><td>"Obserwuj wyszukiwanie", app and e-mail, daily as observed</td><td>Saved filters, follow a member; alerts unconfirmed officially</td><td>New-listing notifications (2021 report)</td><td>Saved search; UK daily e-mail; AU up to 50, valid 90 days, immediate/daily/weekly</td><td>Saved search with a bell</td><td>Saved search with e-mail alerts</td></tr>
+    <tr><td><b>Expiry</b></td><td>30 days, e-mail before expiry, extend or reactivate</td><td>—</td><td>None; sinks in the feed</td><td>Unconfirmed for goods</td><td>—</td><td>Free postings 7–45 days; renew every 48–72 h</td></tr>
+    <tr><td><b>Limits, moderation</b></td><td>50 followed searches; per-category advert limits; wanted adverts for animals forbidden</td><td>Removal, warning or ban</td><td>Admin rules per group</td><td>Wrong-category adverts removed</td><td>—</td><td>"overposted, cross-posted, nonlocal" prohibited</td></tr>
+    <tr><td><b>Known problems</b></td><td>Trade buyers ("skup") dominate "kupię"; alerts reported imprecise</td><td>Forum closed Jan 2024 over moderation load</td><td>Alerts reported sporadic</td><td>Misfiled for-sale adverts; 70 % in "Miscellaneous"; scams aimed at wanted posters (AU, snippet)</td><td>—</td><td>For-sale posts and dealers in "wanted"</td></tr>
+    <tr><td><b>Confidence</b></td><td>high practice · medium to low rules (help centre behind login)</td><td>high ban · medium alerts</td><td><span class="conf medium">medium</span></td><td><span class="conf high">high</span> (UK category, AU alerts)</td><td>low to medium ban · high saved search</td><td><span class="conf high">high</span></td></tr>
+  </table>
+  </div>
+</details>
+
+<details class="card">
+  <summary>Key platform sources (opened 2026-11-14)</summary>
+  <ul>
+    <li>Freecycle: https://freecycle.helpscoutdocs.com/article/30-make-a-post · https://freecycle.helpscoutdocs.com/article/97-alerts · https://freecycle.helpscoutdocs.com/article/287-settings · https://www.freecycle.org/pages/ModManual/LocalDecisions</li>
+    <li>Trash Nothing: http://trashnothing.com/api/v1.4/trashnothing-openapi.yaml · https://trashnothing.com/help/how-do-i-create-a-search-alert · https://trashnothing.com/help/what-are-the-rules-and-guidelines</li>
+    <li>Olio: https://help.olioapp.com/en/articles/12240702-wanted</li>
+    <li>Buy Nothing: https://help.buynothingproject.org/article/65-how-to-start-posting-in-buynothing · https://docs.buynothingproject.org/guidelines</li>
+    <li>Bunz: https://apps.apple.com/ca/app/bunz/id1068061556 · https://betakit.com/the-problem-is-me-bunz-owner-brings-in-gen-z-pranksters-to-save-dying-platform/</li>
+    <li>OLX: https://www.olx.pl/oferty/q-kupi%C4%99/ · https://www.olx.pl/oddam-za-darmo/q-przyjm%C4%99/ · https://blog.olx.pl/2018/10/22/houston-mamy-problem-czyli-emisja-a-promowanie-ogloszenia/</li>
+    <li>Vinted: https://www.vinted.co.uk/help/288-guide-to-reporting · https://www.vinted.co.uk/help/433-how-notifications-work</li>
+    <li>Facebook: https://www.moneysavingexpert.com/family/facebook-selling/ · https://www.facebook.com/policies_center/commerce</li>
+    <li>Gumtree: https://www.gumtree.com/for-sale/stuff-wanted · https://help.gumtree.com.au/articles/en_US/KB_Article/Creating-Search-Alerts-AU/?l=en_US&amp;fs=RelatedArticle</li>
+    <li>Wallapop: https://es.wallapop.com/motor-y-accesorios/remolque</li>
+    <li>Craigslist: https://www.craigslist.org/search/area/newyork?cat=waa · https://www.craigslist.org/about/help/account/features/searches</li>
+    <li>Outside the eleven: Peerby https://techcrunch.com/?p=885310 · Flynn and Lake https://www.gsb.stanford.edu/insights/francis-flynn-if-you-want-something-ask-it · YouGov https://yougov.com/en-us/articles/36287-how-consumers-feel-about-push-notifications-2021</li>
+  </ul>
+  <p class="dim">Pages were read through a text-extraction tool; quoted wording should be re-checked on the page before reuse.</p>
+</details>
+
+<h2 id="patterns">Proven patterns and known failure modes</h2>
+<details class="card" open>
+  <summary>Patterns with first-party support (14)</summary>
+  <div class="scroll">
+  <table>
+    <tr><th>#</th><th>Pattern</th><th>Evidence</th><th>Confidence</th></tr>
+    <tr><td>P1</td><td>A want has an explicit type; it is not an offer with a flag</td><td>Freecycle and Trash Nothing: one post entity with type offer / wanted; Buy Nothing Give / Ask. Where wants share the offer form with no type, offers get misfiled (Gumtree, Craigslist)</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>P2</td><td>Minimal fields: title, free text, optional photo, coarse location; category optional; no condition</td><td>gift patterns P2; classifieds patterns P2</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>P3</td><td>Specificity rule: reject "any clothes", "anything unwanted"</td><td>Olio wanted article; Freecycle FAQ</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>P4</td><td>Text hygiene: no phone, e-mail, address, link, money; declared resale</td><td>Freecycle; Trash Nothing <code>reselling</code>; Olio; Buy Nothing</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>P5</td><td>Seeker closes the want; explicit outcomes (satisfied, withdrawn, expired)</td><td>Trash Nothing API; Freecycle "Mark as received"; Buy Nothing "Fulfilled"</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>P6</td><td>Fixed default expiry; no reopening; repost as a new, pre-filled post</td><td>Freecycle, Trash Nothing (90 days); OLX (30 days, e-mail before expiry; 2018 source)</td><td><span class="conf high">high</span> / medium</td></tr>
+    <tr><td>P7</td><td>Throttle wants (weekly cap, longer repost interval); never require an offer first or a give/ask ratio</td><td>Freecycle moderator manual; Trash Nothing rules; Freegle wiki; Buy Nothing sets no cap</td><td><span class="conf high">high</span> for rules; no data on effect</td></tr>
+    <tr><td>P8</td><td>Seeker alert as a standing query with a cap (about 50), a digest default, a validity period (about 90 days) and a one-click off</td><td>OLX, Gumtree AU/UK, Wallapop, Craigslist</td><td>high for Gumtree, medium for others</td></tr>
+    <tr><td>P9</td><td>Match asynchronously; store matches; deduplicate on a stable id</td><td>AWS, Funda, polling post; microservices.io outbox pattern</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>P10</td><td>Group bursts: one summary on the first run; combine when more than five</td><td>NN/g; polling post (medium)</td><td><span class="conf high">high</span> for guidance</td></tr>
+    <tr><td>P11</td><td>Controls inside the product per notification type; conservative defaults because most users never change them</td><td>NN/g</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>P12</td><td>Short form: name first, infer or defer the rest; carry the failed search query into the form</td><td>NN/g EAS; Baymard field-count research (checkout, low to medium transfer)</td><td>high guidance · medium application</td></tr>
+    <tr><td>P13</td><td>Keep no-results recovery paths; a wanted prompt is an addition, not a replacement</td><td>NN/g and Baymard no-results guidance; neither lists a wanted prompt</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>P14</td><td>First contact inside the platform; "never pay to receive a gift" warning</td><td>Freecycle guidelines; CERT Orange Polska warning via press (medium)</td><td>high / medium</td></tr>
+  </table>
+  </div>
+  <p><b>Not a proven pattern:</b> automatic want-to-listing matching with owner notification; anonymous wants (no product precedent; the argument is legal); "still looking?" reminders and auto-closing on fulfilment for wants (no source); reputation gates on wants (no evidence).</p>
+</details>
+
+<details class="card" open>
+  <summary>Failure modes (12)</summary>
+  <div class="scroll">
+  <table>
+    <tr><th>Failure mode</th><th>Evidence</th><th>Platform response</th><th>Confidence</th></tr>
+    <tr><td>Stale wants left open after the need is met</td><td>Trustpilot review of Freecycle, 2025-06-09</td><td>Fixed expiry, one-tap "received", outcome filters; no reminder documented</td><td><span class="conf low">low</span> to medium</td></tr>
+    <tr><td>Begging and requests for expensive goods</td><td>MoneySavingExpert forum (2007); Freecycle FAQ and moderator manual</td><td>"Sparingly" norm, weekly cap, local limits on expensive items</td><td><span class="conf medium">medium</span></td></tr>
+    <tr><td>Feed flooded by repeated wants</td><td>Freecycle replies on Trustpilot (2025, 2026); Buy Nothing guidelines</td><td>Repost intervals, caps, removal of identical content</td><td><span class="conf medium">medium</span></td></tr>
+    <tr><td>Trade buyers take over</td><td>OLX "kupię": "Skup Aut…", "KUPIĘ KAŻDĄ TOYOTĘ!!!" per city; Gumtree "CASH FOR PHONES WANTED…"</td><td>None documented</td><td><span class="conf medium">medium</span> (single-day snapshots)</td></tr>
+    <tr><td>Offers misfiled as wants; duplicates</td><td>Gumtree 2 of first 10; Craigslist at least 3 of first 10</td><td>Removal of wrong-category adverts</td><td><span class="conf medium">medium</span></td></tr>
+    <tr><td>Weak categorisation</td><td>Gumtree: 1,121 of 1,591 wanted adverts in "Miscellaneous"</td><td>—</td><td><span class="conf medium">medium</span></td></tr>
+    <tr><td>Wants answered with sales offers; resellers</td><td>Freecycle FAQ; Trash Nothing rules</td><td>Warning then removal; resale disclosure</td><td>high rule · medium prevalence</td></tr>
+    <tr><td>Imprecise alerts read as spam</td><td>One journalist's test of OLX alerts (bezprawnik.pl, 2026-07-13)</td><td>—</td><td><span class="conf low">low</span></td></tr>
+    <tr><td>Notification fatigue</td><td>YouGov 2021 (US): 42 % change settings, 39 % turn off, 8 % delete the app; LinkedIn "cut member complaints in half" with one gateway</td><td>Gateway with dedup, caps, grouping</td><td>high figures · medium transfer</td></tr>
+    <tr><td>Slow or inconsistent volunteer moderation</td><td>Checkbook article on Buy Nothing; Trustpilot on Freecycle approval delays</td><td>—</td><td><span class="conf medium">medium</span></td></tr>
+    <tr><td>Free-text community space too costly to moderate</td><td>Vinted forum closed January 2024</td><td>Removal of the space</td><td>high for the event; link to wants unconfirmed</td></tr>
+    <tr><td>Seekers targeted by scammers</td><td>Gumtree AU warning (snippet); move to an outside messenger as the first sign of the main Polish classifieds scam</td><td>Keep contact details out of the text</td><td>low / medium</td></tr>
+  </table>
+  </div>
+  <p class="dim">Not measured anywhere: how often wants are fulfilled, whether caps help, how precise alerts are. Freegle's moderators add a counterpoint: "People, including us, overestimate the number of Wanted posts" (medium).</p>
+</details>
+
+<h2 id="code">Map of existing code</h2>
+<p class="dim">Backend paths are relative to <code>src/backend/app/</code>, frontend paths to <code>src/frontend/src/</code>, unless written in full. Confidence: high (read from code by the gatherers).</p>
+
+<details class="card" open>
+  <summary>What the mechanism would reuse</summary>
+  <div class="scroll">
+  <table>
+    <tr><th>Component</th><th>Where</th><th>Verdict</th><th>Note</th></tr>
+    <tr><td>Routes <code>/wanted</code>, <code>/add/hunting</code>, login gate, reserved slug</td><td><code>routing/paths.ts:19,24,138-139</code>, <code>routing/reservedSlugs.ts:16</code>, <code>src/backend/app/organizations/slugs.py:42</code></td><td><span class="badge">as is</span></td><td>Both under the client-only <code>(panel)</code> group</td></tr>
+    <tr><td><code>WantedView</code>, <code>HuntingCreateView</code></td><td><code>features/search/WantedView.tsx:7-90</code>, <code>features/add/HuntingCreateView.tsx:9-101</code></td><td><span class="badge">rewrite</span></td><td>Local state only; two create paths with different fields; delete without confirmation</td></tr>
+    <tr><td>Entry points: <code>/add</code> tile, "Konto" row, empty-search prompt</td><td><code>features/add/AddView.tsx:75-82</code>, <code>features/account/AccountView.tsx:42-46</code>, <code>features/search/SearchView.tsx:260-281</code></td><td><span class="badge">extend</span></td><td>Prompt forwards only <code>q</code>; active filters are dropped; "Konto" count is the constant 3</td></tr>
+    <tr><td>Category picker</td><td><code>components/shared/CategoryTreePicker.tsx:28-46</code></td><td><span class="badge">as is</span></td><td><code>mode="any"</code> needed for a non-leaf want</td></tr>
+    <tr><td>Locality combobox; radius chips, last locality, major towns</td><td><code>components/shared/LocalityCombobox.tsx:27-43</code>; <code>features/search/SearchFilters.tsx:138-214</code>, <code>features/search/lastLocality.ts</code></td><td><span class="badge">as is / extract</span></td><td><code>LocationSection</code> is private to <code>SearchFilters.tsx</code></td></tr>
+    <tr><td>Condition and offer-type chips; <code>SearchFilters</code> type</td><td><code>features/search/SearchFilters.tsx:383-422</code>, <code>api/search.ts:16-24</code></td><td><span class="badge">extract / as is</span></td><td>The item half of the type plus <code>q</code> describes a want</td></tr>
+    <tr><td>Item card for a matches list</td><td><code>components/shared/ItemCard.tsx:9-50</code>, <code>features/search/SearchResultCard.tsx:25-38</code></td><td><span class="badge">as is</span></td><td>If the backend returns <code>ProductSearchResult</code>-shaped rows</td></tr>
+    <tr><td>Notification bell and hook</td><td><code>components/shared/NotificationBell.tsx:12-80</code>, <code>hooks/useNotifications.ts:22-83</code></td><td><span class="badge">as is</span></td><td>Renders <code>message</code>, follows <code>link_path</code>, never switches on kind</td></tr>
+    <tr><td><code>NotificationKind</code> union</td><td><code>api/notifications.ts:3-15</code></td><td><span class="badge">extend</span></td><td>Still lists removed <code>PLEDGE_ITEM_REGISTERED</code></td></tr>
+    <tr><td>Take / propose from the item page</td><td><code>features/product/useItemTake.ts:21-141</code>, <code>groups/router/item_reservations.py:44-56</code></td><td><span class="badge">as is</span></td><td>No origin field, so a reservation cannot be linked back to a want</td></tr>
+    <tr><td><code>fold_pl()</code></td><td><code>alembic/versions/0087_fold_pl.py</code></td><td><span class="badge">as is</span></td><td>IMMUTABLE; usable in generated columns and indexes of a new table</td></tr>
+    <tr><td><code>products.search_vector</code> + GIN; <code>ix_products_name_trgm</code></td><td><code>product/models.py:45-92</code>, migrations 0088, 0094</td><td><span class="badge">as is (want→items)</span></td><td>Name weight A, description weight C; description has no trigram index</td></tr>
+    <tr><td><code>categories.path_text</code>; subtree CTE</td><td><code>category/models.py:26-60</code>; <code>search/application/search.py:227-234</code></td><td><span class="badge">column as is</span></td><td>CTE is private to search: copy or ACL</td></tr>
+    <tr><td>Listed-items base select</td><td><code>inventory/infrastructure/repository.py:269-314</code></td><td><span class="badge">as is</span></td><td>Includes RESERVED and IN_TRANSIT; add <code>AVAILABLE</code> and "no pending proposal" for takeable-only alerts</td></tr>
+    <tr><td>Locality dictionary with points</td><td><code>locations/models.py:43-69</code>, migration 0097</td><td><span class="badge">as is</span></td><td>A want can hold a <code>locality_id</code> directly; 21 of 54,440 have no point</td></tr>
+    <tr><td><code>items_visible_to(viewer, scope)</code></td><td><code>groups/infrastructure/visibility.py:91-108</code></td><td><span class="badge">as is / extend</span></td><td>As is for want→items; viewer is a value, not a column, for item→wants</td></tr>
+    <tr><td><code>parties_share_group</code></td><td><code>groups/infrastructure/visibility.py:41-59</code></td><td><span class="badge">as is</span></td><td>Accepts a correlated column for one party</td></tr>
+    <tr><td><code>can_view_item</code> / <code>require_item_visible</code></td><td><code>groups/application/item_visibility.py:28-44</code></td><td><span class="badge">as is</span></td><td>Re-check at notify or read time; take/propose already call it</td></tr>
+    <tr><td><code>register_item</code> <code>on_registered</code> hook</td><td><code>inventory/application/inventory_items.py:38-40,91-93</code></td><td><span class="badge">extend</span></td><td>Runs before commit; the way inventory triggers groups-side work</td></tr>
+    <tr><td><code>set_item_listing_preference</code></td><td><code>groups/application/term_item_listings.py:142-198</code></td><td><span class="badge">extend</span></td><td>Insert branch = "newly listed"; update branch = mode or visibility change</td></tr>
+    <tr><td>Reservation release</td><td><code>inventory/application/reservation_transitions.py:80-84</code></td><td><span class="badge">extend?</span></td><td>Only if release should signal; inventory has no listing knowledge</td></tr>
+    <tr><td>Outbox append, registry, dispatcher</td><td><code>outbox/service.py:22-38</code>, <code>outbox/registry.py:13-30</code>, <code>outbox/dispatcher.py:17-77</code>, <code>outbox/scheduler.py:16</code></td><td><span class="badge">as is</span></td><td>At least once; 60 s poll; handlers get <code>(db, payload)</code></td></tr>
+    <tr><td>Producer/consumer split for notifications</td><td><code>groups/application/pledges.py:38-66</code>, <code>notifications/outbox_listener.py:53-74</code></td><td><span class="badge">pattern</span></td><td>Text and kind stay in <code>app.notifications</code></td></tr>
+    <tr><td><code>create_notification</code></td><td><code>notifications/service.py:31-57</code></td><td><span class="badge">as is</span></td><td>A new kind of up to 30 characters needs no migration</td></tr>
+    <tr><td>Periodic idempotent scan</td><td><code>groups/application/term_end_scan.py</code>, <code>main.py:71-82,120-127</code></td><td><span class="badge">pattern</span></td><td>For expiry and digests: bounded window, marker row, one commit</td></tr>
+    <tr><td><code>check_text</code>, <code>ensure_no_contact_info</code></td><td><code>moderation/text_guard.py:89-120</code>, <code>moderation/rules.py:11-36</code></td><td><span class="badge">extend / as is</span></td><td>New <code>TextField</code> avoids "Nazwa rzeczy…" wording; classifier outage gives 503</td></tr>
+    <tr><td>ACL pattern</td><td><code>search/infrastructure/*_acl.py</code>, <code>groups/infrastructure/inventory_bridge.py</code></td><td><span class="badge">pattern</span></td><td>One ACL per foreign module, no <code>..schemas</code> import</td></tr>
+    <tr><td>Authorization matrix</td><td><code>core/authorization_matrix.py:140-144,192,197-198</code></td><td><span class="badge">extend</span></td><td>New rows; first match wins; ownership in the application layer</td></tr>
+  </table>
+  </div>
+</details>
+
+<details class="card" open>
+  <summary>What does not exist</summary>
+  <div class="scroll">
+  <table>
+    <tr><th>Missing piece</th><th>Evidence</th><th>Confidence</th></tr>
+    <tr><td>Any storage, API client, hook or DTO for wants</td><td>grep over <code>src/frontend/src</code>; wanted-mock F10</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>A signal when an item becomes listed, changes or becomes available again</td><td>No outbox call in <code>inventory</code>, <code>product</code>, <code>category</code>, <code>locations</code>, <code>search</code></td><td><span class="conf high">high</span></td></tr>
+    <tr><td>Reverse matching (one new item against many wants)</td><td>All text indexes are on item-side columns; <code>_near</code> binds the radius as a Python value (<code>search/application/search.py:163-196</code>); <code>items_visible_to</code> takes the viewer as a value</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>A minimum-rank cut-off for "is this a match"</td><td>"anything that passes the predicate is a result" (<code>search/application/search.py:237-269</code>)</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>Ordering of conditions ("at least GOOD")</td><td>Equality only (<code>search/application/search.py:307-308</code>)</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>Notification preferences, mute, digest, cap, deduplication, retention</td><td>notifications-outbox F4, F5; no unique key on <code>notifications</code>; rows never deleted</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>E-mail or push</td><td>No library, setting or code; <code>user_profiles.email</code> has no verification or consent column (<code>users/models.py:62</code>); earlier ADR-009 accepted e-mail for a later phase, not built</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>A persistent rate limit or daily cap</td><td>Both limiters are in-memory and per process</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>An owner-to-seeker flow</td><td>Every reservation starts from the receiver; no conversation kind is anchored to a want (<code>messaging/models.py:20-60</code>)</td><td>high; medium for the messaging gap</td></tr>
+    <tr><td>A privacy rule for showing a seeker to item owners</td><td><code>inventory/domain/item_privacy.py</code> covers reserver and history labels only</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>A settings screen for notifications; a notifications page</td><td>needed-items-and-reuse B5</td><td><span class="conf high">high</span></td></tr>
+    <tr><td>A separate worker process</td><td>Single uvicorn process; scheduler and poller share the event loop (<code>docker-compose.yml:28</code>)</td><td><span class="conf high">high</span></td></tr>
+  </table>
+  </div>
+</details>
+
+<div class="grid2">
+  <div class="card">
+    <h3 style="margin-top:0">Boundary rules that shape the design</h3>
+    <ul>
+      <li><code>app.search</code> and <code>app.pages</code> may be imported only by <code>app/main.py</code> (<code>tests/test_module_boundaries.py:17,54-97</code>). The architecture document says <code>app.search</code> "owns no table and writes nothing". Precision: the test checks imports, not writes, so the read-only role is a documented rule, not a tested one. A wants feature cannot import <code>_matching</code> or <code>_near</code> and should not live there.</li>
+      <li><code>app.inventory</code> never imports <code>app.groups</code>; listing knowledge lives in <code>app.groups</code>.</li>
+      <li>Any new select over listing preferences defaults to PUBLIC and opts in to PRIVATE explicitly.</li>
+      <li>The statement count must not grow with rows (<code>tests/test_search_api.py:106,219</code>).</li>
+      <li>A seeker outside the owner's groups and events can reserve only through the PERSONAL context, and only when the item has a live place; matching that ignores this would notify people about items they cannot take.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">The mock versus the brief</h3>
+    <table>
+      <tr><th>Aspect</th><th>Mock today</th><th>Brief</th></tr>
+      <tr><td>Name</td><td>Yes, max 120</td><td>Yes</td></tr>
+      <tr><td>Description</td><td>Form only, max 1000, discarded</td><td>Implied</td></tr>
+      <tr><td>Offer type</td><td>Displayed, not selectable</td><td>Yes</td></tr>
+      <tr><td>Category, condition, location and radius, expiry, photos</td><td>None</td><td>Yes (photos "to be considered")</td></tr>
+      <tr><td>Match count</td><td>Hard-coded, not a link</td><td>Matching</td></tr>
+      <tr><td>Notification to the seeker</td><td>Promised five times ("Damy znać, gdy ktoś doda pasującą rzecz")</td><td>Yes</td></tr>
+      <tr><td>Notification to the item owner</td><td class="fail">Not mentioned anywhere</td><td>Yes ("notifies both sides")</td></tr>
+      <tr><td>Visibility to others</td><td>None; private list under "Konto"</td><td>To be decided</td></tr>
+      <tr><td>Edit, fulfil, pause</td><td>Delete only</td><td>Yes</td></tr>
+    </table>
+    <p><b>This is an open product decision, not a research result.</b> Earlier documents agree with the mock: wants are "nigdy w wynikach" and feed ranking rule (1) of the user's own search. One line of mock copy ("dasz znać, czego potrzebujesz") differs from the other four; it is an inconsistency, not evidence of intent.</p>
+  </div>
+</div>
+
+<h2 id="needed">Relation to needed items</h2>
+<div class="card rec">
+  <p><b>Statement: keep needed items and wanted posts separate. Do not extend or replace.</b> <span class="conf high">high</span> for the facts, medium-high for the recommendation (the final call is a product decision).</p>
+  <div class="scroll">
+  <table>
+    <tr><th>Aspect</th><th>Needed item (code today)</th><th>Wanted post</th></tr>
+    <tr><td>Author</td><td>The Circle's active organizer only (<code>groups/application/terms.py:264-276</code>)</td><td>Any logged-in user</td></tr>
+    <tr><td>Scope</td><td>Exactly one Term, NOT NULL FK (<code>groups/models.py:271-285</code>)</td><td>The user's account, standing</td></tr>
+    <tr><td>Content</td><td><code>name</code> ≤255, <code>description</code> ≤500; no category, product, location, offer type, status or expiry</td><td>Text plus optional filters</td></tr>
+    <tr><td>Response</td><td>A pledge ("Ja to przyniosę"): one active per need, by a Term participant, no item involved (<code>groups/models.py:288-307</code>)</td><td>A listed item the seeker takes or proposes a swap for</td></tr>
+    <tr><td>Matching</td><td>None; people read the list</td><td>System matches against listed items</td></tr>
+    <tr><td>Lifecycle</td><td>Soft delete by the organizer; otherwise ends with the Term</td><td>Create, edit, fulfil, expire, renew</td></tr>
+    <tr><td>Visibility</td><td>That of the Term page, with the pledger's name</td><td>Its own rules</td></tr>
+  </table>
+  </div>
+  <p><b>History:</b> migrations 0018–0020 replaced a category enum with a <code>product_id</code> FK; 0063 made a pledge "a pure declaration" by dropping <code>pledges.resolved_reservation_id</code>; 0067 deleted every pledge and needed item; 0068 replaced <code>product_id</code> with a plain <code>name</code>. The team already tried "a need points at a catalog product" and "a pledge resolves into a reservation" and removed both on 2026-10-26/27. The docstrings give the mechanics, not the product reasons (medium for "why").</p>
+  <p><b>What carries over is technique, not tables:</b> demand-side text moderated synchronously like a product name, soft delete, and the outbox event split. The frontend gatherer reached the same verdict from the UI alone. Open and outside this research: whether needed items should one day be matched against listed items too.</p>
+</div>
+
+<h2 id="options">Options and trade-offs per decision area</h2>
+<p class="dim">Distinct viable approaches for the brainstorming phase. Recommendations are the synthesis's inference from the evidence; none is a detailed design. The recommended option in each area is marked.</p>
+
+<details class="card" open>
+  <summary>1. Product shape and visibility — recommended: E, starting with A (confidence: medium)</summary>
+  <div class="scroll">
+  <table>
+    <tr><th>Option</th><th>What it is</th><th>For</th><th>Against</th><th>Evidence base</th></tr>
+    <tr><td><b>A. Private seeker alert</b></td><td>A want is a private list entry; the system matches it and tells the seeker</td><td>Matches the mock and earlier documents; precedent as saved-search alerts; most code exists; smallest privacy exposure</td><td>Functionally a saved-search alert, which the brief excludes as a separate feature; owners never learn of demand; adds nothing when nobody lists the item</td><td><span class="conf high">high</span></td></tr>
+    <tr><td><b>B. Public wanted posts</b></td><td>Wants are browsable; owners answer by hand</td><td>Precedent on gift platforms; creates supply by asking; works for unlisted items</td><td>Documented failure modes; needs moderation capacity, a response channel, a seeker-identity rule, a public route and slug, a report entry point; Article 9 question; contradicts the earlier "nigdy w wynikach" intent</td><td>high pattern · medium to low for how well it works</td></tr>
+    <tr><td><b>C. Group-scoped wants</b></td><td>Visible to members of the seeker's groups (or one chosen group)</td><td>Matches gift-community practice; reuses <code>parties_share_group</code> and scope "mine"; bounded audience</td><td>Still needs a response channel and identity rule; smaller audience</td><td><span class="conf medium">medium</span></td></tr>
+    <tr><td><b>D. Private want plus system-mediated owner notification</b></td><td>Wants stay private; the owner of a matching item is told "someone is looking for this" without the seeker's identity</td><td>Delivers "both sides" without public text</td><td><b>No precedent</b>; the owner did not ask; adds little for already-listed items because take/propose already notifies the owner when the seeker acts (inference); needs an off switch and consent thinking</td><td><span class="conf low">low (novel)</span></td></tr>
+    <tr><td><b>E. A, then C or D</b> <span class="badge">recommended</span></td><td>Ship A; add visibility or owner notification as separate increments after measuring</td><td>Limits the unproven part; keeps the model open</td><td>Two rounds of product work</td><td>—</td></tr>
+  </table>
+  </div>
+  <p>Design the want so a visibility field can be added later. If the user wants "both sides" from day one, prefer D with an opt-out and anonymity over B, and say plainly that it is an experiment. Confirm that A does not collide with the "no saved searches" exclusion.</p>
+</details>
+
+<details class="card" open>
+  <summary>2. Data model — recommended: D (new entity, name required, optional search-shaped filters) plus a match table (confidence: medium-high for "new entity", medium for the field set)</summary>
+  <div class="scroll">
+  <table>
+    <tr><th>Option</th><th>What it is</th><th>For</th><th>Against</th></tr>
+    <tr><td>A. Extend <code>needed_items</code></td><td>Add author, optional term, filters</td><td>One demand table</td><td>Reverses migrations 0020, 0063, 0067–0068; organizer-only writes and term scope are built into every path; <span class="fail">rejected</span></td></tr>
+    <tr><td>B. Want as an item or listing with a flag</td><td>Reuse inventory rows</td><td>Reuses listing code</td><td>An item is a ledger-backed inventory row; platforms that mix wants into the offer form get misfiling; <span class="fail">rejected</span></td></tr>
+    <tr><td>C. New want entity, name only</td><td><code>name</code> (+ optional description), owner, status, expiry</td><td>Smallest form; matches the mock's list path</td><td>Matching on text alone; no radius; every match is nationwide</td></tr>
+    <tr><td><b>D. New want entity, name plus optional search-shaped filters</b> <span class="badge">recommended</span></td><td>As C plus optional category (any node), offer mode, locality and radius, perhaps condition</td><td>The fields search already filters on; gives the indexable pre-filter for reverse matching; empty-search prompt can carry active filters; a want can be opened as a search URL</td><td>More form to design; condition has equality only; no platform asks for condition</td></tr>
+  </table>
+  </div>
+  <ul>
+    <li><b>Match record:</b> a (want, item) table with a unique key serves deduplication, the "matches for this want" list and digest input. Without it there is no deduplication anywhere. Recommended.</li>
+    <li><b>Module home:</b> a new module with its own ACLs versus inside <code>app/groups</code> (listing knowledge and the notification bridge are there; already the largest context). <code>app/search</code> is ruled out. Left to the design phase; the evidence favours a new module.</li>
+    <li><b>Photos:</b> optional everywhere; for a private want a photo has no reader. Defer.</li>
+    <li><b>Loose pointers:</b> a match table would follow the listing-preference convention (no FK to items) and needs its own staleness handling.</li>
+  </ul>
+</details>
+
+<details class="card" open>
+  <summary>3. Matching — recommended: both directions, from the outbox, existing text recipe with a stricter threshold (confidence: medium)</summary>
+  <h3>When to match</h3>
+  <table>
+    <tr><th>Option</th><th>For</th><th>Against</th></tr>
+    <tr><td>A. Forward only, periodic: re-run each want as a search on a schedule</td><td>No reverse logic; reuses search-shaped selects</td><td>Delay; one query per want per run conflicts with the constant-statement convention; first-run flood</td></tr>
+    <tr><td>B. Reverse on new item only</td><td>Timely</td><td>A new want sees nothing already listed</td></tr>
+    <tr><td><b>C. Both</b> <span class="badge">recommended</span>: forward once on want create (capped summary), reverse on each newly listed item</td><td>Complete; matches the percolator model and the polling post</td><td>Two code paths; reverse direction needs correlated radius and visibility predicates</td></tr>
+  </table>
+  <h3>Where it runs</h3>
+  <table>
+    <tr><th>Option</th><th>For</th><th>Against</th></tr>
+    <tr><td>In the listing request</td><td>Immediate</td><td>Lengthens an already long transaction</td></tr>
+    <tr><td><b>Outbox event from the listing write points</b> <span class="badge">recommended</span></td><td>Atomic with the listing; existing machinery; three sources recommend buffering</td><td>Up to 60 s delay; at-least-once, so the consumer must be idempotent</td></tr>
+    <tr><td>Periodic scan</td><td>Simple; natural home for expiry and digests</td><td>Delay; needs a marker</td></tr>
+  </table>
+  <h3>How text is compared</h3>
+  <div class="scroll">
+  <table>
+    <tr><th>Option</th><th>Fit</th><th>Cost</th><th>Risk</th><th>Confidence</th></tr>
+    <tr><td><b>A. Existing recipe</b> <span class="badge">recommended</span>: <code>'simple'</code> full-text (all words) OR trigram word similarity on the folded name OR category, with a stricter threshold for alerts</td><td>Reuses columns and indexes for want→items; a scan for item→wants</td><td>Negligible</td><td>Inflected forms match only through trigram on the name; threshold must be tuned; false positives on short words</td><td>high mechanically; quality unmeasured</td></tr>
+    <tr><td>B. Stored <code>tsquery</code> per want, <code>@@</code> after plain-column pre-filter</td><td>Standard PostgreSQL</td><td>Negligible at small scale</td><td>No index for <code>@@</code> on the query column; strict AND</td><td>high docs · medium adequacy</td></tr>
+    <tr><td>C. GiST <code>tsquery_ops</code> with <code>&lt;@</code> as a candidate filter</td><td>Same</td><td>Extra index</td><td>Untested inference; lossy; AND-only wants</td><td><span class="conf low">low</span></td></tr>
+    <tr><td>D. Hunspell Polish dictionary on PostgreSQL 18</td><td>Real lemmas</td><td>Custom database image on every environment including test containers; per-session load; rebuild of every stored vector and query; folding order conflict with <code>fold_pl()</code></td><td>Brand names and slang fall through</td><td>high recipe · medium cost</td></tr>
+    <tr><td>E. Wait for PostgreSQL 19 Snowball Polish</td><td>Built in</td><td>Upgrade, reindex, recompute stored vectors</td><td>RC 2 as of 2026-11-12, GA date not published; quality on short listings unconfirmed; expects diacritics</td><td>high for the release-note fact</td></tr>
+    <tr><td>F. Application lemmatiser (Morfeusz 2)</td><td>Keeps PostgreSQL stock</td><td>Native dependency; ambiguity handling; licence not checked</td><td>—</td><td><span class="conf medium">medium</span></td></tr>
+    <tr><td>G. Small embedding model + pgvector</td><td>Semantic matches</td><td>Extension in the image, a model in the app process, re-embedding on edits</td><td>Yes/no threshold unknown for three-word Polish wants; CPU and memory unconfirmed</td><td><span class="conf medium">medium</span></td></tr>
+    <tr><td>H. Search engine with a percolator</td><td>The reference model</td><td>A new service</td><td>Out of proportion at this scale</td><td>high that it is unnecessary now</td></tr>
+  </table>
+  </div>
+  <p><b>Other matching decisions with evidence:</b> pre-filter by status, category subtree, mode and radius before text; apply <code>items_visible_to</code> or its correlated equivalent on every match and re-check with <code>can_view_item</code> at read time; decide whether a match must be takeable; exclude the seeker's own items; decide whether a released reservation or an edited item re-triggers matching (no source; product decision).</p>
+  <p><b>Before committing to thresholds:</b> an <code>EXPLAIN ANALYZE</code> of the reverse statement on realistic row counts, and a small labelled set of real Polish want/item title pairs to measure precision and recall. Do not add D–H now. Revisit a Polish configuration when PostgreSQL 19 is generally available.</p>
+</details>
+
+<details class="card" open>
+  <summary>4. Notifications — recommended: seeker only, in-app, grouped, controls shipped together (confidence: medium-high for the shape, low for any number)</summary>
+  <h3>Who is notified</h3>
+  <table>
+    <tr><th>Option</th><th>For</th><th>Against</th></tr>
+    <tr><td><b>Seeker only</b> <span class="badge">recommended</span></td><td>Requested by the seeker; all precedent; the mock</td><td>Does not meet the brief's "both sides"</td></tr>
+    <tr><td>Seeker and owner</td><td>The brief</td><td>No precedent; unrequested; needs its own kind, off switch and default; adds little for listed items (inference)</td></tr>
+    <tr><td>Owner only on opt-in ("tell me when someone wants what I list")</td><td>Precedent: Trash Nothing alert on Requests</td><td>A setting nobody may turn on</td></tr>
+  </table>
+  <h3>How it is delivered</h3>
+  <table>
+    <tr><th>Option</th><th>For</th><th>Against</th></tr>
+    <tr><td>A. In-app row per match</td><td>Exists; a new kind needs no migration</td><td>Floods on the first run and on popular wants; pushes action prompts out of the 50-row bell</td></tr>
+    <tr><td><b>B. In-app with grouping</b> <span class="badge">recommended</span>: one summary on want create, one row per want per window</td><td>NN/g, polling post; protects the bell</td><td>Needs a periodic or delayed step; slight delay on scarce items</td></tr>
+    <tr><td>C. Daily digest from the match table</td><td>Funda; Fitz et al. (batching improved well-being, n = 237)</td><td>Item may be gone by send time; needs a liveness check; in-app only today, so a digest is just a grouped row</td></tr>
+    <tr><td>D. E-mail or push</td><td>Reaches users outside the app</td><td>Nothing exists; e-mail needs verified, consented addresses, RFC 8058 unsubscribe; Polish consent rule per channel (legal review); earlier ADR-009 deferred e-mail</td></tr>
+  </table>
+  <p><b>Controls the evidence asks for together:</b> a unique (want, item) key so a pair alerts once; a per-want mute as well as any global switch; a per-user cap as a database count (number is a product guess; no source gives a tested value); skip items already viewed, reserved or no longer listed at send time (inference from LinkedIn's filter); keep the match kind out of <code>derivePendingActions</code>; pass user text through <code>clock.fit_notification_message</code>.</p>
+</details>
+
+<details class="card">
+  <summary>5. Lifecycle — recommended: default expiry with one reminder, seeker-driven closing with explicit outcomes (confidence: medium; the period is a product choice)</summary>
+  <table>
+    <tr><th>Decision</th><th>Options</th><th>Evidence</th></tr>
+    <tr><td>Default expiry</td><td>30 days (OLX), 60, 90 (Freecycle, Trash Nothing)</td><td>No data on the best period. A matched want needs no bumping, so a longer period costs little noise (inference). Storage limitation supports having one</td></tr>
+    <tr><td>Before expiry</td><td>Silent removal (gift networks) vs reminder then close (OLX; marketplace snippets, low)</td><td>Reminder is the safer shape; unconfirmed for wants</td></tr>
+    <tr><td>Closing</td><td>Seeker marks it found; auto-close when a reservation follows a match</td><td>Auto-close has no source and no hook: take/propose carry no origin</td></tr>
+    <tr><td>States</td><td>open, fulfilled, withdrawn, expired (Trash Nothing)</td><td>High</td></tr>
+    <tr><td>Edit</td><td>Edit in place vs replace (Funda treats an edit as a new search)</td><td>One source; decide whether an edit re-runs forward matching</td></tr>
+  </table>
+  <p>Prefer a prompt to close after the seeker reserves a matched item over automatic closing.</p>
+</details>
+
+<details class="card">
+  <summary>6. Moderation and abuse</summary>
+  <table>
+    <tr><th>Control</th><th>Status in code</th><th>Evidence</th></tr>
+    <tr><td>Contact-info rule then classifier, synchronously on write</td><td>Exists; add a <code>TextField</code> for wants</td><td>Precedent in needed items; a classifier outage returns 503</td></tr>
+    <tr><td>Cap on active wants and on new wants per period</td><td>New; must be a database count</td><td>Freecycle weekly cap; in-memory limiters lose state on restart</td></tr>
+    <tr><td>Specificity rule</td><td>New; a minimum-length or "not only a category word" check is the cheap form (inference)</td><td>Olio</td></tr>
+    <tr><td>No offer-first or ratio gate</td><td>Nothing to build</td><td>Freecycle, Freegle, Buy Nothing</td></tr>
+    <tr><td>Report entry point</td><td>Needed once wants are visible to others</td><td>Trash Nothing; DSA Articles 16–17 via an unofficial mirror (medium)</td></tr>
+    <tr><td>Sensitive wants</td><td>New thinking; only matters once wants or their existence are shown to others</td><td>CJEU C-184/20 via commentary (medium); application low</td></tr>
+  </table>
+  <p>The classifier detects harm categories, not spam, begging or off-topic requests. For a private want most abuse scenarios disappear: nobody else reads the text. One more argument for starting with option A of area 1 (inference).</p>
+</details>
+
+<details class="card">
+  <summary>7. Response flow and 8. UX entry points</summary>
+  <table>
+    <tr><th>Response option</th><th>Status</th></tr>
+    <tr><td><b>Seeker opens the matched item and takes or proposes</b> <span class="badge">recommended first</span></td><td>Exists end to end; notifies both parties already</td></tr>
+    <tr><td>Owner offers a listed item to a seeker ("mam to")</td><td>New: no owner-initiated reservation, no want-anchored conversation</td></tr>
+    <tr><td>Owner without a listed item answers a public want</td><td>New: needs a message channel or a "list it now" path; <code>ItemCreateView</code> can pass navigation state after create</td></tr>
+  </table>
+  <ul>
+    <li>Keep both existing entries and make them one source of truth (one hook feeding the list, the count and the form). The mock's two create paths differ; pick one field set.</li>
+    <li>The empty-search prompt should stay beside the plain "nothing found" statement and the "search everywhere" path, and can forward the active filters as well as <code>q</code>. Whether <code>?name=</code> survives a guest's login round trip was not traced.</li>
+    <li>The match line is plain text today; where matches open is undesigned.</li>
+    <li>Asking for push permission right after saving a want is the recommended moment if push is ever added (web.dev, high).</li>
+  </ul>
+</details>
+
+<h2 id="recs">Recommendations</h2>
+<div class="card scroll">
+  <table>
+    <tr><th>#</th><th>Recommendation</th><th>Priority</th><th>Effort</th><th>Rationale</th><th>Risk if skipped</th></tr>
+    <tr><td>R1</td><td>Decide product shape with the user: seeker only or both sides; private, group or public; and confirm the saved-search scope line</td><td><span class="sev critical">critical, first</span></td><td>Small</td><td>Everything else depends on it; mock and brief disagree</td><td>Building the unproven half by default</td></tr>
+    <tr><td>R2</td><td>Start with the private want and seeker notification</td><td><span class="sev warning">high</span></td><td>Medium</td><td>Precedent, ready code, smallest abuse and privacy surface</td><td>—</td></tr>
+    <tr><td>R3</td><td>New want entity and match table in a new module with ACLs</td><td><span class="sev warning">high</span></td><td>Medium</td><td>Boundary rules; deduplication; list and digest source</td><td>Repeat alerts; boundary test failures</td></tr>
+    <tr><td>R4</td><td>Raise a "listed" signal at <code>register_item</code> (via <code>on_registered</code>) and the insert branch of <code>set_item_listing_preference</code>; decide on release and edits</td><td><span class="sev warning">high</span></td><td>Small to medium</td><td>No signal exists</td><td>New items never matched</td></tr>
+    <tr><td>R5</td><td>Match both ways from the outbox with the existing text recipe and a stricter threshold</td><td><span class="sev warning">high</span></td><td>Medium</td><td>Area 3</td><td>Missed or noisy matches</td></tr>
+    <tr><td>R6</td><td>Measure before tuning: <code>EXPLAIN ANALYZE</code> on realistic counts; a labelled sample of Polish pairs</td><td><span class="sev warning">high</span></td><td>Small</td><td>Scan adequacy and Polish quality are both unmeasured</td><td>Wrong thresholds; surprise latency</td></tr>
+    <tr><td>R7</td><td>Ship grouping, per-want mute, a per-user cap and pair deduplication with the first version</td><td><span class="sev warning">high</span></td><td>Small to medium</td><td>Nothing exists; first recommendation-type notification in the system</td><td>Fatigue; action prompts pushed out of the bell</td></tr>
+    <tr><td>R8</td><td>Give wants their own <code>TextField</code>, the contact-info rule, a database-count cap and a default expiry with a reminder</td><td><span class="sev info">medium</span></td><td>Small</td><td>Areas 5 and 6</td><td>Stale and spammy wants</td></tr>
+    <tr><td>R9</td><td>Legal review before public wants, owner notifications or e-mail</td><td><span class="sev warning">high before those increments</span></td><td>External</td><td>Findings rest on commentary</td><td>Compliance exposure</td></tr>
+    <tr><td>R10</td><td>Do not add a Polish dictionary, embeddings or a search engine now; revisit when PostgreSQL 19 is generally available</td><td><span class="sev info">medium</span></td><td>None</td><td>Cost without measured benefit</td><td>—</td></tr>
+    <tr><td>R11</td><td>Keep needed items unchanged</td><td>—</td><td>None</td><td>See "Relation to needed items"</td><td>Reversing recent decisions</td></tr>
+  </table>
+</div>
+
+<h2 id="quality">Quality of the evidence</h2>
+<div class="grid2">
+  <div class="card"><h3 style="margin-top:0" class="pass">Strengths</h3><ul>
+    <li>Code facts read with file and line; two cross-gatherer discrepancies resolved from code</li>
+    <li>First-party sources for the main platform rules</li>
+    <li>PostgreSQL behaviour taken from the official documentation</li></ul></div>
+  <div class="card"><h3 style="margin-top:0" class="fail">Weaknesses</h3><ul>
+    <li>"Absent on all platforms" rests on documentation, not app use</li>
+    <li>OLX, Gumtree UK, Facebook, Bunz help pages unreadable; Olio undocumented</li>
+    <li>Nothing measured: no query plan, no match-quality sample, no volume figures</li></ul></div>
+  <div class="card"><h3 style="margin-top:0">Opportunities</h3><ul>
+    <li>Mock, routes, pickers, bell and take/propose are reusable</li>
+    <li>Search filter shape doubles as the want shape</li>
+    <li>PostgreSQL 19 may bring a built-in Polish stemmer</li></ul></div>
+  <div class="card"><h3 style="margin-top:0">Threats</h3><ul>
+    <li>Notification volume in a system with no controls</li>
+    <li>Polish inflection lowering match recall</li>
+    <li>Legal reading of Article 9 and Article 398 unreviewed</li></ul></div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Confidence by area</h3>
+  <table>
+    <tr><th>Area</th><th>Confidence</th><th>Reason</th></tr>
+    <tr><td>Codebase map</td><td><span class="conf high">high</span></td><td>Read from code with file and line</td></tr>
+    <tr><td>Platform comparison</td><td>high to low by platform</td><td>First-party pages where they opened; see the Confidence rows of the comparison tables</td></tr>
+    <tr><td>"No platform matches wants or notifies owners"</td><td><span class="conf medium">medium</span></td><td>Absence inferred from documentation</td></tr>
+    <tr><td>Failure modes</td><td><span class="conf medium">medium</span> to low</td><td>Snapshots, reviews, one test</td></tr>
+    <tr><td>Needed items: keep separate</td><td><span class="conf high">high</span> facts</td><td>Code and migration history</td></tr>
+    <tr><td>Matching technique</td><td>high docs · medium adequacy · low Polish quality</td><td>Nothing measured</td></tr>
+    <tr><td>Notification delivery</td><td>high current state · medium transfer</td><td>General research; no tested cap</td></tr>
+    <tr><td>Privacy and law</td><td>medium texts · <span class="conf low">low</span> application</td><td>Commentary and unofficial mirrors</td></tr>
+    <tr><td>UX</td><td>high guidance · medium application</td><td>No study of wanted-post forms</td></tr>
+  </table>
+</div>
+
+<h2 id="subq">Sub-questions: status</h2>
+<div class="card">
+  <table>
+    <tr><th>#</th><th>Question</th><th>Status</th></tr>
+    <tr><td>Q1</td><td>What a wanted post consists of</td><td class="pass">Answered</td></tr>
+    <tr><td>Q2</td><td>When and how to match; Polish on PostgreSQL</td><td>Answered as options; quality and cost unmeasured</td></tr>
+    <tr><td>Q3</td><td>Who is notified, how often, fatigue</td><td>Answered as options; who is notified is a product decision; no tested cap</td></tr>
+    <tr><td>Q4</td><td>Who may see a want and the seeker</td><td>Options given; unresolved product decision; legal review needed</td></tr>
+    <tr><td>Q5</td><td>Lifecycle and link to reservations</td><td>Answered; no link from a reservation back to a want exists</td></tr>
+    <tr><td>Q6</td><td>Abuse handling</td><td class="pass">Answered</td></tr>
+    <tr><td>Q7</td><td>Where wants are created, browsed, answered; what the mock promises</td><td>Answered for create and the mock; browsing and "mam to" are undesigned</td></tr>
+    <tr><td>Q8</td><td>Needed items</td><td class="pass">Answered: keep separate</td></tr>
+    <tr><td>Q9</td><td>Modules, tables, ACLs, boundaries</td><td class="pass">Answered</td></tr>
+  </table>
+</div>
+
+<h2 id="appendix">Gaps, contradictions, sources</h2>
+<details class="card">
+  <summary>Gaps and uncertainties</summary>
+  <ul>
+    <li>Not published by any platform: fulfilment rate of wants, effect of caps, alert precision.</li>
+    <li>Unreadable or undocumented: OLX help centre and rules (login redirect); Gumtree UK help; Facebook Help Centre; Bunz FAQ (403) and its state after 2026-09-01; Olio wanted-listing fields, duration and visibility; Buy Nothing Ask expiry.</li>
+    <li>Unmeasured: reverse-scan cost; match precision and recall on Polish; embedding model CPU and memory; expected numbers of wants and items.</li>
+    <li>Untested inference: GiST <code>&lt;@</code> candidate filter (low).</li>
+    <li>No source: optimal expiry for wants; numeric alert cap; effect of quiet hours; "still looking?" reminders; auto-close on fulfilment; ranking wants for an owner; which item-side events should re-trigger matching; anonymous wants as a product feature.</li>
+    <li>Legal: all points from commentary, legal press or unofficial mirrors; the Polish court ruling on service versus marketing messages was not opened.</li>
+    <li>Code not fully traced: <code>?name=</code> through the login round trip; facade exports for a new ACL; <code>set_personalised_cache_headers</code> body; messaging internals behind the "no want-anchored conversation" statement; multi-worker scheduler behaviour.</li>
+  </ul>
+</details>
+
+<details class="card">
+  <summary>Contradictions between sources</summary>
+  <table>
+    <tr><th>Topic</th><th>Positions</th><th>Standing</th></tr>
+    <tr><td>Outbox poll interval</td><td>30 s (docstring, one gatherer) vs 60 s (constant, another)</td><td class="pass">Resolved: 60 s, <code>outbox/scheduler.py:16</code></td></tr>
+    <tr><td>Number of notification kinds</td><td>11 (backend) vs 12 (frontend)</td><td class="pass">Resolved: frontend union still lists removed <code>PLEDGE_ITEM_REGISTERED</code></td></tr>
+    <tr><td>Want as peer of an offer vs own object</td><td>Gift platforms vs classifieds</td><td>Reconciled: both need an explicit type</td></tr>
+    <tr><td>Caps on wants</td><td>Freecycle cap vs Freegle and Buy Nothing none</td><td>Open; product decision</td></tr>
+    <tr><td>Expiry period</td><td>90 vs 30 vs 7–45 days</td><td>Open; no data</td></tr>
+    <tr><td>Vinted alerts</td><td>Not in the official list vs reported by third parties</td><td>Unconfirmed</td></tr>
+    <tr><td>Facebook Marketplace wanted option</td><td>Absent vs claimed by unopened pages</td><td>Medium for absent</td></tr>
+    <tr><td>Wallapop alert frequency</td><td>Daily (2019) vs instant (current)</td><td>Read as a change over time</td></tr>
+    <tr><td>Who is notified</td><td>Brief: both sides vs mock and earlier documents: seeker</td><td>Open; product decision</td></tr>
+  </table>
+</details>
+
+<details class="card">
+  <summary>Methodology and sources</summary>
+  <ul>
+    <li><b>Approach:</b> parallel mixed research. Three codebase gatherers traced models, services, routers, migrations and tests; four external gatherers filled a fixed comparison template per platform or technique.</li>
+    <li><b>Confidence scale:</b> high (code, or several first-party sources), medium (one source or inferred), low (assumption or snippet).</li>
+    <li><b>Synthesis checks:</b> each headline point from the gatherers' summaries was re-read in the findings file; two disagreements were settled from code.</li>
+    <li><b>Findings files</b> (in <code>analysis/findings/</code>): codebase-items-search-supply-and-matching, codebase-items-search-visibility-signals-boundaries, codebase-needs-signals-needed-items, codebase-needs-signals-notifications-outbox, codebase-frontend-wanted-mock, codebase-frontend-needed-items-and-reuse, external-gift-platforms-comparison, external-gift-platforms-patterns, external-classifieds-platform-comparison, external-classifieds-patterns, external-matching-alerts-matching, external-matching-alerts-notifications, external-ux-trust-forms-entry-response, external-ux-trust-abuse-privacy, external-ux-trust-lifecycle-notifications.</li>
+    <li><b>Matching and delivery sources:</b> PostgreSQL 18 documentation (functions-textsearch, textsearch-indexes, gist, gin, pgtrgm, textsearch-dictionaries, sql-insert); https://www.postgresql.org/docs/19/release-19.html ; https://www.depesz.com/?p=4454 ; https://snowballstem.org/algorithms/polish/stemmer.html ; Elasticsearch percolate query reference; AWS OpenSearch percolator post; https://blog.funda.nl/how-we-enhanced-the-saved-search-feature-with-opensearch/ ; https://microservices.io/patterns/data/transactional-outbox.html ; LinkedIn Air Traffic Controller post; https://scholars.duke.edu/publication/1402953 ; https://www.rfc-editor.org/rfc/rfc8058</li>
+    <li><b>UX and trust sources:</b> https://www.nngroup.com/articles/push-notification/ ; https://www.nngroup.com/articles/eas-framework-simplify-forms/ ; https://www.nngroup.com/articles/search-no-results-serp/ ; https://baymard.com/blog/no-results-page ; https://web.dev/articles/push-notifications-permissions-ux ; https://wiki.ilovefreegle.org/Best_Practice_Notes ; https://ar5iv.labs.arxiv.org/html/2211.09043 ; Covington commentary on CJEU C-184/20; https://gdpr-info.eu/art-9-gdpr/ ; https://gdpr-info.eu/art-5-gdpr/ ; Prawo.pl on Article 398 of the Electronic Communications Law</li>
+  </ul>
+  <p>Full URL lists are in each findings file and in <a href="research-report.md" target="_blank" rel="noopener">research-report.md</a>, Appendix A.</p>
+</details>
+
+<details class="card">
+  <summary>Out-of-scope observation (unverified)</summary>
+  <p><code>PUT /api/products/{id}</code> is gated only by the EDIT permission at the router (<code>product/router.py:111-116</code>), and the gatherer saw no ownership check in <code>update_product</code> (<code>product/service.py:164-181</code>). It was "not traced further" (medium). Products are shared catalog rows, so a rename would change what every item of that product matches. This needs its own check; it is not part of this research.</p>
+</details>
+
+</main>
+</body>
+</html>

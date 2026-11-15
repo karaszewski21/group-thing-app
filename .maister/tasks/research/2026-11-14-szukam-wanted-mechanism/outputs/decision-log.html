@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Log: Szukam (wanted) mechanism — 2026-11-14-szukam-wanted-mechanism</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+/* extensions */
+header .meta { color:var(--dim); font-size:13px; }
+.tldr { border-left:4px solid var(--accent); }
+.tldr h2 { margin-top:14px; } .tldr h2:first-child { margin-top:0; }
+ul, ol { padding-left:22px; } p { margin:8px 0; }
+.tile small { display:block; font-size:10.5px; color:var(--dim); margin-top:3px; }
+.tile.t-user b { color:var(--ok); } .tile.t-mixed b { color:var(--warn); } .tile.t-prop b { color:var(--info); }
+.st { display:inline-block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  padding:2px 9px; border-radius:99px; white-space:nowrap; }
+.st.user  { background:var(--ok-soft); color:var(--ok); }
+.st.mixed { background:var(--warn-soft); color:var(--warn); }
+.st.prop  { background:var(--info-soft); color:var(--info); }
+.tw { overflow-x:auto; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin:12px 0; }
+.tw table { font-size:13px; min-width:640px; }
+.adr { border-left:4px solid var(--border); scroll-margin-top:12px; }
+.adr.user { border-left-color:var(--ok); } .adr.mixed { border-left-color:var(--warn); } .adr.prop { border-left-color:var(--info); }
+.adr > h3 { font-size:16px; margin:0 0 6px; }
+.adr > h3 .id { color:var(--dim); margin-right:6px; }
+.adr .status { font-size:13px; color:var(--dim); margin:0 0 10px; }
+.adr .status .st { margin-right:8px; }
+.by { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 12px; margin:0 0 12px; font-size:13.5px; }
+.by .lbl { display:block; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); margin-bottom:3px; }
+.by p { margin:3px 0; }
+.who { font-weight:700; } .who.u { color:var(--ok); } .who.d { color:var(--info); }
+.adr h4 { font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); margin:14px 0 4px; }
+.adr ul, .adr ol { margin:4px 0; }
+.outcome { background:var(--accent-soft); border-radius:8px; padding:9px 12px; margin:4px 0; }
+.outcome code { background:var(--surface); }
+.cons { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; }
+.cons > div { border:1px solid var(--border); border-radius:8px; padding:8px 12px; }
+.cons .good { border-top:3px solid var(--ok); } .cons .bad { border-top:3px solid var(--crit); }
+.cons h5 { margin:0 0 4px; font-size:12.5px; }
+.cons .good h5 { color:var(--ok); } .cons .bad h5 { color:var(--crit); }
+.see { font-size:13px; color:var(--dim); }
+.legend li { margin-bottom:5px; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">&larr; Dashboard</a>
+  <a href="research-report.html">Report</a>
+  <a href="solution-exploration.html">Exploration</a>
+  <a href="high-level-design.html">Design</a>
+  <span class="here">Decision Log</span>
+  <a href="decision-log.md" target="_blank" rel="noopener" class="md">md twin &nearr;</a>
+</nav>
+<header>
+  <h1>Decision Log: Szukam (wanted) mechanism</h1>
+  <p class="meta"><span class="badge">decision log</span> &nbsp;Generated 2026-11-14 &middot; <a href="decision-log.md" target="_blank" rel="noopener">decision-log.md</a></p>
+</header>
+<div class="tiles">
+  <div class="tile"><b>13</b><span>records</span></div>
+  <div class="tile t-user"><b>4</b><span>accepted by the user</span><small>ADR-001, 002, 011, 012</small></div>
+  <div class="tile t-mixed"><b>8</b><span>accepted with proposed details</span><small>ADR-003, 004, 005, 007, 008, 009, 010, 013</small></div>
+  <div class="tile t-prop"><b>1</b><span>proposed only</span><small>ADR-006</small></div>
+</div>
+<section class="tldr card">
+<h2>TL;DR</h2>
+<ul>
+<li>13 records. Twelve carry a Phase 4 decision of the user; eight of those also contain values or mechanisms proposed by the designer. One record (<a href="#adr-006">ADR-006</a>) is a proposal only.</li>
+<li>The most consequential: a private seeker alert first (<a href="#adr-001">ADR-001</a>), a periodic scan with a creation-time marker instead of events at the listing write points (<a href="#adr-005">ADR-005</a>), and one match statement for both directions (<a href="#adr-006">ADR-006</a>).</li>
+<li>Hard to reverse later: the module boundary (<a href="#adr-004">ADR-004</a>), the unique (want, item) table with hard delete (<a href="#adr-003">ADR-003</a>), and the meaning of "takeable" (<a href="#adr-008">ADR-008</a>).</li>
+<li>Nothing marked "Proposed" is settled. The list of proposals is in <a href="high-level-design.md" target="_blank" rel="noopener"><code>high-level-design.md</code></a>, section "Proposals to confirm".</li>
+</ul>
+<h2>Key Decisions</h2>
+<ul>
+<li>Private want, seeker notified only, owner signal as a second step — precedent and ready code first (<a href="#adr-001">ADR-001</a>).</li>
+<li>Scan with a time marker, not outbox events — no change to listing write paths, at the cost of delay and missed re-availability (<a href="#adr-005">ADR-005</a>).</li>
+<li>One statement for forward and reverse matching — a pair cannot match in one direction and not the other (<a href="#adr-006">ADR-006</a>).</li>
+<li>Notifications written by the scan, replaced while unread — at most one row per want per run (<a href="#adr-009">ADR-009</a>).</li>
+<li>Hard delete 30 days after closing — the retention decision, with no reader left for the row (<a href="#adr-003">ADR-003</a>, <a href="#adr-010">ADR-010</a>).</li>
+</ul>
+<h2>Open Questions / Risks</h2>
+<ul>
+<li>Thresholds (<a href="#adr-007">ADR-007</a>) and the scan cost (<a href="#adr-005">ADR-005</a>, <a href="#adr-006">ADR-006</a>) rest on reasoning, not measurement.</li>
+<li><a href="#adr-008">ADR-008</a> leaves out items reachable only through a shared term or event after their pickup place was deleted.</li>
+<li><a href="#adr-009">ADR-009</a> changes <code>app.notifications</code> by one writer function; <a href="#adr-004">ADR-004</a> widens one parameter type in <code>app.groups</code>. Both are small but touch shared code.</li>
+<li><a href="#adr-001">ADR-001</a>'s second step has no precedent on any reviewed platform and waits for legal review.</li>
+</ul>
+</section>
+<main>
+<h2 id="how-to-read-the-status">How to read the status</h2>
+<div class="card">
+<ul class="legend">
+<li><span class="st user">Accepted (user, Phase 4)</span> decided by the user in the convergence phase. Binding.</li>
+<li><span class="st prop">Proposed (designer)</span> filled in by this design because Phase 4 left it open. Needs the user's confirmation.</li>
+<li><span class="st mixed">Accepted + Proposed</span> A record can hold both; the "Decided by" line says which part is which.</li>
+</ul>
+<p>Alternatives are described in full in <a href="solution-exploration.md" target="_blank" rel="noopener">solution-exploration.md</a>; each record names the area it draws on.</p>
+</div>
+
+<h2 id="index">Index</h2>
+<div class="tw"><table>
+<thead><tr><th>ADR</th><th>Title</th><th>Status</th><th>Decided by</th></tr></thead>
+<tbody>
+<tr><td><a href="#adr-001">ADR-001</a></td><td>Private seeker alert first, owner signal second</td><td><span class="st user">Accepted (user)</span></td><td>user</td></tr>
+<tr><td><a href="#adr-002">ADR-002</a></td><td>The want is the single standing-demand object</td><td><span class="st user">Accepted (user)</span></td><td>user</td></tr>
+<tr><td><a href="#adr-003">ADR-003</a></td><td>Want and match tables; hard delete after retention</td><td><span class="st mixed">Accepted + Proposed</span></td><td>user (shape); designer (names, columns, delete mechanism)</td></tr>
+<tr><td><a href="#adr-004">ADR-004</a></td><td>New module <code>app/wants</code> with its own ACLs</td><td><span class="st mixed">Accepted + Proposed</span></td><td>user (module); designer (name, place in the boundary guard)</td></tr>
+<tr><td><a href="#adr-005">ADR-005</a></td><td>Periodic scan with a creation-time marker</td><td><span class="st mixed">Accepted + Proposed</span></td><td>user (mechanism); designer (interval, overlap, marker table)</td></tr>
+<tr><td><a href="#adr-006">ADR-006</a></td><td>One match statement for both directions</td><td><span class="st prop">Proposed (designer)</span></td><td>designer</td></tr>
+<tr><td><a href="#adr-007">ADR-007</a></td><td>Text matching rules and starting thresholds</td><td><span class="st mixed">Accepted + Proposed</span></td><td>user (rules); designer (numbers)</td></tr>
+<tr><td><a href="#adr-008">ADR-008</a></td><td>What "takeable" means at match time</td><td><span class="st mixed">Accepted + Proposed</span></td><td>user (rule); designer (definition)</td></tr>
+<tr><td><a href="#adr-009">ADR-009</a></td><td>Grouped notifications, replaced while unread</td><td><span class="st mixed">Accepted + Proposed</span></td><td>user (behaviour); designer (mechanism, names)</td></tr>
+<tr><td><a href="#adr-010">ADR-010</a></td><td>Lifecycle as a stored status with a sweep in the scan job</td><td><span class="st mixed">Accepted + Proposed</span></td><td>user (rules); designer (mechanism)</td></tr>
+<tr><td><a href="#adr-011">ADR-011</a></td><td>Synchronous text checks and database-count limits</td><td><span class="st user">Accepted (user)</span></td><td>user</td></tr>
+<tr><td><a href="#adr-012">ADR-012</a></td><td>Response through take and propose; want found by lookup</td><td><span class="st user">Accepted (user)</span></td><td>user</td></tr>
+<tr><td><a href="#adr-013">ADR-013</a></td><td>Entry points, routes and a logged-in-only API</td><td><span class="st mixed">Accepted + Proposed</span></td><td>user (entry points, routes); designer (API shape, permissions)</td></tr>
+</tbody></table></div>
+
+<h2 id="records">Records</h2>
+
+<section class="card adr user" id="adr-001">
+<h3><span class="id">ADR-001</span>Private seeker alert first, owner signal second</h3>
+<p class="status"><span class="st user">Accepted by the user</span>Accepted (user, Phase 4)</p>
+<div class="by"><span class="lbl">Decided by</span><p><span class="who u">user</span>.</p></div>
+<h4>Context</h4>
+<p>The brief says the system "notifies both sides". None of eleven reviewed platforms matches wants to listings or tells an item's owner about a want; machine matching exists only as the seeker's own alert. The shipped mock promises a notification to the seeker only. Telling the owner has no precedent and adds little for an item that is already listed, because take and propose notify the owner once the seeker acts.</p>
+<h4>Decision Drivers</h4>
+<ul>
+<li>Precedent and existing code for the seeker side.</li>
+<li>No tested pattern for an unrequested message to the owner.</li>
+<li>Abuse and legal exposure grow as soon as another person reads a want.</li>
+</ul>
+<h4>Considered Options</h4>
+<ol>
+<li>1A Private seeker alert</li>
+<li>1B Private want with an anonymous owner signal</li>
+<li>1C Group-scoped wants</li>
+<li>1D Public wanted board</li>
+<li>1E Seeker-chosen audience per want</li>
+</ol>
+<p class="see">See <a href="solution-exploration.md" target="_blank" rel="noopener">solution-exploration.md</a>, Area 1.</p>
+<h4>Decision Outcome</h4>
+<p class="outcome">Chosen option: 1A in v1, with 1B as a designed second increment behind a switch, because the first half has precedent and ready code and the second can be measured and turned off.</p>
+<h4>Consequences</h4>
+<div class="cons">
+<div class="good"><h5>Good</h5><ul>
+<li>v1 needs no seeker-identity rule, no response channel and no report entry point.</li>
+<li>The match table built for v1 is the input of the owner signal later.</li>
+</ul></div>
+<div class="bad"><h5>Bad</h5><ul>
+<li>v1 does not meet "notifies both sides" literally; the owner hears only when the seeker acts.</li>
+<li>Owners of unlisted items are never reached; a want does not create supply.</li>
+<li>The second step still needs a legal check and a decision for PRIVATE items.</li>
+</ul></div>
+</div>
+</section>
+
+<section class="card adr user" id="adr-002">
+<h3><span class="id">ADR-002</span>The want is the single standing-demand object</h3>
+<p class="status"><span class="st user">Accepted by the user</span>Accepted (user, Phase 4)</p>
+<div class="by"><span class="lbl">Decided by</span><p><span class="who u">user</span>.</p></div>
+<h4>Context</h4>
+<p>A private want that is matched automatically does the same job as a saved-search alert, which the brief excluded "as a separate feature". The line had to be drawn on purpose.</p>
+<h4>Decision Drivers</h4>
+<ul>
+<li>One concept for users.</li>
+<li>No second storage, matching or notification path.</li>
+<li>A want must stay more than a stored filter set.</li>
+</ul>
+<h4>Considered Options</h4>
+<ol>
+<li>2A The want is the single standing-demand object</li>
+<li>2B Keep wants deliberately unlike a search (name only)</li>
+<li>2C A want is defined by being seen by someone</li>
+</ol>
+<p class="see">See <a href="solution-exploration.md" target="_blank" rel="noopener">solution-exploration.md</a>, Area 2.</p>
+<h4>Decision Outcome</h4>
+<p class="outcome">Chosen option: 2A, with the name required, because the equivalence is a fact of the design and one demand object costs least.</p>
+<h4>Consequences</h4>
+<div class="cons">
+<div class="good"><h5>Good</h5><ul>
+<li>The empty-search prompt can hand its query and filters to the want form.</li>
+<li>No saved-search feature is built beside wants.</li>
+</ul></div>
+<div class="bad"><h5>Bad</h5><ul>
+<li>The feature overlaps the excluded one in function; this is accepted, not avoided.</li>
+<li>A filter-only want is not possible.</li>
+</ul></div>
+</div>
+</section>
+
+<section class="card adr mixed" id="adr-003">
+<h3><span class="id">ADR-003</span>Want and match tables; hard delete after retention</h3>
+<p class="status"><span class="st mixed">Accepted with proposed details</span>Accepted (user, Phase 4) for the shape; Proposed (designer) for names, columns and the delete mechanism</p>
+<div class="by"><span class="lbl">Decided by</span>
+<p><span class="who u">user</span> — name plus optional filters (3.1B), unique (want, item) table (3.2A), deletion 30 days after closing.</p>
+<p><span class="who d">Designer</span> — table names <code>wants</code>, <code>want_matches</code>; the precomputed match columns; hard delete with no <code>deleted_at</code>; <code>ON DELETE</code> rules.</p></div>
+<h4>Context</h4>
+<p>Search already filters on category, offer mode, locality and radius, so the same columns on a want make matching cheap and let a want be created from a search. The system has no deduplication for notifications; a unique pair row is the only one available. The retention decision asks for closed wants and their matches to be deleted.</p>
+<h4>Decision Drivers</h4>
+<ul>
+<li>Plain-column pre-filters for the reverse direction.</li>
+<li>One memory of what was already matched.</li>
+<li>Model and migration standards (UUID keys, naming, naive-UTC audit times, loose cross-module item pointers).</li>
+<li>Storage limitation for personal text.</li>
+</ul>
+<h4>Considered Options</h4>
+<ol>
+<li>3.1A Name-only want</li>
+<li>3.1B Name plus optional structured filters</li>
+<li>3.1C Want as a stored search query</li>
+<li>3.2A Unique (want, item) match table</li>
+<li>3.2B Per-want watermark, no pair rows</li>
+<li>3.2C Deduplicate on the notification row</li>
+<li>Soft delete with <code>deleted_at</code> versus hard delete after retention (designer)</li>
+</ol>
+<p class="see">See <a href="solution-exploration.md" target="_blank" rel="noopener">solution-exploration.md</a>, Area 3.</p>
+<h4>Decision Outcome</h4>
+<p class="outcome">Chosen option: 3.1B with 3.2A, and hard delete, because filters as columns are what the matcher joins on, the pair table is the only deduplication, and after retention nothing reads the row.</p>
+<h4>Consequences</h4>
+<div class="cons">
+<div class="good"><h5>Good</h5><ul>
+<li>The pair row serves deduplication, the match list, the counter and the later owner signal.</li>
+<li>No <code>deleted_at</code>, no partial unique indexes; the <code>status</code> column is the soft state for 30 days.</li>
+<li>Condition is left out, so no ordering of conditions has to be invented.</li>
+</ul></div>
+<div class="bad"><h5>Bad</h5><ul>
+<li>Match history is lost with the want, so conversion must be measured inside the retention period.</li>
+<li>A notification can outlive its want and link to a not-found page.</li>
+<li>Loose item pointers go stale; the match list must filter at read time.</li>
+<li>The want row carries derived columns (<code>name_folded</code>, <code>name_query</code>, <code>short_words_query</code>) that must stay in step with <code>fold_pl()</code>.</li>
+</ul></div>
+</div>
+</section>
+
+<section class="card adr mixed" id="adr-004">
+<h3><span class="id">ADR-004</span>New module <code>app/wants</code> with its own ACLs</h3>
+<p class="status"><span class="st mixed">Accepted with proposed details</span>Accepted (user, Phase 4) for the module; Proposed (designer) for its name and its place in the boundary guard</p>
+<div class="by"><span class="lbl">Decided by</span>
+<p><span class="who u">user</span> — a new backend module with its own ACLs (3.3A).</p>
+<p><span class="who d">Designer</span> — the name <code>app/wants</code>, one ACL file per foreign module, adding the module to <code>tests/test_module_boundaries.py</code>.</p></div>
+<h4>Context</h4>
+<p><code>app/search</code> is read-only by design and importable only from <code>app/main.py</code>, so it can neither host the feature nor lend its private query builders. <code>app/groups</code> is the largest context and is group-centred; a want is an account-level object. The codebase has a test-enforced pattern of one ACL per foreign module.</p>
+<h4>Decision Drivers</h4>
+<ul>
+<li>Follow the boundary pattern the tests enforce.</li>
+<li>Keep <code>app/groups</code> from growing.</li>
+<li>Leave room for the second step.</li>
+</ul>
+<h4>Considered Options</h4>
+<ol>
+<li>3.3A New module with its own ACLs</li>
+<li>3.3B Inside <code>app/groups</code></li>
+<li>3.3C Split: wants module owns the data, groups owns the matcher</li>
+</ol>
+<p class="see">See <a href="solution-exploration.md" target="_blank" rel="noopener">solution-exploration.md</a>, Area 3.</p>
+<h4>Decision Outcome</h4>
+<p class="outcome">Chosen option: 3.3A, named <code>app/wants</code>, because it is the established pattern and keeps the new concept apart from needed items and listing preferences.</p>
+<h4>Consequences</h4>
+<div class="cons">
+<div class="good"><h5>Good</h5><ul>
+<li>Dependencies point one way: wants reads other modules; none of them imports wants.</li>
+<li><code>app/search</code> can later read wants through its own ACL.</li>
+</ul></div>
+<div class="bad"><h5>Bad</h5><ul>
+<li>Small copies of search's builders (radius, category tree, link paths), kept honest by a parity test for the links.</li>
+<li><code>app/groups</code> must accept a column where <code>owner_shares_group_with</code> takes a value today. If that proves awkward, 3.3C is the fallback.</li>
+<li>Nine ACL files for one feature.</li>
+</ul></div>
+</div>
+</section>
+
+<section class="card adr mixed" id="adr-005">
+<h3><span class="id">ADR-005</span>Periodic scan with a creation-time marker</h3>
+<p class="status"><span class="st mixed">Accepted with proposed details</span>Accepted (user, Phase 4) for the mechanism; Proposed (designer) for the interval, the overlap and the marker table</p>
+<div class="by"><span class="lbl">Decided by</span>
+<p><span class="who u">user</span> — 4.1D, a periodic scan with a marker for new listings, the scan window being the notification grouping window; fallbacks named by the user: a marker by id, then 4.1C.</p>
+<p><span class="who d">Designer</span> — 15-minute interval, 5-minute overlap, the <code>want_scan_markers</code> row, the single transaction.</p></div>
+<h4>Context</h4>
+<p>No signal exists when an item becomes listed. The brainstormer recommended outbox events at the two listing write points (4.1C); the user chose a scan that touches neither write path. The design verified that the listing row is a <code>BaseEntity</code> whose <code>created_at</code> is set once at insert and that re-listing creates a new row. Ids are <code>uuid4</code>, so a marker by id is not possible.</p>
+<h4>Decision Drivers</h4>
+<ul>
+<li>No change to the inventory or groups write paths; no longer listing transaction.</li>
+<li>A constant number of statements per run.</li>
+<li>One window for matching and for grouping notifications.</li>
+<li>An existing model: <code>term_end_scan</code>.</li>
+</ul>
+<h4>Considered Options</h4>
+<ol>
+<li>4.1A Forward only, periodic re-run per want</li>
+<li>4.1B Reverse only, on each newly listed item</li>
+<li>4.1C Both directions, outbox events at the listing write points</li>
+<li>4.1D Both directions, periodic set-based scan with a marker</li>
+</ol>
+<p class="see">See <a href="solution-exploration.md" target="_blank" rel="noopener">solution-exploration.md</a>, Area 4.</p>
+<h4>Decision Outcome</h4>
+<p class="outcome">Chosen option: 4.1D with a time marker, every 15 minutes with a 5-minute overlap, because it needs no write-path change and the unique pair key makes the overlap and any retry harmless.</p>
+<h4>Consequences</h4>
+<div class="cons">
+<div class="good"><h5>Good</h5><ul>
+<li>The listing code is untouched.</li>
+<li>Each run yields at most one notification per want without a separate grouping step.</li>
+<li>Downtime is caught up by a longer window.</li>
+</ul></div>
+<div class="bad"><h5>Bad</h5><ul>
+<li>Up to 15 minutes of delay; a scarce item may be gone.</li>
+<li>Items that become takeable after their listing time are never matched: released reservations, rejected proposals, PRIVATE turned PUBLIC, a changed offer mode, item or product edits.</li>
+<li>The marker relies on <code>created_at</code> being close to commit time; the overlap is the safety margin and must be confirmed by a test.</li>
+<li>If the measured cost is too high, the fallback is 4.1C, which does touch the write paths.</li>
+</ul></div>
+</div>
+</section>
+
+<section class="card adr prop" id="adr-006">
+<h3><span class="id">ADR-006</span>One match statement for both directions</h3>
+<p class="status"><span class="st prop">Proposed only — not settled</span>Proposed (designer)</p>
+<div class="by"><span class="lbl">Decided by</span><p><span class="who d">designer</span>. The user decided the behaviour: existing matches are shown at once with one query and no notification.</p></div>
+<h4>Context</h4>
+<p>Matching runs in two situations: for one want against all current listings, and for new listings against all active wants. Search's builders serve only the first shape and bind the viewer, the radius and the origin as Python values. Two separate implementations of the predicates would drift.</p>
+<h4>Decision Drivers</h4>
+<ul>
+<li>A pair must match the same way in both directions.</li>
+<li>Constant statement count.</li>
+<li>One place for visibility and takeability rules.</li>
+</ul>
+<h4>Considered Options</h4>
+<ol>
+<li>Two builders: a search-shaped select for the forward direction and a separate reverse statement</li>
+<li>One statement over <code>wants</code> joined to listings, with a direction filter (one want, or a listing time window)</li>
+<li>Forward match computed on read, never stored</li>
+</ol>
+<h4>Decision Outcome</h4>
+<p class="outcome">Chosen option: 2, because the predicates then exist once and forward rows land in the same table as scan rows, born seen.</p>
+<h4>Consequences</h4>
+<div class="cons">
+<div class="good"><h5>Good</h5><ul>
+<li>No divergence between "shown at creation" and "found by the scan".</li>
+<li>Forward matches are remembered, so the scan never announces them.</li>
+<li>The closing prompt and the conversion measurement cover forward matches too.</li>
+</ul></div>
+<div class="bad"><h5>Bad</h5><ul>
+<li>The forward plan depends on the planner using the product indexes with the want's text coming from a joined row, not a constant. This must be shown by <code>EXPLAIN ANALYZE</code>.</li>
+<li>Column forms of the radius, category and group-sharing rules have to be written; they cannot be imported from search.</li>
+<li>A slow forward match fails the create request (503 after 3 s).</li>
+</ul></div>
+</div>
+</section>
+
+<section class="card adr mixed" id="adr-007">
+<h3><span class="id">ADR-007</span>Text matching rules and starting thresholds</h3>
+<p class="status"><span class="st mixed">Accepted with proposed details</span>Accepted (user, Phase 4) for the rules; Proposed (designer) for the numbers</p>
+<div class="by"><span class="lbl">Decided by</span>
+<p><span class="who u">user</span> — a text signal is always required (full text or name trigram); a category narrows to its subtree (AND) and allows a looser threshold; words of up to 3 characters match exactly only; start strict and log opens and takes; no lemmatisation or embeddings in v1.</p>
+<p><span class="who d">Designer</span> — thresholds 0.70 and 0.60, full text over name and description, the <code>short_words_query</code> column.</p></div>
+<h4>Context</h4>
+<p>The database uses the <code>'simple'</code> configuration with <code>fold_pl()</code>: no Polish stemming. Inflected forms match only through trigram similarity on the name. Search has no cut-off; a notification needs a yes or no. No labelled Polish data exists.</p>
+<h4>Decision Drivers</h4>
+<ul>
+<li>A false alert costs the seeker's attention.</li>
+<li>Stock PostgreSQL 18, no new extension or model.</li>
+<li>The threshold must be tunable from measured data.</li>
+</ul>
+<h4>Considered Options</h4>
+<ol>
+<li>4.2A Existing recipe with a stricter threshold</li>
+<li>4.2B Category-led matching</li>
+<li>4.2C Polish lemmatisation</li>
+<li>4.2D Small embedding model with pgvector</li>
+</ol>
+<p class="see">See <a href="solution-exploration.md" target="_blank" rel="noopener">solution-exploration.md</a>, Area 4.</p>
+<h4>Decision Outcome</h4>
+<p class="outcome">Chosen option: 4.2A as modified by the user, starting at 0.70 without a category and 0.60 with one, because it has no operating cost and can be tuned once the labelled sample is scored.</p>
+<h4>Consequences</h4>
+<div class="cons">
+<div class="good"><h5>Good</h5><ul>
+<li>Reuses <code>products.search_vector</code>, the name trigram index and <code>fold_pl()</code>.</li>
+<li>A category never matches on its own, so a broad category cannot flood a want.</li>
+<li>Sizes and codes ("110", "XL") cannot match by accident.</li>
+</ul></div>
+<div class="bad"><h5>Bad</h5><ul>
+<li>Inflected and reworded names will be missed until the thresholds are measured.</li>
+<li>The short-word rule also rejects reasonable pairs ("TV" against "telewizor").</li>
+<li>The numbers are guesses. Release should wait for the sample.</li>
+</ul></div>
+</div>
+</section>
+
+<section class="card adr mixed" id="adr-008">
+<h3><span class="id">ADR-008</span>What "takeable" means at match time</h3>
+<p class="status"><span class="st mixed">Accepted with proposed details</span>Accepted (user, Phase 4) for the rule; Proposed (designer) for the definition</p>
+<div class="by"><span class="lbl">Decided by</span>
+<p><span class="who u">user</span> — only items takeable at the moment of matching (4.3B).</p>
+<p><span class="who d">Designer</span> — the predicate below.</p></div>
+<h4>Context</h4>
+<p>A listed item can be reserved, can have a pending swap proposal, or can be reachable only through a context the seeker has no access to. A seeker outside the owner's groups and events can reserve only through personal pickup, which needs a live place on the item. A first listing already requires a live place.</p>
+<h4>Decision Drivers</h4>
+<ul>
+<li>Every alert should be actionable.</li>
+<li>The predicate runs for every candidate pair, so it must be cheap.</li>
+</ul>
+<h4>Considered Options</h4>
+<ol>
+<li>4.3A Any visible listed item counts</li>
+<li>4.3B Takeable only, defined as: balance <code>AVAILABLE</code>, no pending proposal, live pickup place</li>
+<li>4.3B with the full context check: personal pickup, or a shared upcoming term or event</li>
+<li>4.3C Record every visible match, notify only when takeable</li>
+</ol>
+<p class="see">See <a href="solution-exploration.md" target="_blank" rel="noopener">solution-exploration.md</a>, Area 4.</p>
+<h4>Decision Outcome</h4>
+<p class="outcome">Chosen option: 2, because it covers nearly every listed item with one join, and the full context check would add attendance and event joins per pair.</p>
+<h4>Consequences</h4>
+<div class="cons">
+<div class="good"><h5>Good</h5><ul>
+<li>No alert for an item that is reserved or under a pending proposal.</li>
+<li>The PRIVATE case needs no extra rule: the visibility predicate already requires a shared private group, which is what personal pickup checks.</li>
+</ul></div>
+<div class="bad"><h5>Bad</h5><ul>
+<li>An item whose place was deleted after listing is skipped even if a shared term would allow the take.</li>
+<li>An item that is busy when it is scanned is not picked up when it is released (see <a href="#adr-005">ADR-005</a>).</li>
+<li>Take and propose can still refuse at action time; the match is a snapshot.</li>
+</ul></div>
+</div>
+</section>
+
+<section class="card adr mixed" id="adr-009">
+<h3><span class="id">ADR-009</span>Grouped notifications, replaced while unread</h3>
+<p class="status"><span class="st mixed">Accepted with proposed details</span>Accepted (user, Phase 4) for the behaviour; Proposed (designer) for the mechanism and names</p>
+<div class="by"><span class="lbl">Decided by</span>
+<p><span class="who u">user</span> — at most one row per want per scan window; one match links to the item with its name, two or more show a count and link to the match list; an unread previous row is updated; a switch per want; a count of new matches on the list and the tile, reset when the list is opened; no e-mail or push in v1.</p>
+<p><span class="who d">Designer</span> — kinds <code>WANT_MATCH_FOUND</code> and <code>WANT_EXPIRING</code>; the pointer and count on the want; direct write from the scan; the reset as a POST.</p></div>
+<h4>Context</h4>
+<p>Notifications are an in-app list with no preferences, grouping, caps or deduplication, and the bell shows the newest 50 rows. This is the first kind that is a recommendation. <code>create_notification</code> returns nothing, and the table has no generic subject column.</p>
+<h4>Decision Drivers</h4>
+<ul>
+<li>Protect action prompts in the bell.</li>
+<li>No migration on the shared <code>notifications</code> table if avoidable.</li>
+<li>GET requests stay free of side effects.</li>
+</ul>
+<h4>Considered Options</h4>
+<ol>
+<li>5A One in-app row per match</li>
+<li>5B Grouped in-app rows</li>
+<li>5C Daily digest row</li>
+<li>5D Pull only: a count, no bell rows</li>
+<li>Mechanism: a <code>want_id</code> pointer column on <code>notifications</code> versus a pointer and count on the want (designer)</li>
+<li>Mechanism: through the outbox versus written by the scan (designer)</li>
+</ol>
+<p class="see">See <a href="solution-exploration.md" target="_blank" rel="noopener">solution-exploration.md</a>, Area 5.</p>
+<h4>Decision Outcome</h4>
+<p class="outcome">Chosen option: 5B with the count from 5D, the pointer kept on the want and the rows written by the scan, because the scan run is already the grouping window, the replace rule needs the row id, and the shared table stays unchanged.</p>
+<h4>Consequences</h4>
+<div class="cons">
+<div class="good"><h5>Good</h5><ul>
+<li>At most one unread match row per want, so at most 30 per user.</li>
+<li>New kinds need no migration and stay out of pending actions.</li>
+<li>The counter comes from the match table and does not depend on the bell.</li>
+</ul></div>
+<div class="bad"><h5>Bad</h5><ul>
+<li><code>app.notifications</code> gains a writer that replaces an unread row and moves its time; this is new behaviour for that module.</li>
+<li>The bell row and the counter can disagree (one is read state, the other is seen state).</li>
+<li>In-app only: a seeker who does not return is not told.</li>
+<li>An image-only rollback needs the rows of the new kinds deleted first.</li>
+</ul></div>
+</div>
+</section>
+
+<section class="card adr mixed" id="adr-010">
+<h3><span class="id">ADR-010</span>Lifecycle as a stored status with a sweep in the scan job</h3>
+<p class="status"><span class="st mixed">Accepted with proposed details</span>Accepted (user, Phase 4) for the rules; Proposed (designer) for the mechanism</p>
+<div class="by"><span class="lbl">Decided by</span>
+<p><span class="who u">user</span> — 90 days of validity; a bell reminder 7 days before the end; extension keeps the want and its matches; an expired want stays listed with a resume action; closed wants are deleted with their matches after 30 days; manual "found" and "withdraw"; a closing prompt after a reservation or agreed swap of a matched item; a fulfilled want can be reopened during retention; a closed want drops out of the scan; optional automatic extension.</p>
+<p><span class="who d">Designer</span> — the <code>status</code>, <code>expires_at</code>, <code>closed_at</code>, <code>reminded_at</code> columns; the sweep as the first part of the scan job; the reminder ignoring the per-want switch; automatic extension on; withdrawn wants hidden.</p></div>
+<h4>Context</h4>
+<p>A private matched want has no feed, so silent expiry would only lose the alert unnoticed. The periodic job needed for matching can also carry the time-driven transitions.</p>
+<h4>Decision Drivers</h4>
+<ul>
+<li>Nobody loses a want silently.</li>
+<li>Storage limitation.</li>
+<li>One scheduled job, one commit.</li>
+</ul>
+<h4>Considered Options</h4>
+<ol>
+<li>6.1A Fixed period, silent expiry, repost as new</li>
+<li>6.1B Default expiry with a reminder and one-tap extension</li>
+<li>6.1C Seeker-chosen expiry</li>
+<li>6.1D No expiry, periodic check-in</li>
+<li>6.2A Manual closing only</li>
+<li>6.2B Prompt to close after a reservation of a matched item</li>
+<li>6.2C Automatic closing through a reservation origin</li>
+<li>Mechanism: status derived from <code>expires_at</code> on read versus stored and moved by a sweep (designer)</li>
+</ol>
+<p class="see">See <a href="solution-exploration.md" target="_blank" rel="noopener">solution-exploration.md</a>, Area 6.</p>
+<h4>Decision Outcome</h4>
+<p class="outcome">Chosen option: 6.1B and 6.2B with the manual actions of 6.2A, as a stored status moved by a sweep inside the scan job, because the purge needs a closing time and the scan already filters on the expiry time itself.</p>
+<h4>Consequences</h4>
+<div class="cons">
+<div class="good"><h5>Good</h5><ul>
+<li>The stored status is at most one interval behind; matching is exact because it also checks <code>expires_at</code>.</li>
+<li>Resume and reopen are one transition with a fresh forward match.</li>
+<li>No change to reservations.</li>
+</ul></div>
+<div class="bad"><h5>Bad</h5><ul>
+<li>One more notification kind in a bell without controls.</li>
+<li>90, 7 and 30 days are product guesses with no tested source.</li>
+<li>The prompt is frontend-led and misses fulfilment outside matched items.</li>
+</ul></div>
+</div>
+</section>
+
+<section class="card adr user" id="adr-011">
+<h3><span class="id">ADR-011</span>Synchronous text checks and database-count limits</h3>
+<p class="status"><span class="st user">Accepted by the user</span>Accepted (user, Phase 4)</p>
+<div class="by"><span class="lbl">Decided by</span><p><span class="who u">user</span>. Designer adds only the two <code>TextField</code> names (<code>WANT_NAME</code>, <code>WANT_NOTE</code>) and the 409 for the cap.</p></div>
+<h4>Context</h4>
+<p>Nobody but the seeker reads a private want, but the text should be fit for a later visibility step, and every other user text in the system is checked on write. Both existing rate limiters are in memory and reset on restart.</p>
+<h4>Decision Drivers</h4>
+<ul>
+<li>Consistency with other user text.</li>
+<li>Text ready for the second step.</li>
+<li>Limits that survive a restart.</li>
+</ul>
+<h4>Considered Options</h4>
+<ol>
+<li>7A Limits only</li>
+<li>7B Standard synchronous checks plus a database-count cap</li>
+<li>7C Community rule set</li>
+<li>7D Pre-moderation queue</li>
+</ol>
+<p class="see">See <a href="solution-exploration.md" target="_blank" rel="noopener">solution-exploration.md</a>, Area 7.</p>
+<h4>Decision Outcome</h4>
+<p class="outcome">Chosen option: 7B — contact-info rule, then classifier, for the name and the note; name 3–80 characters, note up to 300; 30 active wants per user counted in the write transaction without locks; 20 best matches per want per scan run; 503 on a classifier outage. 7C is deferred to the step where a want becomes visible in a group; aggregate demand without text does not need it.</p>
+<h4>Consequences</h4>
+<div class="cons">
+<div class="good"><h5>Good</h5><ul>
+<li>The established pattern; no new moderation machinery.</li>
+<li>The cap bounds matching cost and bell rows.</li>
+</ul></div>
+<div class="bad"><h5>Bad</h5><ul>
+<li>A classifier outage blocks creating and editing wants.</li>
+<li>The classifier detects harm, not spam or begging.</li>
+<li>Without locks, concurrent requests can pass the cap by a small margin.</li>
+</ul></div>
+</div>
+</section>
+
+<section class="card adr user" id="adr-012">
+<h3><span class="id">ADR-012</span>Response through take and propose; want found by lookup</h3>
+<p class="status"><span class="st user">Accepted by the user</span>Accepted (user, Phase 4)</p>
+<div class="by"><span class="lbl">Decided by</span><p><span class="who u">user</span>.</p></div>
+<h4>Context</h4>
+<p>A matched item page already offers take and propose, and both already notify the owner and the seeker. Nothing in them refers to a want.</p>
+<h4>Decision Drivers</h4>
+<ul>
+<li>No change to the reservation flow or its locking.</li>
+<li>A way to offer closing and to measure conversion.</li>
+</ul>
+<h4>Considered Options</h4>
+<ol>
+<li>8A Seeker acts through take / propose</li>
+<li>8B Owner's "mam to" relay</li>
+<li>8C Want-anchored conversation</li>
+<li>8D "List it now" path</li>
+<li>Link to the want: an origin field on the reservation versus a lookup in the match table</li>
+</ol>
+<p class="see">See <a href="solution-exploration.md" target="_blank" rel="noopener">solution-exploration.md</a>, Area 8.</p>
+<h4>Decision Outcome</h4>
+<p class="outcome">Chosen option: 8A in v1, with the want found by a lookup in the match table, because the existing flow completes the exchange and the pair row already links item and want. 8B (with the owner signal) and 8D (with aggregate group demand) are settled later; 8C is out of scope.</p>
+<h4>Consequences</h4>
+<div class="cons">
+<div class="good"><h5>Good</h5><ul>
+<li>No migration and no new rule in reservations.</li>
+<li>The lookup serves the closing prompt and the conversion query.</li>
+</ul></div>
+<div class="bad"><h5>Bad</h5><ul>
+<li>The owner cannot act first.</li>
+<li>A take of an item that was never stored as a match is not linked to any want.</li>
+<li>Conversion is measured by a join, only while the match rows exist.</li>
+</ul></div>
+</div>
+</section>
+
+<section class="card adr mixed" id="adr-013">
+<h3><span class="id">ADR-013</span>Entry points, routes and a logged-in-only API</h3>
+<p class="status"><span class="st mixed">Accepted with proposed details</span>Accepted (user, Phase 4) for the entry points and routes; Proposed (designer) for the API shape and permissions</p>
+<div class="by"><span class="lbl">Decided by</span>
+<p><span class="who u">user</span> — 9A: the <code>/add</code> tile leads to <code>/add/wanted</code> (renamed from <code>hunting</code>), the "Konto" row to <code>/wanted</code>; one hook for the list, the count and the form; the empty-search prompt passes the query and the active filters; the form shows the name with the rest under "Doprecyzuj"; after saving, redirect to <code>/wanted/:id</code>, which also serves the bell and the count and resets the count.</p>
+<p><span class="who d">Designer</span> — the <code>/api/wants</code> routes, the two matrix rows without OAuth scopes, 404 for a foreign want, no public route, the feature folder <code>features/wanted</code>, no redirect from the old path.</p></div>
+<h4>Context</h4>
+<p>The mock has two disconnected create paths and a constant count. The login gate keeps the path and the query in <code>returnTo</code> in both the proxy and the client guard (read in code, not tested). GET requests accept the session cookie and must stay free of side effects.</p>
+<h4>Decision Drivers</h4>
+<ul>
+<li>Keep the entries users already see.</li>
+<li>One source of truth on the client.</li>
+<li>Private data stays behind login.</li>
+</ul>
+<h4>Considered Options</h4>
+<ol>
+<li>9A Two entries, one form, one source of truth</li>
+<li>9B Search-first: "save as a want"</li>
+<li>9C Dedicated form only</li>
+<li>API: action sub-routes (<code>/extend</code>, <code>/close</code>, <code>/resume</code>, <code>/matches/seen</code>) versus a single PATCH carrying the status (designer)</li>
+</ol>
+<p class="see">See <a href="solution-exploration.md" target="_blank" rel="noopener">solution-exploration.md</a>, Area 9.</p>
+<h4>Decision Outcome</h4>
+<p class="outcome">Chosen option: 9A, with action sub-routes on <code>/api/wants</code>, because each lifecycle action has its own rule (cap check, forward match, period reset) and a POST per action keeps the counter reset out of GET.</p>
+<h4>Consequences</h4>
+<div class="cons">
+<div class="good"><h5>Good</h5><ul>
+<li>One hook feeds the list, the counts and the form.</li>
+<li>A failed search becomes a want without retyping.</li>
+<li>No public route, so no personalised-cache handling in v1.</li>
+</ul></div>
+<div class="bad"><h5>Bad</h5><ul>
+<li>The mock's views and their tests are rewritten; <code>/add/hunting</code> stops working.</li>
+<li>The registration path through the gate is untraced and needs a test.</li>
+<li>Condition and scope are dropped when a search becomes a want.</li>
+</ul></div>
+</div>
+</section>
+</main>
+</body>
+</html>

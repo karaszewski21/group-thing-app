@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>High-Level Design: Szukam (wanted) mechanism — 2026-11-14-szukam-wanted-mechanism</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+/* extensions */
+header .meta { color:var(--dim); font-size:13px; }
+.tldr { border-left:4px solid var(--accent); }
+.tldr h2 { margin-top:14px; } .tldr h2:first-child { margin-top:0; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0 0; }
+h3 { font-size:15px; margin-top:26px; padding-top:10px; border-top:1px solid var(--border); }
+h4 { font-size:14px; margin:0 0 8px; }
+.tw { overflow-x:auto; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin:12px 0; }
+.tw table { font-size:13px; min-width:720px; }
+ul, ol { padding-left:22px; } p { margin:8px 0; }
+details.card > summary { font-size:16px; }
+pre { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:12px 14px; margin:12px 0; overflow-x:auto; font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+.note { color:var(--dim); font-size:12.5px; }
+.examples { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:12px; align-items:start; }
+.examples .card { margin:0; font-size:13px; }
+.who { white-space:nowrap; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">&larr; Dashboard</a>
+  <a href="research-report.html">Report</a>
+  <a href="solution-exploration.html">Exploration</a>
+  <span class="here">Design</span>
+  <a href="decision-log.html">Decision Log</a>
+  <a href="high-level-design.md" target="_blank" rel="noopener" class="md">md twin &nearr;</a>
+</nav>
+<header>
+  <h1>High-Level Design: Szukam (wanted) mechanism</h1>
+  <p class="meta"><span class="badge">high-level design</span> &nbsp;Generated 2026-11-14 &middot; <a href="high-level-design.md" target="_blank" rel="noopener">high-level-design.md</a></p>
+</header>
+<div class="tiles">
+  <div class="tile"><b>8</b><span>components</span></div>
+  <div class="tile"><b>13</b><span>decisions</span></div>
+  <div class="tile"><b>Modular monolith, periodic scan</b><span>architecture style</span></div>
+  <div class="tile"><b>9</b><span>ACLs</span></div>
+  <div class="tile"><b>13</b><span>proposals to confirm</span></div>
+</div>
+<section class="tldr card">
+<h2>TL;DR</h2>
+<ul>
+<li>A new backend module <code>app/wants</code> (proposed name) owns three tables (<code>wants</code>, <code>want_matches</code>, <code>want_scan_markers</code>), the matcher, a scheduled scan and the <code>/api/wants</code> routes. It reaches every other module through its own ACL files and changes no listing write path.</li>
+<li>One SQL statement builder matches wants to items in both directions: once for a single want when it is created (matches shown at once, no notification), and every 15 minutes (proposed) for listings created since a time marker against all active wants.</li>
+<li>A match needs a text signal, passes the visibility rule, excludes own items and counts only items that can be taken now. Each (want, item) pair is stored once; the seeker gets at most one bell row per want per scan run, replaced while unread.</li>
+<li>Wants live 90 days, are closed by the seeker and are hard-deleted with their matches 30 days after closing. The exchange itself uses the existing take / propose flow.</li>
+<li>Known costs of the chosen approach: up to 15 minutes of delay, items that become takeable again are never matched, and delivery is in-app only.</li>
+</ul>
+<h2>Key Decisions</h2>
+<ul>
+<li>Private seeker alert in v1, anonymous owner signal as a designed second step — the first half has precedent and ready code (ADR-001, user).</li>
+<li>The want is the only standing-demand object; the name stays required — no second saved-search list (ADR-002, user).</li>
+<li>Name plus optional filters, a unique (want, item) match table, hard delete after retention — the pair table is the only deduplication the system has (ADR-003, user; columns proposed).</li>
+<li>New module <code>app/wants</code> with one ACL per foreign module, added to the boundary guard — the pattern the tests already enforce (ADR-004, user; name proposed).</li>
+<li>Periodic scan with a <code>created_at</code> marker on the listing row, 15-minute interval, 5-minute overlap — no change to the inventory or groups write paths (ADR-005, user; numbers proposed).</li>
+<li>One match statement for both directions — forward and reverse can never disagree about a pair (ADR-006, proposed).</li>
+<li>Text signal always required, category narrows and loosens, short words exact only — thresholds 0.70 / 0.60 are starting values to tune (ADR-007, user; numbers proposed).</li>
+<li>"Takeable" means AVAILABLE, no pending proposal and a live pickup place (ADR-008, user; definition proposed).</li>
+<li>Notifications written by the scan itself, the previous row replaced while unread through a pointer kept on the want (ADR-009, user; mechanism proposed).</li>
+<li>Lifecycle as a stored status with one sweep inside the scan job (ADR-010, user; mechanism proposed).</li>
+<li>Synchronous text checks and a database-count cap of 30 (ADR-011, user).</li>
+<li>Response through take / propose; the want is found by a lookup in the match table (ADR-012, user).</li>
+<li>Routes <code>/add/wanted</code>, <code>/wanted</code>, <code>/wanted/:id</code>; one hook; <code>/api/wants</code> for logged-in users only (ADR-013, user; API shape proposed).</li>
+</ul>
+<h2>Open Questions / Risks</h2>
+<ul>
+<li>Match quality on inflected Polish is unmeasured. The thresholds are guesses until the labelled sample is scored (section "Measurement plan").</li>
+<li>Scan cost is argued, not measured. The reverse direction has no text index; it relies on a small window of new listings and plain-column pre-filters.</li>
+<li>Items that become takeable after their listing time are missed: a released reservation, a PRIVATE item turned PUBLIC, a restored pickup place, an item edit. This is the accepted cost of the marker scan.</li>
+<li>In-app only: "Damy znać" reaches only users who come back. No e-mail or push exists.</li>
+<li>The bell shows the newest 50 rows. Up to 30 match rows per user (one per active want) can still push action prompts out of view.</li>
+<li>An image-only rollback breaks the bell while rows of the two new notification kinds exist; they must be deleted first (section "Migration and rollback").</li>
+<li>Two code facts are inferred from reading, not run: the group-sharing predicate with a column on both sides, and a generated <code>tsquery</code> column. Both are pre-implementation checks.</li>
+<li>All numbers marked "proposed" need the user's confirmation: module and table names, 15-minute interval, thresholds, the automatic extension, the reminder ignoring the per-want switch, hiding withdrawn wants.</li>
+<li>Legal review (Article 9 GDPR, Article 398 of the Polish Electronic Communications Law, DSA reporting) is still open and blocks the second step, not v1.</li>
+</ul>
+</section>
+<nav class="toc">Contents: <a href="#design-overview">Design Overview</a> &middot; <a href="#architecture">Architecture</a> &middot; <a href="#key-components">Key Components</a> &middot; <a href="#data-model">Data model</a> &middot; <a href="#matching-design">Matching design</a> &middot; <a href="#notification-design">Notification design</a> &middot; <a href="#lifecycle-and-retention">Lifecycle and retention</a> &middot; <a href="#api-surface">API surface</a> &middot; <a href="#frontend-structure">Frontend structure</a> &middot; <a href="#data-flow">Data Flow</a> &middot; <a href="#integration-points">Integration Points</a> &middot; <a href="#design-decisions">Design Decisions</a> &middot; <a href="#concrete-examples">Concrete Examples</a> &middot; <a href="#pre-implementation-checks">Pre-implementation checks</a> &middot; <a href="#measurement-plan">Measurement plan</a> &middot; <a href="#risks-and-stated-costs">Risks and stated costs</a> &middot; <a href="#extension-points">Extension points</a> &middot; <a href="#out-of-scope">Out of Scope</a> &middot; <a href="#proposals-to-confirm">Proposals to confirm</a> &middot; <a href="#success-criteria">Success Criteria</a></nav>
+<main>
+
+<h2 id="design-overview">Design Overview</h2>
+<p>A user who does not find an item today has no way to leave a standing request. The frontend already promises one ("Damy znać, gdy ktoś doda pasującą rzecz") in a mock at <code>/wanted</code> and <code>/add/hunting</code> that stores nothing. Seekers benefit first; owners benefit when the seeker takes or proposes a swap, through the notifications that exist.</p>
+<p>The design is a <strong>modular monolith extension</strong>: a new bounded context, <strong><code>app/wants</code></strong>, beside the existing ones, with <strong>one ACL per foreign module</strong>. Matching is a <strong>periodic set-based scan with a time marker</strong>, modelled on <code>term_end_scan</code>, plus one <strong>forward query at creation</strong>. Every match is a row in a <strong>unique (want, item) table</strong>, which gives deduplication, the match list, the counter and the input for <strong>grouped, replace-while-unread notifications</strong>. The seeker completes the exchange through the <strong>existing take / propose flow</strong>; nothing is added to reservations.</p>
+<div class="card">
+<h4>Key decisions</h4>
+<ul>
+<li>Private want, seeker notified only; the owner signal is an extension point.</li>
+<li>One demand object: name required, category, offer mode, locality and radius optional, no condition.</li>
+<li>Scan every 15 minutes (proposed) over listings created since the marker; the scan run is the notification grouping window.</li>
+<li>One statement builder for both matching directions, with a constant statement count.</li>
+<li>Hard delete 30 days after closing; no <code>deleted_at</code> column.</li>
+<li>Logged-in-only API under <code>/api/wants</code>; no public route in v1.</li>
+</ul>
+</div>
+
+<h3 id="who-decided-what">Who decided what</h3>
+<p>"User" means the Phase 4 decisions, which are binding. "Proposed" means a value or mechanism this design fills in because Phase 4 left it open; it must be confirmed before specification. Every proposal is listed again in section "<a href="#proposals-to-confirm">Proposals to confirm</a>".</p>
+
+<h3 id="verified-in-code">What was verified in code for this design</h3>
+<div class="tw"><table>
+<thead><tr><th>Fact</th><th>Where</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td>The listing row has a creation time set once at insert</td><td><code>src/backend/app/core/base_model.py:25-28,58-60</code>, <code>src/backend/app/groups/models.py:339-375</code></td><td>Verified. <code>ItemListingPreference</code> is a <code>BaseEntity</code>; <code>created_at</code> is naive UTC, set at INSERT and never updated.</td></tr>
+<tr><td>Re-listing creates a new row</td><td><code>src/backend/app/groups/application/term_item_listings.py:167-195</code></td><td>Verified. Clearing the mode deletes the row; listing again inserts a new one with a new <code>created_at</code>. A mode or visibility change updates the row and keeps <code>created_at</code>.</td></tr>
+<tr><td>A marker by id is not possible</td><td><code>src/backend/app/core/base_model.py:49-56</code></td><td>Verified. Ids are <code>uuid4</code>, not ordered. The fallback after the time marker is 4.1C (outbox events), not an id marker.</td></tr>
+<tr><td>A first listing needs a live place</td><td><code>term_item_listings.py:176-177</code></td><td>Verified. So nearly every listed item supports personal pickup.</td></tr>
+<tr><td>The visibility predicate takes the viewer as a value</td><td><code>src/backend/app/groups/infrastructure/visibility.py:41-59,91-108</code></td><td>Verified. <code>group_ids_for</code> accepts a column (<code>membership.py:48-51</code>), so the two-column form is a signature widening, not new logic. Not run.</td></tr>
+<tr><td><code>parties_share_group</code> is not exported by the groups facade</td><td><code>src/backend/app/groups/service.py</code> (grep)</td><td>Verified. <code>items_visible_to</code>, <code>owner_shares_group_with</code>, <code>with_pending_proposer</code>, <code>can_view_item</code> are exported.</td></tr>
+<tr><td>New notification kinds need no migration</td><td><code>src/backend/app/notifications/models.py:27-34,72-74</code></td><td>Verified. Non-native <code>VARCHAR(30)</code>. <code>create_notification</code> returns nothing (<code>service.py:31-57</code>).</td></tr>
+<tr><td>Pending actions react to two kinds only</td><td><code>src/frontend/src/components/layout/pending/pendingActions.ts:55-77</code></td><td>Verified. Any other kind yields no blocking sheet.</td></tr>
+<tr><td>Query parameters survive the login redirect</td><td><code>src/frontend/src/proxy.ts:46-48</code>, <code>src/frontend/src/auth/AuthGuard.tsx:32-40</code>, <code>src/frontend/src/utils/url.ts:16-24</code></td><td>Verified by reading: both gates build <code>returnTo</code> from path plus query. Not tested; the registration path was not traced.</td></tr>
+<tr><td>Scheduler and scan pattern</td><td><code>src/backend/app/main.py:65-127</code>, <code>src/backend/app/groups/application/term_end_scan.py:1-19,48-56</code></td><td>Verified. One <code>AsyncIOScheduler</code>, constant intervals, marker and writes in one commit.</td></tr>
+</tbody>
+</table></div>
+<p>Everything else is taken from the findings files in <code>analysis/findings/</code> and cited as given there.</p>
+
+<h2 id="architecture">Architecture</h2>
+
+<h3 id="system-context">System Context (C4 Level 1)</h3>
+<pre>
+   +-----------------+                                  +------------------+
+   |     Seeker      |                                  |    Item owner    |
+   | (logged-in user)|                                  | (logged-in user) |
+   +--------+--------+                                  +---------+--------+
+            | HTTPS: saves a want, opens matches,                 | HTTPS: lists an item
+            | takes or proposes a swap                            | (unchanged flow)
+            v                                                     v
+   +--------------------------------------------------------------------------+
+   |                         aj platform (this system)                        |
+   |  stores wants, matches them to listed items, writes in-app notifications |
+   +--------------------------------------------------------------------------+
+            ^                                                     |
+            | HTTPS: empty search -&gt; "Dodaj do listy szukam"      | in-app bell only
+   +--------+--------+                                            v
+   |      Guest      |                              (no e-mail, push or SMS channel:
+   | (not logged in) |                               none exists; out of scope in v1)
+   +-----------------+
+</pre>
+<ul>
+<li>The seeker is the only person who reads a want or its matches.</li>
+<li>The owner is not told about a want in v1. The owner hears from the existing take / propose notifications.</li>
+<li>A guest can start from an empty search; the login gate carries the query and filters to the form.</li>
+<li>There is no external system. Text moderation runs inside the API process.</li>
+</ul>
+
+<h3 id="container-overview">Container Overview (C4 Level 2)</h3>
+<pre>
+ +---------------------+   HTTPS    +-----------------+
+ | Browser             +-----------&gt;| nginx :5174     |
+ | Next.js client code |            +---+---------+---+
+ | (features/wanted,   |                |         |
+ |  bell, item page)   |        pages   |         |  /api/*
+ +---------------------+                v         v
+                          +----------------+   +--------------------------------------+
+                          | web            |   | backend (FastAPI, one uvicorn process)|
+                          | Next standalone|   |                                      |
+                          | :3000          |   |  HTTP routers                        |
+                          | routes /wanted,|   |   +-- /api/wants  (NEW, app/wants)   |
+                          | /wanted/[id],  |   |   +-- existing routers               |
+                          | /add/wanted    |   |                                      |
+                          +----------------+   |  APScheduler (in process)            |
+                                               |   +-- want scan, 15 min  (NEW)       |
+                                               |   +-- term-end scan, media sweep     |
+                                               |                                      |
+                                               |  Text classifier (ONNX, in process)  |
+                                               +------------------+-------------------+
+                                                                  | SQL (asyncpg)
+                                                                  v
+                                               +--------------------------------------+
+                                               | PostgreSQL 18                        |
+                                               |  NEW: wants, want_matches,           |
+                                               |       want_scan_markers              |
+                                               |  READ: item_listing_preferences,     |
+                                               |        inventory_items, products,    |
+                                               |        categories, localities,       |
+                                               |        locations, group tables       |
+                                               |  WRITE: notifications (2 new kinds)  |
+                                               +--------------------------------------+
+</pre>
+<div class="tw"><table>
+<thead><tr><th>Container</th><th>Responsibility in this design</th></tr></thead>
+<tbody>
+<tr><td>Browser / Next.js client</td><td>The want list, form and match list; counters; the closing prompt after a take.</td></tr>
+<tr><td>web (Next standalone)</td><td>Serves the three panel routes; no server-side reads for wants (client-only panel).</td></tr>
+<tr><td>backend API</td><td><code>/api/wants</code> routes: validation, moderation, cap, forward match, reads.</td></tr>
+<tr><td>backend scheduler job</td><td>Lifecycle sweep, reverse scan, notification writes, marker update, one commit.</td></tr>
+<tr><td>PostgreSQL 18</td><td>Stores wants and matches; runs the match statement with <code>fold_pl()</code>, <code>pg_trgm</code> and the existing <code>products.search_vector</code>. No new extension.</td></tr>
+</tbody>
+</table></div>
+
+<h3 id="component-view">Component view of <code>app/wants</code> (Mermaid)</h3>
+<p>The caller asked for a component view of the new module. It shows logical components, not files.</p>
+<p class="note">Mermaid source shown as text: this page loads no external scripts, so the diagram is not rendered.</p>
+<pre>
+flowchart TB
+  subgraph FE["Frontend (features/wanted)"]
+    hook["useWants / useWantMatches"]
+  end
+
+  subgraph WANTS["app/wants (new)"]
+    router["Router /api/wants"]
+    writes["Want writes: create, edit, extend, close, resume"]
+    reads["Want reads: list with counters, match list"]
+    matcher["Matcher: one match statement, two direction filters"]
+    scan["Scan job: lifecycle sweep, reverse scan, notify, marker"]
+    rules["Domain rules: limits, thresholds, state machine, links"]
+    store[("wants, want_matches, want_scan_markers")]
+  end
+
+  subgraph ACL["app/wants/infrastructure (one ACL per foreign module)"]
+    a_groups["groups_acl"]
+    a_inv["inventory_acl"]
+    a_prod["product_acl"]
+    a_cat["category_acl"]
+    a_loc["locations_acl"]
+    a_users["users_acl + organizations_acl"]
+    a_mod["moderation_acl"]
+    a_notif["notifications_acl"]
+  end
+
+  hook --&gt; router
+  router --&gt; writes
+  router --&gt; reads
+  writes --&gt; rules
+  writes --&gt; matcher
+  writes --&gt; a_mod
+  writes --&gt; store
+  reads --&gt; store
+  reads --&gt; a_groups
+  reads --&gt; a_prod
+  reads --&gt; a_users
+  scan --&gt; matcher
+  scan --&gt; store
+  scan --&gt; a_notif
+  scan --&gt; a_users
+  matcher --&gt; store
+  matcher --&gt; a_groups
+  matcher --&gt; a_inv
+  matcher --&gt; a_prod
+  matcher --&gt; a_cat
+  matcher --&gt; a_loc
+  sched["APScheduler in app/main.py"] --&gt; scan
+</pre>
+
+<h2 id="key-components">Key Components</h2>
+<div class="tw"><table>
+<thead><tr><th>Component</th><th>Purpose</th><th>Responsibilities</th><th>Reuses or touches (existing code)</th><th>ACL it needs</th></tr></thead>
+<tbody>
+<tr><td><strong>Router <code>/api/wants</code></strong></td><td>HTTP surface for the seeker</td><td>Routes in section "API surface"; resolves the caller's party; maps errors to 400 / 404 / 409 / 503</td><td>Registered in <code>src/backend/app/main.py:155-173</code>; new rows in <code>src/backend/app/core/authorization_matrix.py</code></td><td><code>users_acl</code> (profile by principal)</td></tr>
+<tr><td><strong>Want writes</strong></td><td>Create and change a want</td><td>Validate lengths and filters; contact-info rule, then classifier; cap of 30 counted in the same transaction; set expiry; run the forward match</td><td><code>ensure_no_contact_info</code> (<code>src/backend/app/moderation/rules.py:11-36</code>), <code>check_text</code> with two new <code>TextField</code> members (<code>src/backend/app/moderation/text_guard.py:23-71,89-120</code>)</td><td><code>moderation_acl</code>, <code>category_acl</code> (category exists), <code>locations_acl</code> (locality exists)</td></tr>
+<tr><td><strong>Matcher</strong></td><td>Decide which (want, item) pairs match</td><td>Build one statement with all predicates; take a direction filter; insert pairs with <code>ON CONFLICT DO NOTHING</code>; keep the 20 best per want</td><td>Same recipe as <code>src/backend/app/search/application/search.py:183-269,272-319</code>, as its own copy because <code>app.search</code> may not be imported (<code>src/backend/tests/test_module_boundaries.py:17,54-97</code>)</td><td><code>groups_acl</code>, <code>inventory_acl</code>, <code>product_acl</code>, <code>category_acl</code>, <code>locations_acl</code></td></tr>
+<tr><td><strong>Scan job</strong></td><td>Periodic work in one transaction</td><td>Expire, remind, purge; reverse scan since the marker; write notifications; advance the marker; commit once</td><td>Pattern of <code>src/backend/app/groups/application/term_end_scan.py</code>; one more <code>add_job</code> in <code>src/backend/app/main.py:120-127</code></td><td><code>notifications_acl</code>, <code>users_acl</code>, <code>organizations_acl</code>, <code>product_acl</code></td></tr>
+<tr><td><strong>Want reads</strong></td><td>List and match list</td><td>The seeker's wants with <code>match_count</code> and <code>new_match_count</code>; the match list as item cards, filtered by current visibility and listing state</td><td>Card inputs as in <code>search.py:355-394</code> (organization batch, first approved photo batch); frontend <code>ItemCard</code></td><td><code>groups_acl</code>, <code>inventory_acl</code>, <code>product_acl</code>, <code>organizations_acl</code>, <code>users_acl</code></td></tr>
+<tr><td><strong>Domain rules</strong></td><td>Pure values and functions</td><td>Limits (3–80, 300, 30, 20, 90 / 7 / 30 days), thresholds, allowed state transitions, the item and want link builders</td><td>Link shape of <code>src/backend/app/groups/application/item_links.py:19-25</code>; a copy pinned by a parity test, as <code>tests/test_module_boundaries.py:100-111</code> does for search</td><td>none</td></tr>
+<tr><td><strong>Storage</strong></td><td>Tables of the module</td><td><code>wants</code>, <code>want_matches</code>, <code>want_scan_markers</code></td><td><code>BaseEntity</code> (<code>src/backend/app/core/base_model.py</code>), <code>fold_pl()</code> (migration 0087)</td><td>none</td></tr>
+<tr><td><strong>Frontend feature</strong></td><td>The seeker's screens</td><td>List, form, match list, closing prompt, counters</td><td>Replaces <code>features/search/WantedView.tsx</code> and <code>features/add/HuntingCreateView.tsx</code>; reuses <code>CategoryTreePicker</code>, <code>LocalityCombobox</code>, <code>ItemCard</code>, <code>ModalSheet</code>, <code>ConfirmDeleteDialog</code></td><td>—</td></tr>
+</tbody>
+</table></div>
+
+<h3 id="acl-contents">ACL contents</h3>
+<p>Each file is the only place in <code>app/wants</code> that imports that module, and none imports <code>..schemas</code>, as in <code>search/infrastructure/*_acl.py</code>.</p>
+<div class="tw"><table>
+<thead><tr><th>ACL</th><th>Names it exposes</th><th>Change needed in the foreign module</th></tr></thead>
+<tbody>
+<tr><td><code>groups_acl</code></td><td><code>ItemListingPreference</code>, <code>ItemVisibility</code>, <code>items_visible_to</code>, <code>owner_shares_group_with</code>, <code>with_pending_proposer</code>, <code>VisibilityScope</code></td><td>Widen the <code>viewer</code> / <code>other_party</code> parameter of <code>owner_shares_group_with</code> and <code>parties_share_group</code> to accept a column (<code>visibility.py:41-59</code>). No behaviour change for existing callers.</td></tr>
+<tr><td><code>inventory_acl</code></td><td><code>listed_items_with_product_select</code>, <code>InventoryItem</code>, <code>BalanceStatus</code>, the open-reservation read for "reserved by me"</td><td>None expected; names are already on <code>app.inventory.service</code>.</td></tr>
+<tr><td><code>product_acl</code></td><td><code>Product</code>, <code>first_approved_photo_by_product</code></td><td>None.</td></tr>
+<tr><td><code>category_acl</code></td><td><code>Category</code></td><td>None.</td></tr>
+<tr><td><code>locations_acl</code></td><td><code>Locality</code>, <code>Location</code></td><td>None.</td></tr>
+<tr><td><code>users_acl</code>, <code>organizations_acl</code></td><td>profile by principal, party to account user, own organization slug, <code>derive_party_slug</code></td><td>None expected; verify the batch reads exist.</td></tr>
+<tr><td><code>moderation_acl</code></td><td><code>check_text</code>, <code>TextField</code>, <code>ensure_no_contact_info</code></td><td>Add <code>WANT_NAME</code> and <code>WANT_NOTE</code> with their Polish messages.</td></tr>
+<tr><td><code>notifications_acl</code></td><td><code>create_notification</code>, the new replace-while-unread writer, <code>NotificationKind</code></td><td>Add two kinds and one service function (section "Notification design").</td></tr>
+</tbody>
+</table></div>
+
+<details class="card" id="data-model">
+<summary>Data model</summary>
+<p>All tables use <code>BaseEntity</code>: a UUID <code>id</code> with <code>gen_random_uuid()</code> server default, <code>created_at</code> and <code>updated_at</code> as naive UTC, <code>updated_at</code> as the version column. Names follow <code>pk_</code>, <code>fk_&lt;table&gt;_&lt;col&gt;_&lt;ref&gt;</code>, <code>ix_</code>, <code>uq_</code>, <code>ck_</code>. All time columns below are naive UTC written with <code>datetime.utcnow()</code>: they are deadlines and audit marks, not wall-clock appointments, so the Europe/Warsaw domain clock is not involved. User-facing dates are formatted on the client; notification texts avoid dates ("za 7 dni").</p>
+
+<h3 id="table-wants"><code>wants</code></h3>
+<div class="tw"><table>
+<thead><tr><th>Column</th><th>Type</th><th>Null</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>seeker_party_id</code></td><td>UUID</td><td>no</td><td>FK <code>parties.id</code> (<code>fk_wants_seeker_party_id_parties</code>). Plain FK-id column, no <code>relationship()</code>.</td></tr>
+<tr><td><code>name</code></td><td>VARCHAR(80)</td><td>no</td><td>3–80 code points after trim.</td></tr>
+<tr><td><code>note</code></td><td>VARCHAR(300)</td><td>yes</td><td>Not matched; shown to the seeker only.</td></tr>
+<tr><td><code>category_id</code></td><td>UUID</td><td>yes</td><td>FK <code>categories.id</code> ON DELETE SET NULL. Any node, not only a leaf.</td></tr>
+<tr><td><code>offer_mode</code></td><td>VARCHAR(20)</td><td>yes</td><td><code>GIFT</code> or <code>SWAP</code>; null means both. Plain string, as <code>ItemListingPreference.mode</code>.</td></tr>
+<tr><td><code>locality_id</code></td><td>VARCHAR(7)</td><td>yes</td><td>FK <code>localities.id</code> ON DELETE RESTRICT.</td></tr>
+<tr><td><code>radius_km</code></td><td>SMALLINT</td><td>yes</td><td>0–100, only with a locality.</td></tr>
+<tr><td><code>notifications_enabled</code></td><td>BOOLEAN</td><td>no</td><td>Default true. The per-want switch.</td></tr>
+<tr><td><code>status</code></td><td>VARCHAR(20)</td><td>no</td><td>String-backed enum: <code>ACTIVE</code>, <code>FULFILLED</code>, <code>WITHDRAWN</code>, <code>EXPIRED</code>.</td></tr>
+<tr><td><code>expires_at</code></td><td>TIMESTAMP</td><td>no</td><td>Creation, extension or resumption time plus 90 days.</td></tr>
+<tr><td><code>closed_at</code></td><td>TIMESTAMP</td><td>yes</td><td>Set when the want leaves <code>ACTIVE</code>; starts the 30-day retention.</td></tr>
+<tr><td><code>reminded_at</code></td><td>TIMESTAMP</td><td>yes</td><td>Marker of the 7-day reminder; cleared on extension.</td></tr>
+<tr><td><code>name_folded</code></td><td>TEXT, generated stored</td><td>no</td><td><code>fold_pl(name)</code>.</td></tr>
+<tr><td><code>name_query</code></td><td>TSQUERY, generated stored</td><td>no</td><td><code>plainto_tsquery('simple', fold_pl(name))</code>: all words.</td></tr>
+<tr><td><code>short_words_query</code></td><td>TSQUERY</td><td>yes</td><td>The words of up to 3 characters as an all-words query; null when there are none. Written by the application with the name.</td></tr>
+<tr><td><code>match_notification_id</code></td><td>UUID</td><td>yes</td><td>Loose pointer (no FK) to the newest match notification of this want.</td></tr>
+<tr><td><code>match_notification_count</code></td><td>INTEGER</td><td>no</td><td>Default 0. The count shown in that row.</td></tr>
+</tbody>
+</table></div>
+<p>Constraints and indexes:</p>
+<ul>
+<li><code>ck_wants_radius_requires_locality</code>: <code>radius_km IS NULL OR (locality_id IS NOT NULL AND radius_km BETWEEN 0 AND 100)</code>.</li>
+<li><code>ck_wants_closed_at_matches_status</code>: <code>(status = 'ACTIVE') = (closed_at IS NULL)</code>.</li>
+<li><code>ix_wants_seeker_party_id_status</code> on <code>(seeker_party_id, status)</code>: the list and the cap count.</li>
+<li><code>ix_wants_active_expires_at</code> on <code>(expires_at)</code> where <code>status = 'ACTIVE'</code>: scan and sweep.</li>
+<li><code>ix_wants_closed_at</code> on <code>(closed_at)</code> where <code>status &lt;&gt; 'ACTIVE'</code>: the purge.</li>
+<li>No text index on the want side. The reverse direction cannot use one (<code>&lt;%</code> is indexable only with the long text in the column); see "Measurement plan".</li>
+</ul>
+
+<h3 id="table-want-matches"><code>want_matches</code></h3>
+<div class="tw"><table>
+<thead><tr><th>Column</th><th>Type</th><th>Null</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>want_id</code></td><td>UUID</td><td>no</td><td>FK <code>wants.id</code> ON DELETE CASCADE (<code>fk_want_matches_want_id_wants</code>); same module.</td></tr>
+<tr><td><code>item_id</code></td><td>UUID</td><td>no</td><td>Loose pointer to an inventory item, no FK, as <code>ItemListingPreference.item_id</code>.</td></tr>
+<tr><td><code>source</code></td><td>VARCHAR(10)</td><td>no</td><td><code>FORWARD</code> (found when the want was created, edited or resumed) or <code>SCAN</code>.</td></tr>
+<tr><td><code>score</code></td><td>REAL</td><td>no</td><td>The text score at match time; orders the top 20 and feeds threshold tuning.</td></tr>
+<tr><td><code>seen_at</code></td><td>TIMESTAMP</td><td>yes</td><td>Null means new. <code>FORWARD</code> rows are born seen.</td></tr>
+<tr><td><code>opened_at</code></td><td>TIMESTAMP</td><td>yes</td><td>First open of the item from the match list; measurement only.</td></tr>
+</tbody>
+</table></div>
+<p>Constraints and indexes:</p>
+<ul>
+<li><code>uq_want_matches_want_id_item_id</code>: the deduplication key and the list index.</li>
+<li><code>ix_want_matches_item_id</code>: the lookup "which of my wants matched this item" and the later owner signal.</li>
+</ul>
+
+<h3 id="table-want-scan-markers"><code>want_scan_markers</code></h3>
+<p>One row per scan name (v1 has one, <code>listings</code>): <code>scan_name</code> VARCHAR(30) with <code>uq_want_scan_markers_scan_name</code>, and <code>scanned_through</code> TIMESTAMP (naive UTC). The scan creates the row on its first run, so no seed migration is needed. Because <code>updated_at</code> is the version column, two scheduler instances that race on the row make the second run fail and roll back as a whole.</p>
+
+<h3 id="hard-delete">Hard delete, not soft delete</h3>
+<p>Closed wants are <strong>hard-deleted</strong> with their matches 30 days after <code>closed_at</code>. Reasons: the user's retention decision asks for deletion; a want is personal text with no ledger link, so nothing needs the row afterwards; nothing outside the module references it by FK. During the 30 days the <code>status</code> column is the soft state, so there is no <code>deleted_at</code> column and no partial unique index. Notification rows that point at a purged want keep their text; their link opens the not-found page of <code>/wanted/:id</code>, which links back to the list.</p>
+
+<h3 id="migration-and-rollback">Migration and rollback</h3>
+<ul>
+<li>One schema revision (next free number, after 0098) creates the three tables with <code>SET LOCAL lock_timeout = '5s'</code>, because the foreign keys take locks on <code>parties</code>, <code>categories</code> and <code>localities</code>. No data revision.</li>
+<li>Downgrade drops <code>want_matches</code>, <code>want_scan_markers</code>, <code>wants</code> in that order. It is lossy (all wants are lost) and unguarded: no ledger row depends on a want.</li>
+<li>The downgrade, and any image-only rollback, must first delete <code>notifications</code> rows of the two new kinds. The kind column is a non-native enum, so old code fails to load a row whose kind it does not know (precedent: migration 0063 deleted rows of a removed kind). This belongs in the runbook in <code>architecture.md</code>.</li>
+<li>A downgrade-then-upgrade test per the migration standard, which also proves the generated <code>tsquery</code> column.</li>
+</ul>
+</details>
+
+<details class="card" id="matching-design">
+<summary>Matching design</summary>
+
+<h3 id="one-statement">One statement, two direction filters</h3>
+<p>Forward and reverse matching are the same statement with a different filter. This keeps the predicates in one place and guarantees that a pair matches the same way in both directions.</p>
+<pre>
+-- illustrative shape, not final SQL
+INSERT INTO want_matches (want_id, item_id, score, source, seen_at)
+SELECT want_id, item_id, score, :source, :seen_at
+FROM (
+  SELECT w.id AS want_id, l.item_id, &lt;score&gt; AS score,
+         row_number() OVER (PARTITION BY w.id ORDER BY &lt;score&gt; DESC, l.created_at DESC) AS rn
+  FROM wants w
+  JOIN item_listing_preferences l ON l.owner_party_id &lt;&gt; w.seeker_party_id      -- own items excluded
+  JOIN &lt;listed items: live, balance AVAILABLE, no pending proposal&gt; i ON i.item_id = l.item_id
+  JOIN products p            ON p.id = i.product_id
+  JOIN inventory_items ii    ON ii.id = l.item_id
+  JOIN locations loc         ON loc.id = ii.location_id AND loc.deleted_at IS NULL   -- live place
+  JOIN localities il         ON il.id = loc.locality_id
+  LEFT JOIN localities wl    ON wl.id = w.locality_id
+  WHERE w.status = 'ACTIVE' AND w.expires_at &gt; :now
+    AND &lt;direction filter&gt;
+    AND ( l.visibility = 'PUBLIC'
+          OR (l.visibility = 'PRIVATE' AND &lt;owner and seeker share a live PRIVATE group&gt;) )
+    AND (w.offer_mode  IS NULL OR l.mode = w.offer_mode)
+    AND (w.category_id IS NULL OR &lt;p.category_id is w.category_id or a descendant&gt;)
+    AND (w.locality_id IS NULL OR il.id = w.locality_id
+         OR &lt;haversine(wl point, il point) &lt;= w.radius_km&gt;)
+    AND ( p.search_vector @@ w.name_query
+          OR ( word_similarity(w.name_folded, fold_pl(p.name))
+                 &gt;= CASE WHEN w.category_id IS NULL THEN :strict ELSE :loose END
+               AND (w.short_words_query IS NULL OR p.search_vector @@ w.short_words_query) ) )
+) ranked
+WHERE rn &lt;= 20
+ON CONFLICT (want_id, item_id) DO NOTHING
+RETURNING want_id, item_id;
+</pre>
+<div class="tw"><table>
+<thead><tr><th>Direction</th><th>Filter</th><th>Source</th><th><code>seen_at</code></th><th>Notification</th></tr></thead>
+<tbody>
+<tr><td>Forward (create, edit of a matching field, resume, reopen)</td><td><code>w.id = :want_id</code></td><td><code>FORWARD</code></td><td>now</td><td>none</td></tr>
+<tr><td>Reverse (scan)</td><td><code>l.created_at &gt; :marker - overlap AND l.created_at &lt;= :now</code></td><td><code>SCAN</code></td><td>null</td><td>grouped, per want</td></tr>
+</tbody>
+</table></div>
+
+<h3 id="predicates">Predicates</h3>
+<div class="tw"><table>
+<thead><tr><th>Predicate</th><th>Rule</th><th>Source of the rule</th></tr></thead>
+<tbody>
+<tr><td>Text</td><td>Always required. Either all words of the want are found by full text in the item's name or description, or the folded names are trigram-similar at or above the threshold.</td><td>User, 4.2A modified</td></tr>
+<tr><td>Short words</td><td>Words of up to 3 characters never match by trigram. In the trigram branch each of them must be present as an exact token.</td><td>User</td></tr>
+<tr><td>Threshold</td><td>Strict without a category, looser with one. Starting values 0.70 and 0.60 (0.60 is what search itself uses through <code>&lt;%</code>).</td><td>User for the rule; numbers proposed</td></tr>
+<tr><td>Category</td><td>If set, the item's leaf category must be the want's node or below it. It narrows (AND); it is never a match on its own.</td><td>User</td></tr>
+<tr><td>Offer mode</td><td>If set, equals the listing mode.</td><td>User, 3.1B</td></tr>
+<tr><td>Locality and radius</td><td>If set, the item's place is in the same locality or within the radius by haversine over locality points. Without a point on either side the rule falls back to "same locality" (21 of 54,440 localities).</td><td>User, 3.1B; findings</td></tr>
+<tr><td>Visibility</td><td>PUBLIC, or PRIVATE with a live PRIVATE group shared by owner and seeker. PRIVATE inclusion is explicit, per the safe-by-default standard.</td><td>Standard <code>backend/models.md</code>; <code>visibility.py:91-108</code></td></tr>
+<tr><td>Takeability</td><td>Balance <code>AVAILABLE</code>, no pending swap proposal, and a live pickup place on the item.</td><td>User 4.3B; definition proposed (ADR-008)</td></tr>
+<tr><td>Own items</td><td>The owner is not the seeker.</td><td>Fixed by evidence</td></tr>
+<tr><td>Limit</td><td>The 20 best pairs per want per run, by score then newest listing.</td><td>User, area 7</td></tr>
+</tbody>
+</table></div>
+<p>Notes on the predicates:</p>
+<ul>
+<li>The category rule in a set-based statement needs "ancestors of the item's category", not "descendants of one node". A recursive closure over <code>categories</code> (about 2,300 nodes) computed once per statement gives it. Search's <code>_category_subtree</code> handles one node only and is private.</li>
+<li>The radius rule needs the radius and the origin as columns. Search's <code>_near</code> binds them as Python values (<code>search.py:183-196</code>), so the module holds its own column form of the same formula.</li>
+<li>The group-sharing rule needs a column on both sides (owner and seeker). See the ACL table.</li>
+<li>Condition is not a want field, by decision.</li>
+</ul>
+
+<h3 id="reverse-scan">The reverse scan, its marker and idempotency</h3>
+<ol>
+<li>The job reads the marker row. <code>scanned_through</code> is the start time of the last successful run.</li>
+<li>The window is listings with <code>created_at</code> after <code>scanned_through</code> minus a 5-minute overlap, up to now. The overlap covers listings whose transaction committed after the previous scan read: <code>created_at</code> is assigned at INSERT, and the commit comes later.</li>
+<li>The statement inserts new pairs. A pair already stored is skipped by the unique key, so the overlap, a retry or a second process never produces a second row or a second notification.</li>
+<li>Notifications, the want updates and the new marker value are written in the same transaction and committed once, as in <code>term_end_scan</code>.</li>
+<li>After downtime the window is simply longer. The cap of 20 per want bounds the result.</li>
+<li>First run: no marker row means the window starts one interval back.</li>
+</ol>
+<p>What the marker scan does not see, by design:</p>
+<ul>
+<li>An item whose reservation was released, or whose pending proposal was rejected.</li>
+<li>An item changed from PRIVATE to PUBLIC, or whose offer mode changed (the row is updated, not re-created).</li>
+<li>An item whose product name, description, category or place was edited.</li>
+<li>A seeker who joined a group that reveals PRIVATE items.</li>
+<li>A pair that fell outside the top 20 in its run.</li>
+</ul>
+<p>These pairs appear only if the item is unlisted and listed again, or the seeker edits or resumes the want (which re-runs the forward query).</p>
+
+<h3 id="forward-match">Forward match at creation</h3>
+<p>Runs in the create request, after the want row is inserted, in the same transaction, under <code>SET LOCAL statement_timeout = '3s'</code> as search does. Its rows are stored as seen, so they are listed at once on <code>/wanted/:id</code> and raise no counter and no notification. A timeout fails the request with 503 and nothing is saved.</p>
+<p>Editing the name, category, offer mode, locality or radius is treated as a new search (proposed): the want's match rows are deleted and the forward query runs again. Editing the note or the switch changes nothing else.</p>
+
+<h3 id="read-time-checks">Read-time checks</h3>
+<p>A stored pair can go stale. The match list therefore joins the pairs to the current listing state in the same read: the item must still be listed and visible to the seeker (<code>items_visible_to</code> with the seeker as the viewer, the forward form that exists). Items that are gone are left out; reserved items are shown as reserved, after available ones, with a "reserved by me" flag. The item page and take / propose already re-check with <code>can_view_item</code>, so a stale link is a 404, never a leak.</p>
+
+<h3 id="statement-count">Statement-count discipline</h3>
+<ul>
+<li>Create: a fixed number of statements (cap count, category and locality checks, insert, forward match).</li>
+<li>Scan run: a fixed number whatever the number of wants, listings or matches (target: at most 16). Per-want work uses set statements or one multi-row write, never a loop of reads.</li>
+<li>List and match list: fixed, with batches for organizations and photos as in search.</li>
+<li>Each is pinned by a <code>count_queries</code> test with one and with several rows, per the backend testing standard.</li>
+</ul>
+</details>
+
+<h2 id="notification-design">Notification design</h2>
+
+<h3 id="new-kinds">New kinds</h3>
+<div class="tw"><table>
+<thead><tr><th>Kind</th><th>Recipient</th><th>When</th><th>Link</th></tr></thead>
+<tbody>
+<tr><td><code>WANT_MATCH_FOUND</code></td><td>the seeker</td><td>a scan run stored at least one new pair for a want with the switch on</td><td>one match: the item page; two or more: <code>/wanted/:id</code></td></tr>
+<tr><td><code>WANT_EXPIRING</code></td><td>the seeker</td><td>7 days before <code>expires_at</code>, once per period</td><td><code>/wanted/:id</code></td></tr>
+</tbody>
+</table></div>
+<p>Both fit <code>VARCHAR(30)</code> and need no migration. The backend enum and the frontend <code>NotificationKind</code> union both grow by two.</p>
+
+<h3 id="one-row-per-want">At most one row per want per run, replaced while unread</h3>
+<p>For each want with new pairs in a run:</p>
+<ul>
+<li>If <code>match_notification_id</code> points at a row that is still unread, that row is replaced in place: the count becomes the stored count plus the new pairs, the message and link are rebuilt, and its time moves to now so it sorts first.</li>
+<li>Otherwise a new row is written with the count of this run, and the pointer and count on the want are set.</li>
+<li>Count 1: the message names the item and links straight to it. Count 2 or more: the message gives the count and links to the want's match list.</li>
+</ul>
+<p>Illustrative texts (final wording in specification), passed through <code>clock.fit_notification_message</code>:</p>
+<ul>
+<li>"Szukasz: «rowerek biegowy». Ktoś wystawił: «Rowerek biegowy Puky»."</li>
+<li>"Szukasz: «rowerek biegowy». 3 nowe pasujące rzeczy."</li>
+</ul>
+<p>The scan writes these rows directly through <code>notifications_acl</code>, in its own transaction. The outbox is not used: the scan already runs outside any request, the outbox would add up to 60 seconds, and the replace rule needs the id of the written row. <code>app.notifications</code> gains one writer that replaces an unread row or creates a new one and returns its id; the wording stays with the producer, as on the existing synchronous path (<code>groups/infrastructure/notifications_bridge.py</code>).</p>
+
+<h3 id="pending-actions">Staying out of pending actions</h3>
+<p><code>derivePendingActions</code> builds blocking sheets from <code>SWAP_PROPOSED</code> and <code>TERM_CONFIRMATION_NEEDED</code> only. The new kinds are informational by default. A test row pins that they produce no pending action.</p>
+
+<h3 id="the-counter">The counter</h3>
+<ul>
+<li><code>new_match_count</code> of a want is the number of its pairs with <code>seen_at IS NULL</code>. The list endpoint returns it per want; the "Konto" row and the <code>/add</code> tile show the sum.</li>
+<li>Opening <code>/wanted/:id</code> calls <code>POST /api/wants/{id}/matches/seen</code>, which sets <code>seen_at</code> on the want's pairs. A POST is used because GET requests must stay free of side effects (security standard, cookie auth on GET).</li>
+<li>The counter and the bell row are independent: reading the bell does not reset the counter, and opening the list does not mark the bell row read.</li>
+</ul>
+
+<h3 id="known-gap">Known gap</h3>
+<p>There is no e-mail or push. A seeker who does not return never learns of a match. The bell keeps the newest 50 rows; one row per want limits the pressure but does not remove it.</p>
+
+<h2 id="lifecycle-and-retention">Lifecycle and retention</h2>
+<p class="note">Mermaid source shown as text: this page loads no external scripts, so the diagram is not rendered.</p>
+<pre>
+stateDiagram-v2
+  [*] --&gt; ACTIVE: create (expires in 90 days)
+  ACTIVE --&gt; ACTIVE: extend (new 90 days, reminder marker cleared)
+  ACTIVE --&gt; FULFILLED: "found"
+  ACTIVE --&gt; WITHDRAWN: "withdraw"
+  ACTIVE --&gt; EXPIRED: sweep at expires_at
+  EXPIRED --&gt; ACTIVE: resume (cap check, forward match)
+  FULFILLED --&gt; ACTIVE: reopen (cap check, forward match)
+  FULFILLED --&gt; [*]: purge 30 days after closed_at
+  WITHDRAWN --&gt; [*]: purge 30 days after closed_at
+  EXPIRED --&gt; [*]: purge 30 days after closed_at
+</pre>
+<ul>
+<li>Only <code>ACTIVE</code> wants with <code>expires_at</code> in the future are matched. A closed want drops out of the scan at once.</li>
+<li>Extending keeps the want and its matches. Resuming and reopening keep the stored matches, set a new 90-day period and run the forward query for what was listed meanwhile.</li>
+<li>The cap of 30 active wants applies to create, resume and reopen.</li>
+<li>Closing prompt: after the seeker takes an item or has an agreed swap for an item in a want's match list, the interface offers "Zamknij poszukiwanie" or "Szukam dalej". The want is found by a lookup in <code>want_matches</code>; reservations carry no origin field.</li>
+<li>Withdrawn wants are kept for the 30 days and hidden from the list (proposed): withdrawing is the seeker's delete.</li>
+<li>Automatic extension (optional in the user's decision, proposed as on): when the seeker opens the match list of a want in its last 30 days, the period is renewed. It is done in the same POST that resets the counter.</li>
+</ul>
+
+<h3 id="the-sweep">The sweep</h3>
+<p>The sweep is the first part of the scan job, in the same transaction, a fixed number of statements:</p>
+<ol>
+<li>Expire: <code>ACTIVE</code> wants with <code>expires_at</code> in the past become <code>EXPIRED</code>, <code>closed_at = expires_at</code>.</li>
+<li>Remind: <code>ACTIVE</code> wants within 7 days of <code>expires_at</code> and with <code>reminded_at</code> null get a <code>WANT_EXPIRING</code> row and the marker. The reminder ignores the per-want switch (proposed), because the switch is about match alerts and a muted want should not vanish silently.</li>
+<li>Purge: wants with <code>closed_at</code> older than 30 days are deleted; their matches cascade.</li>
+</ol>
+
+<h2 id="api-surface">API surface</h2>
+<p>All routes need a logged-in user. A want that is not the caller's is a 404, never a 403, so its existence is not revealed.</p>
+<div class="tw"><table>
+<thead><tr><th>Route</th><th>Purpose</th><th>Permission</th></tr></thead>
+<tbody>
+<tr><td><code>GET /api/wants</code></td><td>The caller's wants (<code>ACTIVE</code>, <code>EXPIRED</code>, <code>FULFILLED</code>) with <code>match_count</code> and <code>new_match_count</code>. Optional <code>matched_item_id</code> returns only active wants that hold this item as a match (the closing prompt).</td><td>READ</td></tr>
+<tr><td><code>POST /api/wants</code></td><td>Create; runs the forward match; returns the want.</td><td>EDIT</td></tr>
+<tr><td><code>GET /api/wants/{id}</code></td><td>One want.</td><td>READ</td></tr>
+<tr><td><code>PATCH /api/wants/{id}</code></td><td>Edit name, note, filters, switch.</td><td>EDIT</td></tr>
+<tr><td><code>POST /api/wants/{id}/extend</code></td><td>New 90-day period.</td><td>EDIT</td></tr>
+<tr><td><code>POST /api/wants/{id}/close</code></td><td>Body <code>outcome</code>: <code>FULFILLED</code> or <code>WITHDRAWN</code>.</td><td>EDIT</td></tr>
+<tr><td><code>POST /api/wants/{id}/resume</code></td><td><code>EXPIRED</code> or <code>FULFILLED</code> back to <code>ACTIVE</code>.</td><td>EDIT</td></tr>
+<tr><td><code>GET /api/wants/{id}/matches</code></td><td>Item cards in the search result shape, with <code>is_new</code>, <code>reserved</code>, <code>reserved_by_me</code>.</td><td>READ</td></tr>
+<tr><td><code>POST /api/wants/{id}/matches/seen</code></td><td>Reset the counter; automatic extension.</td><td>EDIT</td></tr>
+<tr><td><code>POST /api/wants/{id}/matches/{item_id}/opened</code></td><td>Record the first open of a matched item (measurement).</td><td>EDIT</td></tr>
+</tbody>
+</table></div>
+<ul>
+<li>Authorization matrix: two rows, <code>GET ^/api/wants(/.*)?$</code> → READ and <code>POST|PATCH ^/api/wants(/.*)?$</code> → EDIT, enforced per route with <code>Depends(require_any(...))</code>. Proposed without the OAuth <code>mcp:*</code> scopes, as for conversations: a want list is private.</li>
+<li>Errors: validation 400 (not 422); contact details 400 with the existing message; classifier rejection 400; classifier outage 503; the cap and illegal transitions 409 with a Polish message; forward-match timeout 503.</li>
+<li>Cache headers: there is no public route, so <code>set_personalised_cache_headers</code> is not used. The routes behave like <code>/api/notifications</code>. If a wants read is ever served under <code>/api/public/</code>, the personalised-cache rule applies.</li>
+<li>No DELETE route: withdrawing is the delete.</li>
+</ul>
+
+<h2 id="frontend-structure">Frontend structure</h2>
+<div class="tw"><table>
+<thead><tr><th>Piece</th><th>Design</th><th>Reuses or touches</th></tr></thead>
+<tbody>
+<tr><td>Routes</td><td><code>/wanted</code> (list), <code>/wanted/[id]</code> (match list, new), <code>/wanted/[id]/edit</code> (form), <code>/add/wanted</code> (form; renamed from <code>/add/hunting</code>). Thin client route files in the <code>(panel)</code> group.</td><td><code>src/frontend/src/app/(site)/(panel)/wanted/</code>, <code>.../add/hunting/</code> (renamed); <code>routing/paths.ts</code> (<code>View</code>, <code>PROTECTED_PREFIXES</code>); route manifest tests</td></tr>
+<tr><td>Feature folder</td><td><code>src/features/wanted/</code>: list view, form view, match list view, closing prompt, and one <code>resolve…View()</code> per page in a <code>*ViewState.ts</code>, table-tested.</td><td>Moves <code>features/search/WantedView.tsx</code> and <code>features/add/HuntingCreateView.tsx</code>; removes <code>MOCK_WANTS</code> from <code>utils/mocks.ts</code></td></tr>
+<tr><td>API and hooks</td><td><code>api/wants.ts</code>; <code>hooks/useWants.ts</code> as the one source for the list, the counts and the form's mutations (prefix key, stable empty fallback, <code>await invalidateQueries</code> on the prefix); <code>useWantMatches(id)</code> under the same prefix for one want's matches.</td><td>Pattern of <code>hooks/useNeededItems.ts:16-50</code>; data-fetching standard</td></tr>
+<tr><td>Form</td><td>Name visible; category, offer mode, locality and radius under "Doprecyzuj", expanded and filled when the user arrives from search. Note field up to 300. Inline Polish errors, <code>aria-disabled</code> on the blocked submit.</td><td><code>CategoryTreePicker</code> with <code>mode="any"</code>; <code>LocalityCombobox</code>; the radius chips and offer-mode chips extracted from <code>features/search/SearchFilters.tsx</code> into shared components</td></tr>
+<tr><td>After save</td><td>Navigate with <code>replace</code> to <code>/wanted/:id</code>, where the existing matches are listed.</td><td>routing facade</td></tr>
+<tr><td>Match list</td><td>Item cards; "new" marker; closing prompt when an item is reserved by the seeker; actions extend, found, withdraw; resume on an expired want. Opening the page calls the "seen" POST.</td><td><code>components/shared/ItemCard.tsx</code>; <code>ConfirmDeleteDialog</code> for withdraw; <code>ModalSheet</code> for the prompt, registered with <code>useRegisterOpenSheet</code></td></tr>
+<tr><td>Entry points</td><td><code>/add</code> tile to <code>/add/wanted</code> with the new-match count; "Konto" row to <code>/wanted</code> with real counts; empty-search prompt carrying <code>q</code>, category, offer mode, locality and radius.</td><td><code>features/add/AddView.tsx:75-82</code>; <code>features/account/AccountView.tsx:42-46</code>; <code>features/search/SearchView.tsx:260-281</code></td></tr>
+<tr><td>Closing prompt after a take</td><td>After a successful take or proposal the item page asks <code>GET /api/wants?matched_item_id=</code>; if a want is returned it offers to close it.</td><td><code>features/product/useItemTake.ts</code>, <code>TakeSuccessSheet.tsx</code></td></tr>
+<tr><td>Bell</td><td>No change in behaviour; the kind union grows by two.</td><td><code>api/notifications.ts:3-15</code></td></tr>
+</tbody>
+</table></div>
+<p>The empty-search prompt drops the condition and scope filters: a want has neither.</p>
+
+<h2 id="data-flow">Data Flow</h2>
+<ol>
+<li><strong>Create.</strong> Form → <code>POST /api/wants</code> → length and filter validation → contact-info rule → classifier → cap count → insert → forward match → commit → the client opens <code>/wanted/:id</code> and reads the matches.</li>
+<li><strong>A new listing.</strong> The owner lists an item through the unchanged flow; the listing row gets its <code>created_at</code>. Nothing else happens in that request.</li>
+<li><strong>Scan run.</strong> Sweep → read marker → reverse match insert → for wants with new pairs and the switch on: build the text, replace or create the bell row, update the pointer → write the marker → commit.</li>
+<li><strong>The seeker returns.</strong> The bell row, the tile and the "Konto" row show the news → the match list opens, the counter resets → the item page → take or propose (existing) → the owner is notified by the existing kinds → the closing prompt.</li>
+<li><strong>End of life.</strong> Reminder at 83 days → extension or expiry at 90 → purge 30 days after closing.</li>
+</ol>
+
+<h2 id="integration-points">Integration Points</h2>
+<div class="tw"><table>
+<thead><tr><th>#</th><th>Existing part</th><th>Kind of contact</th><th>Change</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><code>app/main.py</code></td><td>wiring</td><td>Include the wants router; add the scan job to the scheduler.</td></tr>
+<tr><td>2</td><td><code>app/core/authorization_matrix.py</code></td><td>permission rows</td><td>Two rows for <code>/api/wants</code>.</td></tr>
+<tr><td>3</td><td><code>app/groups</code> (visibility, listing rows, pending proposals)</td><td>read through <code>groups_acl</code></td><td>Widen one parameter type; export what the ACL needs. No write path changes.</td></tr>
+<tr><td>4</td><td><code>app/inventory</code> (listed items, balance, item place, open reservations)</td><td>read through <code>inventory_acl</code></td><td>None expected.</td></tr>
+<tr><td>5</td><td><code>app/product</code>, <code>app/category</code>, <code>app/locations</code></td><td>read through ACLs</td><td>None.</td></tr>
+<tr><td>6</td><td><code>app/moderation</code></td><td>call through <code>moderation_acl</code></td><td>Two <code>TextField</code> members and messages.</td></tr>
+<tr><td>7</td><td><code>app/notifications</code></td><td>write through <code>notifications_acl</code></td><td>Two kinds; one replace-or-create writer.</td></tr>
+<tr><td>8</td><td><code>app/users</code>, <code>app/organizations</code></td><td>read through ACLs</td><td>None expected (party resolution, slug for links).</td></tr>
+<tr><td>9</td><td><code>tests/test_module_boundaries.py</code></td><td>guard</td><td>Add <code>wants</code> to the guarded modules; add the link parity test.</td></tr>
+<tr><td>10</td><td>Frontend routing, add hub, account, search empty state, item take flow, notification types</td><td>UI</td><td>As in "Frontend structure".</td></tr>
+<tr><td>11</td><td><code>.maister/docs/project/architecture.md</code></td><td>documentation</td><td>New module, tables, runbook entry for the rollback rule.</td></tr>
+</tbody>
+</table></div>
+<p><code>app/search</code>, the listing write paths (<code>register_item</code>, <code>set_item_listing_preference</code>), reservations, messaging and needed items are not changed.</p>
+
+<h2 id="design-decisions">Design Decisions</h2>
+<div class="tw"><table>
+<thead><tr><th>ADR</th><th>Decision</th><th>Decided by</th></tr></thead>
+<tbody>
+<tr><td class="who"><a href="decision-log.html#adr-001">ADR-001</a></td><td>Private seeker alert first, owner signal second</td><td>User</td></tr>
+<tr><td class="who"><a href="decision-log.html#adr-002">ADR-002</a></td><td>The want is the single standing-demand object</td><td>User</td></tr>
+<tr><td class="who"><a href="decision-log.html#adr-003">ADR-003</a></td><td>Want and match tables; hard delete after retention</td><td>User; columns and hard delete proposed</td></tr>
+<tr><td class="who"><a href="decision-log.html#adr-004">ADR-004</a></td><td>New module <code>app/wants</code> with its own ACLs</td><td>User; name and guard proposed</td></tr>
+<tr><td class="who"><a href="decision-log.html#adr-005">ADR-005</a></td><td>Periodic scan with a creation-time marker</td><td>User; interval, overlap, marker table proposed</td></tr>
+<tr><td class="who"><a href="decision-log.html#adr-006">ADR-006</a></td><td>One match statement for both directions</td><td>Proposed</td></tr>
+<tr><td class="who"><a href="decision-log.html#adr-007">ADR-007</a></td><td>Text matching rules and starting thresholds</td><td>User; numbers proposed</td></tr>
+<tr><td class="who"><a href="decision-log.html#adr-008">ADR-008</a></td><td>What "takeable" means at match time</td><td>User; definition proposed</td></tr>
+<tr><td class="who"><a href="decision-log.html#adr-009">ADR-009</a></td><td>Grouped notifications, replaced while unread</td><td>User; mechanism proposed</td></tr>
+<tr><td class="who"><a href="decision-log.html#adr-010">ADR-010</a></td><td>Lifecycle as a stored status with a sweep in the scan job</td><td>User; mechanism proposed</td></tr>
+<tr><td class="who"><a href="decision-log.html#adr-011">ADR-011</a></td><td>Synchronous text checks and database-count limits</td><td>User</td></tr>
+<tr><td class="who"><a href="decision-log.html#adr-012">ADR-012</a></td><td>Response through take and propose; want found by lookup</td><td>User</td></tr>
+<tr><td class="who"><a href="decision-log.html#adr-013">ADR-013</a></td><td>Entry points, routes and a logged-in-only API</td><td>User; API shape proposed</td></tr>
+</tbody>
+</table></div>
+
+<h2 id="concrete-examples">Concrete Examples</h2>
+<div class="examples">
+<div class="card">
+<h4>1. A want with existing matches.</h4>
+<p>Given two public, available items named "Rowerek biegowy Puky" and "Rowerek biegowy drewniany" with live places, owned by other users,<br>
+when a logged-in user saves a want "rowerek biegowy" from the add tile,<br>
+then the response is 201, the user lands on <code>/wanted/:id</code> and sees both items, the counter is 0, and no notification is written.</p>
+</div>
+<div class="card">
+<h4>2. A new listing found by the scan.</h4>
+<p>Given an active want "kurtka zimowa 110" with category "Kurtki dziecięce", the switch on and no unread match row,<br>
+when another user lists "Kurtka zimowa Reima 110" in a leaf under that category and the next scan runs,<br>
+then one <code>want_matches</code> row exists, the seeker has one <code>WANT_MATCH_FOUND</code> row naming the item and linking to its page, and <code>new_match_count</code> is 1.<br>
+When a second matching item is listed before the seeker reads the bell, then the same row now says "2 nowe pasujące rzeczy" and links to <code>/wanted/:id</code>, and there is still one row.</p>
+</div>
+<div class="card">
+<h4>3. Items that must not match.</h4>
+<p>Given an active want "fotelik samochodowy",<br>
+when the scan sees (a) the seeker's own listed car seat, (b) a PRIVATE car seat of an owner who shares no private group with the seeker, (c) a car seat reserved by someone else, (d) "Fotel biurowy" listed in another category branch,<br>
+then no pair is stored for (a), (b) and (c); (d) is stored only if its name similarity reaches the strict threshold, which the labelled sample must show it does not.</p>
+</div>
+<div class="card">
+<h4>4. Short words.</h4>
+<p>Given a want "TV LG 43",<br>
+when "Telewizor LG 43 cale" and "Telewizor Samsung 50" are listed,<br>
+then neither matches by trigram alone; the first matches only if "tv", "lg" and "43" are all present as exact tokens, so it does not match either ("tv" is missing). This is the stated cost of the exact-only rule for short words and a case for the labelled sample.</p>
+</div>
+<div class="card">
+<h4>5. Closing after a take.</h4>
+<p>Given a want whose match list holds item X,<br>
+when the seeker reserves X on the item page,<br>
+then the page offers "Zamknij poszukiwanie" and "Szukam dalej"; choosing the first sets the want to <code>FULFILLED</code>, removes it from the scan and keeps it reopenable for 30 days.</p>
+</div>
+<div class="card">
+<h4>6. Cap.</h4>
+<p>Given a user with 30 active wants,<br>
+when they create another or resume an expired one,<br>
+then the response is 409 with a Polish message and nothing is written.</p>
+</div>
+</div>
+
+<details class="card" id="pre-implementation-checks">
+<summary>Pre-implementation checks</summary>
+<div class="tw"><table>
+<thead><tr><th>#</th><th>Check</th><th>Status</th><th>If it fails</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>The listing row has a trustworthy creation time (named by the user).</td><td>Done by reading: <code>created_at</code> is set once at insert, re-listing creates a new row. Residual: the commit can come after the scan read, which the 5-minute overlap covers. Confirm with a test that lists an item inside a long transaction.</td><td>An id marker is impossible (<code>uuid4</code>). Fall back to 4.1C: outbox events at the two listing write points.</td></tr>
+<tr><td>2</td><td>Search parameters survive a guest's login (named by the user).</td><td>Read in code: yes for the login redirect, in both the proxy and <code>AuthGuard</code>. Not tested; the registration tab path is untraced. Add a test with a multi-parameter URL.</td><td>Carry the parameters inside the return address explicitly, or keep them in session storage across the gate.</td></tr>
+<tr><td>3</td><td><code>owner_shares_group_with</code> compiles and filters correctly with a seeker column.</td><td>Inferred from <code>membership.py:48-51</code>. Not run.</td><td>Keep the matcher's PRIVATE branch as a per-want forward-only check and match only PUBLIC items in the scan, or move to 3.3C.</td></tr>
+<tr><td>4</td><td>A generated stored <code>tsquery</code> column is accepted by PostgreSQL 18.</td><td>Expected (the functions are immutable). Not run.</td><td>Write the column from the application, as <code>short_words_query</code>.</td></tr>
+<tr><td>5</td><td>The facades export every name the ACLs need; batch reads for slugs and party resolution exist.</td><td>Checked for groups names only.</td><td>Add thin exports; no design change.</td></tr>
+<tr><td>6</td><td><code>EXPLAIN (ANALYZE, BUFFERS)</code> of the match statement in both directions.</td><td>Not done.</td><td>See "Measurement plan".</td></tr>
+</tbody>
+</table></div>
+</details>
+
+<details class="card" id="measurement-plan">
+<summary>Measurement plan</summary>
+<ol>
+<li><strong>Scan cost.</strong> Seed a database with 5,000 and 20,000 listed items and 1,000 and 10,000 active wants, half of them with a category and a third with a locality. Run <code>EXPLAIN (ANALYZE, BUFFERS)</code> on the reverse statement for windows of 20 and 500 new listings, and on the forward statement for one want. Proposed budgets: forward under 300 ms, reverse under 2 s at the largest point. Check that the forward plan uses the product name trigram index and the full-text index, and whether <code>item_listing_preferences.created_at</code> needs an index. If the reverse budget fails: tighten plain-column pre-filters first, then lengthen the interval, then move to 4.1C.</li>
+<li><strong>Labelled Polish sample.</strong> At least 200 want / item-name pairs built from real product names, labelled match or no match by a person. Include inflection ("rowerek" / "rowerki"), diminutives, sizes and other short tokens ("110", "XL", "3 l"), brands and near-miss categories. Score precision and recall for thresholds 0.50–0.80, with and without a category, and with full text on the name only versus name and description. Proposed target: precision of at least 0.9 for a notification. The first tuning lever is restricting full text to the name.</li>
+<li><strong>Production signals.</strong> One log line per scan run (window, listings, active wants, pairs stored, notifications written, duration). <code>want_matches.score</code> and <code>source</code> per pair. Opens from <code>opened_at</code>; for single-match bell rows, the notification's read state. Takes from a periodic query that joins <code>want_matches</code> to reservations by item and reserver, made after the match time. Review the open rate and take rate per score band after the first weeks, before changing thresholds. Matches are purged with their want, so the query must run inside the retention period.</li>
+</ol>
+</details>
+
+<h2 id="risks-and-stated-costs">Risks and stated costs</h2>
+<div class="tw"><table>
+<thead><tr><th>Risk or cost</th><th>Effect</th><th>Mitigation or position</th></tr></thead>
+<tbody>
+<tr><td>Scan delay</td><td>A seeker learns of a match up to 15 minutes late; a scarce item may be gone.</td><td>Accepted with 4.1D. The interval is one constant.</td></tr>
+<tr><td>Missed re-availability</td><td>Released, edited or re-scoped items never match.</td><td>Accepted for v1. Seeker edit or resume re-runs the forward query. Revisit with data on releases.</td></tr>
+<tr><td>In-app only</td><td>Non-returning users are not reached.</td><td>Accepted gap; e-mail needs consent, verification and legal review.</td></tr>
+<tr><td>Polish inflection</td><td>Missed or false matches.</td><td>Strict start, measurement before tuning.</td></tr>
+<tr><td>Bell pressure</td><td>Match rows can hide action prompts in the 50-row bell.</td><td>One row per want; the switch per want. A bell redesign is out of scope.</td></tr>
+<tr><td>Unlocked cap</td><td>Two concurrent creates can pass 30 by one or two.</td><td>Accepted by the user's decision (no locks).</td></tr>
+<tr><td>Shared product rows</td><td>Several owners' items share one name; a product rename changes what matches, silently.</td><td>Out of scope; noted with the unverified <code>PUT /api/products/{id}</code> observation.</td></tr>
+<tr><td>Rollback</td><td>Old code cannot read the new notification kinds.</td><td>Runbook step: delete those rows first.</td></tr>
+<tr><td>Single process</td><td>Scheduler jobs share the event loop with requests; a second uvicorn worker would run the scan twice.</td><td>Statement timeout on the scan; the marker's version column and the unique key make a double run harmless.</td></tr>
+<tr><td>Classifier outage</td><td>Creating or editing a want returns 503.</td><td>As everywhere else in the system (user's decision).</td></tr>
+</tbody>
+</table></div>
+
+<h2 id="extension-points">Extension points (second step, not designed in detail)</h2>
+<div class="tw"><table>
+<thead><tr><th>Step</th><th>Hook left by this design</th></tr></thead>
+<tbody>
+<tr><td>1B anonymous owner signal behind a switch</td><td><code>want_matches</code> grouped by <code>item_id</code> (index exists) gives the count per item; a new kind and an account-level switch are added. Needs the legal check and a decision for PRIVATE items.</td></tr>
+<tr><td>8B "mam to" relay</td><td>A new route on the match pair; the seeker still completes through take / propose.</td></tr>
+<tr><td>Aggregate demand in a group with 8D</td><td>Counts over <code>wants</code> joined to group members, without want text; a shortened item form pre-filled from the aggregate.</td></tr>
+<tr><td>7C rules</td><td>Period limits, a specificity check and a report entry point become mandatory before any want text is shown to another person.</td></tr>
+<tr><td>Visible wants</td><td>A visibility column can be added to <code>wants</code> without reshaping it.</td></tr>
+<tr><td>Search ranking rule (1)</td><td>A <code>search/infrastructure/wants_acl.py</code> can read the module later; the boundary guard then admits that one importer.</td></tr>
+</tbody>
+</table></div>
+
+<h2 id="out-of-scope">Out of Scope</h2>
+<ul>
+<li>Released reservations, item edits and visibility changes as matching signals; lemmatisation; embeddings (user, area 4).</li>
+<li>E-mail, push, digests, a notification settings screen.</li>
+<li>The owner signal, the relay, group or public wants, want-anchored conversations (8C), abuse reporting.</li>
+<li>Condition and photos on a want.</li>
+<li>A separate saved-search feature; search relevance work.</li>
+<li>Automatic closing through a reservation origin field.</li>
+<li>Changes to needed items.</li>
+<li>The <code>PUT /api/products/{id}</code> ownership question, the stale outbox docstring and the stale <code>PLEDGE_ITEM_REGISTERED</code> member in the frontend union.</li>
+<li>Account deletion and data export for wants (to be covered where the account lifecycle is designed).</li>
+<li>File layout, function signatures, test lists and task breakdown: specification and planning are a later workflow.</li>
+</ul>
+
+<h2 id="proposals-to-confirm">Proposals to confirm</h2>
+<div class="tw"><table>
+<thead><tr><th>#</th><th>Proposal</th><th>Why this value</th></tr></thead>
+<tbody>
+<tr><td>P1</td><td>Module <code>app/wants</code>; tables <code>wants</code>, <code>want_matches</code>, <code>want_scan_markers</code>; API prefix <code>/api/wants</code>; frontend folder <code>features/wanted</code>.</td><td>"Want" is the term used through the research; the frontend path <code>/wanted</code> already exists and is a reserved slug.</td></tr>
+<tr><td>P2</td><td>Scan interval 15 minutes; overlap 5 minutes.</td><td>Delivery is in-app only, so minutes do not matter to most users; a longer run groups more; the media sweep already runs at 15 minutes.</td></tr>
+<tr><td>P3</td><td>Thresholds 0.70 without a category and 0.60 with one; full text over name and description.</td><td>0.60 is what search uses; "strict" means above it. To be replaced by measured values.</td></tr>
+<tr><td>P4</td><td>Takeable = <code>AVAILABLE</code>, no pending proposal, live pickup place; shared terms and events are not checked.</td><td>Covers nearly all listed items at the cost of one join; the alternative needs attendance joins per pair.</td></tr>
+<tr><td>P5</td><td>Notification pointer and count kept on the want; rows written by the scan, not through the outbox.</td><td>No migration on the shared <code>notifications</code> table; the replace rule needs the row id.</td></tr>
+<tr><td>P6</td><td>Kind names <code>WANT_MATCH_FOUND</code> and <code>WANT_EXPIRING</code>.</td><td>Within 30 characters, in the style of the existing kinds.</td></tr>
+<tr><td>P7</td><td>The reminder is sent even when the per-want switch is off.</td><td>The switch is about match alerts; silent expiry was the reason to choose 6.1B.</td></tr>
+<tr><td>P8</td><td>Automatic extension on opening the match list in the last 30 days: on.</td><td>Named optional by the user; it costs one update in an existing POST.</td></tr>
+<tr><td>P9</td><td>Withdrawn wants are hidden from the list during retention.</td><td>Withdrawing is the seeker's delete; expired and fulfilled wants stay visible with resume / reopen.</td></tr>
+<tr><td>P10</td><td>Editing a matching field deletes the want's matches and re-runs the forward query.</td><td>An edit is a new search; old rows could no longer match.</td></tr>
+<tr><td>P11</td><td><code>/api/wants</code> accepts the login token only, not the OAuth <code>mcp:*</code> scopes.</td><td>A want list is private, as conversations are.</td></tr>
+<tr><td>P12</td><td>No redirect from <code>/add/hunting</code> to <code>/add/wanted</code>.</td><td>The mock was labelled a demo; a redirect page under the panel layout is discouraged by the components standard.</td></tr>
+<tr><td>P13</td><td><code>wants</code> joins the guarded modules in <code>tests/test_module_boundaries.py</code>.</td><td>Keeps the ACL discipline test-enforced from the first commit.</td></tr>
+</tbody>
+</table></div>
+
+<h2 id="success-criteria">Success Criteria</h2>
+<ol>
+<li>A new want shows its existing matches in the same navigation, with no notification written.</li>
+<li>A matching item listed after the want was created produces exactly one stored pair and at most one bell row per want per scan run, within one interval plus the run time.</li>
+<li>Running the scan twice over the same window stores no second pair and writes no second notification.</li>
+<li>No pair is ever stored for an own item, an invisible PRIVATE item or an item that cannot be taken at match time (test-pinned).</li>
+<li>The number of SQL statements of create, scan, list and match list does not grow with the number of wants, listings or matches (test-pinned).</li>
+<li>The reverse statement meets its budget at the measured data sizes, and the thresholds are set from the labelled sample before release.</li>
+<li>Closed wants and their matches are gone 30 days after closing; an active want is never deleted.</li>
+<li>The inventory and groups write paths, <code>app/search</code> and reservations have no functional change.</li>
+</ol>
+</main>
+</body>
+</html>
