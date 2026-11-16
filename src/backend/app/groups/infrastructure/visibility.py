@@ -39,10 +39,10 @@ class VisibilityScope(enum.StrEnum):
 
 
 def parties_share_group(
-    party: Parties, other_party: uuid.UUID, *, private_only: bool = False
+    party: Parties, other_party: Parties, *, private_only: bool = False
 ) -> ColumnElement[bool]:
-    """`party` (a party id or a correlated column) and `other_party` are both
-    in one live group (a PRIVATE one when `private_only`)."""
+    """`party` and `other_party` (each a party id or a correlated column) are
+    both in one live group (a PRIVATE one when `private_only`)."""
     shared = group_ids_for(party).where(Group.id.in_(group_ids_for(other_party)))
     if private_only:
         shared = shared.where(Group.visibility == GroupVisibility.PRIVATE)
@@ -50,10 +50,11 @@ def parties_share_group(
 
 
 def owner_shares_group_with(
-    viewer: uuid.UUID, *, private_only: bool = False
+    viewer: Parties, *, private_only: bool = False
 ) -> ColumnElement[bool]:
-    """Over `ItemListingPreference`: the item's owner and `viewer` are both
-    in one live group (a PRIVATE one when `private_only`)."""
+    """Over `ItemListingPreference`: the item's owner and `viewer` (a party
+    id or a correlated column) are both in one live group (a PRIVATE one when
+    `private_only`)."""
     return parties_share_group(
         ItemListingPreference.owner_party_id, viewer, private_only=private_only
     )

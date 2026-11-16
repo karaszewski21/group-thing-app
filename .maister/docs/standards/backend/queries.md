@@ -9,6 +9,16 @@ Always use SQLAlchemy's parameter binding — either the ORM's `select(Model).wh
 ### Select Only Needed Columns
 Request only the columns/relationships you need rather than eagerly loading everything by default.
 
+### Recursive CTE Members Use an Explicit Join
+Build the recursive member of a CTE with `select(...).join_from(parent, cte, onclause)` (or `.join(...)`), never a comma FROM plus a WHERE: SQLAlchemy's FROM linter reports the comma form as a cartesian product, an `SAWarning` on every execution.
+Pin it with a test that compiles the statement with `linting=compiler.COLLECT_CARTESIAN_PRODUCTS | compiler.WARN_LINTING` inside `warnings.catch_warnings()` + `simplefilter("error", SAWarning)`. Compiling directly bypasses the cache, since SQLAlchemy lints only the first compile of a cached statement shape.
+Reference: `src/backend/app/wants/application/matcher.py` (`_product_category_path`), `tests/test_wants_matcher.py::test_matchStatement_bothDirections_noCartesianProductWarning`.
+```python
+path = path.union_all(
+    select(parent.id, parent.parent_id).join_from(parent, path, parent.id == path.c.parent_id)
+)
+```
+
 ### Index Strategic Columns
 Index columns used in WHERE, JOIN, and ORDER BY clauses via an explicit `op.create_index(...)` in the owning Alembic migration (see `standards/backend/migrations.md`) — indexes are not inferred from the SQLAlchemy model.
 

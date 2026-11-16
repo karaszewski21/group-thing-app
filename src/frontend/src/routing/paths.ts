@@ -21,7 +21,7 @@ export type View =
   | "add/product"
   | "add/term"
   | "add/event"
-  | "add/hunting"
+  | "add/wanted"
   | "messages"
   | "organization";
 
@@ -57,7 +57,16 @@ export function placeEditPath(locationId: string): string {
   return `/places/${locationId}/edit`;
 }
 
-const PARTY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** One want's match list. */
+export function wantPath(wantId: string): string {
+  return `/wanted/${wantId}`;
+}
+
+export function wantEditPath(wantId: string): string {
+  return `/wanted/${wantId}/edit`;
+}
+
+const PARTY_ID =/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** A UUID-shaped first path segment is a party id (a person), never an
  * Organization slug: the backend keeps slugs from looking like UUIDs. */

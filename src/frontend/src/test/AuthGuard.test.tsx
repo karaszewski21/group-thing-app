@@ -1,17 +1,19 @@
 import { screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthGuard } from "../auth/AuthGuard";
 import { homePath } from "../auth/homePath";
-import { getTestLocation, renderWithRoute } from "./renderWithRoute";
+import { replaceDocument } from "../routing/documentNavigation";
+import { getTestRouter, renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../auth/AuthContext", () => ({
   useAuth: () => ({ token: "valid.jwt.token", permissions: [] }),
 }));
 
-function where() {
-  const { pathname, search } = getTestLocation();
-  return pathname + search;
-}
+vi.mock("../routing/documentNavigation", () => ({ replaceDocument: vi.fn() }));
+
+beforeEach(() => {
+  vi.mocked(replaceDocument).mockReset();
+});
 
 function renderAt(initialRoute: string) {
   return renderWithRoute(
@@ -25,13 +27,21 @@ function renderAt(initialRoute: string) {
 describe("AuthGuard requireAuth={false}", () => {
   it("sends a logged-in visitor straight to a safe returnTo", () => {
     renderAt(`/login?returnTo=${encodeURIComponent("/zajecia/group/7/term/9")}`);
-    expect(where()).toBe("/zajecia/group/7/term/9");
+    expect(replaceDocument).toHaveBeenCalledExactlyOnceWith("/zajecia/group/7/term/9");
     expect(screen.queryByText("LOGIN")).not.toBeInTheDocument();
+  });
+
+  // The client router keeps a protected URL's route as the proxy answered a
+  // guest (a redirect to /login); a client navigation would replay it.
+  it("leaves the client router: a full page load, no router navigation", () => {
+    renderAt(`/login?returnTo=${encodeURIComponent("/add/wanted?name=kask&radius=10")}`);
+    expect(replaceDocument).toHaveBeenCalledExactlyOnceWith("/add/wanted?name=kask&radius=10");
+    expect(getTestRouter().calls).toEqual([]);
   });
 
   it("without returnTo goes to the role's home", () => {
     renderAt("/login");
-    expect(where()).toBe("/");
+    expect(replaceDocument).toHaveBeenCalledExactlyOnceWith("/");
     expect(screen.queryByText("LOGIN")).not.toBeInTheDocument();
   });
 
@@ -39,7 +49,7 @@ describe("AuthGuard requireAuth={false}", () => {
     "ignores returnTo=%s and goes to the role's home",
     (returnTo) => {
       renderAt(`/login?returnTo=${encodeURIComponent(returnTo)}`);
-      expect(where()).toBe("/");
+      expect(replaceDocument).toHaveBeenCalledExactlyOnceWith("/");
     },
   );
 });

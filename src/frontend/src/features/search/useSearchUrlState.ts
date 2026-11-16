@@ -3,13 +3,13 @@ import type { ExchangeMode } from "../../api/groups";
 import type { ItemCondition } from "../../api/inventories";
 import type { SearchFilters, SearchMode, SearchScope } from "../../api/search";
 import { useAppSearchParams } from "../../routing/navigation";
+import { RADII_KM } from "../../utils/appHelpers";
 
 const CONDITIONS: readonly ItemCondition[] = ["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"];
 const OFFER_TYPES: readonly ExchangeMode[] = ["GIFT", "SWAP"];
 const FILTER_KEYS = ["category", "condition", "offer_type", "date_from", "date_to"] as const;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const LOCALITY_ID = /^\d{7}$/;
-export const SEARCH_RADII_KM: readonly number[] = [10, 25, 50];
 
 function oneOf<T extends string>(allowed: readonly T[], value: string | null): T | null {
   return allowed.find((candidate) => candidate === value) ?? null;
@@ -56,7 +56,7 @@ export function useSearchUrlState(guest: boolean): SearchUrlState {
   const localityParam = params.get("locality");
   const locality = localityParam !== null && LOCALITY_ID.test(localityParam) ? localityParam : null;
   // A radius counts only with a locality and only from the offered ones.
-  const radius = (locality && SEARCH_RADII_KM.find((km) => String(km) === params.get("radius"))) || null;
+  const radius = (locality && RADII_KM.find((km) => String(km) === params.get("radius"))) || null;
   const filters = useMemo<SearchFilters>(
     () =>
       mode === "items"

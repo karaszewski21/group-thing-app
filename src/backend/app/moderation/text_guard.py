@@ -33,6 +33,8 @@ class TextField(StrEnum):
     MESSAGE_BODY = "MESSAGE_BODY"
     EVENT_NAME = "EVENT_NAME"
     EVENT_DESCRIPTION = "EVENT_DESCRIPTION"
+    WANT_NAME = "WANT_NAME"
+    WANT_NOTE = "WANT_NOTE"
 
 
 MESSAGES: dict[TextField, str] = {
@@ -68,6 +70,10 @@ MESSAGES: dict[TextField, str] = {
     TextField.EVENT_DESCRIPTION: (
         "Opis wydarzenia narusza zasady społeczności. Zmień go i spróbuj ponownie."
     ),
+    TextField.WANT_NAME: (
+        "Nazwa poszukiwania narusza zasady społeczności. Zmień ją i spróbuj ponownie."
+    ),
+    TextField.WANT_NOTE: "Notatka narusza zasady społeczności. Zmień ją i spróbuj ponownie.",
 }
 
 _classifier: TextClassifier | None = None

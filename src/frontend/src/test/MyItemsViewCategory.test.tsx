@@ -506,11 +506,10 @@ describe("MyItemsView — photos in moderation do not block the mode toggles", (
 });
 
 describe("NotificationKind — frontend union matches backend enum", () => {
-  it("includes all 11 backend NotificationKind members", () => {
+  it("includes all 13 backend NotificationKind members", () => {
     const allKinds: NotificationKind[] = [
       "PLEDGE_CREATED",
       "PLEDGE_WITHDRAWN",
-      "PLEDGE_ITEM_REGISTERED",
       "NEEDED_ITEM_REMOVED",
       "TERM_ITEM_LISTING_TAKEN",
       "SWAP_PROPOSED",
@@ -519,9 +518,12 @@ describe("NotificationKind — frontend union matches backend enum", () => {
       "TERM_CONFIRMATION_NEEDED",
       "TERM_ALREADY_RESOLVED",
       "ITEM_RESERVED_FOR_PICKUP",
+      "RESERVATION_CANCELLED",
+      "WANT_MATCH_FOUND",
+      "WANT_EXPIRING",
     ];
-    expect(allKinds).toHaveLength(11);
-    expect(new Set(allKinds).size).toBe(11);
+    expect(allKinds).toHaveLength(13);
+    expect(new Set(allKinds).size).toBe(13);
   });
 });
 

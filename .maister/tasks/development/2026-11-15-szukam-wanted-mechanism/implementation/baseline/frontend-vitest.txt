@@ -1,0 +1,119 @@
+# Frontend Vitest baseline
+# HEAD 92659eb, 2026-11-15
+# Command (from src/frontend): npm run test  (vitest run, full suite)
+# Exit code: 1
+
+Summary (full run):
+ Test Files  12 failed | 152 passed (164)
+      Tests  33 failed | 1677 passed (1710)
+   Duration  85.61s
+
+Second run of the 12 failing files only (npm run test -- <12 files>): the same 33 tests failed, 291 passed.
+Flaky: none. Every failure below failed in both runs.
+OrganizerEditor (flaky in project memory): passed in the full run.
+
+Failing files (failed / tests in file):
+  src/test/AppPage.test.tsx  12 / 111
+  src/test/EventPage.test.tsx  7 / 20
+  src/test/extension-points.test.tsx  2 / 6
+  src/test/foundation.test.tsx  1 / 3
+  src/test/ItemDetailPage.test.tsx  1 / 57
+  src/test/OrganizerItemRoute.test.tsx  1 / 6
+  src/test/ParticipantItemsPreview.test.tsx  1 / 5
+  src/test/PendingActionsHost.test.tsx  1 / 30
+  src/test/PublicLayout.test.tsx  3 / 14
+  src/test/reservedSlugs.test.ts  1 / 2
+  src/test/routeManifest.test.ts  2 / 5
+  src/test/TermPage.test.tsx  1 / 65
+
+Failing test ids (file > describe > test), each with its first error line:
+
+src/test/AppPage.test.tsx
+  FAIL AppPage — Term/Group ids stay UUID strings (R29) > "Nowy termin" group select keeps the selected group's UUID
+       Error: Unable to find role="link" and name "+ Dodaj termin"
+  FAIL AppPage — edit group page (name/layout/visibility/default place and capacity) > pre-fills the form from the group's current name and layout_mode
+       Error: Unable to find role="heading" and name "Prowadzę"
+  FAIL AppPage — edit group page (name/layout/visibility/default place and capacity) > pre-fills the default place and capacity and sends null for both once cleared
+       Error: Unable to find role="heading" and name "Prowadzę"
+  FAIL AppPage — edit group page (name/layout/visibility/default place and capacity) > saves every field in one updateGroup call and goes back to Moje grupy on success
+       Error: Unable to find role="heading" and name "Prowadzę"
+  FAIL AppPage — edit group page (name/layout/visibility/default place and capacity) > shows an inline error and stays on the page on a rejected save
+       Error: Unable to find role="heading" and name "Prowadzę"
+  FAIL AppPage — Spotkania list links to the public circle page > a leader's own RSVP to someone else's group shows under "Zapisane", not in the "Prowadzę"/"Terminy" lists
+       TestingLibraryElementError: Unable to find an accessible element with the role "heading" and name "Prowadzę"
+  FAIL AppPage — per-term public links & copy-link button > 'Dodaj termin' dialog keeps 'Potrzebne rzeczy' collapsed behind a small optional button
+       Error: Unable to find role="link" and name "+ Dodaj termin"
+  FAIL AppPage — moderation errors inline in the add-group page and add-term / edit-group forms > add term: a rejected needed-item name does not block the term — one toast, the page goes to Spotkania
+       Error: Unable to find role="link" and name "+ Dodaj termin"
+  FAIL AppPage — moderation errors inline in the add-group page and add-term / edit-group forms > add term: a rejected createTerm shows an inline alert, creates no needed items and stays on the page
+       Error: Unable to find role="link" and name "+ Dodaj termin"
+  FAIL AppPage — moderation errors inline in the add-group page and add-term / edit-group forms > add term: creates the term first, then the needed items by name (no resolveProduct)
+       Error: Unable to find role="link" and name "+ Dodaj termin"
+  FAIL AppPage — delete group (soft delete) > confirm calls deleteGroup and shows Usunięto grupę
+       TestingLibraryElementError: Unable to find an element with the text: · 1. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+  FAIL AppPage — delete group (soft delete) > load survives a 404 from getGroup for one group, and a failed needed-items read
+       TestingLibraryElementError: Unable to find an element with the text: · 2. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+src/test/EventPage.test.tsx
+  FAIL EventPage > shows an anonymous visitor the page in order, the empty copy and the sign-up footer, without chat
+       TestingLibraryElementError: Unable to find an element with the text: Wydarzenie. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flex
+  FAIL EventPage > an anonymous visitor gets the login/register sheet instead of signing up, and stays on the page
+       TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Organizator"
+  FAIL EventPage > the author gets the chat row and the author card instead of a footer, and lands on Spotkania after deleting
+       Error: Unable to find role="link" and name `/Edytuj/`
+  FAIL EventPage > the author's delete is blocked with a count hint while people are signed up
+       Error: Unable to find role="button" and name "Usuń"
+  FAIL EventPage > before the start, deleting an event with open reservations warns with the counts and cancels them
+       Error: Unable to find role="button" and name "Usuń"
+  FAIL EventPage > after the start, the author's delete is blocked while reservations are open
+       Error: Unable to find role="button" and name "Usuń"
+  FAIL EventPage > after a logout the author's data stays read-only until the refetch, without chat or author card
+       Error: Unable to find role="link" and name `/Edytuj/`
+
+src/test/extension-points.test.tsx
+  FAIL Sidebar with plugin menu items > renders hardcoded items then plugin menu items
+       TestingLibraryElementError: Unable to find an element with the text: Krąg grupy. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flex
+  FAIL ProductListPage with plugin filters > renders plugin filter iframes in filter bar
+       AssertionError: expected 0 to be greater than or equal to 1
+
+src/test/foundation.test.tsx
+  FAIL Frontend Foundation > renders AppShell with sidebar and content area
+       TestingLibraryElementError: Unable to find an element with the text: Tomorrow. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexib
+
+src/test/ItemDetailPage.test.tsx
+  FAIL ItemDetailPage fallbacks > Wróć on a directly opened page falls back to the owner's page
+       TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Wróć/`
+
+src/test/OrganizerItemRoute.test.tsx
+  FAIL Organizer product route > Wróć on a direct entry goes to the organizer page
+       TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Wróć/`
+
+src/test/ParticipantItemsPreview.test.tsx
+  FAIL ParticipantItemsPreview > renders at most 3 rows, each with its intent pill and how long ago it was added (UTC)
+       Error: expect(element).toHaveTextContent()
+
+src/test/PendingActionsHost.test.tsx
+  FAIL PendingActionsHost — confirm flow > resolves a GIFT reservation id for the owner/lister side directly, post-term-end
+       AssertionError: expected "spy" to be called with arguments: [ '55' ]
+
+src/test/PublicLayout.test.tsx
+  FAIL PublicLayout > a chat thread keeps the top bar and the bottom nav but drops the search field
+       Error: expect(element).not.toBeInTheDocument()
+  FAIL PublicLayout > logged in: the top bar holds only the brand, Spotkania and the notification bell
+       AssertionError: expected [ '/search', '/meetings' ] to deeply equal [ '/', '/meetings' ]
+  FAIL PublicLayout > the logo is a named link to Start
+       TestingLibraryElementError: Unable to find an accessible element with the role "link" and name "Krąg grupy — Start"
+
+src/test/reservedSlugs.test.ts
+  FAIL reserved slugs > lists every top-level static segment of the route tree
+       AssertionError: expected [ 'account', 'add', 'admin', …(15) ] to deeply equal [ 'account', 'add', 'admin', …(16) ]
+
+src/test/routeManifest.test.ts
+  FAIL App Router route manifest > renders every panel section through the panel layout
+       AssertionError: expected [ '/account', '/add', …(29) ] to deeply equal [ '/account', '/add', …(30) ]
+  FAIL App Router route manifest > opens only /add and /search of the panel to guests, each with its own PanelGate branch
+       AssertionError: expected 'import { useEffect, type ReactNode } …' to contain 'pathname === viewPath("search")'
+
+src/test/TermPage.test.tsx
+  FAIL TermPage — place and capacity > shows the place card under the term card: locality, address and a Google Maps link
+       TestingLibraryElementError: Unable to find an accessible element with the role "region" and name "Miejsce"

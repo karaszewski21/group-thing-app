@@ -3,7 +3,6 @@ import { api } from "./client";
 export type NotificationKind =
   | "PLEDGE_CREATED"
   | "PLEDGE_WITHDRAWN"
-  | "PLEDGE_ITEM_REGISTERED"
   | "NEEDED_ITEM_REMOVED"
   | "TERM_ITEM_LISTING_TAKEN"
   | "SWAP_PROPOSED"
@@ -12,7 +11,9 @@ export type NotificationKind =
   | "TERM_CONFIRMATION_NEEDED"
   | "TERM_ALREADY_RESOLVED"
   | "ITEM_RESERVED_FOR_PICKUP"
-  | "RESERVATION_CANCELLED";
+  | "RESERVATION_CANCELLED"
+  | "WANT_MATCH_FOUND"
+  | "WANT_EXPIRING";
 
 export interface NotificationResponse {
   id: string;

@@ -230,20 +230,40 @@ describe("SearchView", () => {
     expect(vi.mocked(searchApi.searchPublic).mock.calls[0][0].q).toBe("");
   });
 
-  it("an empty items list offers the „szukam” link with the encoded q and a highlighted other-mode line", async () => {
+  it("an empty items list offers the „Szukam” link with q and the filters, without condition and scope, and a highlighted other-mode line", async () => {
     vi.mocked(searchApi.searchPublic).mockResolvedValue(page([], 2));
-    renderSearch("/search?q=rowerek%20biegowy&scope=mine");
+    vi.mocked(localitiesApi.getLocality).mockResolvedValue(makeLocality());
+    renderSearch(
+      "/search?q=rowerek%20biegowy&scope=mine&category=toys&condition=GOOD&offer_type=GIFT&locality=0950463&radius=10",
+    );
 
     expect(await screen.findByRole("heading", { name: "Nikt w Twoich grupach tego nie oddaje" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Dodaj do listy „szukam”" })).toHaveAttribute(
+    expect(
+      screen.getByText("Damy znać, gdy ktoś doda pasującą rzecz. Możesz też szukać wszędzie."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Dodaj do listy „Szukam”" })).toHaveAttribute(
       "href",
-      "/add/hunting?name=rowerek%20biegowy",
+      "/add/wanted?name=rowerek+biegowy&category=toys&offer_type=GIFT&locality=0950463&radius=10",
     );
     expect(screen.getByText("0 przedmiotów dla „rowerek biegowy”")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /2 spotkania pasują do „rowerek biegowy”/ })).toHaveAttribute(
       "data-highlighted",
       "true",
     );
+  });
+
+  it("the „Szukam” link carries only the values that are set", async () => {
+    renderSearch("/search?q=kask");
+
+    expect(await screen.findByRole("heading", { name: "Nikt tego jeszcze nie oddaje" })).toBeInTheDocument();
+    expect(screen.getByText("Damy znać, gdy ktoś doda pasującą rzecz.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Dodaj do listy „Szukam”" })).toHaveAttribute("href", "/add/wanted?name=kask");
+  });
+
+  it("a browse without results links to the plain want form", async () => {
+    renderSearch("/search");
+
+    expect(await screen.findByRole("link", { name: "Dodaj do listy „Szukam”" })).toHaveAttribute("href", "/add/wanted");
   });
 
   it("the other-mode line switches the mode and keeps q", async () => {

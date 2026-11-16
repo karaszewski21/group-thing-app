@@ -40,4 +40,11 @@ describe("derivePendingActions", () => {
       ]),
     ).toEqual([]);
   });
+
+  it.each([
+    ["WANT_MATCH_FOUND", "Szukasz: «rowerek biegowy». Ktoś wystawił: «Rowerek biegowy Puky».", "/ania/product/item-1"],
+    ["WANT_EXPIRING", "Poszukiwanie «fotelik» wygaśnie za 7 dni. Przedłuż je, jeśli nadal szukasz.", "/wanted/want-1"],
+  ] as const)("%s yields no pending action", (kind, message, linkPath) => {
+    expect(derivePendingActions([notif({ kind, message, link_path: linkPath, reservation_id: null })])).toEqual([]);
+  });
 });

@@ -2,7 +2,7 @@ import type { ItemMode } from "./appHelpers";
 
 /* ------------------------------------------------------------------ */
 /*  MOCK — sample data for panel sections that have no backend yet:     */
-/*  "Ostatnio dodane" on Start, the landing page meetings and "Szukam". */
+/*  "Ostatnio dodane" on Start and the landing page meetings.           */
 /*  Replace with real API hooks once the endpoints exist.              */
 /* ------------------------------------------------------------------ */
 
@@ -22,13 +22,6 @@ export interface MockMeeting {
   spots: string;
 }
 
-export interface MockWant {
-  id: string;
-  name: string;
-  modes: ItemMode[];
-  matches: number;
-}
-
 export const MOCK_RECENT_ITEMS: MockItem[] = [
   { id: "m1", name: "Fotelik 9–18 kg", owner: "Anna K.", mode: "oddam", addedAgo: "2 godz." },
   { id: "m2", name: "Body 74, 5 szt.", owner: "Marta W.", mode: "oddam", addedAgo: "wczoraj" },
@@ -43,10 +36,4 @@ export const MOCK_SEARCH_MEETINGS: MockMeeting[] = [
   { id: "s2", group: "Joga dla rodzin", organizer: "Studio Oddech", occursOn: "2026-11-07T09:30:00", spots: "1 wolne miejsce" },
   { id: "s3", group: "Spacer z wózkami", organizer: "Mamy z Mokotowa", occursOn: "2026-11-07T10:00:00", spots: "Bez limitu" },
   { id: "s4", group: "Muzyczne Maluchy", organizer: "rodzinny grajdołek", occursOn: "2026-11-09T10:00:00", spots: "Lista rezerwowa" },
-];
-
-export const MOCK_WANTS: MockWant[] = [
-  { id: "w1", name: "Fotelik samochodowy 9–18 kg", modes: ["oddam"], matches: 2 },
-  { id: "w2", name: "Kurtka zimowa 110", modes: ["oddam", "zamienię"], matches: 0 },
-  { id: "w3", name: "Rowerek biegowy", modes: ["oddam", "zamienię"], matches: 1 },
 ];

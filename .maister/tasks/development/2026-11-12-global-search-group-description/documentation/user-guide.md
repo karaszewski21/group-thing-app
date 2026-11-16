@@ -1,15 +1,14 @@
 # Wyszukiwarka i opis grupy — przewodnik
 
-*Ostatnia aktualizacja: 13 listopada 2026*
+*Ostatnia aktualizacja: 16 listopada 2026*
 
 ## TL;DR
 - Jedno pole „Szukaj rzeczy i spotkań” znajduje przedmioty, terminy, wydarzenia, grupy i organizacje. Wpisz co najmniej 2 znaki.
 - Przełącz **Przedmioty / Spotkania**. Jeśli jesteś zalogowany, wybierz też **Moje grupy / Wszędzie**.
-- Nie ma wyników? Kliknij „Dodaj do listy „szukam””. Możesz też przejść do drugiego trybu linią „… pasuje do …”.
+- Nie ma wyników? Kliknij „Dodaj do listy „Szukam”” i zapisz poszukiwanie. Damy znać, gdy ktoś doda pasującą rzecz. Możesz też przejść do drugiego trybu linią „… pasuje do …”.
 - Organizator może dodać do grupy **opis** (do 500 znaków). Opis widać w wynikach wyszukiwania i na stronie terminów grupy.
 
 ## Open Questions / Risks
-- Przycisk „Dodaj do listy „szukam”” otwiera formularz z wpisaną już nazwą. Zapisywanie listy „szukam” jest na razie wersją pokazową, więc poszukiwanie może się nie zapisać na stałe.
 - Część zrzutów ekranu pochodzi z testów (konto testowe, dane „E2E …”). Nazwy i liczby wyników u Ciebie będą inne.
 
 ---
@@ -140,16 +139,19 @@ W zakładce **Przedmioty** zobaczysz kartę:
 - „Nikt w Twoich grupach tego nie oddaje” (zakres Moje grupy) — możesz przełączyć się na „Wszędzie”,
 - „Nikt tego jeszcze nie oddaje” (zakres Wszędzie lub gość).
 
-![Pusty wynik w zakresie Moje grupy z przyciskiem „Dodaj do listy „szukam””](screenshots/11-pusty-wynik-moje-grupy.png)
+![Pusty wynik w zakresie Moje grupy z przyciskiem „Dodaj do listy „Szukam””](screenshots/11-pusty-wynik-moje-grupy.png)
 
-**Jak dodać rzecz do listy „szukam”**:
+**Jak dodać rzecz do listy „Szukam”**:
 
-1. Kliknij **„Dodaj do listy „szukam””**.
-2. Otworzy się formularz „Czego szukasz?” z **wpisanym już słowem** z wyszukiwarki. Możesz dopisać szczegóły, np. rozmiar, kolor albo stan.
+1. Kliknij **„Dodaj do listy „Szukam””**. Jeśli nie jesteś zalogowany, najpierw się zaloguj.
+2. Otworzy się formularz **„Szukam rzeczy”**. W polu „Czego szukasz?” jest **wpisane już słowo** z wyszukiwarki. Możesz je poprawić. Nazwa musi mieć od 3 do 80 znaków.
 
-   ![Formularz listy „szukam” z wpisaną nazwą](screenshots/12-lista-szukam-wypelniona.png)
+   ![Formularz listy „Szukam” z wpisaną nazwą](screenshots/12-lista-szukam-wypelniona.png)
 
-3. Kliknij **„Zapisz poszukiwanie”**.
+3. Jeśli chcesz, kliknij **„Doprecyzuj (opcjonalnie)”**. Możesz tam wybrać kategorię, sposób („Jak chcesz dostać rzecz?”) i miejscowość oraz dopisać notatkę dla siebie, np. rozmiar albo kolor. Kategoria, filtr Oddam / Zamienię i miejscowość ustawione w wyszukiwarce są już wybrane.
+4. Kliknij **„Zapisz poszukiwanie”**.
+
+✅ **Co zobaczysz**: poszukiwanie zapisze się na Twojej liście „Szukam”. Od razu otworzy się lista rzeczy, które do niego pasują. Gdy ktoś później doda pasującą rzecz, dostaniesz powiadomienie w aplikacji.
 
 W zakładce **Spotkania** zobaczysz „Nie znaleźliśmy spotkań” z podpowiedzią, żeby spróbować innego słowa albo zmienić daty.
 

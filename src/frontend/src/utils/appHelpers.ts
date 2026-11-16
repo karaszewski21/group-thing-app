@@ -21,6 +21,17 @@ export const ACCOUNT_SUBVIEWS: readonly View[] = [
   "organization",
 ];
 
+/** A "Konto" sub-page or a page under one (`/wanted/<id>/edit`, `/places/new`, `/groups/<id>`). */
+export function isAccountSubviewPath(pathname: string): boolean {
+  return ACCOUNT_SUBVIEWS.some((view) => {
+    const path = viewPath(view);
+    return pathname === path || pathname.startsWith(`${path}/`);
+  });
+}
+
+/** The distances offered around a picked locality, smallest first. */
+export const RADII_KM: readonly number[] = [10, 25, 50];
+
 /** `/places/new` opened from a form's place picker: after saving it goes
  * back to `returnTo` and hands the new place to the picker named `picker`
  * (see `PickedLocationState`). */

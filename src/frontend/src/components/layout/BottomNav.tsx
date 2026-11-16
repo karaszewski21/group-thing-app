@@ -2,7 +2,7 @@ import { useAppNavigate, useAppPathname } from "../../routing/navigation";
 import { useUnreadMessages } from "../../hooks/useUnreadMessages";
 import { INBOX_PATH } from "../../routing/messagesPaths";
 import { BoxIcon, ChatIcon, HomeIcon, PlusIcon, UserIcon } from "../shared/appIcons";
-import { ACCOUNT_SUBVIEWS } from "../../utils/appHelpers";
+import { isAccountSubviewPath } from "../../utils/appHelpers";
 import { viewPath } from "../../routing/paths";
 
 type TabKey = "home" | "chat" | "items" | "account";
@@ -22,14 +22,12 @@ const TAB_CLASS =
   "flex min-h-12 flex-1 flex-col items-center gap-1 rounded-[14px] text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
 /** The tab a pathname belongs to; `undefined` highlights none (item pages,
- * group details, …). */
+ * public pages, …). */
 function activeTab(pathname: string): TabKey | undefined {
   if (pathname === INBOX_PATH || pathname.startsWith(`${INBOX_PATH}/`)) return "chat";
   if (pathname === viewPath("home")) return "home";
   if (pathname === viewPath("items")) return "items";
-  if (pathname === viewPath("account") || ACCOUNT_SUBVIEWS.some((view) => pathname === viewPath(view))) {
-    return "account";
-  }
+  if (pathname === viewPath("account") || isAccountSubviewPath(pathname)) return "account";
   return undefined;
 }
 

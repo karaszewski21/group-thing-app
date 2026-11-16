@@ -17,12 +17,26 @@ interface ItemCardProps {
   reservation: ReservedByResponse | null;
   /** Marks the tile reserved with this text instead of the reserver's. */
   reservedCaption?: string;
+  /** A short marker over the thumbnail's corner, e.g. "nowe". */
+  marker?: string;
+  /** Called when the link is opened, by a click or a middle-click (new tab). */
+  onOpen?: () => void;
 }
 
 /** A neutral item tile: thumbnail (or placeholder), name, condition, the
  * intent pill and, while reserved, the reserved pill (thumbnail dimmed); the
  * whole tile opens the product page. Shows nothing about who listed it. */
-export function ItemCard({ href, name, condition, thumbUrl, mode, reservation, reservedCaption }: ItemCardProps) {
+export function ItemCard({
+  href,
+  name,
+  condition,
+  thumbUrl,
+  mode,
+  reservation,
+  reservedCaption,
+  marker,
+  onOpen,
+}: ItemCardProps) {
   const conditionLabel = CONDITION_LABELS[condition as ItemCondition] ?? condition;
   const dim = reservation || reservedCaption ? "opacity-60" : "";
 
@@ -35,8 +49,17 @@ export function ItemCard({ href, name, condition, thumbUrl, mode, reservation, r
           <PhotoPlaceholder size={32} />
         </span>
       )}
+      {marker && (
+        <span className="absolute top-4 left-4 rounded-full bg-primary px-2 py-0.5 text-[11px] font-extrabold text-on-primary">
+          {marker}
+        </span>
+      )}
       <Link
         to={href}
+        onClick={onOpen}
+        onAuxClick={(event) => {
+          if (event.button === 1) onOpen?.();
+        }}
         className="mt-2 line-clamp-2 text-[13px] font-bold text-ink outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-focus-ring"
       >
         {name}

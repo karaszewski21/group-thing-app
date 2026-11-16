@@ -155,6 +155,26 @@ describe("LocalityCombobox", () => {
     expect(screen.getByRole("combobox", { name: "Miejscowość" })).toBeInTheDocument();
   });
 
+  it("shows the host's placeholder instead of the default one", () => {
+    render(
+      withQueryClient(
+        <LocalityCombobox
+          idPrefix="test"
+          value={null}
+          onChange={() => {}}
+          required={false}
+          placeholder="Cała Polska — wpisz, aby zawęzić"
+        />,
+      ),
+    );
+
+    expect(screen.getByRole("combobox", { name: "Miejscowość" })).toHaveAttribute(
+      "placeholder",
+      "Cała Polska — wpisz, aby zawęzić",
+    );
+    expect(screen.queryByPlaceholderText("Nazwa lub kod pocztowy")).not.toBeInTheDocument();
+  });
+
   it("a query with no matches says so in the status region, outside any listbox", async () => {
     vi.mocked(localitiesApi.searchLocalities).mockResolvedValue({ results: [], total: 0 });
     renderCombobox();

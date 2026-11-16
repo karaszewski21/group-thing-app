@@ -1,0 +1,111 @@
+# Backend ruff baseline
+# HEAD 92659eb, 2026-11-15
+# Command (from src/backend): uv run python -m ruff check  (lines below from the same check with --output-format concise)
+# Exit code: 1
+
+alembic\versions\0002_seed_dev_users.py:84:101: E501 Line too long (105 > 100)
+alembic\versions\0003_party_schema.py:84:101: E501 Line too long (105 > 100)
+alembic\versions\0003_party_schema.py:88:101: E501 Line too long (105 > 100)
+alembic\versions\0003_party_schema.py:113:101: E501 Line too long (110 > 100)
+alembic\versions\0003_party_schema.py:138:101: E501 Line too long (110 > 100)
+alembic\versions\0003_party_schema.py:141:101: E501 Line too long (110 > 100)
+alembic\versions\0003_party_schema.py:145:101: E501 Line too long (115 > 100)
+alembic\versions\0003_party_schema.py:146:101: E501 Line too long (115 > 100)
+alembic\versions\0003_party_schema.py:199:101: E501 Line too long (110 > 100)
+alembic\versions\0003_party_schema.py:204:101: E501 Line too long (105 > 100)
+alembic\versions\0004_circulation_schema.py:70:101: E501 Line too long (105 > 100)
+alembic\versions\0004_circulation_schema.py:101:101: E501 Line too long (108 > 100)
+alembic\versions\0004_circulation_schema.py:128:101: E501 Line too long (105 > 100)
+alembic\versions\0004_circulation_schema.py:129:101: E501 Line too long (101 > 100)
+alembic\versions\0004_circulation_schema.py:147:101: E501 Line too long (101 > 100)
+alembic\versions\0004_circulation_schema.py:182:101: E501 Line too long (113 > 100)
+alembic\versions\0004_circulation_schema.py:196:101: E501 Line too long (105 > 100)
+alembic\versions\0004_circulation_schema.py:224:101: E501 Line too long (117 > 100)
+alembic\versions\0004_circulation_schema.py:225:101: E501 Line too long (109 > 100)
+alembic\versions\0005_seed_emission_account.py:36:101: E501 Line too long (105 > 100)
+alembic\versions\0007_circulation_product_cleanup_data.py:37:101: E501 Line too long (109 > 100)
+alembic\versions\0010_seed_dev_user_profiles.py:77:101: E501 Line too long (110 > 100)
+alembic\versions\0010_seed_dev_user_profiles.py:84:101: E501 Line too long (113 > 100)
+alembic\versions\0010_seed_dev_user_profiles.py:85:101: E501 Line too long (104 > 100)
+alembic\versions\0010_seed_dev_user_profiles.py:109:101: E501 Line too long (115 > 100)
+alembic\versions\0010_seed_dev_user_profiles.py:110:101: E501 Line too long (111 > 100)
+alembic\versions\0010_seed_dev_user_profiles.py:119:101: E501 Line too long (117 > 100)
+alembic\versions\0010_seed_dev_user_profiles.py:120:101: E501 Line too long (121 > 100)
+alembic\versions\0033_inventory_personal_virtual_uniqueness.py:62:101: E501 Line too long (102 > 100)
+alembic\versions\0041_baseentity_id_uuid.py:238:101: E501 Line too long (102 > 100)
+app\families\bootstrap.py:4:1: I001 [*] Import block is un-sorted or un-formatted
+app\families\bootstrap.py:67:101: E501 Line too long (107 > 100)
+app\families\guardians.py:6:1: I001 [*] Import block is un-sorted or un-formatted
+app\families\guardians.py:82:101: E501 Line too long (111 > 100)
+app\families\guardians.py:159:101: E501 Line too long (103 > 100)
+app\families\members.py:4:1: I001 [*] Import block is un-sorted or un-formatted
+app\families\primary_contact.py:4:1: I001 [*] Import block is un-sorted or un-formatted
+app\families\repository.py:77:101: E501 Line too long (102 > 100)
+app\families\repository.py:86:101: E501 Line too long (104 > 100)
+app\families\router.py:119:101: E501 Line too long (102 > 100)
+app\groups\application\circles.py:311:101: E501 Line too long (105 > 100)
+app\groups\application\circles.py:370:101: E501 Line too long (103 > 100)
+app\groups\application\circles.py:388:101: E501 Line too long (104 > 100)
+app\groups\application\group_roles.py:4:1: I001 [*] Import block is un-sorted or un-formatted
+app\groups\application\memberships.py:27:101: E501 Line too long (106 > 100)
+app\groups\application\memberships.py:187:101: E501 Line too long (104 > 100)
+app\groups\application\pledges.py:78:101: E501 Line too long (101 > 100)
+app\groups\application\term_item_listings.py:382:101: E501 Line too long (109 > 100)
+app\groups\application\term_item_listings.py:1011:101: E501 Line too long (118 > 100)
+app\groups\router\memberships.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+app\groups\router\pledges.py:58:101: E501 Line too long (102 > 100)
+app\groups\router\term_item_listings.py:51:101: E501 Line too long (102 > 100)
+app\groups\router\terms.py:164:101: E501 Line too long (105 > 100)
+app\inventory\application\inventory_items.py:171:101: E501 Line too long (104 > 100)
+app\inventory\application\inventory_items.py:213:101: E501 Line too long (102 > 100)
+app\inventory\infrastructure\repository.py:178:101: E501 Line too long (101 > 100)
+app\inventory\infrastructure\repository.py:473:101: E501 Line too long (103 > 100)
+app\inventory\router.py:168:101: E501 Line too long (105 > 100)
+app\plugin\models.py:20:1: I001 [*] Import block is un-sorted or un-formatted
+app\plugin\models.py:88:101: E501 Line too long (101 > 100)
+app\plugin\query_service.py:12:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_inventory.py:485:101: E501 Line too long (118 > 100)
+tests\test_organizations.py:157:101: E501 Line too long (103 > 100)
+tests\test_plugin_admin_gating.py:61:101: E501 Line too long (108 > 100)
+tests\test_term_clock_regressions.py:49:33: UP017 [*] Use `datetime.UTC` alias
+Found 65 errors.
+[*] 9 fixable with the `--fix` option.
+
+# Errors per rule
+     56 E501
+      8 I001
+      1 UP017
+
+# Errors per file
+      9 alembic\versions\0004_circulation_schema.py
+      9 alembic\versions\0003_party_schema.py
+      7 alembic\versions\0010_seed_dev_user_profiles.py
+      3 app\groups\application\circles.py
+      3 app\families\guardians.py
+      2 app\plugin\models.py
+      2 app\inventory\infrastructure\repository.py
+      2 app\inventory\application\inventory_items.py
+      2 app\groups\application\term_item_listings.py
+      2 app\groups\application\memberships.py
+      2 app\families\repository.py
+      2 app\families\bootstrap.py
+      1 tests\test_term_clock_regressions.py
+      1 tests\test_plugin_admin_gating.py
+      1 tests\test_organizations.py
+      1 tests\test_inventory.py
+      1 app\plugin\query_service.py
+      1 app\inventory\router.py
+      1 app\groups\router\terms.py
+      1 app\groups\router\term_item_listings.py
+      1 app\groups\router\pledges.py
+      1 app\groups\router\memberships.py
+      1 app\groups\application\pledges.py
+      1 app\groups\application\group_roles.py
+      1 app\families\router.py
+      1 app\families\primary_contact.py
+      1 app\families\members.py
+      1 alembic\versions\0041_baseentity_id_uuid.py
+      1 alembic\versions\0033_inventory_personal_virtual_uniqueness.py
+      1 alembic\versions\0007_circulation_product_cleanup_data.py
+      1 alembic\versions\0005_seed_emission_account.py
+      1 alembic\versions\0002_seed_dev_users.py

@@ -2,8 +2,10 @@ import type { ReactNode } from "react";
 import { Link } from "../../routing/navigation";
 import { BoxIcon, CalendarIcon, CalendarPlusIcon, CloseIcon, SearchIcon } from "../../components/shared/appIcons";
 import { authPath } from "../../auth/authPaths";
+import { useWants } from "../../hooks/useWants";
 import { viewPath } from "../../routing/paths";
 import { useAppData } from "../panel/appDataStore";
+import { newCountLabel } from "../wanted/wantText";
 
 const TILE_CLASS =
   "relative flex aspect-[4/5] flex-col justify-between overflow-hidden rounded-[26px] p-4 text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
@@ -21,12 +23,18 @@ function TileContent({ icon, iconTone, title, hint }: { icon: ReactNode; iconTon
 }
 
 /** The bottom bar's "+" in the panel: four big tiles — an item, a wanted
- * item, a term of one of the user's groups and a one-off event. */
+ * item (with the new matches of the active wants), a term of one of the
+ * user's groups and a one-off event. */
 export function AddView() {
   const { myGroups } = useAppData();
+  const { data: wants } = useWants();
   const hasGroups = myGroups.length > 0;
+  const newMatchCount = wants
+    .filter((want) => want.status === "ACTIVE")
+    .reduce((sum, want) => sum + want.new_match_count, 0);
   return (
     <AddTiles
+      newMatchCount={newMatchCount}
       termHint={hasGroups ? "W jednej z Twoich grup" : "Najpierw załóż grupę"}
       linkTo={(path) => (path === viewPath("add/term") && !hasGroups ? viewPath("groups/new") : path)}
     />
@@ -35,18 +43,20 @@ export function AddView() {
 
 /** `/add` for an anonymous visitor: the same four tiles, so they see what
  * they can add; each one goes to the login page and, once logged in, on to
- * the chosen form. */
+ * the chosen form. It reads no wants: a guest has none. */
 export function PublicAddView() {
   return <AddTiles termHint="W jednej z Twoich grup" linkTo={(path) => authPath("login", path)} />;
 }
 
 interface AddTilesProps {
+  /** Unseen matches of the user's wants, shown on the "Szukam rzeczy" tile. */
+  newMatchCount?: number;
   termHint: string;
   /** The link of a tile, given the form it stands for. */
   linkTo: (path: string) => string;
 }
 
-function AddTiles({ termHint, linkTo }: AddTilesProps) {
+function AddTiles({ newMatchCount = 0, termHint, linkTo }: AddTilesProps) {
   return (
     <>
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -72,7 +82,12 @@ function AddTiles({ termHint, linkTo }: AddTilesProps) {
             />
           </span>
         </Link>
-        <Link to={linkTo(viewPath("add/hunting"))} className={`${TILE_CLASS} bg-teal-soft text-ink`}>
+        <Link to={linkTo(viewPath("add/wanted"))} className={`${TILE_CLASS} bg-teal-soft text-ink`}>
+          {newMatchCount > 0 && (
+            <span className="absolute top-3 right-3 rounded-full bg-primary px-2.5 py-0.5 text-xs font-extrabold text-on-primary">
+              {newCountLabel(newMatchCount)}
+            </span>
+          )}
           <TileContent
             icon={<SearchIcon c="currentColor" />}
             iconTone="bg-paper text-ink"

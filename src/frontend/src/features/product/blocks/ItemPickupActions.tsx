@@ -4,8 +4,10 @@ import { useId, useState } from "react";
 import { ToastPill } from "../../../components/shared/ToastPill";
 import { BTN_GHOST, BTN_LG, BTN_PRIMARY } from "../../../components/shared/uiStyles";
 import { useToast } from "../../../components/shared/useToast";
+import { useWantsMatchingItem } from "../../../hooks/useWantsMatchingItem";
 import { AuthSheet } from "../../auth/AuthSheet";
 import { useAccountGate } from "../../auth/useAccountGate";
+import { CloseWantSheet } from "../../wanted/CloseWantSheet";
 import { ChooseContextSheet } from "../ChooseContextSheet";
 import type { ItemActionsView } from "../itemActionsViewState";
 import { useItemPage } from "../ItemPageContext";
@@ -32,11 +34,23 @@ const TITLES: Partial<Record<ItemActionsView["kind"], string>> = { own: "Rezerwa
  * that a successful reservation causes. The personal pickup sheet's
  * "Piszę do" opens the ITEM chat without reserving; a chat failure shows
  * under "Napisz o przedmiocie". The owner
- * sees the section only for a reservation they take part in. */
+ * sees the section only for a reservation they take part in. After a take
+ * the viewer's active wants matching the item are looked up, and the
+ * closing prompt opens once the success sheet is gone. */
 export function ItemPickupActions() {
   const { item, view, isLoggedIn, actions } = useItemPage();
   const { toast, showToast } = useToast();
   const take = useItemTake({ isLoggedIn, refetch: actions.refetch, showToast });
+  const takenItemId = isLoggedIn ? take.takenItemId : null;
+  const [promptDismissed, setPromptDismissed] = useState(false);
+  const [promptFor, setPromptFor] = useState(takenItemId);
+  if (promptFor !== takenItemId) {
+    setPromptFor(takenItemId);
+    setPromptDismissed(false);
+  }
+  const matchedWants = useWantsMatchingItem(promptDismissed ? null : takenItemId).data;
+  const showClosePrompt = !promptDismissed && matchedWants.length > 0 && !take.takeSuccess;
+
   if (view.kind === "hidden" || view.kind === "unavailable") return null;
   if (view.kind === "own" && !view.partyReservation) return null;
 
@@ -71,7 +85,9 @@ export function ItemPickupActions() {
           onClose={take.closeTakeSuccess}
         />
       )}
-      <ToastPill message={toast} />
+      {showClosePrompt && <CloseWantSheet wants={matchedWants} onClose={() => setPromptDismissed(true)} />}
+      {/* The prompt's buttons sit where the toast floats; the page already shows the reservation. */}
+      <ToastPill message={showClosePrompt ? "" : toast} />
     </>
   );
 }

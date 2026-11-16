@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ItemEditView } from "../features/items/ItemEditView";
 import * as itemsApi from "../api/items";
@@ -10,6 +10,7 @@ import * as itemReservationsApi from "../api/itemReservations";
 import * as reservationsApi from "../api/reservations";
 import * as termItemListingsApi from "../api/termItemListings";
 import * as locationsApi from "../api/locations";
+import * as wantsApi from "../api/wants";
 import type {
   ItemActionsResponse,
   ItemContextOptionResponse,
@@ -24,6 +25,7 @@ import type { InventoryBalanceResponse, InventoryItemResponse, MyInventoryItemRe
 import type { AcceptedSwapProposalResponse, SwapProposalResponse } from "../api/termItemListings";
 import type { ProductResponse } from "../api/products";
 import { makeItemLocation, makeLocality, makeLocationResponse } from "./fixtures/locations";
+import { makeWant } from "./fixtures/wants";
 import { createQueryWrapper } from "./queryClient";
 import { itemRouteElement } from "./itemRoute";
 import { getTestLocation, renderWithRoute } from "./renderWithRoute";
@@ -57,6 +59,11 @@ vi.mock("../api/termItemListings", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api/termItemListings")>()),
   acceptSwapProposal: vi.fn(),
   rejectSwapProposal: vi.fn(),
+}));
+
+vi.mock("../api/wants", () => ({
+  getMyWants: vi.fn(),
+  closeWant: vi.fn(),
 }));
 
 const mockAuth: { token: string | null } = { token: "valid.jwt.token" };
@@ -246,10 +253,12 @@ function party(overrides: Partial<ItemPartyReservationResponse> = {}): ItemParty
 }
 
 /** After `vi.resetAllMocks()`: a logged-in viewer, an actions read with no
- * location or contexts, the owner's places and a fresh panel. */
+ * location or contexts, the owner's places, no matching want and a fresh
+ * panel. */
 function mockDefaults() {
   mockAuth.token = "valid.jwt.token";
   panel.reset();
+  vi.mocked(wantsApi.getMyWants).mockResolvedValue([]);
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([OWN_PLACE]);
   vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions());
 }
@@ -832,6 +841,140 @@ describe("ItemDetailPage context actions", () => {
       offered_item_id: "m1",
     }));
     expect(conversationHook.openConversation).not.toHaveBeenCalled();
+    expect(await screen.findByText("Zaproponowano zamianę! Szczegóły w Twoim panelu")).toBeInTheDocument();
+    expect(wantsApi.getMyWants).not.toHaveBeenCalled();
+  });
+
+  const CLOSE_PROMPT = { name: "Zamknąć poszukiwanie?" };
+
+  async function takePersonally() {
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
+      itemActions({ location: LOCATION, personal_pickup_available: true }),
+    );
+    vi.mocked(itemReservationsApi.takeItem).mockResolvedValue({
+      item_id: ITEM_ID,
+      product_name: "Wózek spacerowy Baby Jogger",
+      context: null,
+    });
+    await renderPage(`/bartek/product/${ITEM_ID}`);
+    fireEvent.click(await screen.findByRole("button", { name: PERSONAL }));
+    const sheet = await screen.findByRole("dialog", { name: "Odbiór osobisty" });
+    fireEvent.click(within(sheet).getByRole("button", { name: "Rezerwuję" }));
+    expect(await screen.findByText("Zarezerwowano!")).toBeInTheDocument();
+  }
+
+  it("personal take of a matched item: the closing prompt opens once the lookup answers and closes every want", async () => {
+    const lookup = deferred<Awaited<ReturnType<typeof wantsApi.getMyWants>>>();
+    vi.mocked(wantsApi.getMyWants).mockReturnValue(lookup.promise);
+    vi.mocked(wantsApi.closeWant).mockResolvedValue(makeWant({ status: "FULFILLED" }));
+    await takePersonally();
+
+    expect(wantsApi.getMyWants).toHaveBeenCalledWith(ITEM_ID);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    lookup.resolve([makeWant({ id: "w1", name: "Wózek" }), makeWant({ id: "w2", name: "Spacerówka" })]);
+
+    const prompt = await screen.findByRole("dialog", CLOSE_PROMPT);
+    // The toast would cover the prompt's primary button.
+    expect(screen.queryByText("Zarezerwowano!")).not.toBeInTheDocument();
+    expect(within(prompt).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["„Wózek”", "„Spacerówka”"]);
+    fireEvent.click(within(prompt).getByRole("button", { name: "Zamknij oba poszukiwania" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(vi.mocked(wantsApi.closeWant).mock.calls).toEqual([
+      ["w1", "FULFILLED"],
+      ["w2", "FULFILLED"],
+    ]);
+    // Closing refreshes the wants prefix once; the answer (still both wants here) no longer reopens the prompt.
+    expect(vi.mocked(wantsApi.getMyWants).mock.calls).toEqual([[ITEM_ID], [ITEM_ID]]);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("term take: the closing prompt waits for the Wzięte! sheet, which Zobacz rzecz closes; Szukam dalej dismisses it for good", async () => {
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(itemActions({ contexts: [TERM_CONTEXT] }));
+    vi.mocked(itemReservationsApi.takeItem).mockResolvedValue({
+      item_id: ITEM_ID,
+      product_name: "Wózek spacerowy Baby Jogger",
+      context: TERM_CONTEXT,
+    });
+    vi.mocked(wantsApi.getMyWants).mockResolvedValue([makeWant({ id: "w1", name: "Wózek" })]);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
+
+    fireEvent.click(await screen.findByRole("button", { name: CHOOSE }));
+    const choose = await screen.findByRole("dialog", { name: "Wybierz termin odbioru" });
+    fireEvent.click(within(choose).getByRole("button", { name: "Rezerwuję na ten termin" }));
+
+    const success = await screen.findByRole("dialog", { name: /Odbierz „Wózek spacerowy Baby Jogger”/ });
+    await waitFor(() => expect(wantsApi.getMyWants).toHaveBeenCalledWith(ITEM_ID));
+    await vi.mocked(wantsApi.getMyWants).mock.results[0].value;
+    expect(screen.getAllByRole("dialog")).toEqual([success]);
+
+    fireEvent.click(within(success).getByRole("link", { name: "Zobacz rzecz" }));
+
+    const prompt = await screen.findByRole("dialog", CLOSE_PROMPT);
+    expect(screen.getAllByRole("dialog")).toEqual([prompt]);
+    expect(prompt).toHaveTextContent("„Wózek”");
+    fireEvent.click(within(prompt).getByRole("button", { name: "Szukam dalej" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(wantsApi.closeWant).not.toHaveBeenCalled();
+    expect(wantsApi.getMyWants).toHaveBeenCalledTimes(1);
+  });
+
+  it("a second take after Szukam dalej and a cancelled reservation opens the closing prompt again", async () => {
+    let reserved = false;
+    vi.mocked(itemActionsApi.getItemActions).mockImplementation(async () =>
+      reserved
+        ? itemActions({ available: false, location: LOCATION, party_reservation: party({ can_cancel: true }) })
+        : itemActions({ location: LOCATION, personal_pickup_available: true }),
+    );
+    vi.mocked(itemReservationsApi.takeItem).mockImplementation(async () => {
+      reserved = true;
+      return { item_id: ITEM_ID, product_name: "Wózek spacerowy Baby Jogger", context: null };
+    });
+    vi.mocked(reservationsApi.cancelTransaction).mockImplementation(async () => {
+      reserved = false;
+      return { reservation_id: "r-1", status: "CANCELLED", already_resolved: false };
+    });
+    vi.mocked(wantsApi.getMyWants).mockResolvedValue([makeWant({ id: "w1", name: "Wózek" })]);
+    await renderPage(`/bartek/product/${ITEM_ID}`);
+
+    async function reservePersonally() {
+      fireEvent.click(await screen.findByRole("button", { name: PERSONAL }));
+      const sheet = await screen.findByRole("dialog", { name: "Odbiór osobisty" });
+      fireEvent.click(within(sheet).getByRole("button", { name: "Rezerwuję" }));
+      return screen.findByRole("dialog", CLOSE_PROMPT);
+    }
+
+    const first = await reservePersonally();
+    expect(first).toHaveTextContent("„Wózek”");
+    fireEvent.click(within(first).getByRole("button", { name: "Szukam dalej" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Anuluj rezerwację" }));
+    const ask = await screen.findByRole("alertdialog", { name: "Anulować rezerwację?" });
+    fireEvent.click(within(ask).getByRole("button", { name: "Tak, anuluj" }));
+    await waitFor(() => expect(reservationsApi.cancelTransaction).toHaveBeenCalledWith("r-1"));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+
+    const second = await reservePersonally();
+    expect(second).toHaveTextContent("„Wózek”");
+    expect(itemReservationsApi.takeItem).toHaveBeenCalledTimes(2);
+    expect(wantsApi.closeWant).not.toHaveBeenCalled();
+  });
+
+  it("no closing prompt when no want matches, and no lookup for a guest", async () => {
+    await takePersonally();
+    await waitFor(() => expect(wantsApi.getMyWants).toHaveBeenCalledWith(ITEM_ID));
+    await vi.mocked(wantsApi.getMyWants).mock.results[0].value;
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    cleanup();
+    vi.mocked(wantsApi.getMyWants).mockClear();
+    mockAuth.token = null;
+    await renderPage(`/bartek/product/${ITEM_ID}`);
+    fireEvent.click(await screen.findByRole("button", { name: PERSONAL }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(wantsApi.getMyWants).not.toHaveBeenCalled();
   });
 
   it("anonymous: the locality card, the context list and the reserve/chat buttons, each opening the login sheet", async () => {

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { SearchMode, SearchResult, SearchScope } from "../../api/search";
+import type { SearchFilters as SearchFilterValues, SearchMode, SearchResult, SearchScope } from "../../api/search";
 import { useAuth } from "../../auth/AuthContext";
 import { CloseIcon, SearchIcon } from "../../components/shared/appIcons";
 import { nextIndex } from "../../components/shared/rovingIndex";
@@ -93,7 +93,7 @@ export function SearchView() {
       summary = countLabel(mode, 0, view.q);
       body = (
         <>
-          <EmptyItems q={view.q} scope={view.scope} />
+          <EmptyItems q={view.q} scope={view.scope} filters={filters} />
           {otherModeLine(view.otherModeCount, true)}
         </>
       );
@@ -257,7 +257,20 @@ function ResultList({ mode, items, stale }: { mode: SearchMode; items: SearchRes
   );
 }
 
-function EmptyItems({ q, scope }: { q: string; scope: SearchScope }) {
+/** The want form prefilled from the search: the query as the name and the
+ * filters a want can hold (condition and scope are not among them). */
+function wantFormPath(q: string, filters: SearchFilterValues): string {
+  const params = new URLSearchParams();
+  if (q) params.set("name", q);
+  if (filters.category) params.set("category", filters.category);
+  if (filters.offer_type) params.set("offer_type", filters.offer_type);
+  if (filters.locality) params.set("locality", filters.locality);
+  if (filters.radius) params.set("radius", String(filters.radius));
+  const query = params.toString();
+  return query ? `${viewPath("add/wanted")}?${query}` : viewPath("add/wanted");
+}
+
+function EmptyItems({ q, scope, filters }: { q: string; scope: SearchScope; filters: SearchFilterValues }) {
   return (
     <div className={EMPTY_CARD_CLASS}>
       <span aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-3xl bg-accent-soft text-accent-fg">
@@ -267,14 +280,14 @@ function EmptyItems({ q, scope }: { q: string; scope: SearchScope }) {
         {scope === "mine" ? "Nikt w Twoich grupach tego nie oddaje" : "Nikt tego jeszcze nie oddaje"}
       </h2>
       <p className="max-w-70 text-[15px] leading-snug text-ink-soft">
-        Dodaj to do listy „szukam” — dasz znać, czego potrzebujesz.
+        Damy znać, gdy ktoś doda pasującą rzecz.
         {scope === "mine" && " Możesz też szukać wszędzie."}
       </p>
       <Link
-        to={q ? `${viewPath("add/hunting")}?name=${encodeURIComponent(q)}` : viewPath("add/hunting")}
+        to={wantFormPath(q, filters)}
         className="mt-1 flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-[15px] font-extrabold text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
       >
-        Dodaj do listy „szukam”
+        Dodaj do listy „Szukam”
       </Link>
     </div>
   );

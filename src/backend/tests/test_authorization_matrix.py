@@ -140,6 +140,46 @@ async def test_conversationRoutes_mcpScopeToken_returns403_loginTokenReaches200(
     assert allowed.status_code == 200, allowed.text
 
 
+@pytest.mark.parametrize(
+    ("method", "path", "expected"),
+    [
+        ("GET", "/api/wants", ("READ",)),
+        ("GET", "/api/wants/42/matches", ("READ",)),
+        ("POST", "/api/wants", ("EDIT",)),
+        ("PATCH", "/api/wants/42", ("EDIT",)),
+        ("POST", "/api/wants/42/close", ("EDIT",)),
+    ],
+)
+def test_resolveRequirement_wantRoutes_resolveToReadOrEditWithoutMcpScopes(
+    method: str, path: str, expected: tuple[str, ...]
+) -> None:
+    assert resolve_requirement(method, path) == expected
+
+
+async def test_wantRoutes_mcpScopeToken_returns403_loginTokenReaches200(
+    client: AsyncClient,
+) -> None:
+    registered = await client.post(
+        "/api/auth/register",
+        json={"role": "GUEST", "email": "matrix.wants@example.com", "password": "secret123"},
+    )
+    assert registered.status_code == 201, registered.text
+    login_token = registered.json()["token"]
+    username = jwt.decode(login_token, options={"verify_signature": False})["sub"]
+    mcp = {"Authorization": f"Bearer {_oauth_token(username, ['mcp:read', 'mcp:edit'])}"}
+    want_url = f"/api/wants/{uuid.uuid4()}"
+
+    listed = await client.get("/api/wants", headers=mcp)
+    created = await client.post("/api/wants", json={"name": "rower"}, headers=mcp)
+    edited = await client.patch(want_url, json={"note": "miejski"}, headers=mcp)
+    extended = await client.post(f"{want_url}/extend", headers=mcp)
+    allowed = await client.get("/api/wants", headers={"Authorization": f"Bearer {login_token}"})
+
+    for refused in (listed, created, edited, extended):
+        assert refused.status_code == 403, refused.text
+    assert allowed.status_code == 200, allowed.text
+
+
 def test_resolveRequirement_publicGroup_notRegressedByGroupsPatchRow() -> None:
     assert resolve_requirement("GET", "/api/public/groups/some-id") == "PUBLIC"
 

@@ -33,7 +33,7 @@
 
 ### Frontend Application
 - **Location**: `src/frontend/` — Next.js 16.4 App Router (Turbopack), `output: "standalone"`; migrated from a Vite + React Router SPA (see `.maister/tasks/migrations/2026-11-02-frontend-vite-to-nextjs/`). The backend serves no HTML.
-- **Route files only in `src/app/`**: the root `layout.tsx` (reads the `auth_token` cookie into `initialToken`, Google Fonts `<link>`, root default metadata), `providers.tsx` (`QueryClientProvider` with `getQueryClient()`, an Emotion `useServerInsertedHTML` registry for Chakra's SSR styles, `ChakraProvider`, `AuthProvider`, `NavigationTracker`), `not-found.tsx`, `globals.css`, and 61 `page.tsx` under the route groups `(site)` (with `(panel)`; `[slug]/layout.tsx` gives every page under the slug the Organization palette, event and term pages nest their own), `(standalone)` (only the OAuth2 consent page `oauth2/authorize`, with no app chrome) and `admin/(shell)`. Pages are thin and render a feature entry from `src/features/<domain>/`. Legacy URLs are server `redirect()`s; such a page never sits under a layout that withholds `children` during SSR (it would become a client redirect with status 200), which is why the admin pages live in `admin/(shell)/` and the slug item page in `product/[id]/(item)/`. `/:slug/group/:groupId` has no page (404).
+- **Route files only in `src/app/`**: the root `layout.tsx` (reads the `auth_token` cookie into `initialToken`, Google Fonts `<link>`, root default metadata), `providers.tsx` (`QueryClientProvider` with `getQueryClient()`, an Emotion `useServerInsertedHTML` registry for Chakra's SSR styles, `ChakraProvider`, `AuthProvider`, `NavigationTracker`), `not-found.tsx`, `globals.css`, and 62 `page.tsx` under the route groups `(site)` (with `(panel)`; `[slug]/layout.tsx` gives every page under the slug the Organization palette, event and term pages nest their own), `(standalone)` (only the OAuth2 consent page `oauth2/authorize`, with no app chrome) and `admin/(shell)`. Pages are thin and render a feature entry from `src/features/<domain>/`. Legacy URLs are server `redirect()`s; such a page never sits under a layout that withholds `children` during SSR (it would become a client redirect with status 200), which is why the admin pages live in `admin/(shell)/` and the slug item page in `product/[id]/(item)/`. `/:slug/group/:groupId` has no page (404).
 - **Rendering**: `(panel)`, `(standalone)` and admin render only in the browser (`routing/ClientOnly.tsx` returns `null` on the server). The panel layout renders `features/panel/PanelGate.tsx` around its `children`: the session gate, then `AppPage` (AppDataProvider, `PhoneFrame`, modals, toast), kept mounted while switching sections so the panel data loads once. Every section page renders its own view; `AppPage` puts every section but the chat thread in one padded scroller (`PanelSection`, matched by path, no route group), while `/messages/:conversationId` fills the frame between the top bar and the bottom tab bar. Panel pages render no header (no title row, no back link; navigation is the top bar and the bottom tab bar); places and organization re-read panel data via `usePanelReload()`. Tests render the real section pages through `test/panelPages.ts` + `test/PanelPageOutlet.tsx` (`panelPages.test.ts` keeps the list in step with `src/app`). Registration has no onboarding wizard: the login page's `AuthGuard` sends a new account to `returnTo` or `homePath`. The `(site)` chrome, `/`, `/login`, `/product/*` and the slug pages are server-rendered.
 - **Public metadata and palette**: the organization, event and term pages are server components with `generateMetadata` (`lib/publicMetadata.ts`: title, description, `og:*` and `twitter:*` tags, image) that wrap a `"use client"` feature entry in `theme/ServerThemeProvider.tsx`, so the organizer palette is in the first HTML response (`OrganizerThemeScope` prefers the page's own data). Server-side backend reads go only through `src/api/server.ts` (see `standards/frontend/data-fetching.md`); a failed read falls back to the root default metadata, and private circles get the default preview.
 - **In-page login on public pages**: account-requiring actions on public pages (term/event sign-up, "Ja to przyniosę", item reserve/chat, a PRIVATE term's login step, an anonymous item 404) never navigate to `/login`. They open the one `features/auth/AuthSheet.tsx` bottom sheet (login and register tabs from `AuthTabs`, shared with `/login`), driven by `features/auth/useAccountGate.ts` (`guard(fn)`, `open(tab)`, closed once a token exists) or by `AuthPromptButtons` for an inline card. Logging in swaps the token in place; the page's token-aware queries refetch. There is no guest sign-up for terms or events and no anonymous-profile merge (removed 2026-11-04).
@@ -57,7 +57,7 @@ Plugin iframes reach the same routers via the host's browser SDK, which attaches
 
 ## Domain clock (Europe/Warsaw)
 
-`Term.occurs_on` is a naive Europe/Warsaw wall clock (unlike the naive-UTC audit columns such as `created_at`). `app/core/clock.py` is the only definition of "now" for Term logic: `clock.local_now()` converts the current UTC instant to Warsaw time through `zoneinfo`, so it never depends on the host or container `TZ`. Call sites use `clock.local_now()` (module attribute access) so the opt-in `freeze_local_now` test fixture reaches all of them. The same module holds the Polish short date formatters and the notification-length cap.
+`Term.occurs_on` is a naive Europe/Warsaw wall clock (unlike the naive-UTC audit columns such as `created_at`). `app/core/clock.py` is the only definition of "now" for Term logic: `clock.local_now()` converts the current UTC instant to Warsaw time through `zoneinfo`, so it never depends on the host or container `TZ`. Call sites use `clock.local_now()` (module attribute access) so the opt-in `freeze_local_now` test fixture reaches all of them. The same module holds the Polish short date formatters and the notification-length cap. `tests/test_domain_clock_guard.py` forbids `datetime.now(` and `date.today(` in `app/groups/application`, `app/groups/router`, `app/events`, `app/pages`, `app/search` and `app/wants`.
 
 Ops: the `lifespan` startup calls `clock.check_timezone()` before the outbox poller and APScheduler start. It fails with an "install tzdata" error if the zone cannot load, and otherwise logs one line, `Europe/Warsaw (CET|CEST)`. Setting `TZ=Europe/Warsaw` in compose is optional and no code relies on it.
 
@@ -241,7 +241,7 @@ Reservations start on the item page (`/:slug/product/:id`), not on term or event
 
 - **Routes** (`app/pages/router/`, OpenAPI tag `pages`, all PUBLIC; registered in `app/main.py` before the groups router): `GET /api/public/organizations/{slug}/layout/{layout}` and `GET /api/public/organizations/{slug}/groups/{group_id}/terms` (`router/organization_page.py`), `GET /api/public/organizers/{slug}/items`, `GET /api/public/parties/{party_id}/items`, `GET /api/public/parties/{party_id}`, `GET /api/public/organizers/{slug}/meetings` and `GET /api/public/parties/{party_id}/meetings` (`router/owner_pages.py`). Responses and cache headers are described under **Owner items page and public item page** and **Personalised public routes** above.
 - **Layers**: `router/` → `application/` (`owner_pages.py`: owner items, person profile, owner meetings, `list_owner_dates`; `organization_page.py`: the per-layout organization read and a group's terms) → `domain/` (pure, no `db`, no cross-context imports: `page_content.py` with `PageLayout` and the row limits, `links.py` with the term/event page paths, `owner_dates.py` merging terms and events earliest first) and `schemas.py`.
-- **Boundary**: other contexts are reached only through the seven ACLs in `app/pages/infrastructure/`: `groups_acl`, `inventory_acl`, `organizations_acl`, `users_acl`, `media_acl`, `product_acl` and `locations_acl`. None may import `..schemas`. Two import rules: nothing imports `app.pages` except `app/main.py`, and outside `infrastructure/` the module imports only `app.core`, `app.db`, `app.storage` and `app.pages`. Both are enforced by `tests/test_module_boundaries.py`.
+- **Boundary**: other contexts are reached only through the seven ACLs in `app/pages/infrastructure/`: `groups_acl`, `inventory_acl`, `organizations_acl`, `users_acl`, `media_acl`, `product_acl` and `locations_acl`. None may import `..schemas`. Two import rules: nothing imports `app.pages` except `app/main.py`, and outside `infrastructure/` the module imports only `app.core`, `app.db`, `app.storage` and `app.pages`. Both are enforced by `tests/test_module_boundaries.py`, which guards `app/pages`, `app/search` and `app/wants` with the same rules.
 - **Owner-page SQL** stays in groups: `groups_acl` pages and counts the owner's listed items, reads the per-mode counts, public groups and upcoming public terms through the `groups.service` facade. The listed-items select itself is built in pages (`owner_pages.listed_items`): inventory's `listed_items_with_product_select` through `inventory_acl`, joined with groups' `with_pending_proposer` through `groups_acl`.
 - **Events through groups**: the owner's upcoming events are read via groups (`groups/infrastructure/events_acl.py`, exported through `groups.service`), not through a pages → events ACL. This detour is accepted until the `exchange` module is extracted.
 
@@ -285,7 +285,138 @@ A read-only module behind `/search`, built like `app/pages/`: it owns no table a
 - **Matching**: `fold_pl()` (0087) folds the query and the indexed text in SQL; `search_vector @@ plainto_tsquery('simple', …)` on products, events and terms (group, organization and place names are joined at query time) and the trigram word-similarity `<%` on folded names, `fold_pl(groups.description)`, `fold_pl(organizations.slug)` and `categories.path_text` (a category matches on `path_text` only, which ends with its folded name; the name still ranks the leaf with weight B); `q` is always a bound parameter. Items start from the listed-items select (R12), add `owner <> viewer`, and rank by in-my-groups, available before reserved, rank, `created_at`; meetings hide past terms and started events and rank by match class, `sort_at`, in-my-groups, rank, kind, id.
 - **Statement budget**: at most **7 statements per mode, constant in the number of rows** (statement timeout, viewer, category check, page rows, total, other-mode count, then one batch each for Organizations + thumbnails or display names + places); asserted in `tests/test_search_api.py` and `tests/test_search_acceptance.py`.
 - **Categories are public**: `GET /api/categories(/.*)?` is PUBLIC (matrix row 55), the **one PUBLIC read outside `/api/public/`**, so guests can use the category filter; writes stay ADMIN (row 56). Anonymous GETs get `product_count` 0 (no aggregate; the counts only gate the admin tree) and `Cache-Control: public, max-age=60, s-maxage=300`; a principal gets the counts with `private, no-store`; always `Vary: Authorization, Cookie`. `/api/products?search=` uses `icontains(autoescape=True)`, so `%`/`_` in user input are literals.
-- **Frontend**: `/search` lives in the `(public)` route group (`app/(public)/search/page.tsx`, outside `(site)`, so no top bar or bottom tab bar), whose layout `components/layout/PublicPageLayout.tsx` (only for public pages) has a header with „Wróć” to Start and, for guests, „Zaloguj się” returning to the current URL; the page renders `SearchView`, rendered on the server too (field, tabs and filters from the URL; results load in the browser behind `SearchResultsSkeleton`). The route's `loading.tsx` is `SearchPageSkeleton` and its `error.tsx` is `SearchPageError` (`features/search/SearchRouteStates.tsx`), whose „Spróbuj ponownie” resets the `search` queries before `reset()`; a failed search request stays inline. It is open to guests (not in `PROTECTED_PREFIXES`). The window scrolls; `useSearchScrollRestore` remembers the scroll on a result click (sessionStorage, keyed by the URL query) and restores it once the cached pages render on return. URL state in `features/search/useSearchUrlState.ts`, `useSearch` (infinite query over `src/api/search.ts`), `resolveSearchView()` in `searchViewState.ts`, `SearchResultCard` per kind, `OtherModeLine`; "nothing found" links to `HuntingCreateView` with `?name=` prefilled.
+- **Frontend**: `/search` lives in the `(public)` route group (`app/(public)/search/page.tsx`, outside `(site)`, so no top bar or bottom tab bar), whose layout `components/layout/PublicPageLayout.tsx` (only for public pages) has a header with „Wróć” to Start and, for guests, „Zaloguj się” returning to the current URL; the page renders `SearchView`, rendered on the server too (field, tabs and filters from the URL; results load in the browser behind `SearchResultsSkeleton`). The route's `loading.tsx` is `SearchPageSkeleton` and its `error.tsx` is `SearchPageError` (`features/search/SearchRouteStates.tsx`), whose „Spróbuj ponownie” resets the `search` queries before `reset()`; a failed search request stays inline. It is open to guests (not in `PROTECTED_PREFIXES`). The window scrolls; `useSearchScrollRestore` remembers the scroll on a result click (sessionStorage, keyed by the URL query) and restores it once the cached pages render on return. URL state in `features/search/useSearchUrlState.ts`, `useSearch` (infinite query over `src/api/search.ts`), `resolveSearchView()` in `searchViewState.ts`, `SearchResultCard` per kind, `OtherModeLine`; "nothing found" in the items mode links to the want form `/add/wanted` (see **Wants** below) with `name`, `category`, `offer_type`, `locality` and `radius` taken from the query and the filters.
+
+## Wants (`app/wants/`)
+
+A want („Szukam”) is what a logged-in party is looking for: a name, optionally a category, an offer mode, a locality with a radius, and a note only the seeker sees. The module stores wants, matches them with listed items and tells the seeker in the bell. Tables `wants`, `want_matches` and `want_scan_markers` (migration `0099_wants`).
+
+**Release gate (a rule, not a switch)**: the feature has no feature switch. **Do not deploy it until the labelled Polish sample (at least 200 want/item pairs, a follow-up task) has been scored and the two similarity thresholds are set from it.** `SIMILARITY_THRESHOLD_WITHOUT_CATEGORY = 0.70` and `SIMILARITY_THRESHOLD_WITH_CATEGORY = 0.60` in `domain/limits.py` are starting values and have not been measured.
+
+- **Layout**: `router/wants.py` → `application/` (`writes.py`, `reads.py`, `matcher.py`, `text_queries.py`, `scan.py`, `match_notifications.py`, `errors.py`) → `domain/` (pure: `limits.py`, `validation.py`, `lifecycle.py`, `status.py`, `messages.py`, and `links.py` with a copy of the search product path, pinned to it by a test), plus `models.py` and `schemas.py`.
+- **Boundary**: other contexts are reached only through the nine ACLs in `infrastructure/`: `groups_acl`, `inventory_acl`, `product_acl`, `category_acl`, `locations_acl`, `users_acl`, `organizations_acl`, `moderation_acl` and `notifications_acl`. `tests/test_module_boundaries.py` applies the `app/pages` rules to `app/wants`: only `app/main.py` imports it; outside `infrastructure/` it imports only `app.core`, `app.db`, `app.storage` and `app.wants`; `domain/` imports only `app.wants.domain`; no ACL imports `..schemas`. `tests/test_domain_clock_guard.py` covers `app/wants`. Every wants timestamp is naive UTC: the router passes `datetime.utcnow()` as `now` into each write, and a scan run has one `now` for all its statements.
+- **Limits** (`domain/limits.py`): name 3–80 characters with at least one letter or digit, note ≤ 300, radius 1–100 km and only with a locality (0 or null = that locality only), 30 ACTIVE wants per seeker, validity 90 days, reminder 7 days before the end, closed wants kept 30 days, 20 pairs stored per want and match run, scan every 15 minutes with a 5-minute overlap, forward statement timeout 3 s.
+
+### Tables
+
+`app/wants/models.py`. No `relationship()`; rows are hard-deleted.
+
+- **`wants`**: `seeker_party_id` (FK `parties`, **no ON DELETE rule**), `name`, `note`, `category_id` (FK `categories` ON DELETE SET NULL), `offer_mode` (`GIFT`, `SWAP` or NULL = either), `locality_id` (FK `localities` RESTRICT), `radius_km`, `notifications_enabled`, `status` (`ACTIVE`, `FULFILLED`, `WITHDRAWN`, `EXPIRED`), `expires_at`, `closed_at`, `reminded_at`, `match_notification_id` (a loose pointer to the want's match bell row) and `match_notification_count` (the count that row shows). CHECKs: `ck_wants_radius_requires_locality`, and `ck_wants_closed_at_matches_status` (`closed_at` is set exactly while the want is not ACTIVE). Indexes: `ix_wants_seeker_party_id_status`, partial `ix_wants_active_expires_at` (ACTIVE) and partial `ix_wants_closed_at` (not ACTIVE).
+- **Text columns of `wants`**: `name_folded` (`fold_pl(name)`) and `name_query` (`plainto_tsquery('simple'::regconfig, fold_pl(name))`, the two-argument form because the one-argument form is not immutable) are `GENERATED ALWAYS … STORED`. PostgreSQL 18 accepts the stored generated `tsquery` column, and wants inserted through the ORM are matched through it, so there is no fallback column and nothing writes either one. Both are mapped deferred with raiseload: use them as column expressions only. `short_words_query` is a plain nullable `tsquery` set in SQL by the statement that writes the name (`application/text_queries.short_words_query`): an all-words query of the name's lexemes of at most 3 characters, NULL when there are none.
+- **`want_matches`**: one row per (want, item) pair found: `want_id` (FK `wants` ON DELETE CASCADE), `item_id` (a loose pointer, no FK), `source` (`FORWARD` or `SCAN`), `score`, `seen_at` (NULL = new to the seeker), `opened_at`. Unique `uq_want_matches_want_id_item_id`, index `ix_want_matches_item_id`.
+- **`want_scan_markers`**: `scan_name` (unique) and `scanned_through`. One row, `wants`, created by the first scan run.
+- **Deleted category**: the FK sets `wants.category_id` to NULL. The want then matches in every category, under the stricter 0.70 threshold.
+- **Account deletion** does not exist yet. When it is built it must handle `wants.seeker_party_id`: the FK has no ON DELETE rule, so a party with wants cannot be deleted until its wants are.
+
+### Match statement
+
+`application/matcher.py::match_statement` builds one `INSERT … SELECT … ON CONFLICT DO NOTHING … RETURNING` into `want_matches`. A pair is stored when all of these hold:
+
+1. The want is ACTIVE and `expires_at > now`.
+2. The item is listed (inventory's listed-items select) and **takeable**: balance AVAILABLE, no pending swap proposal, and its own place is live (`inventory_items.location_id` set and the place not soft-deleted).
+3. The listing's owner is not the seeker.
+4. The seeker may see it: the listing is PUBLIC, or PRIVATE and owner and seeker share a live PRIVATE group (`owner_shares_group_with(…, private_only=True)`).
+5. Offer mode: the want has none, or it equals the listing's mode.
+6. Category: the want has none, or its category is in the listing's category path (the product's category and its ancestors, one array per listing from a lateral join).
+7. Locality: the want has none, or the item's place is in that locality, or the haversine distance between the two locality points is at most `radius_km`. Without a radius, or when either locality has no point, only the same locality matches.
+8. Name: `products.search_vector @@ wants.name_query` (every word of the want), **or** the trigram branch: the product has every short word (`search_vector @@ short_words_query`, skipped when NULL), `name_folded <% fold_pl(products.name)`, and `word_similarity` of the two is at least 0.70 for a want without a category and 0.60 for one with a category.
+9. The pair is not stored yet.
+
+The pairs are ranked per want by similarity, then newest listing, then item id, and the first 20 are inserted. Stored pairs are left out before the ranking, so a later run adds up to 20 further pairs.
+
+The two directions share every predicate and differ in how the listings are reached:
+
+- **Forward** (`match_want`, one want against all listings): run by create, resume and an edit that changes what the want matches. Pairs get `source = FORWARD` and `seen_at = now`, so they are never "new". The text indexes `ix_products_search_vector` and `ix_products_name_trgm` lead to the listings. The write runs under `SET LOCAL statement_timeout = '3s'`; a statement it cancels (SQLSTATE 57014) rolls the whole write back and returns 503 „Szukanie dopasowań trwa zbyt długo. Spróbuj ponownie za chwilę.”.
+- **Reverse** (`match_new_listings`, every matchable want against a window of listings): run by the scan. The window is `item_listing_preferences.created_at > listed_after AND <= now`. Pairs get `source = SCAN` and `seen_at = NULL`. No index serves these pairs, so two levers are built into the statement: (a) the takeable listings of the window sit in a `window_listings AS MATERIALIZED` CTE with everything derived from the listing alone (folded name, search vector, category path, mode, locality point), so a name is folded once per listing, not once per pair; (b) offer mode, category and locality are compared before the names through `CASE WHEN <plain columns> THEN <name match> ELSE false END`, because the planner prices `<%` like a plain comparison, and inside the trigram branch the short-word test comes first. The forward direction keeps plain `AND`s so the name match stays an index condition.
+
+**Measured cost** (`.maister/tasks/development/2026-11-15-szukam-wanted-mechanism/implementation/measurement/results.md`; a loaded developer machine, read as orders of magnitude):
+
+- Forward: at most 17 ms at 20,000 listed items and 10,000 wants, against a budget of 300 ms. Every forward plan uses both text indexes.
+- Reverse: linear in window × wants, independent of the number of items. About 12 ms per new listing at 10,000 active wants and 1.1 ms at 1,000. Under the 2 s budget at every measured point except the largest.
+- **Accepted risk (2026-11-16)**: 500 new listings in one window against 10,000 active wants take about 5.7 s (38.3 s before the two levers), against a 2 s budget. The budget holds up to about 165 listings per window at 10,000 wants, or 500 listings at about 3,500 wants. The scan stays a 15-minute interval job **without a statement timeout**; there is no outbox and no interval change. If that scale is reached, the options are in `results.md` ("Remaining gap"): matching each listing when it is created, an index-backed pre-filter on the want side, or running the candidate select apart from the insert.
+- The seeded data had no groups, so the PRIVATE-listing group lookup was cheaper than it will be with real memberships.
+- `item_listing_preferences.created_at` has no index, see the 0099 runbook.
+
+### Scan
+
+`application/scan.py::scan_wants`, scheduled by `app/main.py::_run_want_scan` on the APScheduler every `SCAN_INTERVAL` (15 minutes). One run is one transaction with one commit:
+
+1. **Expire**: ACTIVE wants with `expires_at <= now` become EXPIRED with `closed_at = expires_at`.
+2. **Remind**: ACTIVE wants with `expires_at <= now + 7 days` and `reminded_at IS NULL` get `reminded_at = now`. Once per validity period, whatever the want's notification switch.
+3. **Purge**: wants that are not ACTIVE and have `closed_at <= now - 30 days` are deleted. Their matches go with them (CASCADE); their bell rows stay.
+4. **Window**: read the marker. The window starts at `scanned_through - 5 minutes`; on the first run at `now - 20 minutes`. The overlap is for a listing whose transaction committed after the run that should have seen it; the unique key of a pair makes the repeat harmless.
+5. **Reverse match** of the window.
+6. **Bell rows** for the new pairs and the reminded wants (below).
+7. **Marker**: `scanned_through = now`, then commit, then one log line with the window, the counts and the duration (INFO when anything was stored, expired or purged, DEBUG otherwise).
+
+Concurrency: every set-based update of `wants` also sets `updated_at`, the version column, so a seeker's write that loaded the want before the run fails its version check instead of overwriting the run's change. The marker is written through the ORM for the same check. Of two runs racing for the marker one fails as a whole (`StaleDataError`, or an `IntegrityError` on `uq_want_scan_markers_scan_name` when both are the first run); `_run_want_scan` rolls it back and logs one WARNING. A deadlock (`40P01`) or serialization failure (`40001`) is treated the same way; the next run repeats the window. Any other failure is rolled back and logged once with `logger.exception("want scan failed")` and is not re-raised, so APScheduler does not log it a second time. A seeker's write (create, edit, extend, close, resume, seen) that deadlocks or fails to serialize is rolled back and answered with the shared `StaleDataError` 409 („Dane zostały w międzyczasie zmienione — odśwież i spróbuj ponownie”); a statement timeout of a forward match stays a 503. One run issues a constant number of statements (13 in `tests/test_wants_scan.py`, whatever the number of wants and listings).
+
+### Notification rules
+
+In-app only: rows in `notifications` shown by the bell. Two kinds, both for the want's seeker: `WANT_MATCH_FOUND` and `WANT_EXPIRING`. Only the scan writes them (`application/match_notifications.py::write_bell_rows`); forward matches never notify.
+
+- **Match row**: one per want that got new pairs in the run and has `notifications_enabled`. One new pair names the item („Szukasz: «…». Ktoś wystawił: «…».”) and links to the item page; several give a count and link to the want's match list `/wanted/{id}`.
+- **At most one unread match row per want**: if the previous one (`match_notification_id`) is still unread, it is deleted and its count is added to the new row's; a read one stays and the new row counts the run's pairs only. The want's pointer and count are then set to the new row.
+- **Muted want**: no match row; the pairs are still stored and the pointer and count are kept.
+- **Reminder row**: one `WANT_EXPIRING` per want reminded in the run, linking to its match list. It ignores the switch.
+- **Removing the match row**: an edit that re-matches and a withdrawal delete the unread match row and reset the pointer. Marking matches seen does not touch it.
+- `app/notifications/service.py` gained `create_notifications(db, entries)` (one multi-row insert returning the new ids in entry order, no statement for an empty list) and `delete_unread_notifications(db, ids)`; neither commits. The scan deletes the old unread rows first, because the new text carries the summed count, then inserts.
+- Messages are capped with `clock.fit_notification_message`.
+
+### Lifecycle
+
+`domain/lifecycle.py` holds which status allows which action; a refused action is 409 with a Polish message.
+
+| Action | Allowed in | Effect |
+|---|---|---|
+| Create | — | ACTIVE, `expires_at = now + 90 days`, forward match. 409 at 30 ACTIVE wants. |
+| Edit (`PATCH`) | ACTIVE | Only the sent fields change. Clearing the locality clears the radius. A changed name, category, offer mode, locality or radius deletes the stored matches and the unread match row, then matches forward again; the note and the notification switch do not. |
+| Extend | ACTIVE | A new 90-day period from now, `reminded_at` cleared; matches stay. |
+| Close | ACTIVE | `FULFILLED` or `WITHDRAWN`, `closed_at = now`. The closing response still returns a withdrawn want; every later request for it is 404. |
+| Resume | EXPIRED, FULFILLED | ACTIVE for a new period (the cap applies), stored matches kept, forward match adds the missing pairs. |
+| Expire | ACTIVE | By the scan, see above. |
+| Seen (`matches/seen`) | any but WITHDRAWN | Every unseen stored match becomes seen. An ACTIVE want with 30 days or less left also starts a new period. |
+
+Name and note are checked before any database statement: `ensure_no_contact_info`, then `check_text` with `TextField.WANT_NAME` and `TextField.WANT_NOTE` (synchronous; on an edit only a changed text). Rule violations are 400 with a Polish message; an unknown category or locality is 400.
+
+### API
+
+`/api/wants`, OpenAPI tag `wants`. Authorization matrix rows 66–67: GET needs `READ`, POST and PATCH need `EDIT`; as for conversations, the OAuth `mcp:read`/`mcp:edit` scopes are not accepted. There is no DELETE route. Every `/{want_id}` route selects the want by id **and** seeker and answers 404 for an unknown, foreign or withdrawn want.
+
+| Route | Result |
+|---|---|
+| `GET /api/wants` | The caller's ACTIVE, EXPIRED and FULFILLED wants, ACTIVE first, then newest. `?matched_item_id=<uuid>` keeps only the ACTIVE wants that hold that item as a stored pair. |
+| `POST /api/wants` | 201, the want. |
+| `GET /api/wants/{want_id}` | The want. |
+| `PATCH /api/wants/{want_id}` | The want. |
+| `POST /api/wants/{want_id}/extend`, `/close` (`{outcome}`), `/resume` | The want. |
+| `GET /api/wants/{want_id}/matches` | Every match card, unpaged. |
+| `POST /api/wants/{want_id}/matches/seen` | The want. |
+| `POST /api/wants/{want_id}/matches/{item_id}/opened` | 204; only the first open is recorded. 404 when the item is not a stored match. |
+
+- **`WantResponse`**: `id`, `name`, `note`, `category_id`, `category_name`, `category_path` (joined with " › "), `offer_mode`, `locality_id`, `locality_name`, `radius_km`, `notifications_enabled`, `status`, `expires_at`, `closed_at`, `created_at`, `match_count`, `new_match_count`.
+- **Read-time filter** (`reads.visible_matches`): the counters count, and the match list shows, only the stored pairs whose item is still listed, visible to the seeker (`items_visible_to(seeker, ALL)`) and not the seeker's own. Stored pairs are not deleted when an item stops being listed. `matched_item_id`, "seen" and "opened" work on the stored pairs, including ones the filter currently hides.
+- **Match cards** (`WantMatchResponse`, shaped like a product search result): `id` (the item id), `title`, `href`, `meta {mode, condition, thumb_url, reserved, reserved_until}`, `is_new`, `reserved_by_me`, `proposed_by_me`. Reserved items stay on the list. Order: available before reserved, new first, best score, item id.
+- **Statement counts**, constant in the number of rows (asserted in `tests/test_wants_api.py` and `tests/test_wants_matches_api.py`): create 9, list 3, match list 6.
+
+### Frontend
+
+- **Routes** (panel, behind the `/wanted` and `/add/` entries of `PROTECTED_PREFIXES`): `/wanted` (`WantedListView`), `/wanted/[id]` (`WantMatchesView`), `/wanted/[id]/edit` and `/add/wanted` (both `WantFormView`). Thin pages over `src/features/wanted/`; `wanted` is a reserved slug.
+- **Data**: `src/api/wants.ts`, `hooks/useWants.ts` (the list and the create/update/extend/close/resume mutations, which reject with `WantWriteError` carrying the HTTP `status`), `hooks/useWantMatches.ts` (one want with its matches, "seen" and "opened") and `hooks/useWantsMatchingItem.ts` (the `?matched_item_id=` lookup of the closing prompt, idle without a token or an item; a failed lookup reads as no wants). Every key starts with `WANTS_KEY = "wants"` and includes the token, so one account's wants never show for another; every write invalidates the whole prefix.
+- **View state**: each view switches over a pure resolver (`wantedListViewState.ts`, `wantFormViewState.ts`, `wantMatchesViewState.ts`). An unknown, foreign, withdrawn or purged want renders `WantNotFound`.
+- **Form**: `/add/wanted` reads the prefill `name`, `category`, `offer_type`, `locality` and `radius` from the query string (the empty-search prompt sends them). The optional fields sit behind `WantDisclosure` („Doprecyzuj (opcjonalnie)”). A saved want replaces the form with its match list. A create answered 409 (`WantWriteError.status`; the cap, or rarely the "try again" conflict) shows the server's message with a „Zobacz listę” link to `/wanted`. Editing a want that is not ACTIVE redirects to its match list.
+- **Match list**: marks the matches seen once per visit; the items that were new at load keep their „nowe” marker for the visit. Opening a card sends "opened". Holds the notification switch, extend, „znalezione”, resume and withdraw (through `ConfirmDeleteDialog`).
+- **Entry points**: the „Konto” row and the tile on `/add` (counts over ACTIVE wants), the empty-search prompt on `/search`, and the bell rows.
+- **Closing prompt on the item page**: after a take, `features/product/blocks/ItemPickupActions.tsx` asks `GET /api/wants?matched_item_id=` through `hooks/useWantsMatchingItem.ts` (so the item page does not load the whole want list) and, when the item matches the caller's ACTIVE wants, shows `features/wanted/CloseWantSheet.tsx` („Znalezione?”), which closes them as FULFILLED. Only that close call uses `api/wants.ts` directly, not `useWants().close`, so each want's 404 or 409 can be read (both count as done) and the wants prefix is invalidated once for all of them.
+
+### Known limits
+
+- **Items that become takeable later are missed**: the scan window is the listing's `created_at`. A listing that was reserved, had a pending proposal or had no live place when its window was scanned is not matched again when it becomes takeable. A forward match (create, resume, re-matching edit) still finds it. Accepted for v1.
+- **In-app notifications only**: no e-mail and no push.
+- **The match list has no limit and no paging**; each run adds at most 20 pairs per want.
+- **Bell-row timestamps**: `create_notifications` stamps `created_at` from its own `datetime.utcnow()`, not from the run's `now`.
+- **A single new match whose item is no longer listed** when the row is written gets no bell row; the pair stays stored.
+- The reverse-scan cost at the largest measured point, see **Measured cost**.
 
 ## External Integrations
 - **PostgreSQL 18**: Primary datastore, run via `docker-compose.yml`
@@ -343,6 +474,10 @@ app/
 │                                 pages/infrastructure/*_acl.py; imported only by main.py)
 ├── search/                      (read-only global search, GET /api/public/search; same
 │                                 layering and boundary as pages/, search/infrastructure/*_acl.py)
+├── wants/                       (wants "Szukam", /api/wants: models, schemas, router,
+│                                 application (writes, reads, matcher, scan,
+│                                 match_notifications), domain; reaches other BCs only via
+│                                 wants/infrastructure/*_acl.py; imported only by main.py)
 ├── footprint/                   (emissions-footprint domain — the largest vertical)
 │   ├── archetype/                (calculator/component/validity/applicability model)
 │   ├── domain/                   (breakdown, enums, exceptions — discriminated unions)
@@ -442,7 +577,7 @@ The backend runs `alembic upgrade head` on every start (`docker-compose.yml` `ba
 **Rollback**: none of the three is guarded, and each runs in its own transaction.
 - **0080's downgrade is plain and lossy**: a downgrade below 0080 **deletes all places and every item location**, restores `name`/`notes`/the unique index/`NOT NULL`s, and brings `inventories.location_id` back empty. The `0075` guard (open personal reservations) still refuses further down, so run the 0074–0077 guard counts before going below 0080's predecessors. An image-only rollback is impossible: the old image reads `locations.name` and `inventories.location_id`. To recover the pre-release places, restore the dump from step 1.
 - **0079's downgrade** is `TRUNCATE locality_postal_codes, localities` (nothing references the dictionary at that revision); **0078's** drops both tables.
-- **Refreshing the dictionary** (a new TERYT/PRG release): rebuild the fixtures with `scripts/build_localities.py` (README in `alembic/data/localities_pl.README.md`), then ship them with a **new** data migration that upserts changed localities and postal pairs; never edit 0079. Locality ids referenced by places cannot be deleted (`RESTRICT`).
+- **Refreshing the dictionary** (a new TERYT/PRG release): rebuild the fixtures with `scripts/build_localities.py` (README in `alembic/data/localities_pl.README.md`), then ship them with a **new** data migration that upserts changed localities and postal pairs; never edit 0079. Locality ids referenced by places cannot be deleted (`RESTRICT`); neither can those referenced by wants (`wants.locality_id`, `fk_wants_locality_id_localities`, ON DELETE `RESTRICT`, since 0099), so a refresh that deletes localities must first remap or clear the `locality_id` (and with it `radius_km`, `ck_wants_radius_requires_locality`) of the wants pointing at them, and `TRUNCATE localities` is refused while these foreign keys exist.
 
 ### Deploy / rollback for locality coordinates (migrations 0097–0098)
 
@@ -501,4 +636,29 @@ The backend runs `alembic upgrade head` on every start (`docker-compose.yml` `ba
 - **Roll-forward after an image-only rollback**: the previous image does not maintain `categories.path_text`, so categories it created or renamed keep an empty or stale path. After re-deploying the new image, re-run 0092's `BACKFILL_SQL` once and check `SELECT count(*) FROM categories WHERE path_text = ''` = 0.
 - **Before downgrading past 0086**, check who owns pg_trgm: `SELECT e.extname, r.rolname FROM pg_extension e JOIN pg_roles r ON r.oid = e.extowner WHERE e.extname = 'pg_trgm'`. 0086's downgrade runs `DROP EXTENSION IF EXISTS pg_trgm`, which also removes an extension a DBA installed earlier and anything else built on it; if it predates this release, stop at 0086.
 - **Future category seed revisions** must set `path_text` in SQL with `fold_pl()` (re-run 0092's `BACKFILL_SQL` after inserting), never compute it in Python; the category service keeps it in step on create and rename.
-- **Changing `fold_pl`** (or switching `search_vector` to a `polish` dictionary) means a new revision that drops and re-adds the generated `search_vector` columns (a table rewrite, off-peak again), re-runs the `path_text` backfill and REINDEXes the `fold_pl(...)` trigram expression indexes; never `CREATE OR REPLACE` the function alone, or stored values and indexes go stale.
+- **Changing `fold_pl`** (or switching `search_vector` to a `polish` dictionary) means a new revision that drops and re-adds the generated `search_vector` columns (a table rewrite, off-peak again) and, since 0099, the two generated `wants` columns `name_folded` and `name_query`, re-runs the `path_text` backfill and REINDEXes the `fold_pl(...)` trigram expression indexes; never `CREATE OR REPLACE` the function alone, or stored values and indexes go stale. `wants.short_words_query` is not generated but is also built with `fold_pl`, so the same revision recomputes it for every want.
+
+### Deploy / rollback for wants (migration 0099)
+
+**Release gate**: there is no feature switch. Do not deploy this release until the labelled Polish sample (at least 200 pairs, a follow-up task) is scored and the similarity thresholds in `app/wants/domain/limits.py` are set from it (see **Wants**).
+
+`alembic upgrade head` on start applies **0099** (`0099_wants.py`), schema only, under `SET LOCAL lock_timeout = '5s'`: it creates `wants` (with the generated stored columns `name_folded` and `name_query`, three FKs, two CHECKs, three indexes), `want_matches` and `want_scan_markers`. It needs `fold_pl` (0087). It changes no existing table and takes only brief locks on `parties`, `categories` and `localities` for the new foreign keys. The two notification kinds `WANT_MATCH_FOUND` and `WANT_EXPIRING` need no migration: `notifications.kind` is a string column.
+
+There is **no revision 0100**. An index on `item_listing_preferences.created_at` (the scan window) was measured and is not needed: the window is read by a sequential scan that takes about 1 ms at 20,000 listings, and a trial index changed no statement time. Revisit when the table holds several million rows or another query filters on `created_at`.
+
+1. Take a `pg_dump -Fc` of the database before deploying.
+2. Deploy frontend and backend together: the new frontend calls `/api/wants`, and the old frontend's „Szukam” list was a mock.
+3. Verify: `alembic_version` = `0099`; `\d wants` shows `name_folded` and `name_query` as generated columns; create a want at `/add/wanted` for a name an existing listed item has and see the item on its match list; after the first scan run (within 15 minutes of start) `SELECT scan_name, scanned_through FROM want_scan_markers` returns the row `wants`, and running the same query again after the next run (15 minutes later) shows a later `scanned_through`. Do not look for a log line: a run that found nothing logs at DEBUG only.
+
+**Rollback**: 0099's downgrade is **unguarded and lossy**: it drops the three tables, so every want and every stored match is lost. No ledger row depends on a want, so there is no guard to run. The previous image's `NotificationKind` does not have `WANT_MATCH_FOUND` and `WANT_EXPIRING`, so it cannot load a row of either kind and the bell of every party holding one fails; those rows must be gone before the old image serves requests. In either rollback, keep this order:
+
+1. **Stop the new backend first**, so no scan run writes new bell rows after the cleanup.
+2. **Image-only rollback**: delete the bell rows of the two new kinds by hand:
+   ```sql
+   DELETE FROM notifications WHERE kind IN ('WANT_MATCH_FOUND', 'WANT_EXPIRING');
+   ```
+   **Downgrade**: run `alembic downgrade 0098` **from the new image** (e.g. a one-off container of it with the backend stopped): the old image has no 0099 script and cannot downgrade it. The downgrade itself deletes those rows (the same statement) before dropping the tables, so no manual delete is needed.
+3. Start the old image.
+
+- An image-only rollback (after that delete) is otherwise safe: the previous image ignores the three tables. Wants stay stored but nothing matches or expires them while the old image runs. After the new image is redeployed the first scan run starts its window at the stored marker minus 5 minutes, so every listing created during the rollback is matched in that one run (see the reverse-scan cost under **Wants**), and overdue wants are expired and reminded at once.
+- Roll-forward after a downgrade is a plain `alembic upgrade head`; the wants are gone and are not rebuilt.

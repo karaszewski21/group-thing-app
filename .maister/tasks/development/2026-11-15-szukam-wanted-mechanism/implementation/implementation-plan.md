@@ -58,18 +58,18 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
 **Files to Modify:** `implementation/work-log.md`, `implementation/baseline/backend-pytest.txt`, `implementation/baseline/backend-mypy.txt`, `implementation/baseline/backend-ruff.txt`, `implementation/baseline/frontend-vitest.txt`, `implementation/baseline/frontend-typecheck.txt`, `implementation/baseline/frontend-lint.txt`
 **Estimated Steps:** 6
 
-- [ ] 1.0 Record the baseline (no source change in this group)
-  - [ ] 1.1 Check the preconditions without printing configuration
+- [x] 1.0 Record the baseline (no source change in this group)
+  - [x] 1.1 Check the preconditions without printing configuration
     - `git status --short` shows only the task folder as untracked; Docker answers (`docker info` exit code only)
     - Record HEAD (`git rev-parse --short HEAD`) in the work log
-  - [ ] 1.2 Run the backend suite from `src/backend`: `uv run python -m pytest -q`
+  - [x] 1.2 Run the backend suite from `src/backend`: `uv run python -m pytest -q`
     - Save the summary line and the ids of failing / erroring tests to `implementation/baseline/backend-pytest.txt` (ids only, no environment output)
-  - [ ] 1.3 Run `uv run python -m mypy app` and `uv run python -m ruff check`
+  - [x] 1.3 Run `uv run python -m mypy app` and `uv run python -m ruff check`
     - Save the error count and the error lines to `backend-mypy.txt` / `backend-ruff.txt` (memory says mypy baseline 15; record the real number)
-  - [ ] 1.4 Run the frontend suite from `src/frontend`: `npm run test`
+  - [x] 1.4 Run the frontend suite from `src/frontend`: `npm run test`
     - Save failing file and test names to `frontend-vitest.txt`; run a failing file a second time when it looks flaky (memory: `OrganizerEditor`) and mark it "flaky"
-  - [ ] 1.5 Run `npm run typecheck` and `npm run lint`; save the error lines to `frontend-typecheck.txt` / `frontend-lint.txt`
-  - [ ] 1.6 Write the baseline summary into `implementation/work-log.md`
+  - [x] 1.5 Run `npm run typecheck` and `npm run lint`; save the error lines to `frontend-typecheck.txt` / `frontend-lint.txt`
+  - [x] 1.6 Write the baseline summary into `implementation/work-log.md`
     - Counts per check, the failing set, and which failing files this task edits (`AppPage`, `ItemDetailPage`, `routeManifest`, others found)
 
 **Acceptance Criteria:**
@@ -85,14 +85,14 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
 **Files to Modify:** `app/groups/infrastructure/visibility.py`, `tests/test_visible_to.py`
 **Estimated Steps:** 4
 
-- [ ] 2.0 Widen the group-sharing predicate annotations
-  - [ ] 2.1 Write 3 tests in `tests/test_visible_to.py` for the column form of `parties_share_group` / `owner_shares_group_with(<column>, private_only=True)`
+- [x] 2.0 Widen the group-sharing predicate annotations
+  - [x] 2.1 Write 3 tests in `tests/test_visible_to.py` for the column form of `parties_share_group` / `owner_shares_group_with(<column>, private_only=True)`
     - Shared live PRIVATE group gives true; soft-deleted group gives false; PUBLIC-only shared group gives false
     - Reuse the private-group world of `tests/test_visible_to.py:98-160`; the viewer side is a column of a selected row, not a Python value
-  - [ ] 2.2 Widen `other_party` of `parties_share_group` (:42) and `viewer` of `owner_shares_group_with` (:53) to `Parties`; update both docstrings
+  - [x] 2.2 Widen `other_party` of `parties_share_group` (:42) and `viewer` of `owner_shares_group_with` (:53) to `Parties`; update both docstrings
     - No runtime change, no facade change, no new function
-  - [ ] 2.3 Run `uv run python -m mypy app` and compare with the baseline (the widening must add no error)
-  - [ ] 2.4 Run only `uv run python -m pytest tests/test_visible_to.py tests/test_membership_definition_guard.py -q`
+  - [x] 2.3 Run `uv run python -m mypy app` and compare with the baseline (the widening must add no error)
+  - [x] 2.4 Run only `uv run python -m pytest tests/test_visible_to.py tests/test_membership_definition_guard.py -q`
 
 **Acceptance Criteria:**
 - The 3 new tests pass; the existing tests of the file pass as in the baseline
@@ -107,21 +107,21 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
 **Files to Modify:** `app/moderation/text_guard.py`, `app/notifications/models.py`, `app/notifications/service.py`, `tests/test_wants_notifications.py`
 **Estimated Steps:** 7
 
-- [ ] 3.0 Extend moderation and notifications
-  - [ ] 3.1 Write 4-6 tests in `tests/test_wants_notifications.py` (writer level, no wants tables needed)
+- [x] 3.0 Extend moderation and notifications
+  - [x] 3.1 Write 4-6 tests in `tests/test_wants_notifications.py` (writer level, no wants tables needed)
     - Batch writer: several entries in one call give distinct ids, and exactly two statements run (`count_queries`)
     - An unread previous row is deleted and reported as deleted; a read previous row is left and reported as not deleted
     - Delete-only function removes unread rows only, in one statement, and returns the deleted ids
     - `check_text(TextField.WANT_NAME, ...)` rejection carries the fixed message of FR-W-08 (classifier stubbed as the existing text-guard tests do)
-  - [ ] 3.2 `app/moderation/text_guard.py`: add `TextField.WANT_NAME`, `TextField.WANT_NOTE` and their `MESSAGES` entries
+  - [x] 3.2 `app/moderation/text_guard.py`: add `TextField.WANT_NAME`, `TextField.WANT_NOTE` and their `MESSAGES` entries
     - "Nazwa poszukiwania narusza zasady społeczności. Zmień ją i spróbuj ponownie." / "Notatka narusza zasady społeczności. Zmień ją i spróbuj ponownie."
-  - [ ] 3.3 `app/notifications/models.py`: add `WANT_MATCH_FOUND`, `WANT_EXPIRING` to `NotificationKind`; update the docstring (no migration: VARCHAR(30), no CHECK)
-  - [ ] 3.4 `app/notifications/service.py`: batch writer, exported in `__all__`
+  - [x] 3.3 `app/notifications/models.py`: add `WANT_MATCH_FOUND`, `WANT_EXPIRING` to `NotificationKind`; update the docstring (no migration: VARCHAR(30), no CHECK)
+  - [x] 3.4 `app/notifications/service.py`: batch writer, exported in `__all__`
     - Input: entries (recipient party, kind, message, link, previous row id or none)
     - One `DELETE ... WHERE id IN (...) AND read_at IS NULL RETURNING id`, then one batched `INSERT` supplying `id`, `created_at`, `updated_at` explicitly; returns the new ids and which previous rows were deleted; no flush or commit beyond the two statements
-  - [ ] 3.5 `app/notifications/service.py`: delete-only function, exported in `__all__` (one statement, unread rows only, returns deleted ids)
-  - [ ] 3.6 Run mypy and ruff on the touched files; compare with the baseline
-  - [ ] 3.7 Run only `uv run python -m pytest tests/test_wants_notifications.py -q`
+  - [x] 3.5 `app/notifications/service.py`: delete-only function, exported in `__all__` (one statement, unread rows only, returns deleted ids)
+  - [x] 3.6 Run mypy and ruff on the touched files; compare with the baseline
+  - [x] 3.7 Run only `uv run python -m pytest tests/test_wants_notifications.py -q`
 
 **Acceptance Criteria:**
 - The 4-6 tests pass
@@ -136,26 +136,26 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
 **Files to Modify:** `app/wants/__init__.py`, `app/wants/models.py`, `app/wants/domain/__init__.py`, `app/wants/domain/status.py`, `alembic/versions/0099_wants.py`, `tests/test_wants_migration.py`
 **Estimated Steps:** 7
 
-- [ ] 4.0 Build the wants tables
-  - [ ] 4.1 Write 4 tests in `tests/test_wants_migration.py` (template `tests/test_locality_coordinates_migration.py:32-45`)
+- [x] 4.0 Build the wants tables
+  - [x] 4.1 Write 4 tests in `tests/test_wants_migration.py` (template `tests/test_locality_coordinates_migration.py:32-45`)
     - Downgrade to 0098 then upgrade head (restore head in `finally`, `engine.dispose()`)
     - `name_folded` and `name_query` exist as generated columns and are filled for an inserted row
     - CHECKs reject radius 0, radius 101 and a radius without a locality
     - CHECK rejects `closed_at` not matching the status (both directions)
-  - [ ] 4.2 Run-only check O1 first: write `alembic/versions/0099_wants.py` by hand and apply it
+  - [x] 4.2 Run-only check O1 first: write `alembic/versions/0099_wants.py` by hand and apply it
     - `SET LOCAL lock_timeout = '5s'` first in upgrade and downgrade; templates `0082_media.py`, `0070_events.py`
     - Generated columns by raw `ALTER TABLE ... GENERATED ALWAYS AS (...) STORED`: `fold_pl(name)` and `plainto_tsquery('simple'::regconfig, fold_pl(name))` (two-argument form)
     - If PostgreSQL 18 refuses the `tsquery` column: make `name_query` a plain NOT NULL column written by the application, and record the fallback in the work log (groups 6 and 8 then write it)
-  - [ ] 4.3 Complete 0099: `wants`, `want_matches`, `want_scan_markers` with every constraint and index of FR-D-01..03
+  - [x] 4.3 Complete 0099: `wants`, `want_matches`, `want_scan_markers` with every constraint and index of FR-D-01..03
     - Names: `pk_wants`, `fk_wants_seeker_party_id_parties`, `fk_wants_category_id_categories` (SET NULL), `fk_wants_locality_id_localities` (RESTRICT), `ck_wants_radius_requires_locality`, `ck_wants_closed_at_matches_status`, `ix_wants_seeker_party_id_status`, `ix_wants_active_expires_at` (partial), `ix_wants_closed_at` (partial), `pk_want_matches`, `fk_want_matches_want_id_wants` (CASCADE), `uq_want_matches_want_id_item_id`, `ix_want_matches_item_id`, `uq_want_scan_markers_scan_name`
     - UUID PKs with `gen_random_uuid()` server default; no data revision; no extension; the `item_listing_preferences.created_at` index is NOT here (FR-D-06)
     - Downgrade drops `want_matches`, `want_scan_markers`, `wants` (indexes and FKs before tables); unguarded
-  - [ ] 4.4 `app/wants/__init__.py` (boundary docstring: only `app/main.py` imports `app.wants`) and `app/wants/domain/status.py` (`WantStatus`, match source values; no imports outside `app.wants.domain`)
-  - [ ] 4.5 `app/wants/models.py` in the `app/events/models.py` style
+  - [x] 4.4 `app/wants/__init__.py` (boundary docstring: only `app/main.py` imports `app.wants`) and `app/wants/domain/status.py` (`WantStatus`, match source values; no imports outside `app.wants.domain`)
+  - [x] 4.5 `app/wants/models.py` in the `app/events/models.py` style
     - `BaseEntity`, `_enum_column`, business-key `__eq__` / `__hash__`, plain FK-id columns, no `relationship()`, loose `item_id` and `match_notification_id` pointers
     - Generated columns as `Computed(..., persisted=True)`, deferred with `deferred_raiseload=True`
-  - [ ] 4.6 Run mypy and ruff on `app/wants`; compare with the baseline
-  - [ ] 4.7 Run only `uv run python -m pytest tests/test_wants_migration.py -q`
+  - [x] 4.6 Run mypy and ruff on `app/wants`; compare with the baseline
+  - [x] 4.7 Run only `uv run python -m pytest tests/test_wants_migration.py -q`
 
 **Acceptance Criteria:**
 - The 4 tests pass; the database is at head after the file runs
@@ -170,22 +170,22 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
 **Files to Modify:** `app/wants/domain/limits.py`, `app/wants/domain/lifecycle.py`, `app/wants/domain/validation.py`, `app/wants/domain/links.py`, `app/wants/domain/messages.py`, `app/wants/infrastructure/__init__.py`, `app/wants/infrastructure/groups_acl.py`, `app/wants/infrastructure/inventory_acl.py`, `app/wants/infrastructure/product_acl.py`, `app/wants/infrastructure/category_acl.py`, `app/wants/infrastructure/locations_acl.py`, `app/wants/infrastructure/users_acl.py`, `app/wants/infrastructure/organizations_acl.py`, `app/wants/infrastructure/moderation_acl.py`, `app/wants/infrastructure/notifications_acl.py`, `tests/test_wants_domain.py`, `tests/test_module_boundaries.py`, `tests/test_domain_clock_guard.py`
 **Estimated Steps:** 8
 
-- [ ] 5.0 Build the domain layer and the ACLs
-  - [ ] 5.1 Write 5-7 tests in `tests/test_wants_domain.py` (pure, no database)
+- [x] 5.0 Build the domain layer and the ACLs
+  - [x] 5.1 Write 5-7 tests in `tests/test_wants_domain.py` (pure, no database)
     - Name rule: trimmed, 3-80 code points, at least one letter or digit; note: trimmed, up to 300, blank to null
     - Radius rule: 0 or null to null; 1-100 only with a locality; clearing the locality clears the radius
     - State machine: allowed transitions of FR-L-01..07 and the refused ones (edit / extend / close of a non-ACTIVE want, resume of an ACTIVE one)
     - Match message for count 1, 2-4, 5+, 22-24 and the expiring message (table test; the 500-character cap is applied by the caller in group 10, because `domain/` imports only `app.wants.domain`)
     - `want_path(id)` is `/wanted/{id}`
-  - [ ] 5.2 Extend the guards first: `"wants"` in `MODULES` and a `product_path` parity test against `app.search.domain.links.product_path` in `tests/test_module_boundaries.py`; `app/wants` in `_GUARDED_DIRS` of `tests/test_domain_clock_guard.py`
-  - [ ] 5.3 `domain/limits.py`: every constant of FR-X-03 (name 3-80, note 300, cap 30, top 20, validity 90 d, reminder 7 d, retention 30 d, auto-extension window 30 d, scan interval 15 min, overlap 5 min, thresholds 0.70 / 0.60, forward timeout 3 s)
-  - [ ] 5.4 `domain/validation.py` and `domain/lifecycle.py`: pure functions for the name, note and radius rules and for the state machine (files import only `app.wants.domain`)
-  - [ ] 5.5 `domain/links.py` (`product_path(slug, item_id)` as a pure copy of the search one, `want_path(id)`) and `domain/messages.py` (the four notification texts of FR-N-04 and the Polish error texts of FR-A-20 as constants; the cap text of FR-W-07)
-  - [ ] 5.6 Nine ACL files, each the only importer of its foreign module, none importing `..schemas` (shape of `app/search/infrastructure/*_acl.py`)
+  - [x] 5.2 Extend the guards first: `"wants"` in `MODULES` and a `product_path` parity test against `app.search.domain.links.product_path` in `tests/test_module_boundaries.py`; `app/wants` in `_GUARDED_DIRS` of `tests/test_domain_clock_guard.py`
+  - [x] 5.3 `domain/limits.py`: every constant of FR-X-03 (name 3-80, note 300, cap 30, top 20, validity 90 d, reminder 7 d, retention 30 d, auto-extension window 30 d, scan interval 15 min, overlap 5 min, thresholds 0.70 / 0.60, forward timeout 3 s)
+  - [x] 5.4 `domain/validation.py` and `domain/lifecycle.py`: pure functions for the name, note and radius rules and for the state machine (files import only `app.wants.domain`)
+  - [x] 5.5 `domain/links.py` (`product_path(slug, item_id)` as a pure copy of the search one, `want_path(id)`) and `domain/messages.py` (the four notification texts of FR-N-04 and the Polish error texts of FR-A-20 as constants; the cap text of FR-W-07)
+  - [x] 5.6 Nine ACL files, each the only importer of its foreign module, none importing `..schemas` (shape of `app/search/infrastructure/*_acl.py`)
     - Contents exactly as FR-X-02; `derive_party_slug` in `groups_acl`; `users_acl` raises 401 on a missing profile and gives `party_id` and `account_user_id` (template `app/messaging/infrastructure/users_acl.py:25-32`); `notifications_acl` on the `notifications_bridge.py` template, exposing `create_notification`, the batch writer, the delete-only function and `NotificationKind`
     - Offer modes stay the plain strings `"GIFT"` / `"SWAP"`
-  - [ ] 5.7 Run mypy and ruff on `app/wants`; compare with the baseline
-  - [ ] 5.8 Run only `uv run python -m pytest tests/test_wants_domain.py tests/test_module_boundaries.py tests/test_domain_clock_guard.py tests/test_membership_definition_guard.py -q`
+  - [x] 5.7 Run mypy and ruff on `app/wants`; compare with the baseline
+  - [x] 5.8 Run only `uv run python -m pytest tests/test_wants_domain.py tests/test_module_boundaries.py tests/test_domain_clock_guard.py tests/test_membership_definition_guard.py -q`
 
 **Acceptance Criteria:**
 - The domain tests and the three guard files pass
@@ -200,8 +200,8 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
 **Files to Modify:** `app/wants/application/__init__.py`, `app/wants/application/matcher.py`, `app/wants/application/text_queries.py`, `tests/test_wants_matcher.py`
 **Estimated Steps:** 8
 
-- [ ] 6.0 Build the match statement
-  - [ ] 6.1 Write up to 8 scenario tests in `tests/test_wants_matcher.py` (grouped pins of FR-T-11; wants seeded by direct inserts with a per-file helper that fills `short_words_query` through `text_queries.py`; items listed through the existing endpoints; categories via `leaf_category_ids` per test)
+- [x] 6.0 Build the match statement
+  - [x] 6.1 Write up to 8 scenario tests in `tests/test_wants_matcher.py` (grouped pins of FR-T-11; wants seeded by direct inserts with a per-file helper that fills `short_words_query` through `text_queries.py`; items listed through the existing endpoints; categories via `leaf_category_ids` per test)
     - Text: full-text hit; trigram hit at 0.70 without and 0.60 with a category; the compiled statement contains the `<%` operator and the `word_similarity` cut-off
     - Short words: "TV LG 43" never by trigram alone; "kurtka 3-5 lat" matches an identical product name
     - Narrowing: category subtree narrows and never matches alone; offer mode equal or null
@@ -210,18 +210,18 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
     - Top-20 cap and order (score, then newest listing); several rows of one statement get distinct ids
     - Stored pairs are excluded before the ranking: a second forward run over 25 candidates adds the 5 not stored yet
     - Forward and reverse give the same pairs for the same data
-  - [ ] 6.2 `application/text_queries.py`: the SQL expression for `short_words_query` (lexemes of `to_tsvector('simple'::regconfig, fold_pl(:name))` of length up to 3 joined with `&`, null when none), and, only under the O1 fallback, the expression for `name_query`
-  - [ ] 6.3 `application/matcher.py`: base rows of FR-M-02
+  - [x] 6.2 `application/text_queries.py`: the SQL expression for `short_words_query` (lexemes of `to_tsvector('simple'::regconfig, fold_pl(:name))` of length up to 3 joined with `&`, null when none), and, only under the O1 fallback, the expression for `name_query`
+  - [x] 6.3 `application/matcher.py`: base rows of FR-M-02
     - `wants` joined to `item_listing_preferences` UNALIASED, the listed-items select, `products`, `inventory_items`, a live `locations` row and its `localities` row, left join to the want's locality; only `status = 'ACTIVE'` and `expires_at > now`
-  - [ ] 6.4 Predicates of FR-M-03 as column forms (copies, not imports, of the search recipes; the category-only branch of search is NOT copied)
+  - [x] 6.4 Predicates of FR-M-03 as column forms (copies, not imports, of the search recipes; the category-only branch of search is NOT copied)
     - Own items, takeable (`AVAILABLE` and `proposer_party_id IS NULL` over `with_pending_proposer`), visibility (`PUBLIC`, or `PRIVATE` with `owner_shares_group_with(<seeker column>, private_only=True)`), offer mode, category ancestry, locality with haversine and the null-point fallback, text (full text OR indexable trigram branch with the CASE threshold and the short-words condition)
-  - [ ] 6.5 Ranking and insert of FR-M-01 / FR-M-04
+  - [x] 6.5 Ranking and insert of FR-M-01 / FR-M-04
     - Anti-join on `want_matches` before `row_number()`; top 20 per want by score desc, then `item_listing_preferences.created_at` desc
     - `INSERT ... SELECT` with `include_defaults=False`, explicit `gen_random_uuid()`, `created_at`, `updated_at`; `ON CONFLICT (want_id, item_id) DO NOTHING RETURNING want_id, item_id`
     - `score` = `word_similarity(name_folded, fold_pl(product name))` for every stored pair
-  - [ ] 6.6 Two entry functions over the one builder: forward (one want id, `source = FORWARD`, `seen_at = now`) and reverse (listing window `created_at > start AND <= now`, `source = SCAN`, `seen_at` null); both take `now`
-  - [ ] 6.7 Run mypy and ruff on `app/wants`; run the boundary and membership guards
-  - [ ] 6.8 Run only `uv run python -m pytest tests/test_wants_matcher.py -q`
+  - [x] 6.6 Two entry functions over the one builder: forward (one want id, `source = FORWARD`, `seen_at = now`) and reverse (listing window `created_at > start AND <= now`, `source = SCAN`, `seen_at` null); both take `now`
+  - [x] 6.7 Run mypy and ruff on `app/wants`; run the boundary and membership guards
+  - [x] 6.8 Run only `uv run python -m pytest tests/test_wants_matcher.py -q`
 
 **Acceptance Criteria:**
 - The matcher tests pass
@@ -236,22 +236,22 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
 **Files to Modify:** `implementation/measurement/polish_names.py`, `implementation/measurement/seed_measurement.py`, `implementation/measurement/explain_match.py`, `implementation/measurement/results.md`, `implementation/work-log.md`; only if the measurement requires it: `alembic/versions/0100_listing_preferences_created_at_index.py`, `tests/test_wants_migration.py`, `app/wants/application/matcher.py`, `tests/test_wants_matcher.py`
 **Estimated Steps:** 7
 
-- [ ] 7.0 Measure the match statement (scripts stay in the task folder, never in `src/`)
-  - [ ] 7.1 Write `seed_measurement.py` and `polish_names.py`
+- [x] 7.0 Measure the match statement (scripts stay in the task folder, never in `src/`)
+  - [x] 7.1 Write `seed_measurement.py` and `polish_names.py`
     - The script starts its own disposable PostgreSQL 18 (testcontainers, as `tests/conftest.py`), runs `alembic upgrade head`, and never prints or writes a connection string, password or environment value; it refuses to run against any configured application database
     - Names drawn from realistic Polish product names (inflection, sizes, brands), not random strings
     - Sizes: 5,000 and 20,000 listed items; 1,000 and 10,000 active wants, half with a category, a third with a locality
-  - [ ] 7.2 Write `explain_match.py`: `EXPLAIN (ANALYZE, BUFFERS)` of the reverse statement for windows of 20 and 500 new listings and of the forward statement for one want, using the builders of group 6 unchanged
-  - [ ] 7.3 Run the eight reverse points and the forward points; write plans, timings and buffers to `results.md`
+  - [x] 7.2 Write `explain_match.py`: `EXPLAIN (ANALYZE, BUFFERS)` of the reverse statement for windows of 20 and 500 new listings and of the forward statement for one want, using the builders of group 6 unchanged
+  - [x] 7.3 Run the eight reverse points and the forward points; write plans, timings and buffers to `results.md`
     - Budgets: forward under 300 ms; reverse under 2 s at 500 listings x 10,000 wants
     - Checks: at 20,000 items the forward plan uses `ix_products_name_trgm` and the full-text index (a sequential scan at 5,000 is not a failure)
-  - [ ] 7.4 If the reverse budget fails, apply the levers in order and re-measure after each: fold product names once per listing (materialised CTE of the window's listings, predicates still shared by both directions); then plain-column pre-filters; then report the remaining gap
+  - [x] 7.4 If the reverse budget fails, apply the levers in order and re-measure after each: fold product names once per listing (materialised CTE of the window's listings, predicates still shared by both directions); then plain-column pre-filters; then report the remaining gap
     - Any change to `matcher.py` re-runs `tests/test_wants_matcher.py` unchanged in meaning
     - A longer interval or the outbox fallback is NOT applied; it is reported for the user
-  - [ ] 7.5 Decide the `created_at` index and record the decision with its evidence in `results.md`
+  - [x] 7.5 Decide the `created_at` index and record the decision with its evidence in `results.md`
     - If needed: a separate revision `0100_*` with a concurrent build inside `autocommit_block()`, an exact-reverse downgrade, and one round-trip test added to `tests/test_wants_migration.py`
-  - [ ] 7.6 Record in `implementation/work-log.md`: budgets met or missed, levers applied, the index decision, and that thresholds 0.70 / 0.60 remain unmeasured (release gate)
-  - [ ] 7.7 Run only the tests touched by this group (`tests/test_wants_matcher.py`, and `tests/test_wants_migration.py` if 0100 was added)
+  - [x] 7.6 Record in `implementation/work-log.md`: budgets met or missed, levers applied, the index decision, and that thresholds 0.70 / 0.60 remain unmeasured (release gate)
+  - [x] 7.7 Run only the tests touched by this group (`tests/test_wants_matcher.py`, and `tests/test_wants_migration.py` if 0100 was added)
 
 **Acceptance Criteria:**
 - `implementation/measurement/results.md` holds the plans, the timings against both budgets and the index decision
@@ -266,8 +266,8 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
 **Files to Modify:** `app/wants/schemas.py`, `app/wants/application/errors.py`, `app/wants/application/writes.py`, `app/wants/application/reads.py`, `app/wants/router/__init__.py`, `app/wants/router/wants.py`, `app/main.py`, `app/core/authorization_matrix.py`, `tests/test_authorization_matrix.py`, `tests/test_wants_api.py`, `tests/test_wants_lifecycle.py`
 **Estimated Steps:** 10
 
-- [ ] 8.0 Build the want writes and the want API
-  - [ ] 8.1 Write up to 8 scenario tests in `tests/test_wants_api.py` (grouped pins of FR-T-15; per-file `_register` / `_auth` / `_create_want` helpers)
+- [x] 8.0 Build the want writes and the want API
+  - [x] 8.1 Write up to 8 scenario tests in `tests/test_wants_api.py` (grouped pins of FR-T-15; per-file `_register` / `_auth` / `_create_want` helpers)
     - Create 201: a want inserted through the ORM over asyncpg matches with its generated columns; forward matches born seen; `new_match_count` 0; no notification row; exact key set including `category_name`, `category_path`, `locality_name`
     - Validation 400s with the texts of FR-A-20 (length, no letter or digit, note length, radius rules, unknown category / locality, unknown field); radius 0 stored as null
     - PATCH clearing the locality clears the radius, 200
@@ -277,20 +277,20 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
     - Foreign and withdrawn want 404 on every `/{id}` route of this group; edit of a non-ACTIVE want 409
     - Note-only and switch-only PATCH keep matches; a matching-field PATCH deletes matches and the unread bell row (row seeded directly, pointer set), resets pointer and count, stores fresh forward matches
     - Statement counts of create and list constant with 1 and several wants / matches
-  - [ ] 8.2 Write 4-6 tests in `tests/test_wants_lifecycle.py` (transition pins of FR-T-14) and the rows in `tests/test_authorization_matrix.py`
+  - [x] 8.2 Write 4-6 tests in `tests/test_wants_lifecycle.py` (transition pins of FR-T-14) and the rows in `tests/test_authorization_matrix.py`
     - Extend sets `expires_at = now + 90 d`, clears `reminded_at`, keeps matches, 409 when not ACTIVE
     - Close FULFILLED keeps bell rows; close WITHDRAWN deletes the unread match row and hides the want; 409 when not ACTIVE
     - Resume / reopen: cap check (409 with 30 active), `closed_at` null, new period, stored matches kept, forward match adds pairs born seen; 409 when already ACTIVE
     - Matrix: the two wants rows resolve; an OAuth token with only `mcp:*` scopes gets 403, a login token 200
-  - [ ] 8.3 `app/wants/schemas.py`: request schemas with `extra="forbid"` (create, patch, close with `outcome`), the want response of the spec; foreign types only through the module's own ACL files
-  - [ ] 8.4 `application/errors.py`: `WantNotFound` (404, Polish), the conflict exceptions (409) and the forward-timeout error (503) with the texts from `domain/messages.py` (template `app/events/service.py:33-104`)
-  - [ ] 8.5 `application/reads.py`: one statement that returns wants with `match_count` / `new_match_count` through the read-time filter (listed, `items_visible_to` with the seeker as viewer, `owner_party_id <> seeker_party_id`), `category_name`, `category_path`, `locality_name` by join or one batch; list order ACTIVE first then newest; never WITHDRAWN; selection always by `(id, seeker_party_id)`
-  - [ ] 8.6 `application/writes.py`: create in the order of FR-W-04 (text checks, profile, `SET LOCAL statement_timeout = '3s'`, cap count, existence checks, insert with `short_words_query` computed in SQL, forward match, commit); sqlstate 57014 rolls back and raises the 503 error
-  - [ ] 8.7 `application/writes.py`: PATCH through `model_fields_set` on the merged state (reference ids not re-validated when unchanged; `current` passed to `check_text`); a changed matching field deletes matches, deletes the unread bell row through the delete-only function, resets pointer and count and re-runs the forward match under the timeout
-  - [ ] 8.8 `application/writes.py`: extend, close (FULFILLED / WITHDRAWN with the bell-row delete) and resume / reopen, using `domain/lifecycle.py`
-  - [ ] 8.9 Router and wiring: `router/wants.py` on the `app/messaging/router.py` pattern (`require_any("READ")` for GET, `require_any("EDIT")` for POST / PATCH; literal paths before `/{id}`; no DELETE); `app/main.py` includes the router before `system_router`; two rows in `app/core/authorization_matrix.py` before the catch-all, copied from conversations rows 53-54
+  - [x] 8.3 `app/wants/schemas.py`: request schemas with `extra="forbid"` (create, patch, close with `outcome`), the want response of the spec; foreign types only through the module's own ACL files
+  - [x] 8.4 `application/errors.py`: `WantNotFound` (404, Polish), the conflict exceptions (409) and the forward-timeout error (503) with the texts from `domain/messages.py` (template `app/events/service.py:33-104`)
+  - [x] 8.5 `application/reads.py`: one statement that returns wants with `match_count` / `new_match_count` through the read-time filter (listed, `items_visible_to` with the seeker as viewer, `owner_party_id <> seeker_party_id`), `category_name`, `category_path`, `locality_name` by join or one batch; list order ACTIVE first then newest; never WITHDRAWN; selection always by `(id, seeker_party_id)`
+  - [x] 8.6 `application/writes.py`: create in the order of FR-W-04 (text checks, profile, `SET LOCAL statement_timeout = '3s'`, cap count, existence checks, insert with `short_words_query` computed in SQL, forward match, commit); sqlstate 57014 rolls back and raises the 503 error
+  - [x] 8.7 `application/writes.py`: PATCH through `model_fields_set` on the merged state (reference ids not re-validated when unchanged; `current` passed to `check_text`); a changed matching field deletes matches, deletes the unread bell row through the delete-only function, resets pointer and count and re-runs the forward match under the timeout
+  - [x] 8.8 `application/writes.py`: extend, close (FULFILLED / WITHDRAWN with the bell-row delete) and resume / reopen, using `domain/lifecycle.py`
+  - [x] 8.9 Router and wiring: `router/wants.py` on the `app/messaging/router.py` pattern (`require_any("READ")` for GET, `require_any("EDIT")` for POST / PATCH; literal paths before `/{id}`; no DELETE); `app/main.py` includes the router before `system_router`; two rows in `app/core/authorization_matrix.py` before the catch-all, copied from conversations rows 53-54
     - Routes of this group: `GET /api/wants`, `POST /api/wants`, `GET /{id}`, `PATCH /{id}`, `POST /{id}/extend`, `POST /{id}/close`, `POST /{id}/resume`
-  - [ ] 8.10 Run mypy and ruff; run only `uv run python -m pytest tests/test_wants_api.py tests/test_wants_lifecycle.py tests/test_authorization_matrix.py tests/test_module_boundaries.py -q`
+  - [x] 8.10 Run mypy and ruff; run only `uv run python -m pytest tests/test_wants_api.py tests/test_wants_lifecycle.py tests/test_authorization_matrix.py tests/test_module_boundaries.py -q`
 
 **Acceptance Criteria:**
 - The API, lifecycle and matrix tests pass
@@ -306,8 +306,8 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
 **Files to Modify:** `app/wants/schemas.py`, `app/wants/application/reads.py`, `app/wants/application/writes.py`, `app/wants/router/wants.py`, `tests/test_wants_matches_api.py`
 **Estimated Steps:** 7
 
-- [ ] 9.0 Build the match list API
-  - [ ] 9.1 Write up to 8 scenario tests in `tests/test_wants_matches_api.py` (grouped pins of FR-T-16)
+- [x] 9.0 Build the match list API
+  - [x] 9.1 Write up to 8 scenario tests in `tests/test_wants_matches_api.py` (grouped pins of FR-T-16)
     - Exact card key set (`id`, `title`, `subtitle`, `href`, `meta` {`mode`, `condition`, `thumb_url`, `reserved`, `reserved_until`}, `is_new`, `reserved_by_me`, `proposed_by_me`)
     - Order: available first, then reserved; inside, new first then score
     - `reserved`, `reserved_by_me`, and `proposed_by_me` for an own pending proposal that is not the oldest
@@ -316,12 +316,12 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
     - "seen" resets `new_match_count`; extends an ACTIVE want only inside its last 30 days; for a non-ACTIVE want only the counter is reset
     - "opened" sets `opened_at` once; an unknown pair is 404 "Nie znaleziono dopasowania."
     - Statement count of the match list constant with 1 and several matches
-  - [ ] 9.2 `schemas.py`: the match card response
-  - [ ] 9.3 `reads.py`: the match list statement over stored pairs joined to the current state (same read-time filter as the counters, shared code), `proposed_by_me` as an own `EXISTS`, `reserved_by_me` from `reserved_by_user_id` against the caller's `account_user_id`; photos and organization slugs batched; `href` from `product_path(owner slug, item_id)`
-  - [ ] 9.4 `reads.py`: the `matched_item_id` filter on the list statement
-  - [ ] 9.5 `writes.py`: "seen" (set `seen_at` on unseen pairs; auto-extension through the extend rule) and "opened" (first open only)
-  - [ ] 9.6 `router/wants.py`: `GET /{id}/matches`, `POST /{id}/matches/seen`, `POST /{id}/matches/{item_id}/opened` (204), the `matched_item_id` query parameter
-  - [ ] 9.7 Run mypy and ruff; run only `uv run python -m pytest tests/test_wants_matches_api.py tests/test_wants_api.py -q`
+  - [x] 9.2 `schemas.py`: the match card response
+  - [x] 9.3 `reads.py`: the match list statement over stored pairs joined to the current state (same read-time filter as the counters, shared code), `proposed_by_me` as an own `EXISTS`, `reserved_by_me` from `reserved_by_user_id` against the caller's `account_user_id`; photos and organization slugs batched; `href` from `product_path(owner slug, item_id)`
+  - [x] 9.4 `reads.py`: the `matched_item_id` filter on the list statement
+  - [x] 9.5 `writes.py`: "seen" (set `seen_at` on unseen pairs; auto-extension through the extend rule) and "opened" (first open only)
+  - [x] 9.6 `router/wants.py`: `GET /{id}/matches`, `POST /{id}/matches/seen`, `POST /{id}/matches/{item_id}/opened` (204), the `matched_item_id` query parameter
+  - [x] 9.7 Run mypy and ruff; run only `uv run python -m pytest tests/test_wants_matches_api.py tests/test_wants_api.py -q`
 
 **Acceptance Criteria:**
 - The match-list tests pass; the tests of group 8 still pass
@@ -336,8 +336,8 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
 **Files to Modify:** `app/wants/application/scan.py`, `app/wants/application/match_notifications.py`, `app/main.py`, `tests/test_wants_scan.py`, `tests/test_wants_notifications.py`, `tests/test_wants_lifecycle.py`
 **Estimated Steps:** 9
 
-- [ ] 10.0 Build the scan job
-  - [ ] 10.1 Write up to 8 scenario tests in `tests/test_wants_scan.py` (grouped pins of FR-T-12; every call passes `now`; rows are dated by setting columns directly)
+- [x] 10.0 Build the scan job
+  - [x] 10.1 Write up to 8 scenario tests in `tests/test_wants_scan.py` (grouped pins of FR-T-12; every call passes `now`; rows are dated by setting columns directly)
     - A new listing gives one pair and one bell row; a second run over the same window adds nothing
     - First run without a marker uses a window of 15 + 5 minutes and creates the row; the overlap is honoured
     - The register insert path (`list_registered_item`) is seen
@@ -346,20 +346,20 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
     - The job wrapper swallows `StaleDataError` and the marker `IntegrityError`, rolls back, and the next run works; two first runs leave one marker row
     - Statement count constant with 1 and several wants / listings, at most 16
     - One log line per run (INFO when work was done, DEBUG otherwise)
-  - [ ] 10.2 Append 3-4 tests to `tests/test_wants_notifications.py` (scan pins of FR-T-13)
+  - [x] 10.2 Append 3-4 tests to `tests/test_wants_notifications.py` (scan pins of FR-T-13)
     - Count 1 names the item and links to its page; count 2+ gives the count and links to `/wanted/{id}`
     - An unread row is replaced by one row with the summed count; a read row is left and the new row starts from the run's count
     - End to end: withdraw and a matching-field edit delete the unread row created by a scan; read rows and reminder rows stay
-  - [ ] 10.3 Append 3-4 tests to `tests/test_wants_lifecycle.py` (sweep pins of FR-T-14)
+  - [x] 10.3 Append 3-4 tests to `tests/test_wants_lifecycle.py` (sweep pins of FR-T-14)
     - Expire sets `EXPIRED` and `closed_at = expires_at`
     - Reminder once per period, also with the switch off, again after an extension
     - Purge 30 days after `closed_at` with cascade; an ACTIVE want is never purged; bell rows of purged wants stay
-  - [ ] 10.4 `application/scan.py`: `scan_wants(db, *, now=None)` with the sweep (expire, remind, purge) as set-based `UPDATE` / `DELETE ... RETURNING`; every set-based `UPDATE` of `wants` also sets `updated_at = now`
-  - [ ] 10.5 `application/scan.py`: marker as an ORM entity (version column checked), first-run window, reverse match over `(scanned_through - 5 min, now]`, marker moved to `now`, one commit, one log line with the fields of FR-S-05
-  - [ ] 10.6 `application/match_notifications.py`: group the inserted pairs per want with the switch on; batched owner slugs and product names; texts from `domain/messages.py` capped with `clock.fit_notification_message`; one call of the batch writer; pointer and count set in one multi-row `UPDATE` (summed count only when the writer deleted the unread row); `WANT_EXPIRING` rows as plain inserts
-  - [ ] 10.7 `app/main.py`: interval constant from the wants domain, the job wrapper (catches `StaleDataError` and the marker `IntegrityError`, logs, rolls back; other exceptions propagate), `add_job` on the existing `AsyncIOScheduler`; no statement timeout on the scan (OQ1 default)
-  - [ ] 10.8 Run mypy and ruff; run the boundary, clock and membership guards
-  - [ ] 10.9 Run only `uv run python -m pytest tests/test_wants_scan.py tests/test_wants_notifications.py tests/test_wants_lifecycle.py -q`
+  - [x] 10.4 `application/scan.py`: `scan_wants(db, *, now=None)` with the sweep (expire, remind, purge) as set-based `UPDATE` / `DELETE ... RETURNING`; every set-based `UPDATE` of `wants` also sets `updated_at = now`
+  - [x] 10.5 `application/scan.py`: marker as an ORM entity (version column checked), first-run window, reverse match over `(scanned_through - 5 min, now]`, marker moved to `now`, one commit, one log line with the fields of FR-S-05
+  - [x] 10.6 `application/match_notifications.py`: group the inserted pairs per want with the switch on; batched owner slugs and product names; texts from `domain/messages.py` capped with `clock.fit_notification_message`; one call of the batch writer; pointer and count set in one multi-row `UPDATE` (summed count only when the writer deleted the unread row); `WANT_EXPIRING` rows as plain inserts
+  - [x] 10.7 `app/main.py`: interval constant from the wants domain, the job wrapper (catches `StaleDataError` and the marker `IntegrityError`, logs, rolls back; other exceptions propagate), `add_job` on the existing `AsyncIOScheduler`; no statement timeout on the scan (OQ1 default)
+  - [x] 10.8 Run mypy and ruff; run the boundary, clock and membership guards
+  - [x] 10.9 Run only `uv run python -m pytest tests/test_wants_scan.py tests/test_wants_notifications.py tests/test_wants_lifecycle.py -q`
 
 **Acceptance Criteria:**
 - The scan, notification and sweep tests pass
@@ -384,18 +384,18 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
   acceptance: `WantNotFound` shows "Nie ma takiego poszukiwania", "Mogło zostać wycofane albo usunięte po zakończeniu." and the link "Wróć do listy „Szukam”" to `/wanted`
 **Estimated Steps:** 8
 
-- [ ] 11.0 Build the frontend data layer
-  - [ ] 11.1 Write the typed factory `test/fixtures/wants.ts` (no `as` casts) and 6-8 tests across `test/useWants.test.tsx`, `test/useWantMatches.test.tsx`, `test/wantText.test.ts`
+- [x] 11.0 Build the frontend data layer
+  - [x] 11.1 Write the typed factory `test/fixtures/wants.ts` (no `as` casts) and 6-8 tests across `test/useWants.test.tsx`, `test/useWantMatches.test.tsx`, `test/wantText.test.ts`
     - `useWants`: token in the key, disabled without a token, stable empty fallback, each mutation awaits invalidation of the whole prefix and passes the server message through
     - `useWantMatches`: want + matches, not-found flag on 404, `markSeen`, `markOpened`
     - `wantText`: filter summary variants of FR-F-12 (node name / full path, "Oddam" / "Zamiana", "Kęty +10 km", "Kęty", "cała Polska", "Bez doprecyzowania", "powiadomienia wyłączone"), plural forms ("1 pasująca rzecz", "3 pasujące rzeczy", "5 pasujących rzeczy", "1 nowa", "2 nowe", "5 nowych"), day counts from naive-UTC timestamps with a pinned clock
-  - [ ] 11.2 Add or adjust the kind tests: a `test/pendingActions.test.ts` row showing the two new kinds create no blocking sheet; rewrite the hard-coded kind list of `test/MyItemsViewCategory.test.tsx:508-526`; one `test/NotificationBell.test.tsx` case for the three wants rows
-  - [ ] 11.3 `routing/paths.ts`: add the `View` member `"add/wanted"` (keep `"add/hunting"` until group 16), `wantPath(id)`, `wantEditPath(id)` (as `placeEditPath`)
-  - [ ] 11.4 `api/wants.ts`: request and response types and calls for FR-A-01..10; `api/notifications.ts`: add `WANT_MATCH_FOUND`, `WANT_EXPIRING`, remove the stale `PLEDGE_ITEM_REGISTERED`
-  - [ ] 11.5 `hooks/useWants.ts` on the `hooks/useMyLocations.ts` template (key `[WANTS_KEY, "mine", token]`, `enabled: token !== null`, `create`, `update`, `extend`, `close`, `resume`, the `matched_item_id` lookup) and `hooks/useWantMatches.ts` on the `hooks/useEvent.ts` template under the same prefix
-  - [ ] 11.6 `features/wanted/wantText.ts` (summary line, plural forms through `utils/plural.ts`, day counts with the UTC plugin of `utils/dayjs.ts`) and `features/wanted/WantNotFound.tsx` (shared by the edit form and the match page)
-  - [ ] 11.7 Run `npm run typecheck` and `npm run lint`; compare with the baseline
-  - [ ] 11.8 Run only `npm run test -- src/test/useWants.test.tsx src/test/useWantMatches.test.tsx src/test/wantText.test.ts src/test/pendingActions.test.ts src/test/MyItemsViewCategory.test.tsx src/test/NotificationBell.test.tsx`
+  - [x] 11.2 Add or adjust the kind tests: a `test/pendingActions.test.ts` row showing the two new kinds create no blocking sheet; rewrite the hard-coded kind list of `test/MyItemsViewCategory.test.tsx:508-526`; one `test/NotificationBell.test.tsx` case for the three wants rows
+  - [x] 11.3 `routing/paths.ts`: add the `View` member `"add/wanted"` (keep `"add/hunting"` until group 16), `wantPath(id)`, `wantEditPath(id)` (as `placeEditPath`)
+  - [x] 11.4 `api/wants.ts`: request and response types and calls for FR-A-01..10; `api/notifications.ts`: add `WANT_MATCH_FOUND`, `WANT_EXPIRING`, remove the stale `PLEDGE_ITEM_REGISTERED`
+  - [x] 11.5 `hooks/useWants.ts` on the `hooks/useMyLocations.ts` template (key `[WANTS_KEY, "mine", token]`, `enabled: token !== null`, `create`, `update`, `extend`, `close`, `resume`, the `matched_item_id` lookup) and `hooks/useWantMatches.ts` on the `hooks/useEvent.ts` template under the same prefix
+  - [x] 11.6 `features/wanted/wantText.ts` (summary line, plural forms through `utils/plural.ts`, day counts with the UTC plugin of `utils/dayjs.ts`) and `features/wanted/WantNotFound.tsx` (shared by the edit form and the match page)
+  - [x] 11.7 Run `npm run typecheck` and `npm run lint`; compare with the baseline
+  - [x] 11.8 Run only `npm run test -- src/test/useWants.test.tsx src/test/useWantMatches.test.tsx src/test/wantText.test.ts src/test/pendingActions.test.ts src/test/MyItemsViewCategory.test.tsx src/test/NotificationBell.test.tsx`
 
 **Acceptance Criteria:**
 - The new and adjusted tests pass
@@ -420,16 +420,16 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
   acceptance: `ItemCard` shows a "nowe" marker when the optional prop is passed and nothing new when it is not; the intent pill keeps today's labels
 **Estimated Steps:** 8
 
-- [ ] 12.0 Change the shared components
-  - [ ] 12.1 Run `npm run test -- src/test/SearchView.test.tsx` first and record the result for L134-210 (must be the same after step 12.3)
-  - [ ] 12.2 Write 6-8 tests: `test/RadiusChips.test.tsx` (four chips, pressed state, null for "Tylko tu"), `test/ItemCard.test.tsx` (marker shown / absent), `test/BottomNav.test.tsx` ("Konto" highlighted on `/wanted/abc`, `/wanted/abc/edit`, `/places/new`; not on `/search`), one case each in `test/CategoryTreePicker.test.tsx` and `test/LocalityCombobox.test.tsx` (prop given; default unchanged)
-  - [ ] 12.3 Extract only the radius chips and the chip style constants from `features/search/SearchFilters.tsx` (L196-208, L30-34) into `components/shared/RadiusChips.tsx` and `components/shared/chipStyles.ts`; `SearchFilters.tsx` uses them
+- [x] 12.0 Change the shared components
+  - [x] 12.1 Run `npm run test -- src/test/SearchView.test.tsx` first and record the result for L134-210 (must be the same after step 12.3)
+  - [x] 12.2 Write 6-8 tests: `test/RadiusChips.test.tsx` (four chips, pressed state, null for "Tylko tu"), `test/ItemCard.test.tsx` (marker shown / absent), `test/BottomNav.test.tsx` ("Konto" highlighted on `/wanted/abc`, `/wanted/abc/edit`, `/places/new`; not on `/search`), one case each in `test/CategoryTreePicker.test.tsx` and `test/LocalityCombobox.test.tsx` (prop given; default unchanged)
+  - [x] 12.3 Extract only the radius chips and the chip style constants from `features/search/SearchFilters.tsx` (L196-208, L30-34) into `components/shared/RadiusChips.tsx` and `components/shared/chipStyles.ts`; `SearchFilters.tsx` uses them
     - The heading, the "Ostatnio" chip, `MajorTownPicker`, the +10 km default on pick and the offer toggles stay in `SearchFilters.tsx` unchanged
-  - [ ] 12.4 `ItemCard`: one optional marker prop; `CategoryTreePicker`: one optional clear-label prop (default "Kategoria główna (brak)"); `LocalityCombobox`: one optional `placeholder` prop (default "Nazwa lub kod pocztowy")
-  - [ ] 12.5 `BottomNav` / `utils/appHelpers.ts`: "Konto" highlighted by prefix (exact path or path + "/...") for all `ACCOUNT_SUBVIEWS`
-  - [ ] 12.6 Check the pages the prefix now touches (`/places/...`, `/groups/:id`, `/family/...`): run the test files that assert the active tab and adjust only an assertion the new rule changes on purpose
-  - [ ] 12.7 Run `npm run typecheck` and `npm run lint`; compare with the baseline
-  - [ ] 12.8 Run only the five test files of 12.2 plus `src/test/SearchView.test.tsx`
+  - [x] 12.4 `ItemCard`: one optional marker prop; `CategoryTreePicker`: one optional clear-label prop (default "Kategoria główna (brak)"); `LocalityCombobox`: one optional `placeholder` prop (default "Nazwa lub kod pocztowy")
+  - [x] 12.5 `BottomNav` / `utils/appHelpers.ts`: "Konto" highlighted by prefix (exact path or path + "/...") for all `ACCOUNT_SUBVIEWS`
+  - [x] 12.6 Check the pages the prefix now touches (`/places/...`, `/groups/:id`, `/family/...`): run the test files that assert the active tab and adjust only an assertion the new rule changes on purpose
+  - [x] 12.7 Run `npm run typecheck` and `npm run lint`; compare with the baseline
+  - [x] 12.8 Run only the five test files of 12.2 plus `src/test/SearchView.test.tsx`
 
 **Acceptance Criteria:**
 - The new tests pass; `test/SearchView.test.tsx` L134-210 has the same result as in 12.1
@@ -449,14 +449,14 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
   acceptance: header order: back "‹ Konto", h1 "Szukam", link "+ Dodaj", intro "Zapisz, czego potrzebujesz. Damy znać, gdy ktoś doda pasującą rzecz."; no inline add field; active card: name link, summary joined with " · ", pill "N nowe", match band ("N pasujących rzeczy" or "Jeszcze nic · powiadomimy Cię" with a bell icon), "Ważne jeszcze N dni" with "Przedłuż" at 7 days or fewer; expired card: "Wygasło N dni temu", pill "Wygasło", "Zniknie z listy za M dni", "Wznów"; fulfilled card: "Znalezione N dni temu", pill "Znalezione", "Szukam znowu"; empty state: "Czego potrzebujesz?", "Dodaj rzecz, której szukasz, np. fotelik albo kurtkę na zimę.", "+ Dodaj poszukiwanie". Spec override: the summary shows the category node name (`category_name`), not the mockup's top-level name
 **Estimated Steps:** 6
 
-- [ ] 13.0 Build the list view
-  - [ ] 13.1 Write the `it.each` table in `test/wantedListViewState.test.ts` (`loading`, `error`, `empty`, `list`, including a stale list with a refresh error) and up to 8 tests in `test/WantedListView.test.tsx` (`vi.mock("../api/wants")`, `renderWithRoute`, pinned clock)
+- [x] 13.0 Build the list view
+  - [x] 13.1 Write the `it.each` table in `test/wantedListViewState.test.ts` (`loading`, `error`, `empty`, `list`, including a stale list with a refresh error) and up to 8 tests in `test/WantedListView.test.tsx` (`vi.mock("../api/wants")`, `renderWithRoute`, pinned clock)
     - Header copy and links; summary line variants; "N nowe"; match band at 0 and above; expiry hint and "Przedłuż"; expired and fulfilled rows with their actions; a 409 on resume shown verbatim in an inline `role="alert"` by the action; empty state
-  - [ ] 13.2 `wantedListViewState.ts`: pure `resolveWantedListView()` returning one discriminated state
-  - [ ] 13.3 `WantedListView.tsx`: header, intro, cards (active / expired / fulfilled) and the empty state; the page only switches on `view.kind`; icons from `components/shared/appIcons.tsx`; text from `features/wanted/wantText.ts`
-  - [ ] 13.4 Actions: "Przedłuż" (extend), "Wznów" / "Szukam znowu" (resume) through `useWants`; failures inline next to the action, no toast
-  - [ ] 13.5 Run `npm run typecheck` and `npm run lint`; compare with the baseline
-  - [ ] 13.6 Run only `npm run test -- src/test/wantedListViewState.test.ts src/test/WantedListView.test.tsx`
+  - [x] 13.2 `wantedListViewState.ts`: pure `resolveWantedListView()` returning one discriminated state
+  - [x] 13.3 `WantedListView.tsx`: header, intro, cards (active / expired / fulfilled) and the empty state; the page only switches on `view.kind`; icons from `components/shared/appIcons.tsx`; text from `features/wanted/wantText.ts`
+  - [x] 13.4 Actions: "Przedłuż" (extend), "Wznów" / "Szukam znowu" (resume) through `useWants`; failures inline next to the action, no toast
+  - [x] 13.5 Run `npm run typecheck` and `npm run lint`; compare with the baseline
+  - [x] 13.6 Run only `npm run test -- src/test/wantedListViewState.test.ts src/test/WantedListView.test.tsx`
 
 **Acceptance Criteria:**
 - Both test files pass
@@ -484,21 +484,21 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
   acceptance: out-of-range name shown as typed with the inline `role="alert"` "Nazwa musi mieć od 3 do 80 znaków.", `aria-invalid`, `aria-describedby`, blocked submit; server errors in a `role="alert"` block above the name field, verbatim; the 409 on create adds the link "Zobacz listę" to `/wanted`; the form stays filled. Spec override: the contact-details message is the server's existing `CONTACT_INFO_MESSAGE` verbatim, not the mockup's shortened text
 **Estimated Steps:** 8
 
-- [ ] 14.0 Build the form view
-  - [ ] 14.1 Write the `it.each` table in `test/wantFormViewState.test.ts` (create `ready`; edit `loading`, `error`, `notFound`, `ready`, non-ACTIVE redirect) and up to 8 tests in `test/WantFormView.test.tsx` (grouped pins of FR-T-22)
+- [x] 14.0 Build the form view
+  - [x] 14.1 Write the `it.each` table in `test/wantFormViewState.test.ts` (create `ready`; edit `loading`, `error`, `notFound`, `ready`, non-ACTIVE redirect) and up to 8 tests in `test/WantFormView.test.tsx` (grouped pins of FR-T-22)
     - Field order and copy; disclosure state and ARIA in the three openings
     - Prefill from `name`, `category`, `offer_type`, `locality`, `radius`; out-of-range prefilled name with the inline error and blocked submit
     - `aria-disabled` + hint "Wpisz, czego szukasz (3–80 znaków)."; native `disabled` only while saving; over-length note blocks the submit
     - "Obojętnie" sends null and the three chips are exclusive; picking a locality selects "Tylko tu", which sends null; clear label "Dowolna kategoria"
     - No `MajorTownPicker`, no "Ostatnio" chip; `features/search/lastLocality.ts` storage neither read nor written
     - Server error block and the 409 link; `replace` to `wantPath(id)` after save; edit hint, "Anuluj", back links (including "‹ Szukaj" with prefill)
-  - [ ] 14.2 `wantFormViewState.ts`: pure `resolveWantFormView()` for create and edit
-  - [ ] 14.3 `WantDisclosure.tsx` and `OfferModeChips.tsx` (the form's own three exclusive chips with `aria-pressed`, styled with `components/shared/chipStyles.ts`)
-  - [ ] 14.4 `WantFormView.tsx`: fields in the mockup order with `CategoryTreePicker` (`mode="any"`, clear label), `LocalityCombobox` (placeholder prop; prefilled locality loaded with `hooks/useLocality`), `RadiusChips`, the note with its counter
-  - [ ] 14.5 Validation and submit: raw strings in state, inline Polish errors, `aria-disabled` + `aria-describedby` with a handler guard, create / update through `useWants`, navigate with `replace` to `wantPath(id)`
-  - [ ] 14.6 Edit mode: load through `useWantMatches` or the list hook, `notFound` with `WantNotFound`, a non-ACTIVE want navigates with `replace` to `wantPath(id)`, "Anuluj" and the hint
-  - [ ] 14.7 Run `npm run typecheck` and `npm run lint`; compare with the baseline
-  - [ ] 14.8 Run only `npm run test -- src/test/wantFormViewState.test.ts src/test/WantFormView.test.tsx`
+  - [x] 14.2 `wantFormViewState.ts`: pure `resolveWantFormView()` for create and edit
+  - [x] 14.3 `WantDisclosure.tsx` and `OfferModeChips.tsx` (the form's own three exclusive chips with `aria-pressed`, styled with `components/shared/chipStyles.ts`)
+  - [x] 14.4 `WantFormView.tsx`: fields in the mockup order with `CategoryTreePicker` (`mode="any"`, clear label), `LocalityCombobox` (placeholder prop; prefilled locality loaded with `hooks/useLocality`), `RadiusChips`, the note with its counter
+  - [x] 14.5 Validation and submit: raw strings in state, inline Polish errors, `aria-disabled` + `aria-describedby` with a handler guard, create / update through `useWants`, navigate with `replace` to `wantPath(id)`
+  - [x] 14.6 Edit mode: load through `useWantMatches` or the list hook, `notFound` with `WantNotFound`, a non-ACTIVE want navigates with `replace` to `wantPath(id)`, "Anuluj" and the hint
+  - [x] 14.7 Run `npm run typecheck` and `npm run lint`; compare with the baseline
+  - [x] 14.8 Run only `npm run test -- src/test/wantFormViewState.test.ts src/test/WantFormView.test.tsx`
 
 **Acceptance Criteria:**
 - Both test files pass
@@ -530,8 +530,8 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
   acceptance: no matches: bell icon, "Jeszcze nic nie pasuje", "Damy znać, gdy ktoś doda pasującą rzecz.", actions "Przedłuż o 90 dni", "Znalezione", "Wycofaj"; expired: "To poszukiwanie wygasło N dni temu. Nie szukamy już nowych rzeczy. Zniknie z listy za M dni.", "Wznów na 90 dni", stored matches below, no "Edytuj", no toggle; withdraw dialog: "Wycofać poszukiwanie?", "„{name}” zniknie z listy razem z dopasowaniami. Nie damy już znać o nowych rzeczach.", "Wycofaj" / "Anuluj"; not found: the shared `WantNotFound`
 **Estimated Steps:** 8
 
-- [ ] 15.0 Build the match list view
-  - [ ] 15.1 Write the `it.each` table in `test/wantMatchesViewState.test.ts` (`loading`, `error`, `notFound`, `active`, `activeEmpty`, `expired`, `fulfilled`, stale data with a refresh error) and up to 8 tests in `test/WantMatchesView.test.tsx` (grouped pins of FR-T-24)
+- [x] 15.0 Build the match list view
+  - [x] 15.1 Write the `it.each` table in `test/wantMatchesViewState.test.ts` (`loading`, `error`, `notFound`, `active`, `activeEmpty`, `expired`, `fulfilled`, stale data with a refresh error) and up to 8 tests in `test/WantMatchesView.test.tsx` (grouped pins of FR-T-24)
     - Header with `category_path` and the note; "Edytuj" only in active states
     - Toggle PATCH with `notifications_enabled` alone; a failed toggle reverts and shows the inline alert
     - "seen" called once across re-renders; "nowe" markers still shown after the refetch that follows "seen"
@@ -539,13 +539,13 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
     - Actions and the primary-action default (extend first at 7 days or fewer); "Znalezione" leaves the page on the fulfilled state
     - Withdraw dialog: confirm navigates to `/wanted`; an error stays inline in the open dialog
     - Expired state, fulfilled state ("Oznaczone jako znalezione N dni temu. …", "Szukam znowu"), own not-found state
-  - [ ] 15.2 `wantMatchesViewState.ts`: pure `resolveWantMatchesView()` with an `Extract<…>` sub-union for the states that show matches
-  - [ ] 15.3 `WantNotificationToggle.tsx` and `MatchCard.tsx` (wraps `ItemCard`, marker and caption)
-  - [ ] 15.4 `WantMatchesView.tsx`: header, filter line, note, toggle, heading, grid, expiry line; switch on `view.kind` only
-  - [ ] 15.5 "seen" effect guarded by a ref after the matches have loaded; the ids that were new on first load kept in page state for the markers
-  - [ ] 15.6 Actions: close as `FULFILLED`, extend, resume, withdraw through `components/shared/ConfirmDeleteDialog`; failures inline by the action (FR-F-39)
-  - [ ] 15.7 Run `npm run typecheck` and `npm run lint`; compare with the baseline
-  - [ ] 15.8 Run only `npm run test -- src/test/wantMatchesViewState.test.ts src/test/WantMatchesView.test.tsx`
+  - [x] 15.2 `wantMatchesViewState.ts`: pure `resolveWantMatchesView()` with an `Extract<…>` sub-union for the states that show matches
+  - [x] 15.3 `WantNotificationToggle.tsx` and `MatchCard.tsx` (wraps `ItemCard`, marker and caption)
+  - [x] 15.4 `WantMatchesView.tsx`: header, filter line, note, toggle, heading, grid, expiry line; switch on `view.kind` only
+  - [x] 15.5 "seen" effect guarded by a ref after the matches have loaded; the ids that were new on first load kept in page state for the markers
+  - [x] 15.6 Actions: close as `FULFILLED`, extend, resume, withdraw through `components/shared/ConfirmDeleteDialog`; failures inline by the action (FR-F-39)
+  - [x] 15.7 Run `npm run typecheck` and `npm run lint`; compare with the baseline
+  - [x] 15.8 Run only `npm run test -- src/test/wantMatchesViewState.test.ts src/test/WantMatchesView.test.tsx`
 
 **Acceptance Criteria:**
 - Both test files pass
@@ -569,21 +569,21 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
   acceptance: `/wanted` renders `WantedListView`; `/wanted/:id` renders `WantMatchesView`; `/wanted/:id/edit` and `/add/wanted` render `WantFormView`; `/add/hunting` does not exist and no redirect page is added
 **Estimated Steps:** 9
 
-- [ ] 16.0 Mount the routes and wire the entry points
-  - [ ] 16.1 Rewrite the mock-bound tests first (they must fail for the right reason before the code changes)
+- [x] 16.0 Mount the routes and wire the entry points
+  - [x] 16.1 Rewrite the mock-bound tests first (they must fail for the right reason before the code changes)
     - `test/routeManifest.test.ts`, `test/panelPages.ts`, `test/panelPages.test.ts`: `/add/wanted`, `/wanted/:id`, `/wanted/:id/edit` present; `/add/hunting` gone; no redirect page
     - `test/AppPage.test.tsx` (mocks L50-192, defaults L488, wants section L2926-3038): `vi.mock("../api/wants")`; `/wanted` shows the new list; "Konto" row counts ("brak", "N rzeczy", "N rzeczy · M nowe dopasowania")
     - `test/addRoute.test.tsx`: tile link `/add/wanted`, pill with the count from `AddView`, no count and no wants call on `PublicAddView`
     - `test/SearchView.test.tsx` (L233-247): link with all five parameters; condition and scope dropped; heading and scope-"mine" suffix unchanged
     - `test/auth.test.tsx`: registration (not only login) follows a `returnTo` with a multi-parameter query
-  - [ ] 16.2 Route files (thin, client): switch `wanted/page.tsx` to `WantedListView`; add `wanted/[id]/page.tsx` and `wanted/[id]/edit/page.tsx`; rename `add/hunting/` to `add/wanted/` with `WantFormView`; keep the existing `wanted/error.tsx`, `loading.tsx`, `not-found.tsx`
-  - [ ] 16.3 `routing/paths.ts`: remove the `View` member `"add/hunting"`; fix every reference the typecheck reports
-  - [ ] 16.4 `/add` tile: `AddView` reads the summed `new_match_count` from `useWants` and passes it as a prop; the shared `AddTiles` and `PublicAddView` (also where `features/panel/PanelGate.tsx` renders them) do not call `useWants`
-  - [ ] 16.5 "Konto" row in `features/account/AccountView.tsx`: real counts from `useWants` instead of `MOCK_WANTS`
-  - [ ] 16.6 Empty-search prompt in `features/search/SearchView.tsx` (L260-281): new sentence and link with the five parameters; server-safe (no browser globals, no wants hook during render)
-  - [ ] 16.7 Delete `features/search/WantedView.tsx`, `features/add/HuntingCreateView.tsx`, `test/HuntingCreateView.test.tsx`, and `MockWant`, `MOCK_WANTS` and the header comment line in `utils/mocks.ts`; search the source for leftover references (`hunting`, `MOCK_WANTS`, `WantedView`, `HuntingCreateView`)
-  - [ ] 16.8 Run `npm run typecheck` and `npm run lint`; compare with the baseline (tests of this group that failed in the baseline and were rewritten here must now pass)
-  - [ ] 16.9 Run only `npm run test -- src/test/AppPage.test.tsx src/test/addRoute.test.tsx src/test/SearchView.test.tsx src/test/routeManifest.test.ts src/test/panelPages.test.ts src/test/auth.test.tsx src/test/ssrSafety.test.tsx`
+  - [x] 16.2 Route files (thin, client): switch `wanted/page.tsx` to `WantedListView`; add `wanted/[id]/page.tsx` and `wanted/[id]/edit/page.tsx`; rename `add/hunting/` to `add/wanted/` with `WantFormView`; keep the existing `wanted/error.tsx`, `loading.tsx`, `not-found.tsx`
+  - [x] 16.3 `routing/paths.ts`: remove the `View` member `"add/hunting"`; fix every reference the typecheck reports
+  - [x] 16.4 `/add` tile: `AddView` reads the summed `new_match_count` from `useWants` and passes it as a prop; the shared `AddTiles` and `PublicAddView` (also where `features/panel/PanelGate.tsx` renders them) do not call `useWants`
+  - [x] 16.5 "Konto" row in `features/account/AccountView.tsx`: real counts from `useWants` instead of `MOCK_WANTS`
+  - [x] 16.6 Empty-search prompt in `features/search/SearchView.tsx` (L260-281): new sentence and link with the five parameters; server-safe (no browser globals, no wants hook during render)
+  - [x] 16.7 Delete `features/search/WantedView.tsx`, `features/add/HuntingCreateView.tsx`, `test/HuntingCreateView.test.tsx`, and `MockWant`, `MOCK_WANTS` and the header comment line in `utils/mocks.ts`; search the source for leftover references (`hunting`, `MOCK_WANTS`, `WantedView`, `HuntingCreateView`)
+  - [x] 16.8 Run `npm run typecheck` and `npm run lint`; compare with the baseline (tests of this group that failed in the baseline and were rewritten here must now pass)
+  - [x] 16.9 Run only `npm run test -- src/test/AppPage.test.tsx src/test/addRoute.test.tsx src/test/SearchView.test.tsx src/test/routeManifest.test.ts src/test/panelPages.test.ts src/test/auth.test.tsx src/test/ssrSafety.test.tsx`
 
 **Acceptance Criteria:**
 - The rewritten tests pass; failures left in these files are all in the baseline and outside the rewritten tests
@@ -604,20 +604,20 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
   acceptance: `ModalSheet` title "Znalezione?", `ariaLabel` "Zamknąć poszukiwanie?"; one want: "Ta rzecz pasuje do Twojego poszukiwania:", „{name}”, primary "Zamknij poszukiwanie", secondary "Szukam dalej", hint "Zamknięte poszukiwanie możesz wznowić przez 30 dni."; several: "Ta rzecz pasuje do Twoich poszukiwań:", the list of names, "Zamknij oba poszukiwania" for two ("Zamknij wszystkie poszukiwania" for three or more), "Szukam dalej", "Zamknięte poszukiwania możesz wznowić przez 30 dni."; never stacked on `TakeSuccessSheet`
 **Estimated Steps:** 7
 
-- [ ] 17.0 Build the closing prompt
-  - [ ] 17.1 Write up to 8 tests across `test/CloseWantSheet.test.tsx`, `test/useItemTake.test.tsx`, `test/ItemDetailPage.test.tsx` (`vi.mock("../api/wants")` added to `ItemDetailPage.test.tsx`)
+- [x] 17.0 Build the closing prompt
+  - [x] 17.1 Write up to 8 tests across `test/CloseWantSheet.test.tsx`, `test/useItemTake.test.tsx`, `test/ItemDetailPage.test.tsx` (`vi.mock("../api/wants")` added to `ItemDetailPage.test.tsx`)
     - `useItemTake` returns the taken item id after a personal take and after a term / event take, never after a swap proposal
     - Sheet copy for one and for several wants; `ariaLabel`
     - Prompt after a personal take once the lookup answers; after a term / event take only once `TakeSuccessSheet` is closed; "Zobacz rzecz" closes `TakeSuccessSheet` and the prompt opens
     - No lookup for a guest; no sheet when the lookup returns no want
     - "Zamknij" closes every returned want; a failure is inline and the sheet stays open; a retry treats 409 and 404 as done
     - "Szukam dalej", ✕ and Esc close with no request; the prompt is not shown again for that take
-  - [ ] 17.2 `features/product/useItemTake.ts`: one more returned field with the item id of the last successful take (personal, term / event)
-  - [ ] 17.3 `features/product/TakeSuccessSheet.tsx`: "Zobacz rzecz" also calls `onClose`
-  - [ ] 17.4 `features/wanted/CloseWantSheet.tsx`: `ModalSheet` registered with `useRegisterOpenSheet`, copy for one / two / three or more wants, inline error, every button `type="button"`
-  - [ ] 17.5 `features/product/blocks/ItemPickupActions.tsx`: when the field is set and the viewer is logged in, look up `GET /api/wants?matched_item_id=` through `useWants`; open the sheet only with at least one want and only when `TakeSuccessSheet` is not open; close all as `FULFILLED`; no wants hook call during server render
-  - [ ] 17.6 Run `npm run typecheck` and `npm run lint`; compare with the baseline
-  - [ ] 17.7 Run only `npm run test -- src/test/CloseWantSheet.test.tsx src/test/useItemTake.test.tsx src/test/ItemDetailPage.test.tsx src/test/ssrSafety.test.tsx`
+  - [x] 17.2 `features/product/useItemTake.ts`: one more returned field with the item id of the last successful take (personal, term / event)
+  - [x] 17.3 `features/product/TakeSuccessSheet.tsx`: "Zobacz rzecz" also calls `onClose`
+  - [x] 17.4 `features/wanted/CloseWantSheet.tsx`: `ModalSheet` registered with `useRegisterOpenSheet`, copy for one / two / three or more wants, inline error, every button `type="button"`
+  - [x] 17.5 `features/product/blocks/ItemPickupActions.tsx`: when the field is set and the viewer is logged in, look up `GET /api/wants?matched_item_id=` through `useWants`; open the sheet only with at least one want and only when `TakeSuccessSheet` is not open; close all as `FULFILLED`; no wants hook call during server render
+  - [x] 17.6 Run `npm run typecheck` and `npm run lint`; compare with the baseline
+  - [x] 17.7 Run only `npm run test -- src/test/CloseWantSheet.test.tsx src/test/useItemTake.test.tsx src/test/ItemDetailPage.test.tsx src/test/ssrSafety.test.tsx`
 
 **Acceptance Criteria:**
 - The new tests pass; failures left in `ItemDetailPage.test.tsx` are all in the baseline
@@ -632,13 +632,13 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
 **Files to Modify:** `.maister/docs/project/architecture.md`, `.maister/docs/INDEX.md`, `.maister/tasks/development/2026-11-12-global-search-group-description/documentation/user-guide.md`
 **Estimated Steps:** 6
 
-- [ ] 18.0 Update the project documentation (no unit tests; step 18.6 is the check)
-  - [ ] 18.1 `architecture.md`: a Wants section (module and boundary, the three tables, the match statement and its predicates, the scan steps, notification rules, lifecycle, API) written from the code as built, including the O1 outcome and any lever applied in group 7
-  - [ ] 18.2 `architecture.md`: the package tree; the guarded-module sentences (boundary and clock guards now name `app/wants`); remove the `HuntingCreateView` mention; the note that account deletion, when built, must handle `wants.seeker_party_id`
-  - [ ] 18.3 `architecture.md`: the 0099 runbook (delete `notifications` rows of kinds `WANT_MATCH_FOUND` and `WANT_EXPIRING` before a downgrade or an image-only rollback; lossy unguarded downgrade; the two generated `wants` columns join the DROP / ADD list when `fold_pl` changes; 0100 if group 7 added it)
-  - [ ] 18.4 `architecture.md`: the release gate — no feature switch; do not deploy until the labelled Polish sample (at least 200 pairs, follow-up task) is scored and the thresholds are set from it
-  - [ ] 18.5 `.maister/docs/INDEX.md`: extend the architecture entry with the wants summary; old search user guide (L8, L12, L143-152): remove the demo warning and correct the steps (no pointer to a new guide and no screenshot change here; those belong to the user-documentation phase)
-  - [ ] 18.6 Check by search: `architecture.md` contains the Wants section, "0099", both kind names and the release gate; no "HuntingCreateView" and no "/add/hunting" remain in `.maister/docs/`; the old guide no longer calls the list a demo
+- [x] 18.0 Update the project documentation (no unit tests; step 18.6 is the check)
+  - [x] 18.1 `architecture.md`: a Wants section (module and boundary, the three tables, the match statement and its predicates, the scan steps, notification rules, lifecycle, API) written from the code as built, including the O1 outcome and any lever applied in group 7
+  - [x] 18.2 `architecture.md`: the package tree; the guarded-module sentences (boundary and clock guards now name `app/wants`); remove the `HuntingCreateView` mention; the note that account deletion, when built, must handle `wants.seeker_party_id`
+  - [x] 18.3 `architecture.md`: the 0099 runbook (delete `notifications` rows of kinds `WANT_MATCH_FOUND` and `WANT_EXPIRING` before a downgrade or an image-only rollback; lossy unguarded downgrade; the two generated `wants` columns join the DROP / ADD list when `fold_pl` changes; 0100 if group 7 added it)
+  - [x] 18.4 `architecture.md`: the release gate — no feature switch; do not deploy until the labelled Polish sample (at least 200 pairs, follow-up task) is scored and the thresholds are set from it
+  - [x] 18.5 `.maister/docs/INDEX.md`: extend the architecture entry with the wants summary; old search user guide (L8, L12, L143-152): remove the demo warning and correct the steps (no pointer to a new guide and no screenshot change here; those belong to the user-documentation phase)
+  - [x] 18.6 Check by search: `architecture.md` contains the Wants section, "0099", both kind names and the release gate; no "HuntingCreateView" and no "/add/hunting" remain in `.maister/docs/`; the old guide no longer calls the list a demo
 
 **Acceptance Criteria:**
 - The three documents are updated and consistent with the code
@@ -653,13 +653,13 @@ Paths: backend paths are relative to `src/backend/`, frontend paths to `src/fron
 **Files to Modify:** `tests/test_wants_*.py`, `src/frontend/src/test/*Want*.test.tsx`, `src/frontend/src/test/want*.test.ts`, `implementation/baseline/final-comparison.md`, `implementation/work-log.md`
 **Estimated Steps:** 6
 
-- [ ] 19.0 Review the tests and compare with the baseline
-  - [ ] 19.1 Review the tests written by groups 2-17 against the pins of FR-T-10..FR-T-29 and against AC-01..AC-50; list every pin with no test
-  - [ ] 19.2 Analyse gaps for THIS feature only (critical flows first: must-not-match cases, one unread row per want, 404 for a foreign want, statement counts, closing prompt)
-  - [ ] 19.3 Write up to 10 additional strategic tests for the listed gaps; no refactoring of passing tests
-  - [ ] 19.4 Run the feature tests only: `uv run python -m pytest tests/test_wants_*.py tests/test_visible_to.py tests/test_module_boundaries.py tests/test_domain_clock_guard.py tests/test_authorization_matrix.py tests/test_membership_definition_guard.py -q` and the frontend files of groups 11-17
-  - [ ] 19.5 Run the full checks once, exactly as in group 1: backend pytest, mypy, ruff; frontend Vitest, typecheck, lint
-  - [ ] 19.6 Write `implementation/baseline/final-comparison.md` and the work-log entry: per check, the baseline set, the final set, the difference; every difference is either a baseline failure fixed by a rewritten test or is reported as a new failure with its file (new failures are fixed in the owning group's files before this group is done)
+- [x] 19.0 Review the tests and compare with the baseline
+  - [x] 19.1 Review the tests written by groups 2-17 against the pins of FR-T-10..FR-T-29 and against AC-01..AC-50; list every pin with no test
+  - [x] 19.2 Analyse gaps for THIS feature only (critical flows first: must-not-match cases, one unread row per want, 404 for a foreign want, statement counts, closing prompt)
+  - [x] 19.3 Write up to 10 additional strategic tests for the listed gaps; no refactoring of passing tests
+  - [x] 19.4 Run the feature tests only: `uv run python -m pytest tests/test_wants_*.py tests/test_visible_to.py tests/test_module_boundaries.py tests/test_domain_clock_guard.py tests/test_authorization_matrix.py tests/test_membership_definition_guard.py -q` and the frontend files of groups 11-17
+  - [x] 19.5 Run the full checks once, exactly as in group 1: backend pytest, mypy, ruff; frontend Vitest, typecheck, lint
+  - [x] 19.6 Write `implementation/baseline/final-comparison.md` and the work-log entry: per check, the baseline set, the final set, the difference; every difference is either a baseline failure fixed by a rewritten test or is reported as a new failure with its file (new failures are fixed in the owning group's files before this group is done)
 
 **Acceptance Criteria:**
 - All feature tests pass

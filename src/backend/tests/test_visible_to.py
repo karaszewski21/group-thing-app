@@ -1,7 +1,9 @@
 """The visibility predicates `items_visible_to`, `terms_visible_to` and
 `groups_visible_to` (rules R1–R11, executed directly per viewer and scope)
 and `can_view_item` on top of them: one statement, own items visible, R12
-("listed only") not applied, and the user-mandated U1–U3 cases."""
+("listed only") not applied, and the user-mandated U1–U3 cases. Also the
+column form of `parties_share_group` / `owner_shares_group_with`, where the
+viewer is a column of the selected row."""
 
 from __future__ import annotations
 
@@ -16,6 +18,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.groups import service
+from app.groups.infrastructure.visibility import parties_share_group
 from app.groups.models import Group, ItemListingPreference, Membership, Term
 from app.inventory.models import BalanceStatus, InventoryBalance, Reservation
 from app.users.models import UserProfile
@@ -335,6 +338,82 @@ async def test_groupsVisibleTo_R9_publicOrJoined_deletedNever(
     await _set_group(db_session, w.private_circle, deleted_at=datetime.utcnow())
 
     assert await _groups(db_session, w.owner, scope, groups) == {w.public_circle}
+
+
+# --- Column form of the group-sharing predicate --------------------------------
+
+
+async def _parties_sharing_with(
+    db: AsyncSession, party: uuid.UUID, among: Collection[uuid.UUID], *, private_only: bool
+) -> set[uuid.UUID]:
+    rows = await db.scalars(
+        select(UserProfile.party_id).where(
+            UserProfile.party_id.in_(set(among)),
+            parties_share_group(party, UserProfile.party_id, private_only=private_only),
+        )
+    )
+    return set(rows.all())
+
+
+async def _viewers_sharing_with_owner_of(
+    db: AsyncSession, item_id: uuid.UUID, among: Collection[uuid.UUID], *, private_only: bool
+) -> set[uuid.UUID]:
+    rows = await db.scalars(
+        select(UserProfile.party_id)
+        .join(ItemListingPreference, ItemListingPreference.item_id == item_id)
+        .where(
+            UserProfile.party_id.in_(set(among)),
+            service.owner_shares_group_with(UserProfile.party_id, private_only=private_only),
+        )
+    )
+    return set(rows.all())
+
+
+async def test_partiesShareGroup_viewerColumn_sharedLivePrivateGroup_true(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    w = await _world(client, db_session, "vt-col-private")
+    viewers = {w.member, w.public_member, w.rsvp_only, w.stranger}
+
+    assert await _parties_sharing_with(db_session, w.owner, viewers, private_only=True) == {
+        w.member
+    }
+    assert await _viewers_sharing_with_owner_of(
+        db_session, w.private, viewers, private_only=True
+    ) == {w.member}
+
+
+async def test_partiesShareGroup_viewerColumn_softDeletedGroup_false(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    w = await _world(client, db_session, "vt-col-deleted")
+    viewers = {w.member, w.public_member, w.rsvp_only, w.stranger}
+
+    await _set_group(db_session, w.private_circle, deleted_at=datetime.utcnow())
+
+    assert await _parties_sharing_with(db_session, w.owner, viewers, private_only=True) == set()
+    assert (
+        await _viewers_sharing_with_owner_of(db_session, w.private, viewers, private_only=True)
+        == set()
+    )
+
+
+async def test_partiesShareGroup_viewerColumn_publicOnlySharedGroup_falseWithPrivateOnly(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    w = await _world(client, db_session, "vt-col-public")
+    viewers = {w.public_member}
+
+    assert await _parties_sharing_with(db_session, w.owner, viewers, private_only=False) == viewers
+    assert await _parties_sharing_with(db_session, w.owner, viewers, private_only=True) == set()
+    assert (
+        await _viewers_sharing_with_owner_of(db_session, w.private, viewers, private_only=False)
+        == viewers
+    )
+    assert (
+        await _viewers_sharing_with_owner_of(db_session, w.private, viewers, private_only=True)
+        == set()
+    )
 
 
 # --- can_view_item -----------------------------------------------------------

@@ -1,12 +1,24 @@
+import type { WantResponse } from "../../api/wants";
 import { Link } from "../../routing/navigation";
 import { useMyOrganization } from "../../hooks/useMyOrganization";
 import { useMyReservations } from "../../hooks/useMyReservations";
+import { useWants } from "../../hooks/useWants";
 import { pluralPl } from "../../utils/plural";
 import { ListCard } from "../../components/shared/appComponents";
 import { BuildingIcon, LogoutIcon } from "../../components/shared/appIcons";
 import { appearancePath, viewPath } from "../../routing/paths";
-import { MOCK_WANTS } from "../../utils/mocks";
 import { useAppData } from "../panel/appDataStore";
+
+/** "N rzeczy · M nowe dopasowania" over the active wants; "brak" without any.
+ * The row shows no meta while loading or when loading failed. */
+function wantsMeta(wants: WantResponse[]): string {
+  const active = wants.filter((want) => want.status === "ACTIVE");
+  if (active.length === 0) return "brak";
+  const newMatches = active.reduce((sum, want) => sum + want.new_match_count, 0);
+  const count = `${active.length} ${pluralPl(active.length, "rzecz", "rzeczy", "rzeczy")}`;
+  if (newMatches === 0) return count;
+  return `${count} · ${newMatches} ${pluralPl(newMatches, "nowe dopasowanie", "nowe dopasowania", "nowych dopasowań")}`;
+}
 
 const SECTION_LABEL = "mb-2.5 text-[13px] font-extrabold tracking-[.12em] text-ink-soft uppercase";
 
@@ -14,6 +26,7 @@ export function AccountView() {
   const { profile, organizationSlug, items, myGroups, logout } = useAppData();
   const { data: organization } = useMyOrganization();
   const { data: reservations, loading: reservationsLoading } = useMyReservations();
+  const { data: wants, loading: wantsLoading, error: wantsError } = useWants();
 
   return (
     <>
@@ -41,7 +54,7 @@ export function AccountView() {
             },
             {
               label: "Szukam",
-              meta: `${MOCK_WANTS.length} ${pluralPl(MOCK_WANTS.length, "rzecz", "rzeczy", "rzeczy")}`,
+              meta: wantsLoading || wantsError !== null ? undefined : wantsMeta(wants),
               to: viewPath("wanted"),
             },
           ]}

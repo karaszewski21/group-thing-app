@@ -33,11 +33,13 @@ export interface CategoryTreePickerProps {
   labelledBy: string;
   /** Selected category id; `null` or `""` means none. */
   value: string | null;
-  /** Receives the chosen id, or `null` from "Kategoria główna (brak)". */
+  /** Receives the chosen id, or `null` from the clear option. */
   onChange: (id: string | null) => void;
   mode?: CategoryPickerMode;
-  /** `any` mode only: offer "Kategoria główna (brak)", which clears the value. */
+  /** `any` mode only: offer the clear option, which sets the value to `null`. */
   allowRoot?: boolean;
+  /** The clear option's label; "Kategoria główna (brak)" by default. */
+  clearLabel?: string;
   placeholder?: string;
   disabled?: boolean;
   id?: string;
@@ -70,6 +72,7 @@ export function CategoryTreePicker({
   onChange,
   mode = "leaf",
   allowRoot = false,
+  clearLabel = ROOT_LABEL,
   placeholder = SHEET_TITLE,
   disabled = false,
   id,
@@ -133,6 +136,7 @@ export function CategoryTreePicker({
               value={value || null}
               mode={mode}
               allowRoot={mode === "any" && allowRoot}
+              clearLabel={clearLabel}
               onSelect={select}
               onClose={() => setOpen(false)}
             />,
@@ -152,6 +156,7 @@ function CategoryTreeSheet({
   value,
   mode,
   allowRoot,
+  clearLabel,
   onSelect,
   onClose,
 }: {
@@ -162,6 +167,7 @@ function CategoryTreeSheet({
   value: string | null;
   mode: CategoryPickerMode;
   allowRoot: boolean;
+  clearLabel: string;
   onSelect: (id: string | null) => void;
   onClose: () => void;
 }) {
@@ -363,7 +369,7 @@ function CategoryTreeSheet({
                   onClick={() => onSelect(null)}
                   className="rounded-[10px] border border-line px-3 py-2 text-[13px] font-extrabold text-ink-soft"
                 >
-                  {ROOT_LABEL}
+                  {clearLabel}
                 </button>
               )}
             </div>

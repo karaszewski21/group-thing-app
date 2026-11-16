@@ -47,7 +47,9 @@ async function fetchMySwapItems(): Promise<AvailableItem[]> {
  * first `take(itemId, "SWAP", target)` opens the swap picker (`swap`), and
  * its `confirm` submits in that target. The viewer's swap items load lazily
  * on the first swap attempt. A term or event take opens `takeSuccess`; a
- * personal one only toasts, as it has no date or place to show. */
+ * personal one only toasts, as it has no date or place to show.
+ * `takenItemId` is the item of the last successful take (never a swap
+ * proposal), cleared when the next take starts. */
 export function useItemTake({ isLoggedIn, refetch, showToast }: TermActionDeps) {
   const queryClient = useQueryClient();
   const gate = useAccountGate(isLoggedIn);
@@ -60,6 +62,7 @@ export function useItemTake({ isLoggedIn, refetch, showToast }: TermActionDeps) 
     itemName: string;
     target: TakeContext;
   } | null>(null);
+  const [takenItemId, setTakenItemId] = useState<string | null>(null);
 
   async function loadMyAvailableItems(): Promise<AvailableItem[]> {
     if (myAvailableItems !== null) return myAvailableItems;
@@ -109,10 +112,12 @@ export function useItemTake({ isLoggedIn, refetch, showToast }: TermActionDeps) 
       return;
     }
     setBusyItemId(itemId);
+    setTakenItemId(null);
     try {
       const taken = await takeItem(itemId, { context: contextRef(target), reservation_type: reservationType });
       if (target.kind === "PERSONAL") showToast("Zarezerwowano!");
       else setTakeSuccess({ itemId: taken.item_id, itemName: taken.product_name, target });
+      setTakenItemId(taken.item_id);
       closeSwapPicker();
       await refresh();
     } catch (err) {
@@ -129,6 +134,7 @@ export function useItemTake({ isLoggedIn, refetch, showToast }: TermActionDeps) 
     busyItemId,
     takeSuccess,
     closeTakeSuccess: () => setTakeSuccess(null),
+    takenItemId,
     swap: {
       /** The item whose swap picker is open, if any. */
       itemId: swapPick?.itemId ?? null,

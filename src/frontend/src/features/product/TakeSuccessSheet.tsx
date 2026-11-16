@@ -11,7 +11,8 @@ import { itemPagePath } from "./useItemRoutes";
 /** "Wzięte!" sheet after a successful take: for a term or event `target`
  * when and where to pick the item up and a calendar export linking to the
  * context's page; for a personal pickup only the chat hint. Both link to
- * the item page. */
+ * the item page; "Zobacz rzecz" also closes the sheet, as it may already
+ * be on that page. */
 export function TakeSuccessSheet({
   itemId,
   itemName,
@@ -67,6 +68,7 @@ export function TakeSuccessSheet({
         )}
         <Link
           to={itemPagePath(slug, itemId)}
+          onClick={onClose}
           className={`${BTN_PRIMARY} ${BTN_LG} inline-flex items-center justify-center no-underline min-[520px]:flex-1`}
         >
           Zobacz rzecz

@@ -39,11 +39,15 @@ const CATEGORIES: Category[] = [
 
 function Host({
   mode,
+  allowRoot,
+  clearLabel,
   initial = null,
   onChange,
   onSubmit,
 }: {
   mode?: CategoryPickerMode;
+  allowRoot?: boolean;
+  clearLabel?: string;
   initial?: string | null;
   onChange?: (id: string | null) => void;
   onSubmit?: (event: FormEvent) => void;
@@ -55,6 +59,8 @@ function Host({
       <CategoryTreePicker
         labelledBy="cat-label"
         mode={mode}
+        allowRoot={allowRoot}
+        clearLabel={clearLabel}
         value={value}
         onChange={(id) => {
           onChange?.(id);
@@ -239,6 +245,22 @@ describe("CategoryTreePicker", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Zamknij" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("labels the clear option „Kategoria główna (brak)” by default and with the host's label when given", async () => {
+    const onChange = vi.fn();
+    const { unmount } = renderPicker({ mode: "any", allowRoot: true, initial: "books" });
+    await openSheet();
+    expect(await screen.findByRole("button", { name: "Kategoria główna (brak)" })).toBeInTheDocument();
+    unmount();
+
+    renderPicker({ mode: "any", allowRoot: true, clearLabel: "Dowolna kategoria", initial: "books", onChange });
+    await openSheet();
+    expect(screen.queryByRole("button", { name: "Kategoria główna (brak)" })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Dowolna kategoria" }));
+
+    expect(onChange).toHaveBeenCalledWith(null);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("closes on a scrim click without reopening or submitting", async () => {

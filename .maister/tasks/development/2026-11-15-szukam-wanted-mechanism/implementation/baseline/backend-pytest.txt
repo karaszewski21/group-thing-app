@@ -1,0 +1,25 @@
+# Backend pytest baseline
+# HEAD 92659eb, 2026-11-15
+# Command (from src/backend): uv run python -m pytest -q
+# Exit code: 1
+# Docker: running (testcontainers PostgreSQL)
+
+Summary line:
+2 failed, 1352 passed, 69554 warnings in 1258.40s (0:20:58)
+
+Errors (collection / setup): 0
+
+Failing test ids:
+FAILED tests/test_owner_items_page.py::test_getOwnerItems_nearest_privateCircleTermExcludedPublicTermWithPath
+FAILED tests/test_terms_circle_occurs_on_index_migration.py::test_migration0053_downgradeUpgrade_roundTrip
+
+Error lines:
+tests/test_owner_items_page.py:203: AssertionError
+  Differing items: {'location_name': 'Nowa Dęba, podkarpackie'} != {'location_name': None}
+  (the response carries a location label, the test expects None)
+tests/test_terms_circle_occurs_on_index_migration.py:43: AssertionError
+  assert ['circle_group_id'] == ['group_id']
+  (the test expects the pre-rename column name)
+
+Run once; not re-run. Both are assertion mismatches against current code (stale tests),
+the same count as the "2 backend stale tests" in project memory (2026-11-12).

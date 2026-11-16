@@ -42,6 +42,11 @@ navigate(eventPath(event.author_slug, event.id), { state: { toast: savedToast(ev
 const state = useNavigationState<unknown>(); // EventPage: null on reload or a later visit
 ```
 
+### Leave the Client Router After a Session Change
+After login, registration or logout, leave the Next client router with a full page load: the facade's `<Navigate to=… replace reload />` (implemented by `replaceDocument` in `src/routing/documentNavigation.ts`) on the way in, `window.location` on logout. Next's client route cache keeps the proxy's guest redirect (`src/proxy.ts` `PROTECTED_PREFIXES` → 307 to `/login?returnTo=…`) for a protected URL the guest visited, and `router.replace`/`router.refresh()` do not clear the route cache.
+Guest-facing links to protected URLs point straight at `authPath(...)` instead of relying on the proxy redirect.
+Reference: `src/auth/AuthGuard.tsx`; tests `src/test/AuthGuard.test.tsx`, `src/test/auth.test.tsx`.
+
 ### Server-Safe Rendering
 Components on server-rendered routes must not touch `window`, `document`, `localStorage` or `sessionStorage` during render or at module load. Read browser-only values with `useClientValue(read, serverValue)` or `useOrigin()` from `src/lib/useClientValue.ts`, and write to storage only in effects or handlers. Every `useSyncExternalStore` call passes a `getServerSnapshot` (the third argument): without it, React throws while server rendering. Wrap a subtree that cannot render on the server in `routing/ClientOnly.tsx`. Chrome that renders only for a logged-in user gets a `renderToString` case with `initialToken` in `test/ssrSafety.test.tsx`.
 ```ts

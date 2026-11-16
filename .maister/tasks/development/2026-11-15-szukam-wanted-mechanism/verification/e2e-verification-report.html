@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E2E Verification — Szukam (wanted)</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.verdict { background:var(--warn-soft); border:1px solid var(--warn); color:var(--text); border-radius:var(--radius); padding:12px 16px; font-weight:600; }
+.shots { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+.shots img.shot { width:180px; }
+.wide img.shot { width:420px; }
+.st-ok { color:var(--ok); font-weight:700; } .st-warn { color:var(--warn); font-weight:700; } .st-fail { color:var(--crit); font-weight:700; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="implementation-verification.html">Verification</a>
+  <span class="here">E2E</span>
+  <a href="visual-fidelity.html">Visual fidelity</a>
+  <a href="e2e-verification-report.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <span class="badge">e2e verification</span>
+  <h1>E2E Verification — "Szukam" (wanted posts)</h1>
+  <div style="color:var(--dim);font-size:13px">2026-11-16 · git 92659eb (feature/global-search-group-description, uncommitted changes) · base URL http://localhost:5173 · Chromium, 390×844</div>
+</header>
+<div class="tiles">
+  <div class="tile"><b>⚠️</b><span>GO with caveats</span></div>
+  <div class="tile"><b>13/14</b><span>scenarios passed</span></div>
+  <div class="tile"><b>1</b><span>failed</span></div>
+  <div class="tile"><b>0 · 1 · 1 · 3</b><span>crit · major · minor · cosm.</span></div>
+  <div class="tile"><b>8/3/0</b><span>fidelity ✓/⚠/✗</span></div>
+</div>
+
+<section class="tldr card">
+  <div class="verdict">Verdict: ⚠️ GO WITH CAVEATS. 13 of 14 scenarios passed (2 of them with cosmetic issues); 1 failed.</div>
+  <h2 style="margin-top:14px">TL;DR</h2>
+  <ul>
+    <li>All the main journeys work in the live app: create, forward match, scan match, bell rows, list, match page, edit, extend, close, withdraw, resume, the closing sheet after a take, and the cap of 30.</li>
+    <li>The failure (Major): a guest who uses the empty-search prompt and then logs in or registers stays on a blank <code>/login</code>. The prefilled form opens only after a reload (FR-F-43).</li>
+    <li>Visual fidelity: 8 match, 3 minor deviations, 0 drift. See <a href="visual-fidelity.html">visual-fidelity.html</a>.</li>
+  </ul>
+  <h2>Key Decisions</h2>
+  <ul>
+    <li>Two test wants had <code>expires_at</code> moved in the local DB (−3 days and +6 days) to show the expired state and the 7-day reminder. The cap was filled with 28 wants through the API using the seeker's session; they were withdrawn afterwards.</li>
+    <li>The scan was triggered 3 times by hand with <code>scan_wants(session)</code> instead of waiting for the 15-minute interval.</li>
+  </ul>
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li>Major-1 is probably a general problem with the Next client router caching a guarded route, but it breaks this spec's guest story. Someone needs to decide whether to fix it in this task.</li>
+    <li>The "Przedłuż o 90 dni" layout (7 days or fewer left) cannot be seen: opening the page auto-extends the want (FR-L-02, accepted).</li>
+    <li>Not exercised: the "Twoja propozycja" caption, the "Zarezerwowane" caption for a third party, and the 503 paths.</li>
+  </ul>
+</section>
+<nav class="toc" style="font-size:13px">Contents: <a href="#scenarios">Scenarios</a> · <a href="#discrepancies">Discrepancies</a> · <a href="#console">Console</a> · <a href="#alignment">Spec alignment</a> · <a href="#exit">Exit criteria</a> · <a href="#reco">Recommendations</a></nav>
+
+<main>
+<h2 id="scenarios">Verification scenarios</h2>
+<table class="card">
+<tr><th>#</th><th>Scenario</th><th>Spec</th><th>Status</th></tr>
+<tr><td>4.1</td><td>Empty-search prompt builds the prefilled link</td><td>FR-F-42, F-23, F-28</td><td class="st-ok">✅ Passed</td></tr>
+<tr><td>4.2</td><td>Guest logs in or registers from the prompt and lands on the form</td><td>FR-F-43</td><td class="st-fail">❌ Failed</td></tr>
+<tr><td>4.3</td><td>/add tile with new-match count</td><td>FR-F-40</td><td class="st-ok">✅ Passed</td></tr>
+<tr><td>4.4</td><td>"Konto" row with real counts, nav highlight</td><td>FR-F-41, F-62</td><td class="st-ok">✅ Passed</td></tr>
+<tr><td>4.5</td><td>Want form order, copy, controls</td><td>FR-F-21, F-22, F-25, F-26</td><td class="st-ok">✅ Passed</td></tr>
+<tr><td>4.6</td><td>Form validation and server errors</td><td>FR-F-24, F-27, F-29, W-03, W-08</td><td class="st-ok">✅ Passed</td></tr>
+<tr><td>4.7</td><td>Want list (empty, cards, expired, found)</td><td>FR-F-10..15</td><td class="st-ok">✅ Passed</td></tr>
+<tr><td>4.8</td><td>Forward match on create</td><td>FR-M-01, L-01</td><td class="st-ok">✅ Passed</td></tr>
+<tr><td>4.9</td><td>Scan match and bell rows (1, summed 2, new 1 after read, reminder)</td><td>FR-S-02, N-03..05</td><td class="st-ok">✅ Passed</td></tr>
+<tr><td>4.10</td><td>Match page states and actions</td><td>FR-F-30..39, L-02..06</td><td class="st-ok">✅ Passed</td></tr>
+<tr><td>4.11</td><td>Edit a want (note-only keeps matches)</td><td>FR-W-05, W-06</td><td class="st-ok">✅ Passed</td></tr>
+<tr><td>4.12</td><td>Take flow and closing prompt</td><td>FR-F-50..55</td><td class="st-warn">⚠️ Passed with issues</td></tr>
+<tr><td>4.13</td><td>Cap of 30 active wants</td><td>FR-L-10, W-07</td><td class="st-ok">✅ Passed</td></tr>
+<tr><td>4.14</td><td>Accessibility spot-checks, 390 px</td><td>a11y standard</td><td class="st-warn">⚠️ Passed with issues</td></tr>
+</table>
+
+<div class="card">
+  <b>4.1 / 4.2 Empty-search prompt and guest return</b>
+  <p>The prompt link carries <code>name, category, offer_type, locality, radius</code>, and the form opens prefilled with "Doprecyzuj" expanded and the back link "‹ Szukaj". After login or registration from that client-side path, the page stays on a blank <code>/login?returnTo=…</code>. A full page load of the same URL, or the guest <code>/add</code> tile, redirects correctly.</p>
+  <div class="shots"><img class="shot" src="screenshots/w01-empty-search-guest-prompt.png" alt="Empty search prompt"><img class="shot" src="screenshots/w03-form-prefilled.png" alt="Prefilled form"><img class="shot" src="screenshots/w02-register-returnto-stuck.png" alt="Blank login after registration"></div>
+</div>
+<div class="card">
+  <b>4.3–4.7 Entry points, form, validation, list</b>
+  <div class="shots"><img class="shot" src="screenshots/w14-add-tile-count.png" alt="Add tile count"><img class="shot" src="screenshots/w15-konto-row.png" alt="Konto row"><img class="shot" src="screenshots/w05-form-empty-mobile.png" alt="Empty form"><img class="shot" src="screenshots/w11-form-filled-mobile.png" alt="Filled form"><img class="shot" src="screenshots/w06-form-name-too-long.png" alt="Name too long"><img class="shot" src="screenshots/w07-form-contact-info-error.png" alt="Contact info error"><img class="shot" src="screenshots/w10-form-moderation.png" alt="Moderation error"><img class="shot" src="screenshots/w16-wanted-list.png" alt="Want list"><img class="shot" src="screenshots/w25-wanted-list-states.png" alt="List states"><img class="shot" src="screenshots/w33-wanted-list-empty.png" alt="Empty list"></div>
+</div>
+<div class="card">
+  <b>4.8–4.9 Matching and bell</b>
+  <p>Forward matches are stored when the want is created, already seen and with no notification. Scan runs: <code>pairs=1 notifications=1</code> each time. An unread row is replaced by "2 nowe pasujące rzeczy". Once read, the next run writes a new count-1 row that opens the item page. The 7-day reminder row is written.</p>
+  <div class="shots"><img class="shot" src="screenshots/w12-matches-forward.png" alt="Forward match"><img class="shot" src="screenshots/w13-bell-one-match.png" alt="Bell one match"><img class="shot" src="screenshots/w17-bell-two-matches.png" alt="Bell two matches"><img class="shot" src="screenshots/w18-matches-new-markers.png" alt="New markers"><img class="shot" src="screenshots/w26-bell-expiring.png" alt="Bell expiring"></div>
+</div>
+<div class="card">
+  <b>4.10–4.11 Match page states, edit</b>
+  <div class="shots"><img class="shot" src="screenshots/w19-toggle-off.png" alt="Toggle off"><img class="shot" src="screenshots/w23-matches-fulfilled.png" alt="Fulfilled"><img class="shot" src="screenshots/w28-matches-expired.png" alt="Expired"><img class="shot" src="screenshots/w27-matches-empty-expiring.png" alt="No matches"><img class="shot" src="screenshots/w29-withdraw-dialog.png" alt="Withdraw dialog"><img class="shot" src="screenshots/w30-matches-not-found.png" alt="Not found"><img class="shot" src="screenshots/w24-form-edit.png" alt="Edit form"></div>
+</div>
+<div class="card">
+  <b>4.12–4.14 Closing prompt, cap, accessibility</b>
+  <div class="shots"><img class="shot" src="screenshots/w21-close-want-sheet-two.png" alt="Close sheet two wants"><img class="shot" src="screenshots/w35-close-want-sheet-one.png" alt="Close sheet one want"><img class="shot" src="screenshots/w22-wanted-list-found.png" alt="List found"><img class="shot" src="screenshots/w31-form-cap-409.png" alt="Cap 409"><img class="shot" src="screenshots/w36-chip-focus.png" alt="Chip focus"></div>
+</div>
+
+<h2 id="discrepancies">Discrepancies</h2>
+<div class="card">
+  <p><span class="sev critical">Major</span><b>Major-1: Guest stuck on a blank /login after logging in or registering from the empty-search prompt</b> (FR-F-43)</p>
+  <p>Hypothesis: the Next client router keeps the proxy's guest redirect for <code>/add/wanted?…</code> (under the <code>/add/</code> protected prefix). The <code>&lt;Navigate&gt;</code> in <code>AuthGuard</code> replays it and never retries. Fix: no prefetch on the prompt link, or link guests straight to <code>authPath("login", returnTo)</code>, or use a hard navigation / <code>router.refresh()</code> after authentication. Workaround: reload.</p>
+  <p><span class="sev warning">Minor</span><b>Minor-1: SAWarning cartesian product on every scan run</b>: <code>app/wants/application/matcher.py:74-87</code>, the recursive category-path CTE. Results are correct; it is log noise.</p>
+  <p><span class="sev info">Cosmetic</span><b>Cosmetic-1:</b> two console 404s (want and matches) after a withdraw, from the prefix invalidation.</p>
+  <p><span class="sev info">Cosmetic</span><b>Cosmetic-2:</b> in the form, the "Miejscowość" label style is smaller and lighter, and "+50 km" wraps at 390 px.</p>
+  <p><span class="sev info">Cosmetic</span><b>Cosmetic-3:</b> the "Zarezerwowano!" toast covers the closing sheet's primary button for about 3 s.</p>
+</div>
+
+<h2 id="console">Console &amp; network errors</h2>
+<table class="card">
+<tr><th>Source</th><th>Message</th><th>Frequency</th><th>Severity</th></tr>
+<tr><td><code>GET /api/organizations/mine</code></td><td>404 (no organization)</td><td>Every panel page</td><td>Minor (pre-existing, unrelated)</td></tr>
+<tr><td><code>GET /api/wants/{id}</code>, <code>/matches</code></td><td>404 after withdraw</td><td>Once per withdraw</td><td>Cosmetic</td></tr>
+<tr><td>Backend scan stdout</td><td>SAWarning cartesian product "category_path"</td><td>Every run</td><td>Minor</td></tr>
+</table>
+
+<h2 id="alignment">Spec alignment</h2>
+<div class="card">
+  <p><b>Fully implemented:</b> entry points; form; validation and errors; forward and scan matching; bell rules and links; list states; match page states and actions; note-only edit; closing sheet; cap; 404 for a foreign or withdrawn want.</p>
+  <p><b>Partially:</b> FR-F-43, the guest return after authentication.</p>
+  <p><b>Extra:</b> the "Przedłuż o 90 dni" layout for 7 days or fewer is in the code but unreachable, because of auto-extension (FR-L-02).</p>
+  <p><b>Variances:</b> scan run by hand; dates moved in the DB; cap filled through the API; not exercised: "Twoja propozycja", "Zarezerwowane" (third party), 503 paths, a matching-field edit that resets matches.</p>
+</div>
+
+<h2 id="exit">Exit criteria</h2>
+<table class="card">
+<tr><th>Criterion</th><th>Status</th></tr>
+<tr><td>Core 1–5, 7–10</td><td class="st-ok">✅</td></tr>
+<tr><td>Core 6: edit; a matching-field change searches again (only the note-only path verified)</td><td class="st-warn">⚠️</td></tr>
+<tr><td>Core 11: three entry points incl. guest forwarding</td><td class="st-fail">❌</td></tr>
+</table>
+
+<h2 id="reco">Recommendations</h2>
+<div class="card">
+  <p><b>Must fix before merge:</b> Major-1, or defer it explicitly as a general routing follow-up.</p>
+  <p><b>Should fix soon:</b> Minor-1.</p>
+  <p><b>Nice-to-have:</b> Cosmetic-1, Cosmetic-2, Cosmetic-3.</p>
+  <p><b>Conclusion:</b> ⚠️ GO WITH CAVEATS: fix or defer Major-1, then merge. Deployment stays behind the spec's release gate.</p>
+</div>
+</main>
+</body>
+</html>

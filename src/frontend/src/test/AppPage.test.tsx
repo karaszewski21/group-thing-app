@@ -23,10 +23,12 @@ import * as termItemListingsApi from "../api/termItemListings";
 import * as localitiesApi from "../api/localities";
 import * as locationsApi from "../api/locations";
 import * as eventsApi from "../api/events";
+import * as wantsApi from "../api/wants";
 import { AppPage } from "../features/panel/AppPage";
 import { emitPendingActionResolved } from "../components/layout/pending/pendingActionResolved";
 import { ApiError } from "../api/client";
 import { makeLocality, makeLocalitySearchResult, makeLocationRef, makeLocationResponse, makePublicLocation } from "./fixtures/locations";
+import { makeWant } from "./fixtures/wants";
 import { createQueryWrapper } from "./queryClient";
 import { BottomNav } from "../components/layout/BottomNav";
 import { approxAge, formatApproxAge } from "../utils/age";
@@ -156,6 +158,19 @@ vi.mock("../api/events", () => ({
   updateEvent: vi.fn(),
   deleteEvent: vi.fn(),
   uploadEventBanner: vi.fn(),
+}));
+
+vi.mock("../api/wants", () => ({
+  getMyWants: vi.fn(),
+  createWant: vi.fn(),
+  getWant: vi.fn(),
+  updateWant: vi.fn(),
+  extendWant: vi.fn(),
+  closeWant: vi.fn(),
+  resumeWant: vi.fn(),
+  getWantMatches: vi.fn(),
+  markWantMatchesSeen: vi.fn(),
+  markWantMatchOpened: vi.fn(),
 }));
 
 vi.mock("../api/organizations", () => ({
@@ -502,6 +517,7 @@ function mockGuestDefaults() {
   vi.mocked(eventsApi.getAttendingEvents).mockResolvedValue([]);
   vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
+  vi.mocked(wantsApi.getMyWants).mockResolvedValue([]);
 }
 
 function mockOrganizerDefaults() {
@@ -525,6 +541,7 @@ function mockOrganizerDefaults() {
   vi.mocked(eventsApi.getAttendingEvents).mockResolvedValue([]);
   vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
+  vi.mocked(wantsApi.getMyWants).mockResolvedValue([]);
 }
 
 const TERM_FIXTURE: termsApi.TermResponse = {
@@ -2931,7 +2948,7 @@ describe("AppPage — redesigned navigation and pages", () => {
       ["Moje terminy", "/meetings"],
       [expect.stringMatching(/^Moje rzeczy/), "/items"],
       ["Zarezerwowane1", "/items/reserved"],
-      [expect.stringMatching(/^Szukam/), "/wanted"],
+      ["Szukambrak", "/wanted"],
     ]);
     expect(screen.queryByRole("link", { name: /Prywatność/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Wyloguj się" })).toBeInTheDocument();
@@ -2974,7 +2991,44 @@ describe("AppPage — redesigned navigation and pages", () => {
     );
   });
 
-  it("a Konto sub-page has no back link and keeps the tab bar on Konto", async () => {
+  it.each([
+    { wants: [makeWant({ status: "EXPIRED" }), makeWant({ id: "want-2", status: "FULFILLED" })], meta: "brak" },
+    { wants: [makeWant()], meta: "1 rzecz" },
+    {
+      wants: [
+        makeWant({ match_count: 3, new_match_count: 1 }),
+        makeWant({ id: "want-2", match_count: 1, new_match_count: 1 }),
+        makeWant({ id: "want-3", status: "EXPIRED" }),
+      ],
+      meta: "2 rzeczy · 2 nowe dopasowania",
+    },
+    {
+      wants: [makeWant({ match_count: 6, new_match_count: 5 })],
+      meta: "1 rzecz · 5 nowych dopasowań",
+    },
+  ])("Konto counts the active wants and their new matches in the Szukam row: $meta", async ({ wants, meta }) => {
+    mockGuestDefaults();
+    vi.mocked(wantsApi.getMyWants).mockResolvedValue(wants);
+    renderPanel("/account");
+
+    const row = await screen.findByRole("link", { name: /^Szukam/ });
+    await waitFor(() => expect(row).toHaveTextContent(`Szukam${meta}`));
+    expect(row).toHaveAttribute("href", "/wanted");
+  });
+
+  it("Konto shows no meta in the Szukam row when loading the wants fails", async () => {
+    mockGuestDefaults();
+    vi.mocked(wantsApi.getMyWants).mockRejectedValue(new ApiError(500, "Internal Server Error", null));
+    renderPanel("/account");
+
+    const row = await screen.findByRole("link", { name: /^Szukam/ });
+    await waitFor(() => expect(wantsApi.getMyWants).toHaveBeenCalled());
+    for (let tick = 0; tick < 5; tick += 1) await act(async () => {});
+    expect(row).toHaveTextContent(/^Szukam$/);
+    expect(row).toHaveAttribute("href", "/wanted");
+  });
+
+  it("a Konto sub-page has no 'Wróć' link and keeps the tab bar on Konto", async () => {
     mockGuestDefaults();
     renderPanel("/wanted");
 
@@ -2984,16 +3038,19 @@ describe("AppPage — redesigned navigation and pages", () => {
     expect(within(nav).getByRole("button", { name: "Konto" })).toHaveAttribute("aria-current", "true");
   });
 
-  it("Szukam adds and removes a wanted item", async () => {
+  it("/wanted lists the caller's wants, each leading to its matches, and adds on /add/wanted", async () => {
     mockGuestDefaults();
+    vi.mocked(wantsApi.getMyWants).mockResolvedValue([
+      makeWant({ id: "want-7", name: "Kask rowerowy", match_count: 2, new_match_count: 1 }),
+    ]);
     renderPanel("/wanted");
 
-    fireEvent.change(await screen.findByLabelText("Czego szukasz?"), { target: { value: "Kask rowerowy" } });
-    fireEvent.click(screen.getByRole("button", { name: "Dodaj" }));
-    expect(screen.getByRole("heading", { name: "Kask rowerowy" })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Usuń: Kask rowerowy" }));
-    expect(screen.queryByRole("heading", { name: "Kask rowerowy" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Kask rowerowy" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Szukam", level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "+ Dodaj" })).toHaveAttribute("href", "/add/wanted");
+    expect(screen.getByRole("link", { name: "Kask rowerowy" })).toHaveAttribute("href", "/wanted/want-7");
+    expect(screen.getByText("2 pasujące rzeczy")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Czego szukasz?")).not.toBeInTheDocument();
   });
 
   it("Dodaj links every tile to its /add page", async () => {
@@ -3001,9 +3058,25 @@ describe("AppPage — redesigned navigation and pages", () => {
     renderPanel("/add");
 
     expect(await screen.findByRole("link", { name: /^Rzecz/ })).toHaveAttribute("href", "/add/product");
-    expect(screen.getByRole("link", { name: /Szukam rzeczy/ })).toHaveAttribute("href", "/add/hunting");
+    const wanted = screen.getByRole("link", { name: /Szukam rzeczy/ });
+    expect(wanted).toHaveAttribute("href", "/add/wanted");
+    expect(wanted).toHaveTextContent("Damy znać, gdy ktoś doda pasującą");
+    expect(wanted).not.toHaveTextContent(/now/);
     expect(screen.getByRole("link", { name: /Termin spotkania/ })).toHaveAttribute("href", "/add/term");
     expect(screen.getByRole("link", { name: /Wydarzenie/ })).toHaveAttribute("href", "/add/event");
+  });
+
+  it("the Szukam rzeczy tile shows the new matches of the active wants", async () => {
+    mockGuestDefaults();
+    vi.mocked(wantsApi.getMyWants).mockResolvedValue([
+      makeWant({ match_count: 2, new_match_count: 1 }),
+      makeWant({ id: "want-2", match_count: 1, new_match_count: 1 }),
+    ]);
+    renderPanel("/add");
+
+    const wanted = await screen.findByRole("link", { name: /Szukam rzeczy/ });
+    await waitFor(() => expect(wanted).toHaveTextContent("2 nowe"));
+    expect(wanted).toHaveAttribute("href", "/add/wanted");
   });
 
   it("/add/term opened by URL starts on the first group and saves into Spotkania", async () => {
@@ -3025,16 +3098,12 @@ describe("AppPage — redesigned navigation and pages", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Dodano termin");
   });
 
-  it("the hunting form (mock) needs a name, then shows a confirmation", async () => {
+  it("/add/wanted is a panel view with the want form", async () => {
     mockGuestDefaults();
-    renderPanel("/add/hunting");
+    renderPanel("/add/wanted?name=Kask%20rowerowy");
 
-    const save = await screen.findByRole("button", { name: "Zapisz poszukiwanie" });
-    expect(save).toBeDisabled();
-    fireEvent.change(screen.getByLabelText("Czego szukasz?"), { target: { value: "Kask rowerowy" } });
-    fireEvent.click(save);
-    expect(screen.getByText("Zapisane")).toBeInTheDocument();
-    expect(screen.getByText("Kask rowerowy")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Szukam rzeczy", level: 1 })).toBeInTheDocument();
+    expect(screen.getByLabelText("Czego szukasz?")).toHaveValue("Kask rowerowy");
   });
 
   it("/add/product is a panel view with the item form", async () => {

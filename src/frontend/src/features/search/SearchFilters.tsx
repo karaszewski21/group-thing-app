@@ -4,21 +4,22 @@ import type { ItemCondition } from "../../api/inventories";
 import type { Locality } from "../../api/locations";
 import type { SearchFilters as SearchFilterValues, SearchMode, SearchScope } from "../../api/search";
 import { FilterIcon } from "../../components/shared/appIcons";
+import { CHIP_CLASS, FOCUS_CLASS, chipTone } from "../../components/shared/chipStyles";
 import { LocalityCombobox } from "../../components/shared/LocalityCombobox";
 import { LOCATION_INPUT_CLASS, LOCATION_LABEL_CLASS } from "../../components/shared/LocationAddForm";
 import { ModalSheet } from "../../components/shared/ModalSheet";
+import { RadiusChips } from "../../components/shared/RadiusChips";
 import { nextIndex } from "../../components/shared/rovingIndex";
 import { useCategories } from "../../hooks/useCategories";
 import { useLocality } from "../../hooks/useLocality";
 import { useMajorTowns } from "../../hooks/useMajorTowns";
 import { useClientValue } from "../../lib/useClientValue";
-import { ITEM_MODE_TO_RESERVATION_TYPE, ITEM_MODES } from "../../utils/appHelpers";
+import { ITEM_MODE_TO_RESERVATION_TYPE, ITEM_MODES, RADII_KM } from "../../utils/appHelpers";
 import { buildCategoryIndex, type CategoryIndex } from "../../utils/categoryTree";
 import dayjs from "../../utils/dayjs";
 import { CONDITION_LABELS } from "../../utils/productCategory";
 import { readLastLocality, saveLastLocality } from "./lastLocality";
 import { SEGMENT_CLASS, segmentTone } from "./segmentStyles";
-import { SEARCH_RADII_KM } from "./useSearchUrlState";
 
 const SCOPES: { id: SearchScope; label: string }[] = [
   { id: "mine", label: "Moje grupy" },
@@ -27,11 +28,8 @@ const SCOPES: { id: SearchScope; label: string }[] = [
 
 const CONDITIONS = Object.keys(CONDITION_LABELS) as ItemCondition[];
 
-const FOCUS_CLASS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
-const CHIP_CLASS = `min-h-11 rounded-full border-[1.5px] px-3.5 text-sm font-bold ${FOCUS_CLASS}`;
 const TILE_CLASS = `flex h-14 flex-none items-center rounded-2xl border-[1.5px] px-4 text-sm font-extrabold whitespace-nowrap ${FOCUS_CLASS}`;
 const SECTION_TITLE_CLASS = "text-[13px] font-extrabold uppercase tracking-wide text-ink-soft";
-const chipTone = (set: boolean) => (set ? "border-primary bg-primary-soft text-ink" : "border-line bg-paper text-ink");
 
 interface SearchFiltersProps {
   mode: SearchMode;
@@ -88,7 +86,7 @@ function ScopeSection({ scope, onSelect }: { scope: SearchScope; onSelect: (scop
   );
 }
 
-const DEFAULT_RADIUS_KM = SEARCH_RADII_KM[0];
+const DEFAULT_RADIUS_KM = RADII_KM[0];
 
 const byPolishName = (a: string, b: string) => a.localeCompare(b, "pl");
 
@@ -192,22 +190,7 @@ function LocationSection({
         </>
       )}
       {filters.locality && locality && (
-        <div role="group" aria-label="Odległość" className="flex flex-wrap gap-2">
-          {[null, ...SEARCH_RADII_KM].map((km) => {
-            const on = filters.radius === km;
-            return (
-              <button
-                key={km ?? 0}
-                type="button"
-                aria-pressed={on}
-                onClick={() => onChange({ radius: km })}
-                className={`${CHIP_CLASS} ${chipTone(on)}`}
-              >
-                {km === null ? "Tylko tu" : `+${km} km`}
-              </button>
-            );
-          })}
-        </div>
+        <RadiusChips value={filters.radius} onChange={(radius) => onChange({ radius })} />
       )}
     </div>
   );

@@ -21,6 +21,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from sqlalchemy.exc import DBAPIError, IntegrityError
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.auth.router import router as auth_router
 from app.category.router import router as category_router
@@ -52,6 +54,10 @@ from app.search.router import router as search_router
 from app.storage import outbox_listener as storage_outbox_listener
 from app.system.router import router as system_router
 from app.users.router import router as users_router
+from app.wants.application.scan import MARKER_UNIQUE_CONSTRAINT, scan_wants
+from app.wants.application.writes import TRANSACTION_CONFLICTS
+from app.wants.domain.limits import SCAN_INTERVAL as _WANT_SCAN_INTERVAL
+from app.wants.router import router as wants_router
 
 logger = logging.getLogger(__name__)
 
@@ -82,11 +88,39 @@ async def _run_media_sweep() -> None:
         await sweep_superseded_media(db)
 
 
+def _want_scan_lost_a_race(exc: Exception) -> bool:
+    """Another run moved the scan marker, or the run deadlocked or failed to
+    serialize against a concurrent transaction."""
+    if isinstance(exc, StaleDataError):
+        return True
+    if isinstance(exc, IntegrityError):
+        return MARKER_UNIQUE_CONSTRAINT in str(exc.orig)
+    if isinstance(exc, DBAPIError):
+        return getattr(exc.orig, "sqlstate", None) in TRANSACTION_CONFLICTS
+    return False
+
+
+async def _run_want_scan() -> None:
+    """Every failure rolls the run back as a whole and leaves one log line;
+    the next run repeats the window. A lost race is a WARNING, any other
+    failure an ERROR with its traceback. Nothing propagates, so APScheduler
+    does not log the failure a second time."""
+    async with async_session_factory() as db:
+        try:
+            await scan_wants(db)
+        except Exception as exc:
+            await db.rollback()
+            if _want_scan_lost_a_race(exc):
+                logger.warning("want scan skipped, the next run repeats the window: %s", exc)
+            else:
+                logger.exception("want scan failed")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Starts the 30s outbox poller as a background task alongside the app
     process, after wiring every vertical's outbox event handlers. Also
-    starts the term-end scan and superseded-media sweep jobs on an
+    starts the term-end scan, superseded-media sweep and want scan jobs on an
     `AsyncIOScheduler` (APScheduler, interval-based) — the same "started on
     startup, cancelled/shut down on shutdown" lifecycle shape as the outbox
     poller, using APScheduler's own `start`/`shutdown(wait=False)` API
@@ -124,6 +158,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         _run_term_end_scan, "interval", minutes=_TERM_END_SCAN_INTERVAL_MINUTES
     )
     _term_end_scheduler.add_job(_run_media_sweep, "interval", minutes=_MEDIA_SWEEP_INTERVAL_MINUTES)
+    _term_end_scheduler.add_job(
+        _run_want_scan, "interval", seconds=_WANT_SCAN_INTERVAL.total_seconds()
+    )
     _term_end_scheduler.start()
 
     yield
@@ -170,4 +207,5 @@ app.include_router(notifications_router)
 app.include_router(messaging_router)
 app.include_router(moderation_router)
 app.include_router(search_router)
+app.include_router(wants_router)
 app.include_router(system_router)

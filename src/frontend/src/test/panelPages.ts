@@ -2,9 +2,9 @@ import type { ComponentType, ReactNode } from "react";
 import AccountPage from "../app/(site)/(panel)/account/page";
 import AddPage from "../app/(site)/(panel)/add/page";
 import AddEventPage from "../app/(site)/(panel)/add/event/page";
-import AddHuntingPage from "../app/(site)/(panel)/add/hunting/page";
 import AddProductPage from "../app/(site)/(panel)/add/product/page";
 import AddTermPage from "../app/(site)/(panel)/add/term/page";
+import AddWantedPage from "../app/(site)/(panel)/add/wanted/page";
 import EventsEventIdEditPage from "../app/(site)/(panel)/events/[eventId]/edit/page";
 import FamilyPage from "../app/(site)/(panel)/family/page";
 import FamilyEditPage from "../app/(site)/(panel)/family/edit/page";
@@ -30,6 +30,8 @@ import ProfilePage from "../app/(site)/(panel)/profile/page";
 import TermsTermIdAttendeesPage from "../app/(site)/(panel)/terms/[termId]/attendees/page";
 import TermsTermIdEditPage from "../app/(site)/(panel)/terms/[termId]/edit/page";
 import WantedPage from "../app/(site)/(panel)/wanted/page";
+import WantedIdPage from "../app/(site)/(panel)/wanted/[id]/page";
+import WantedIdEditPage from "../app/(site)/(panel)/wanted/[id]/edit/page";
 
 /** Every page under `app/(site)/(panel)` by URL pattern (`panelPages.test.ts`
  * keeps the list in step with the route tree), `/home` also as `/` (the URL
@@ -39,9 +41,9 @@ export const PANEL_PAGES: Record<string, ComponentType> = {
   "/account": AccountPage,
   "/add": AddPage,
   "/add/event": AddEventPage,
-  "/add/hunting": AddHuntingPage,
   "/add/product": AddProductPage,
   "/add/term": AddTermPage,
+  "/add/wanted": AddWantedPage,
   "/events/:eventId/edit": EventsEventIdEditPage,
   "/family": FamilyPage,
   "/family/edit": FamilyEditPage,
@@ -67,6 +69,8 @@ export const PANEL_PAGES: Record<string, ComponentType> = {
   "/terms/:termId/attendees": TermsTermIdAttendeesPage,
   "/terms/:termId/edit": TermsTermIdEditPage,
   "/wanted": WantedPage,
+  "/wanted/:id": WantedIdPage,
+  "/wanted/:id/edit": WantedIdEditPage,
 };
 
 /** `element` under every panel pattern, so one panel tree (and its state)

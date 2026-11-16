@@ -6,10 +6,17 @@ orchestrator:
   - phase-4
   - phase-5
   - phase-6
+  - phase-7
+  - phase-8
+  - phase-10
+  - phase-11
+  - phase-12
+  - phase-13
+  - phase-14
   failed_phases: []
   auto_fix_attempts: {}
   options:
-    sequential: null
+    sequential: false
     html_output: true
     mockup_format: html
     spec_audit_enabled: true
@@ -21,7 +28,7 @@ orchestrator:
     reality_check_enabled: true
     production_check_enabled: true
   created: '2026-11-15T10:58:08Z'
-  updated: '2026-11-15T16:56:21Z'
+  updated: '2026-11-16T17:31:07Z'
   task_path: .maister/tasks/development/2026-11-15-szukam-wanted-mechanism
   task_ids: {}
   phases:
@@ -48,11 +55,37 @@ orchestrator:
       gate: 'Apply all audit fixes, then plan; M8 list shows the node name and the match page the full path; M6 form has only the locality field and radius chips'
     phase-7:
       started: '2026-11-15T16:44:42Z'
-      completed: null
+      completed: '2026-11-15T16:59:20Z'
+      gate: 'Start implementation with parallel waves'
+    phase-8:
+      started: '2026-11-15T16:59:20Z'
+      completed: '2026-11-16T09:24:36Z'
+      gate: 'Continue to verification'
+    phase-9:
+      skipped: Phase 3 not run
+    phase-10:
+      started: '2026-11-16T09:24:36Z'
+      completed: '2026-11-16T09:25:21Z'
+      gate: 'All four standard verifications, E2E yes, user documentation yes'
+    phase-11:
+      started: '2026-11-16T09:25:21Z'
+      completed: '2026-11-16T12:55:38Z'
+      gate: 'Continue to E2E'
+    phase-12:
+      started: '2026-11-16T12:55:38Z'
+      completed: '2026-11-16T14:45:21Z'
+      gate: 'Fix all E2E defects, then Phase 13'
+    phase-13:
+      started: '2026-11-16T14:45:21Z'
+      completed: '2026-11-16T16:58:44Z'
+      gate: 'Finalize; UI/spec label difference recorded as a deviation'
+    phase-14:
+      started: '2026-11-16T16:58:44Z'
+      completed: '2026-11-16T17:31:07Z'
 task:
   title: Szukam (wanted posts) mechanism
   description: 'Implement the szukam (wanted / in-search-of) mechanism designed in the research task: a private seeker-owned want in a new backend module app/wants (tables wants, want_matches, want_scan_markers), matched to listed items by one statement used at want creation and by a periodic scan, with grouped in-app notifications to the seeker, a 90-day lifecycle, and the frontend list, form and match list replacing the /wanted and /add/hunting mock.'
-  status: in_progress
+  status: completed
   tags:
   - wanted
   - matching
@@ -336,6 +369,27 @@ task_context:
     architecture_decision:
       decision: New bounded context app/wants with ACLs, one match statement, marker scan
       summary: Chosen by the user in the research workflow (ADR-001 to ADR-013); no Phase 5 technical round was needed.
+    implementation:
+      summary: 'All 19 groups (139 steps) done in 9 waves; the full checks match the baseline failing set in all six checks, no new failure; 6 tests added by group 19.'
+      decisions:
+      - decision: Reverse-scan budget miss at 500 x 10,000 (5.7 s against 2 s) accepted
+        rationale: user decision 2026-11-16; the 15-minute job stays unchanged and the risk is recorded in architecture.md.
+      - decision: No item_listing_preferences.created_at index, no revision 0100
+        rationale: the window scan costs about 1 ms; a trial index changed nothing measurable.
+      risks:
+      - Cap-link on the want form is keyed on the cap message text.
+      - Bell rows take created_at from the writer clock, not the run now.
+      - Thresholds 0.70 / 0.60 unmeasured (release gate).
+      artifacts:
+      - path: implementation/work-log.md
+        label: Work log
+        html: null
+      - path: implementation/measurement/results.md
+        label: Match measurement
+        html: null
+      - path: implementation/baseline/final-comparison.md
+        label: Baseline comparison
+        html: null
     implementation_plan:
       summary: '19 task groups, 139 steps, about 120-150 tests; complexity high. Waves: A 1 (baseline) | B 2, 3, 4, 11, 12 | C 5, 13, 14, 15, 17 | D 6, 16 | E 7, 8 | F 9, 10 | G 18 | H 19. No commit, E2E or user-documentation steps. Visual coverage 11 of 11 ids.'
       task_groups: 19
@@ -364,8 +418,37 @@ task_context:
         label: Visual coverage
         html: null
 verification_context:
-  last_status: null
-  issues_found: []
-  fixes_applied: []
-  decisions_made: []
-  reverify_count: 0
+  last_status: passed_with_issues
+  issues_found:
+  - "critical / production: Release gate open: labelled Polish sample not scored, thresholds unmeasured"
+  - "warning / code_review: W1 scan writes a bell row for a want withdrawn mid-run (no status check)"
+  - "warning / code_review: W2 cap link keyed on the server message text"
+  - "warning / completeness: W3 item page fetches wants with useEffect; findMatching dead"
+  - "warning / pragmatic: W4 notification replace path has no production caller"
+  - "warning / production: W5 runbook verify step relies on a DEBUG log line"
+  - "warning / production: W6 image-only rollback order: stop backend before deleting WANT_* rows"
+  - "warning / production: W7 0099 downgrade leaves WANT_* notification rows"
+  - "warning / production: W8 no alert / logger.exception on repeated scan failures"
+  - "warning / completeness: W9 standards/backend/time.md omits app/search and app/wants"
+  - "warning / code_review: W10 sweep locks wants through the whole match; unbounded window after downtime"
+  - "warning / code_review: W11 no per-user rate limit on create / resume / matching PATCH"
+  fixes_applied:
+  - "W1 scan reads, locks and points only ACTIVE wants (match_notifications.py); test added"
+  - "W2 cap link shown on a create 409 via WantWriteError.status; LIMIT_MESSAGE removed; 3 tests"
+  - "W3 useWantsMatchingItem query hook on the item page; findMatching removed; ItemDetailPage call-count assertion changed to the exact two calls"
+  - "W4 notification writer simplified to create_notifications; replace path and WrittenNotification removed"
+  - "W5 runbook verify step checks want_scan_markers.scanned_through"
+  - "W6 runbook rollback order: stop backend, DELETE WANT_* rows, start old image"
+  - "W7 0099 downgrade deletes WANT_* notification rows; round-trip test asserts it"
+  - "W8 _run_want_scan logs other failures with logger.exception; test extended"
+  - "W9 standards/backend/time.md and INDEX.md list six clock-guarded packages"
+  - "cleanups: WantMatchNotFound in errors.py, CLOSE_OUTCOMES and subtitle removed, resume_want uses _start_new_period, 'dzisiaj' wording shared, FOCUS_CLASS reused"
+  - "cycle 2: architecture.md Wants section aligned with the code; runbook downgrade from the new image; TERYT note for wants.locality_id"
+  - "cycle 2: 40P01 / 40001 mapped to the shared 409 in want writes and to a lost race in the scan wrapper; one log line per scan failure"
+  - "cycle 2: Polish network error, CloseWantSheet comment, second-take prompt test, AccountView no meta on error, prefilled locality fallback, category prefill UUID check, middle-click opened mark"
+  decisions_made:
+  - 'Fix all fixable issues (W1-W9 and cleanups); W10, W11 stay recorded risks'
+  - 'Auto-extension on visiting the match page (FR-L-02) stays as specified'
+  - '/add tile keeps linking to the form (FR-F-40)'
+  - 'Fix cycle 2: fix all remaining small items'
+  reverify_count: 2

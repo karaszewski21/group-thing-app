@@ -19,6 +19,7 @@ await inventory_service.confirm_reservation(db_session, reservation_id, owner_us
 
 ### Per-File Auth Helpers
 Each test file defines its own small private helpers instead of sharing fixtures: `_register(client, email)` or `_register(client, role, email)` posting to `/api/auth/register` (password `"secret123"`) and returning the JWT, `_auth(token)` returning `{"Authorization": f"Bearer {token}"}`, plus feature builders such as `_create_location`, `_create_circle`, `_create_term` that assert the expected status and return `response.json()`. Use a unique email per test.
+Importing helpers from another test module (e.g. `from tests.test_term_item_listings import _auth, _register`) is accepted practice, and many test files already do it, as long as the imported helper is stable and generic. Once three or more files import a helper, prefer moving it to `tests/conftest.py`.
 ```python
 def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}

@@ -1,7 +1,7 @@
 "use client";
 
-import { WantedView } from "../../../../features/search/WantedView";
+import { WantedListView } from "../../../../features/wanted/WantedListView";
 
 export default function Page() {
-  return <WantedView />;
+  return <WantedListView />;
 }

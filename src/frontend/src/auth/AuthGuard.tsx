@@ -36,7 +36,9 @@ export function AuthGuard({ children, requireAuth = true }: AuthGuardProps) {
 
   if (!requireAuth && token) {
     const requested = searchParams.get("returnTo");
-    return <Navigate to={isSafeReturnPath(requested) ? requested : homePath(permissions)} replace />;
+    // A full load: routes the client router fetched as a guest (a protected
+    // returnTo redirected to /login, `/` without the /home rewrite) are stale now.
+    return <Navigate to={isSafeReturnPath(requested) ? requested : homePath(permissions)} reload />;
   }
 
   return <>{children}</>;

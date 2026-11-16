@@ -151,6 +151,35 @@ describe("useItemTake", () => {
     expect(itemReservationsApi.takeItem).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["personal", { kind: "PERSONAL" } as const, personalTake],
+    ["term", TERM, termTake],
+  ])("a %s take sets takenItemId", async (_label, target, response) => {
+    vi.mocked(itemReservationsApi.takeItem).mockResolvedValue(response);
+    const { result } = renderTake();
+    expect(result.current.takenItemId).toBeNull();
+
+    act(() => result.current.take("i1", "GIFT", target));
+
+    await waitFor(() => expect(result.current.takenItemId).toBe("i1"));
+  });
+
+  it("a swap proposal and a failed take leave takenItemId null", async () => {
+    vi.mocked(itemReservationsApi.proposeItemSwap).mockResolvedValue(proposal);
+    vi.mocked(itemReservationsApi.takeItem).mockRejectedValue(new Error("boom"));
+    const { result, deps } = renderTake();
+
+    act(() => result.current.take("i1", "SWAP", { kind: "PERSONAL" }));
+    await waitFor(() => expect(result.current.swap.itemId).toBe("i1"));
+    act(() => result.current.swap.confirm("i1"));
+    await waitFor(() => expect(deps.showToast).toHaveBeenCalledWith("Zaproponowano zamianę! Szczegóły w Twoim panelu"));
+    expect(result.current.takenItemId).toBeNull();
+
+    act(() => result.current.take("i1", "GIFT", { kind: "PERSONAL" }));
+    await waitFor(() => expect(deps.showToast).toHaveBeenCalledWith("Nie udało się wziąć tej rzeczy"));
+    expect(result.current.takenItemId).toBeNull();
+  });
+
   it("awaits invalidation of every affected prefix before refetching", async () => {
     vi.mocked(itemReservationsApi.takeItem).mockResolvedValue(personalTake);
     const client = createTestQueryClient();

@@ -17,6 +17,7 @@ import {
   type MouseEvent,
   type Ref,
 } from "react";
+import { replaceDocument } from "./documentNavigation";
 import { interceptNavigation } from "./navigationGuard";
 import { clearNavigationState, peekNavigationState, setNavigationState } from "./navigationState";
 import { recordNavigation } from "./NavigationTracker";
@@ -115,12 +116,17 @@ export function Link({ to: target, replace = false, state, scroll = true, onClic
   );
 }
 
-/** Navigates once it is rendered (a client redirect). */
-export function Navigate({ to, replace = false }: { to: string; replace?: boolean }) {
+/** Navigates once it is rendered (a client redirect). `reload` makes it a
+ * full page load replacing the current entry instead: the client router keeps
+ * each URL's route as the proxy answered it, a guest's `/login` redirect
+ * included, and `router.refresh()` does not drop that, so a client navigation
+ * right after the session changes can replay the guest's answer. */
+export function Navigate({ to, replace = false, reload = false }: { to: string; replace?: boolean; reload?: boolean }) {
   const navigate = useAppNavigate();
   useEffect(() => {
-    navigate(to, { replace });
-  }, [navigate, to, replace]);
+    if (reload) replaceDocument(to);
+    else navigate(to, { replace });
+  }, [navigate, to, replace, reload]);
   return null;
 }
 

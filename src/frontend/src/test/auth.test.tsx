@@ -6,6 +6,8 @@ import { CATEGORIES_KEY } from "../hooks/useCategories";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
 import { createQueryWrapper } from "./queryClient";
+import { authPath } from "../auth/authPaths";
+import { replaceDocument } from "../routing/documentNavigation";
 import { getTestRouter, renderWithRoute } from "./renderWithRoute";
 
 // Mock fetch globally
@@ -54,6 +56,8 @@ vi.mock("../auth/AuthContext", async (importOriginal) => {
     useAuth: (...args: Parameters<typeof actual.useAuth>) => mockUseAuth(...args),
   };
 });
+
+vi.mock("../routing/documentNavigation", () => ({ replaceDocument: vi.fn() }));
 
 vi.mock("../api/plugins", () => ({
   getPlugins: vi.fn().mockResolvedValue([]),
@@ -277,6 +281,35 @@ describe("RegisterForm", () => {
     await waitFor(() => {
       expect(mockRegister).toHaveBeenCalledWith({ email: "new@example.com", password: "pass123" });
     });
+    expect(getTestRouter().calls).toEqual([]);
+  });
+
+  it("after registering, the login page loads a returnTo that carries a multi-parameter query in full", async () => {
+    const target = "/add/wanted?name=rowerek+biegowy&category=toys&offer_type=GIFT&locality=0950463&radius=10";
+    const payload = btoa(JSON.stringify({ sub: "new", permissions: [], exp: Math.floor(Date.now() / 1000) + 3600 }));
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ token: `eyJhbGciOiJIUzI1NiJ9.${payload}.signature` }), { status: 200 }),
+    );
+    mockUseAuth.mockImplementation(realUseAuth);
+
+    const { LoginPage } = await import("../features/auth/LoginPage");
+    renderWithRoute(
+      <ChakraProvider value={system}>
+        <RealAuthProvider initialSession={null}>
+          <LoginPage />
+        </RealAuthProvider>
+      </ChakraProvider>,
+      { url: authPath("register", target), routes: { "/add/wanted": <p>Formularz</p> }, wrapper: createQueryWrapper() },
+    );
+
+    fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: "new@example.com" } });
+    fireEvent.change(screen.getByLabelText(/hasło/i), { target: { value: "pass123" } });
+    fireEvent.click(screen.getByRole("button", { name: /załóż konto/i }));
+
+    // A full page load, not a client navigation: the router may hold the
+    // guest's proxy redirect to /login for this URL (E2E Major-1).
+    await waitFor(() => expect(replaceDocument).toHaveBeenCalledExactlyOnceWith(target));
+    expect(localStorage.getItem("auth_token")).not.toBeNull();
     expect(getTestRouter().calls).toEqual([]);
   });
 });

@@ -20,6 +20,7 @@ import { appearanceRouteElement, itemRouteElement, ownerRouteElement } from "./i
 import { eventRouteElement } from "./eventRoute";
 import { termRouteElement } from "./termRoute";
 import { LandingPage } from "../features/landing/LandingPage";
+import { PanelGate } from "../features/panel/PanelGate";
 import { EVENT_KEY } from "../hooks/useEvent";
 import { ITEM_ACTIONS_KEY } from "../hooks/useItemActions";
 import { ITEM_DETAILS_KEY } from "../hooks/useItemDetail";
@@ -225,6 +226,13 @@ describe("SSR safety", () => {
       "dummy",
     );
     expect(html).toContain("Spotkania");
+  });
+
+  it("renders the anonymous /add tiles with the want form link and without any request", () => {
+    const html = renderOnServer("/add", "/add", <PanelGate>{null}</PanelGate>);
+    expect(html).toContain("Co dodajesz?");
+    expect(html).toContain("/login?returnTo=%2Fadd%2Fwanted");
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it.each([

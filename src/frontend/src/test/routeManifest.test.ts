@@ -16,6 +16,8 @@ import {
   termAttendeesPath,
   termEditPath,
   viewPath,
+  wantEditPath,
+  wantPath,
   type View,
 } from "../routing/paths";
 import { APP_DIR, appPages, pageFor } from "./appRoutes";
@@ -38,11 +40,13 @@ const PANEL = [
   "/account",
   "/search",
   "/wanted",
+  "/wanted/:id",
+  "/wanted/:id/edit",
   "/add",
   "/add/product",
   "/add/term",
   "/add/event",
-  "/add/hunting",
+  "/add/wanted",
   "/groups/:groupId/edit",
   "/places/:locationId/edit",
   "/family/members/:familyMembershipId/edit",
@@ -129,7 +133,7 @@ describe("App Router route manifest", () => {
         "add/product",
         "add/term",
         "add/event",
-        "add/hunting",
+        "add/wanted",
         "messages",
         "organization",
       ] satisfies View[]
@@ -143,6 +147,8 @@ describe("App Router route manifest", () => {
       termEditPath("t-1"),
       groupDetailsPath("g-1"),
       termAttendeesPath("t-1"),
+      wantPath("w-1"),
+      wantEditPath("w-1"),
       ownerPagePath({ slug: "zielony-krag", party_id: PARTY_ID }),
       ownerPagePath({ slug: null, party_id: PARTY_ID }),
       eventPath("zielony-krag", "ev-1"),
@@ -153,6 +159,15 @@ describe("App Router route manifest", () => {
       authPath("login").split("?")[0],
     ];
     for (const url of urls) expect(pageFor(url), url).not.toBeNull();
+  });
+
+  it("serves the wants pages and no longer /add/hunting, not even as a redirect", () => {
+    expect(pageFor("/wanted")?.dir).toBe("(site)/(panel)/wanted");
+    expect(pageFor(wantPath("w-1"))?.dir).toBe("(site)/(panel)/wanted/[id]");
+    expect(pageFor(wantEditPath("w-1"))?.dir).toBe("(site)/(panel)/wanted/[id]/edit");
+    expect(pageFor("/add/wanted")?.dir).toBe("(site)/(panel)/add/wanted");
+    expect(appPages().map((page) => page.pattern)).not.toContain("/add/hunting");
+    expect(existsSync(resolve(APP_DIR, "(site)/(panel)/add/hunting"))).toBe(false);
   });
 
   it("opens only /add and /search of the panel to guests, each with its own PanelGate branch", () => {

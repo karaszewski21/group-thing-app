@@ -1,0 +1,8 @@
+# Frontend typecheck baseline
+# HEAD 92659eb, 2026-11-15
+# Command (from src/frontend): npm run typecheck  (tsc --noEmit)
+# Exit code: 0
+
+0 errors. No error lines.
+
+# Note: project memory (2026-11-12, HEAD b8c45e0) recorded 5 typecheck errors; none remain at this HEAD.

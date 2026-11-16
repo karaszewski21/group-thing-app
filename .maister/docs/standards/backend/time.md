@@ -6,7 +6,7 @@
 
 ### Read "Now" Only Through app.core.clock
 
-Every comparison against `occurs_on` and every "today"/date default in Term-related code uses `from app.core import clock` then `clock.local_now()` (or `clock.local_now().date()`); never `datetime.now()` or `date.today()`. Call it via the module attribute, not `from app.core.clock import local_now`, so the test fixture can patch it. Enforced by `tests/test_domain_clock_guard.py` for `app/groups/application`, `app/groups/router`, `app/events` and `app/pages`.
+Every comparison against `occurs_on` and every "today"/date default in Term-related code uses `from app.core import clock` then `clock.local_now()` (or `clock.local_now().date()`); never `datetime.now()` or `date.today()`. Call it via the module attribute, not `from app.core.clock import local_now`, so the test fixture can patch it. Enforced by `tests/test_domain_clock_guard.py` for `app/groups/application`, `app/groups/router`, `app/events`, `app/pages`, `app/search` and `app/wants`.
 
 ```python
 from app.core import clock

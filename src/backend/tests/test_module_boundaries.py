@@ -1,5 +1,5 @@
 """Import boundary of the read-only page modules `app.pages` and
-`app.search`: only `app/main.py` imports them, their code outside
+`app.search` and of `app.wants`: only `app/main.py` imports them, their code outside
 `infrastructure/` reaches no other context (`domain/` only itself), and their
 ACLs never import their own schemas. Imports are read from the AST, so
 docstrings and comments that mention a module do not count."""
@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 _APP_ROOT = Path(__file__).resolve().parents[1] / "app"
-MODULES = ("pages", "search")
+MODULES = ("pages", "search", "wants")
 
 
 def _module_name(path: Path) -> str:
@@ -109,3 +109,13 @@ def test_searchLinks_termAndEventPaths_matchPagesLinks() -> None:
 
     assert term == pages_links.term_path(slug, group_id, term_id)
     assert event == pages_links.event_path(slug, event_id)
+
+
+def test_wantsLinks_productPath_matchesSearchLinks() -> None:
+    # The boundary keeps wants from importing `app.search`, so it holds a copy.
+    from app.search.domain import links as search_links
+    from app.wants.domain import links as wants_links
+
+    slug, item_id = "zielony-krag", uuid.uuid4()
+
+    assert wants_links.product_path(slug, item_id) == search_links.product_path(slug, item_id)

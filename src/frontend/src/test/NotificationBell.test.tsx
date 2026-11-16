@@ -4,7 +4,7 @@ import * as notificationsApi from "../api/notifications";
 import type { NotificationResponse } from "../api/notifications";
 import { NotificationBell } from "../components/shared/NotificationBell";
 import { createQueryWrapper } from "./queryClient";
-import { renderWithRoute } from "./renderWithRoute";
+import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
 vi.mock("../api/notifications", () => ({
   getMyNotifications: vi.fn(),
@@ -85,6 +85,42 @@ describe("NotificationBell", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Powiadomienia (1 nieprzeczytane)" }));
 
     expect(screen.getByRole("menuitem", { name: /rezerwacja „Rowerek” anulowana/ })).toBeInTheDocument();
+  });
+
+  it("renders the three wants rows and follows each one's link", async () => {
+    const rows = [
+      notif({
+        id: "w1",
+        kind: "WANT_MATCH_FOUND",
+        message: "Szukasz: «rowerek biegowy». Ktoś wystawił: «Rowerek biegowy Puky».",
+        link_path: "/ania/product/item-1",
+      }),
+      notif({
+        id: "w2",
+        kind: "WANT_MATCH_FOUND",
+        message: "Szukasz: «kurtka zimowa 110». 3 nowe pasujące rzeczy.",
+        link_path: "/wanted/want-2",
+      }),
+      notif({
+        id: "w3",
+        kind: "WANT_EXPIRING",
+        message: "Poszukiwanie «fotelik samochodowy» wygaśnie za 7 dni. Przedłuż je, jeśli nadal szukasz.",
+        link_path: "/wanted/want-3",
+      }),
+    ];
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue(rows);
+    vi.mocked(notificationsApi.markNotificationRead).mockResolvedValue(undefined);
+    renderWithRoute(<NotificationBell />, { url: "/", wrapper: createQueryWrapper() });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Powiadomienia (3 nieprzeczytane)" }));
+    expect(screen.getAllByRole("menuitem").map((row) => row.textContent)).toEqual(rows.map((row) => row.message));
+
+    for (const row of rows) {
+      if (!screen.queryByRole("menu")) fireEvent.click(screen.getByRole("button", { name: /Powiadomienia/ }));
+      fireEvent.click(screen.getByRole("menuitem", { name: row.message }));
+      await waitFor(() => expect(getTestLocation().pathname).toBe(row.link_path));
+    }
+    expect(notificationsApi.markNotificationRead).toHaveBeenCalledTimes(3);
   });
 
   it("shows no badge and an empty state when there is nothing unread", async () => {

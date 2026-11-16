@@ -45,8 +45,10 @@ class NotificationKind(enum.StrEnum):
     or of a still-open GIFT reservation once its Term ends, and
     `TERM_ALREADY_RESOLVED` goes to the other party in a swap/giveaway when
     they act after the first party already resolved the same transaction,
-    and `RESERVATION_CANCELLED` goes to both parties of a reservation or
-    swap cancelled because its event was deleted."""
+    `RESERVATION_CANCELLED` goes to both parties of a reservation or
+    swap cancelled because its event was deleted, and `WANT_MATCH_FOUND`
+    (new items matching a want) and `WANT_EXPIRING` (a want close to its
+    expiry) go to the want's seeker."""
 
     PLEDGE_CREATED = "PLEDGE_CREATED"
     PLEDGE_WITHDRAWN = "PLEDGE_WITHDRAWN"
@@ -59,6 +61,8 @@ class NotificationKind(enum.StrEnum):
     TERM_CONFIRMATION_NEEDED = "TERM_CONFIRMATION_NEEDED"
     TERM_ALREADY_RESOLVED = "TERM_ALREADY_RESOLVED"
     RESERVATION_CANCELLED = "RESERVATION_CANCELLED"
+    WANT_MATCH_FOUND = "WANT_MATCH_FOUND"
+    WANT_EXPIRING = "WANT_EXPIRING"
 
 
 class Notification(BaseEntity):

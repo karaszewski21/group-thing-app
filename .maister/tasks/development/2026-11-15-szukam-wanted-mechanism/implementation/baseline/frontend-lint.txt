@@ -1,0 +1,55 @@
+# Frontend lint baseline
+# HEAD 92659eb, 2026-11-15
+# Command (from src/frontend): npm run lint  (eslint .) -> exit 1, "38 problems (10 errors, 28 warnings)"
+# Lines below: the same check with -f json, one line per problem (path relative to src/frontend, first message line only)
+
+38 problems (10 errors, 28 warnings)
+
+src/api/client.ts:46:11  warning  @next/next/no-location-assign-relative-destination  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination
+src/auth/AuthContext.tsx:95:38  warning  react-hooks/set-state-in-effect  Error: Calling setState synchronously within an effect can trigger cascading renders
+src/auth/AuthContext.tsx:155:5  warning  @next/next/no-location-assign-relative-destination  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination
+src/auth/AuthContext.tsx:175:17  error  react-refresh/only-export-components  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+src/components/shared/CategoryTreePicker.tsx:95:7  warning  jsx-a11y/role-supports-aria-props  The attribute aria-invalid is not supported by the role button. This role is implicit on the element button.
+src/components/shared/Icons.tsx:40:17  error  react-refresh/only-export-components  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+src/components/shared/PhotoGalleryField.tsx:306:5  warning  @next/next/no-img-element  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element
+src/features/admin/CategoryFormPage.tsx:59:10  warning  react-hooks/set-state-in-effect  Error: Calling setState synchronously within an effect can trigger cascading renders
+src/features/admin/PluginDetailPage.tsx:35:10  warning  react-hooks/set-state-in-effect  Error: Calling setState synchronously within an effect can trigger cascading renders
+src/features/admin/PluginFormPage.tsx:65:10  warning  react-hooks/set-state-in-effect  Error: Calling setState synchronously within an effect can trigger cascading renders
+src/features/admin/ProductDetailPage.tsx:45:10  warning  react-hooks/set-state-in-effect  Error: Calling setState synchronously within an effect can trigger cascading renders
+src/features/admin/ProductFormPage.tsx:68:10  warning  react-hooks/set-state-in-effect  Error: Calling setState synchronously within an effect can trigger cascading renders
+src/features/admin/ProductFormPage.tsx:211:19  warning  @next/next/no-img-element  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element
+src/features/editor/LayoutTab.tsx:82:15  warning  @next/next/no-img-element  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element
+src/features/events/blocks/EventBanner.tsx:10:5  warning  @next/next/no-img-element  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element
+src/features/items/MyItemsView.tsx:146:7  warning  react-hooks/set-state-in-effect  Error: Calling setState synchronously within an effect can trigger cascading renders
+src/features/items/MyItemsView.tsx:186:7  warning  react-hooks/set-state-in-effect  Error: Calling setState synchronously within an effect can trigger cascading renders
+src/features/organization-public/blocks/HeroBlock.tsx:39:7  warning  @next/next/no-img-element  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element
+src/features/organization-public/blocks/HeroBlock.tsx:75:11  warning  @next/next/no-img-element  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element
+src/features/organization-public/blocks/HeroBlock.tsx:118:13  warning  @next/next/no-img-element  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element
+src/features/organization-public/blocks/HeroBlock.tsx:156:11  warning  @next/next/no-img-element  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element
+src/features/panel/AppDataContext.tsx:137:46  warning  react-hooks/set-state-in-effect  Error: Calling setState synchronously within an effect can trigger cascading renders
+src/features/panel/AppDataContext.tsx:145:44  warning  react-hooks/set-state-in-effect  Error: Calling setState synchronously within an effect can trigger cascading renders
+src/features/panel/AppDataContext.tsx:296:10  warning  react-hooks/set-state-in-effect  Error: Calling setState synchronously within an effect can trigger cascading renders
+src/features/places/PlacesView.tsx:49:15  warning  react-hooks/refs  Error: Cannot access refs during render
+src/features/product/ItemGallery.tsx:31:5  warning  @next/next/no-img-element  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element
+src/features/terms/hooks/useFirstTermStepper.ts:29:30  warning  react-hooks/set-state-in-effect  Error: Calling setState synchronously within an effect can trigger cascading renders
+src/features/terms/modals/JoinByCodeSheet.tsx:73:43  warning  react-hooks/set-state-in-effect  Error: Calling setState synchronously within an effect can trigger cascading renders
+src/plugins/host/PluginHost.tsx:43:10  warning  react-hooks/set-state-in-effect  Error: Calling setState synchronously within an effect can trigger cascading renders
+src/plugins/host/PluginHost.tsx:81:17  error  react-refresh/only-export-components  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+src/plugins/slots/PluginFrame.tsx:69:6  warning  react-hooks/exhaustive-deps  React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array.
+src/test/plugin-sdk-auth.test.ts:39:60  error  @typescript-eslint/no-explicit-any  Unexpected any. Specify a different type.
+src/test/plugin-sdk.test.ts:86:18  error  @typescript-eslint/no-explicit-any  Unexpected any. Specify a different type.
+src/test/plugin-sdk.test.ts:108:25  error  @typescript-eslint/no-explicit-any  Unexpected any. Specify a different type.
+src/test/plugins.test.tsx:166:58  error  @typescript-eslint/no-explicit-any  Unexpected any. Specify a different type.
+src/test/plugins.test.tsx:197:58  error  @typescript-eslint/no-explicit-any  Unexpected any. Specify a different type.
+src/test/plugins.test.tsx:246:58  error  @typescript-eslint/no-explicit-any  Unexpected any. Specify a different type.
+src/test/plugins.test.tsx:289:58  error  @typescript-eslint/no-explicit-any  Unexpected any. Specify a different type.
+
+# Per rule
+  14  warning react-hooks/set-state-in-effect
+   9  warning @next/next/no-img-element
+   7  error @typescript-eslint/no-explicit-any
+   3  error react-refresh/only-export-components
+   2  warning @next/next/no-location-assign-relative-destination
+   1  warning jsx-a11y/role-supports-aria-props
+   1  warning react-hooks/refs
+   1  warning react-hooks/exhaustive-deps
