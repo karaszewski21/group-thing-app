@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — Wants matcher service</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.tldr { border-left:4px solid var(--accent); }
+.cols { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:720px) { .cols { grid-template-columns:1fr; } }
+.stories { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; }
+.stories .card { margin:0; }
+.toc { font-size:13px; color:var(--dim); }
+ul { padding-left:20px; } li { margin:3px 0; }
+.area { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.04em; }
+.tblwrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Specification · rev. 2</span>
+  <h1>Wants matcher service (MATCH / SUGGESTION tiers)</h1>
+  <p style="color:var(--dim)">Generated 2026-11-17 · resolves every finding of <a href="../verification/spec-audit.md" target="_blank" rel="noopener">spec-audit.md</a> (1 critical, 5 high, 6 medium, 9 low) · <a href="spec.md" target="_blank" rel="noopener">spec.md</a></p>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>41</b><span>requirements</span></div>
+  <div class="tile"><b>17</b><span>reused components</span></div>
+  <div class="tile"><b>5</b><span>new component groups</span></div>
+  <div class="tile"><b>21</b><span>audit findings resolved</span></div>
+  <div class="tile"><b>high</b><span>risk level</span></div>
+</div>
+
+<section class="card tldr">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <p>„Szukam” matching moves out of the FastAPI process into a new Python app <code>src/matcher</code> (own compose service, same DB, login <code>aj</code>). It talks raw SQL to a DB contract added by <b>amending migration 0099</b>: the text functions <code>words_pl</code>/<code>stem_word_pl</code>/<code>stem_pl</code>/<code>stem_query_pl</code> (stop-words skipped, every inner call <code>public.</code>-qualified), generated stem columns, <code>match_requested_at</code> with a NOTIFY trigger, <code>want_matches.tier</code>/<code>missing_words</code>, and the inlinable views <code>group_holdings</code>, <code>private_group_peers</code>, <code>matchable_listings</code>.</p>
+  <p>MATCH requires every (non-stop) want word in the item name, by stemmed prefix or per-word <code>word_similarity ≥ 0.65</code>. SUGGESTION covers wants of ≥3 such words with exactly one missing, ≤10 per want, never belled.</p>
+  <p>The backend keeps the API and the bell rows (a <code>wants.bells_due</code> outbox handler that re-checks visibility). Writes only flag a want; edits lock the want row first. The frontend polls a pending state and adds „Może Cię zainteresuje”, per the five binding mockups.</p>
+
+  <details open><summary>Key Decisions</summary>
+  <ul>
+    <li><b>Amend 0099, no 0100.</b> Old-0099 DBs run <code>downgrade 0098</code> + <code>upgrade head</code> from the <b>new</b> image (deletes all wants, matches, WANT_* notifications); acceptable only while 0099 is unreleased.</li>
+    <li><b>(C1) Shape-tolerant downgrade:</b> new-only objects dropped with <code>IF EXISTS</code> (views, functions) or with their tables (trigger, new indexes, checks, generated columns); old-shape downgrade test.</li>
+    <li><b>(M1) Order:</b> WANT_* notifications → views <code>matchable_listings</code>, <code>private_group_peers</code>, <code>group_holdings</code> → tables → functions <code>wants_notify_match_requested()</code>, <code>stem_query_pl</code>, <code>stem_pl</code>, <code>stem_word_pl</code>, <code>words_pl</code>.</li>
+    <li><b>(H1) Inlinable visibility:</b> no scalar function; PUBLIC branch at the call site, PRIVATE branch <code>EXISTS</code> over view <code>private_group_peers</code> (single named definition for the parity test); <code>can_see_listing</code> dropped.</li>
+    <li><b>(H2)</b> PRIVATE rule copies <code>membership.py</code> + <code>visibility.py</code> exactly; bell handler re-checks every pair through <code>reads.visible_matches</code>.</li>
+    <li><b>(H3)</b> <code>update_want</code> locks the want <code>FOR NO KEY UPDATE</code> before deleting pairs and flagging.</li>
+    <li><b>(H4)</b> In-memory backoff map per matcher process (60 s doubling to 15 min, cleared on success); claim skips backing-off ids.</li>
+    <li><b>(H5)</b> Every non-<code>pg_catalog</code> call in contract bodies is <code>public.</code>-qualified; empty-<code>search_path</code> test.</li>
+    <li><b>(M3, user decision)</b> 24 stop-words skipped by <code>words_pl</code>: <code>a, albo, ani, bez, dla, do, i, ku, lub, na, nad, o, od, oraz, po, pod, przez, przy, u, w, we, z, za, ze</code>; stop-words-only name → 400.</li>
+    <li><b>One tokenizer, aligned by construction (L1):</b> <code>words_pl</code> on the raw name; <code>stem_pl</code> maps <code>stem_word_pl</code> (folds internally) over the same array.</li>
+    <li><b><code>short_words_query</code> replaced:</b> ≤4-char words are exact weight-A lexemes, never typo path (blocks <code>lego → Legowisko</code>).</li>
+    <li><b><code>ę</code>/<code>ą</code> exception:</b> a short raw word ending in <code>ę</code>/<code>ą</code> with ≥3 chars before it is stemmed (<code>zimę → zim:*</code>), required by the M3 acceptance example.</li>
+    <li><b>Typo path per want word:</b> <code>word_similarity(fold_pl(word), name_folded) ≥ 0.65</code> for words &gt;4 chars; category thresholds deleted.</li>
+    <li><b>(M2)</b> Candidate operand order <code>want.name_folded &lt;% l.name_folded</code>, relying on the 0.6 GUC default (pinned).</li>
+    <li><b>(M5)</b> Matcher constants only in <code>src/matcher/matcher/rules.py</code>; <code>REMINDER_LEAD</code> drift test; 4-char limit pinned behaviourally.</li>
+    <li>Forward runs born seen, no bell; window runs unseen and belled; suggestions never in the outbox. The window also stores suggestions.</li>
+    <li><code>matching</code> = <code>match_requested_at IS NOT NULL AND status = ACTIVE</code>.</li>
+    <li>Startup gate: revision ≥ 99 <b>and</b> <code>to_regclass('public.matchable_listings')</code>.</li>
+    <li><b>(M6)</b> Backend lifespan fails fast on an old-0099 schema; <b>no image-only rollback</b>.</li>
+    <li><b>(L7)</b> Claims take <code>FOR NO KEY UPDATE</code>; window transaction under 30 s statement timeout.</li>
+    <li><b>(L8)</b> ≤1000 pairs per <code>wants.bells_due</code> row, <code>expiring</code> in the first; counts are additive.</li>
+    <li>asyncpg directly, no SQLAlchemy at runtime. <code>useWantMatches</code> also fetches suggestions; <code>/suggestions</code> <code>LIMIT 10</code>.</li>
+    <li><b>(L4)</b> A resumed want with stored matches keeps showing them while <code>matching</code>; skeleton only with no MATCH stored.</li>
+  </ul>
+  </details>
+
+  <details open><summary>Open Questions / Risks</summary>
+  <ul>
+    <li><span class="sev critical">critical</span>Release gate still blocks deploy: ≥200 labelled pairs must score suffix set, stop-list, 4-char limit, 0.65. Later changes mean DROP/ADD of generated columns.</li>
+    <li><span class="sev warning">warning</span>Stem false positives (<code>zim:*</code> → <code>zimny</code>); only the gate measures this.</li>
+    <li><span class="sev warning">warning</span>Privacy: <code>private_group_peers</code> is a second copy of the PRIVATE rule; parity test guards lists/counts, handler re-check guards bells.</li>
+    <li><span class="sev warning">warning</span>Cost: reverse per-word checks and suggestions not index-served; re-measurement incl. EXPLAIN required.</li>
+    <li><span class="sev info">info</span>Stale window pair (milliseconds wide, exists today) — accepted.</li>
+    <li><span class="sev info">info</span>Backoff is per process and in memory; restart retries once immediately; logged at WARNING.</li>
+    <li><span class="sev warning">warning</span>The <code>ę</code>/<code>ą</code> exception is a spec-level addition refining the user-final 4-char rule; may need user confirmation; gate scores it.</li>
+    <li><span class="sev info">info</span>Stop-list fixed in the migration; extending it = new revision with DROP/ADD.</li>
+  </ul>
+  </details>
+</section>
+
+<p class="toc">Contents: <a href="#scope">Scope</a> · <a href="#stories">User Stories</a> · <a href="#requirements">Requirements</a> · <a href="#visual">Visual Design</a> · <a href="#reuse">Reuse vs New</a> · <a href="#tech">Technical Approach</a> · <a href="#runbook">Runbook</a> · <a href="#testing">Testing</a> · <a href="#success">Success Criteria</a> · <a href="#audit">Audit resolution</a></p>
+
+<main>
+<h2 id="scope">Goal and scope</h2>
+<div class="card">Make „Szukam” find inflected and diminutive names („kurtka zimowa” → „Kurtka na zimę”). Add a „Może Cię zainteresuje” tier for near misses, and run all matching in a separate <code>matcher</code> process behind a documented DB contract.</div>
+<div class="cols">
+  <div class="card"><b class="pass">In scope</b>
+    <ul>
+      <li>Amended 0099 DB contract (text functions, stop-list, generated columns, trigger, tiers, views)</li>
+      <li>Backend: flag-only writes, row lock on edit, bells via outbox with visibility re-check, suggestions API, stop-words 400, contract fail-fast</li>
+      <li>New <code>src/matcher</code> service: request loop with backoff, window loop, sweep</li>
+      <li>Frontend: pending/slow states, suggestions section, list badge</li>
+      <li>Compose service, runbook, docs fixes, re-measurement</li>
+    </ul></div>
+  <div class="card"><b class="fail">Out of scope</b>
+    <ul>
+      <li>Separate DB role/login for the matcher</li>
+      <li>Rescanning items that become takeable later</li>
+      <li>Description words for MATCH or SUGGESTION</li>
+      <li>Switching backend <code>items_visible_to</code> to the SQL views</li>
+      <li>Running the release-gate labelling</li>
+      <li>Outbox NOTIFY / shorter outbox poll</li>
+      <li>Paging of match or suggestion lists</li>
+      <li>Persistent (DB) backoff; configurable stop-list</li>
+    </ul></div>
+</div>
+
+<h2 id="stories">User Stories</h2>
+<div class="stories">
+  <div class="card">As a <b>seeker</b>, I want „kurtka zimowa” to find „Kurtka na zimę”, so that I don't miss items named with a different word form.</div>
+  <div class="card">As a <b>seeker</b>, I want small words like „na” or „dla” ignored, so that „kurtka na zimę” finds „Kurtka zimowa” as a real match.</div>
+  <div class="card">As a <b>seeker</b>, I want to see items that differ by one word, with the missing word shown, so that I can decide whether they suit me.</div>
+  <div class="card">As a <b>seeker</b>, after saving a want I want „Szukamy pasujących rzeczy…”, and later „Wyniki pojawią się wkrótce” with „Odśwież teraz”, so that I know results are coming.</div>
+  <div class="card">As a <b>seeker</b>, I want my wanted list to show „Szukamy…” on a want still being matched.</div>
+  <div class="card">As a <b>seeker</b>, I want a bell only for real matches of newly listed items I may see, never for suggestions.</div>
+  <div class="card">As an <b>operator</b>, I want matching in its own container that I can stop, restart and verify independently of the API.</div>
+</div>
+
+<h2 id="requirements">Requirements</h2>
+<div class="card tblwrap">
+<table>
+<tr><th>ID</th><th>Requirement</th><th>Priority</th></tr>
+<tr><td colspan="3" class="area">DB contract (amended 0099)</td></tr>
+<tr><td>FR-DB-01</td><td>IMMUTABLE SQL text functions <code>words_pl</code> (raw split, 24 stop-words removed), <code>stem_word_pl</code> (folds; ≤4 exact except <code>ę</code>/<code>ą</code>; minimal suffix set, never <code>-ka</code>), <code>stem_pl</code>, <code>stem_query_pl</code> (quoted lexemes, NULL with no word); all inner calls <code>public.</code>-qualified; pinned examples</td><td>Must</td></tr>
+<tr><td>FR-DB-02</td><td>Generated <code>stem_query</code>/<code>stem_words</code>; no <code>short_words_query</code>; <code>match_requested_at</code> + partial index</td><td>Must</td></tr>
+<tr><td>FR-DB-03</td><td>Trigger function <code>wants_notify_match_requested()</code> + trigger <code>trg_wants_match_requested</code> → <code>pg_notify('wants_changed', id)</code> when the flag is set</td><td>Must</td></tr>
+<tr><td>FR-DB-04</td><td><code>want_matches.tier</code> + <code>missing_words</code> with checks and <code>ix_want_matches_want_id_tier</code></td><td>Must</td></tr>
+<tr><td>FR-DB-05</td><td>Views <code>group_holdings</code> (live MEMBER/ORGANIZATOR roles, standing membership / current leadership, live group) and <code>private_group_peers</code> (same live PRIVATE group, either side member or leader); call-site rule PUBLIC OR EXISTS peers</td><td>Must</td></tr>
+<tr><td>FR-DB-06</td><td>View <code>matchable_listings</code>: listing preference row, live item, AVAILABLE, no PROPOSED swap, live own place; listed columns</td><td>Must</td></tr>
+<tr><td>FR-DB-07</td><td>Shape-tolerant downgrade in the M1 order; works on new and old 0099</td><td>Must</td></tr>
+<tr><td colspan="3" class="area">Backend</td></tr>
+<tr><td>FR-BE-01</td><td>Writes set <code>match_requested_at</code>; <code>update_want</code> locks <code>FOR NO KEY UPDATE</code>, then deletes both tiers + unread bell, flags, flushes, commits</td><td>Must</td></tr>
+<tr><td>FR-BE-02</td><td>Remove forward timeout path, <code>text_queries.py</code>, <code>matcher.py</code>, <code>scan.py</code>, matcher-only constants, <code>WantScanMarker</code>; keep 409 mapping</td><td>Must</td></tr>
+<tr><td>FR-BE-03</td><td><code>main.py</code>: remove scan job, register handler, fix „30s” docstring to 60 s</td><td>Must</td></tr>
+<tr><td>FR-BE-04</td><td><code>wants.bells_due</code> handler in a savepoint: MATCH pairs that still exist and pass <code>visible_matches</code>, still-ACTIVE expiring wants, <code>write_bell_rows</code></td><td>Must</td></tr>
+<tr><td>FR-BE-05</td><td><code>WantResponse.matching</code> on every want response</td><td>Must</td></tr>
+<tr><td>FR-BE-06</td><td>Counts and <code>/matches</code> MATCH-only; <code>matched_item_id</code> both tiers</td><td>Must</td></tr>
+<tr><td>FR-BE-07</td><td><code>GET /api/wants/{id}/suggestions</code>, same filter/404 rules, score order, <code>LIMIT 10</code>; <code>opened</code> for either tier</td><td>Must</td></tr>
+<tr><td>FR-BE-08</td><td>Name must keep ≥1 word after stop-words (SQL <code>words_pl</code>) → else 400 <code>NAME_NEEDS_A_WORD_MESSAGE</code></td><td>Must</td></tr>
+<tr><td>FR-BE-09</td><td>Lifespan contract fail-fast on missing <code>matchable_listings</code></td><td>Must</td></tr>
+<tr><td>FR-BE-10</td><td><code>MatchedPair</code> defined in <code>match_notifications.py</code></td><td>Must</td></tr>
+<tr><td colspan="3" class="area">Matcher</td></tr>
+<tr><td>FR-MT-01</td><td>Own <code>pyproject.toml</code>, <code>uv.lock</code>, slim Dockerfile without ml/HF secret; no <code>app.*</code> import</td><td>Must</td></tr>
+<tr><td>FR-MT-02</td><td><code>DATABASE_URL</code> only; never logged</td><td>Must</td></tr>
+<tr><td>FR-MT-03</td><td>Startup gate on revision + contract; then „listening”</td><td>Must</td></tr>
+<tr><td>FR-MT-04</td><td>Request loop: LISTEN + 10 s poll; claim <code>FOR NO KEY UPDATE SKIP LOCKED</code> skipping backing-off ids; MATCH + SUGGESTION under 30 s timeout; compare-and-clear; backoff on failure</td><td>Must</td></tr>
+<tr><td>FR-MT-05</td><td>Window loop every 60 s under advisory lock + 30 s timeout: sweep, window (marker − 2 min / now − 20 min), pairs, chunked outbox rows, marker CAS</td><td>Must</td></tr>
+<tr><td>FR-MT-06</td><td>Raw inserts set every NOT NULL column without default (outbox, <code>want_matches</code>, <code>want_scan_markers</code>)</td><td>Must</td></tr>
+<tr><td>FR-MT-07</td><td>Lost race → one WARNING + retry; else <code>logger.exception</code>; loops never crash; reconnect + re-LISTEN</td><td>Must</td></tr>
+<tr><td>FR-MT-08</td><td><code>matcher/clock.py</code> naive UTC + clock guard</td><td>Must</td></tr>
+<tr><td>FR-MT-09</td><td>Safe with several copies</td><td>Must</td></tr>
+<tr><td>FR-MT-10</td><td><code>matcher/rules.py</code> single home of constants, bound as parameters</td><td>Must</td></tr>
+<tr><td colspan="3" class="area">Matching rules</td></tr>
+<tr><td>FR-MR-01</td><td>Shared predicates incl. ≥1 want word and the FR-DB-05 visibility rule</td><td>Must</td></tr>
+<tr><td>FR-MR-02</td><td>MATCH: every want word hits (stem/exact lexeme on weight A, or typo ≥0.65 for &gt;4 chars); top 20; candidates <code>@@ stem_query</code> OR <code>want.name_folded &lt;% l.name_folded</code> OR stems prefix</td><td>Must</td></tr>
+<tr><td>FR-MR-03</td><td>SUGGESTION: ≥3 want words, ≥2 hits, exactly 1 missing; original word in <code>missing_words</code>; ≤10 per want in total</td><td>Must</td></tr>
+<tr><td>FR-MR-04</td><td>Description words never count</td><td>Must</td></tr>
+<tr><td colspan="3" class="area">Frontend</td></tr>
+<tr><td>FR-FE-01</td><td><code>matching</code>, <code>WantSuggestionResponse</code>, <code>getWantSuggestions</code>; server 400 message shown</td><td>Must</td></tr>
+<tr><td>FR-FE-02</td><td><code>useWantMatches</code>: one <code>Promise.all</code>; 2 s polling within 60 s; <code>suggestions</code>, timer-driven <code>slow</code>; <code>refetch</code> restarts</td><td>Must</td></tr>
+<tr><td>FR-FE-03</td><td><code>useWants</code> list polling; no slow state after the window</td><td>Must</td></tr>
+<tr><td>FR-FE-04</td><td>View kinds <code>matching</code>/<code>matchingSlow</code> carrying stored matches and suggestions</td><td>Must</td></tr>
+<tr><td>FR-FE-05</td><td><code>WantMatchesView</code> renders the mockups; no skeleton with stored matches; first-load markSeen kept</td><td>Must</td></tr>
+<tr><td>FR-FE-06</td><td><code>WantedListView</code> „Szukamy…” status</td><td>Must</td></tr>
+<tr><td>FR-FE-07</td><td>Typed fixtures, suggestion factory, key-set tests</td><td>Must</td></tr>
+<tr><td colspan="3" class="area">Ops and docs</td></tr>
+<tr><td>FR-OPS-01</td><td>Compose service <code>matcher</code> (same <code>DATABASE_URL</code> as backend, no ports)</td><td>Must</td></tr>
+<tr><td>FR-OPS-02</td><td><code>architecture.md</code> wants section, boundary/clock notes, deployment, l.125 <b>and</b> l.503 fixes, runbook, INDEX, standards examples</td><td>Must</td></tr>
+<tr><td>FR-OPS-03</td><td>Re-measure forward/reverse/suggestions incl. EXPLAIN (views inlined) and bell payload/handler cost</td><td>Must</td></tr>
+</table>
+</div>
+
+<h2 id="visual">Visual Design</h2>
+<div class="card">
+<p>Mockups in <code>analysis/design-context/</code> are binding inputs — implementation-planner will attach <code>Visual References</code> to UI task groups. Hi-fi HTML on project tokens, mobile-first.</p>
+<div class="tblwrap"><table>
+<tr><th>ID</th><th>Mockup</th><th>View state</th><th>Key elements</th></tr>
+<tr><td><code>screen:want-matching</code></td><td><a href="../analysis/design-context/mockups/want-detail-matching-pending.html">matching-pending</a></td><td><code>matching</code></td><td>Header + toggle unchanged; <code>component:matching-status</code>; 4 <code>aria-hidden</code> skeleton tiles when no MATCH stored (stored matches render instead); validity line and ActiveActions unchanged</td></tr>
+<tr><td><code>screen:want-matching-slow</code></td><td><a href="../analysis/design-context/mockups/want-detail-matching-slow.html">matching-slow</a></td><td><code>matchingSlow</code></td><td>Dashed card, ⏳, „Wyniki pojawią się wkrótce”, „Odśwież teraz” (<code>refetch</code>), <code>role="status" aria-live="polite"</code></td></tr>
+<tr><td><code>screen:want-results</code></td><td><a href="../analysis/design-context/mockups/want-detail-suggestions.html">suggestions</a></td><td><code>activeEmpty</code>/<code>active</code> with suggestions</td><td>Empty card; <code>&lt;section aria-labelledby&gt;</code> „💡 Może Cię zainteresuje” + lead + suggestion cards</td></tr>
+<tr><td><code>screen:want-results-matches-only</code></td><td><a href="../analysis/design-context/mockups/want-detail-matches-only.html">matches-only</a></td><td><code>active</code> without suggestions</td><td>Count line, MatchCards with „nowe”; no suggestions section</td></tr>
+<tr><td><code>screen:wanted-list</code></td><td><a href="../analysis/design-context/mockups/wanted-list-pending-badge.html">list badge</a></td><td><code>WantedListView</code></td><td>Spinner + „Szukamy…” in <code>role="status"</code> instead of pills</td></tr>
+<tr><td><code>component:matching-status</code></td><td><a href="../analysis/design-context/mockups/want-detail-matching-pending.html">matching-pending</a></td><td><code>MatchingStatus</code></td><td>Inline status row, reduced-motion spinner, „Szukamy pasujących rzeczy…” / „To zwykle kilka sekund.”</td></tr>
+<tr><td><code>component:suggestion-card</code></td><td><a href="../analysis/design-context/mockups/want-detail-suggestions.html">suggestions</a></td><td><code>SuggestionCard</code></td><td>ItemCard tile, dashed border, no „nowe”, „brakuje: „Claas””, click → <code>markOpened</code></td></tr>
+</table></div>
+</div>
+
+<h2 id="reuse">Reusable vs new components</h2>
+<div class="card tblwrap">
+<table>
+<tr><th>Kind</th><th>What</th><th>Path</th><th>How</th></tr>
+<tr><td class="pass">Reuse</td><td>Match SQL shape, <code>&lt;%</code> operand order</td><td><code>app/wants/application/matcher.py</code> (l.209)</td><td>Ported to raw SQL, then deleted</td></tr>
+<tr><td class="pass">Reuse</td><td>Sweep + marker window</td><td><code>app/wants/application/scan.py</code></td><td>Ported to window loop, then deleted</td></tr>
+<tr><td class="pass">Reuse</td><td>Lost-race / log policy</td><td><code>app/main.py::_want_scan_lost_a_race</code>, <code>_run_want_scan</code></td><td>Same policy in matcher</td></tr>
+<tr><td class="pass">Reuse</td><td>Bell writer</td><td><code>match_notifications.py::write_bell_rows</code></td><td>Called by handler; only <code>MatchedPair</code> import changes</td></tr>
+<tr><td class="pass">Reuse</td><td>Outbox pattern</td><td><code>notifications/outbox_listener.py</code>, <code>outbox/registry.py</code>, <code>outbox/dispatcher.py</code></td><td>Handler registration and dispatch</td></tr>
+<tr><td class="pass">Reuse</td><td>Card select + read-time filter</td><td><code>app/wants/application/reads.py</code></td><td>Tier filter; <code>list_suggestions</code>; handler re-check via <code>visible_matches</code></td></tr>
+<tr><td class="pass">Reuse</td><td>Want row load</td><td><code>writes.py::_own_want</code></td><td>Gains <code>for_update</code> (<code>FOR NO KEY UPDATE</code>)</td></tr>
+<tr><td class="pass">Reuse</td><td>Response schema</td><td><code>schemas.py::WantMatchResponse</code>, <code>WantMatchMeta</code></td><td>Suggestion response reuses meta</td></tr>
+<tr><td class="pass">Reuse</td><td>Membership / visibility rule</td><td><code>groups/infrastructure/membership.py</code>, <code>visibility.py</code></td><td>Source of the views + parity test</td></tr>
+<tr><td class="pass">Reuse</td><td><code>fold_pl</code>, GIN indexes</td><td>migrations 0087, 0093, 0094</td><td>Used by functions and view</td></tr>
+<tr><td class="pass">Reuse</td><td>Listed-item conditions</td><td><code>inventory/infrastructure/repository.py::listed_items_with_product_select</code></td><td>Mirrored in <code>matchable_listings</code></td></tr>
+<tr><td class="pass">Reuse</td><td>Test infra</td><td><code>tests/conftest.py</code></td><td>Matcher conftest copies it; receives relocated helpers</td></tr>
+<tr><td class="pass">Reuse</td><td>Clock / boundary guards</td><td><code>test_domain_clock_guard.py</code>, <code>test_module_boundaries.py</code>, <code>test_worker_removed.py</code></td><td>Matcher clock guard; removed-scan test</td></tr>
+<tr><td class="pass">Reuse</td><td>Measurement harness</td><td><code>…/2026-11-15-szukam-wanted-mechanism/implementation/measurement/</code></td><td>Seeding reused, EXPLAIN adapted</td></tr>
+<tr><td class="pass">Reuse</td><td>Polling pattern</td><td><code>hooks/useItemDetail.ts:51</code>, <code>test/useItemDetail.test.tsx:149</code></td><td>Polling in hooks</td></tr>
+<tr><td class="pass">Reuse</td><td>Tiles, cards, Dockerfile builder</td><td><code>ItemCard.tsx</code>, <code>MatchCard.tsx</code>, <code>WantMatchesView.tsx</code>, <code>WantedListView.tsx</code>, <code>src/backend/Dockerfile</code></td><td>Wrapped / copied</td></tr>
+<tr><td class="fail">New</td><td>0099 contract objects</td><td colspan="2">Matcher can't import <code>app.*</code>; rules must live in the DB the backend owns</td></tr>
+<tr><td class="fail">New</td><td><code>src/matcher</code> package (incl. <code>rules</code>, backoff)</td><td colspan="2">New process; nothing similar outside the backend</td></tr>
+<tr><td class="fail">New</td><td><code>bells_due.py</code>, <code>outbox_acl.py</code></td><td colspan="2">Bell writer was inline in the scan; boundary forbids <code>app.outbox</code> outside <code>infrastructure/</code></td></tr>
+<tr><td class="fail">New</td><td>Suggestions API, <code>NAME_NEEDS_A_WORD_MESSAGE</code>, lifespan contract check</td><td colspan="2">No suggestion tier or stop-word rule exists</td></tr>
+<tr><td class="fail">New</td><td><code>MatchingStatus</code>, <code>SuggestionCard</code>, <code>SuggestionsSection</code>, slow card</td><td colspan="2">New UI states from the mockups; minimal optional ItemCard props</td></tr>
+</table>
+</div>
+
+<h2 id="tech">Technical Approach</h2>
+<details class="card"><summary>Data flow</summary>
+<p>A seeker write sets <code>match_requested_at</code> and commits; the trigger NOTIFYs at commit; the request loop claims, inserts MATCH and SUGGESTION rows (seen, no bell) and clears the flag; polling sees <code>matching: false</code>.</p>
+<p>A new listing is picked up by the next window run (≤60 s): unseen MATCH rows, suggestions, <code>wants.bells_due</code> rows. The backend outbox poller (≤60 s) re-checks visibility and writes WANT_MATCH_FOUND — bell ≤~2 min after listing. Expiry reminders take the same path.</p>
+</details>
+<details class="card"><summary>Inlining (H1)</summary>
+<p>Views are query rewrites, so <code>matchable_listings</code>, <code>group_holdings</code> and <code>private_group_peers</code> always expand into the caller. No contract object used in a match predicate is a function. PUBLIC is a plain column comparison at the call site; PRIVATE an <code>EXISTS</code> over the peers view (semi-join or hashed SubPlan). Forward keeps plain <code>AND</code>s so <code>@@</code> and <code>&lt;%</code> stay index conditions; reverse keeps the MATERIALIZED window CTE and plain-columns-first <code>CASE</code>. Text functions run only when generated columns are written and in the per-word check.</p>
+</details>
+<details class="card"><summary>Per-word check</summary>
+<p><code>stem_words</code> is position-aligned with <code>words_pl(name)</code> by construction. Per position: prefix/exact lexeme on weight A, then the typo path for long words; hit count and missing positions from one <code>unnest … WITH ORDINALITY</code> per candidate pair. Exact SQL left to implementation; behaviour pinned by acceptance tests.</p>
+</details>
+<details class="card"><summary>Concurrency</summary>
+<ul>
+<li>Claims and <code>update_want</code> both take <code>FOR NO KEY UPDATE</code> and serialise on the want row (H3). Window inserts need only FK <code>KEY SHARE</code>, so they never wait behind a claim (L7). A rare 40P01 is a lost race and self-heals.</li>
+<li>Compare-and-clear never erases a newer request; clearing doesn't bump <code>updated_at</code>; expire/remind do (409 as today).</li>
+<li>Suggestion cap counted from the run's snapshot; concurrent runs may slightly exceed 10; <code>/suggestions</code> returns ≤10.</li>
+</ul>
+</details>
+<details class="card"><summary>Backend module boundary</summary>
+<ul><li><code>outbox_acl.py</code> in <code>infrastructure/</code>.</li><li><code>bells_due.py</code> imports only <code>app.core</code>, <code>app.db</code>, <code>app.wants</code>.</li><li><code>main.py</code> remains the only importer of <code>app.wants</code>.</li></ul>
+</details>
+
+<h2 id="runbook">Runbook: amended 0099</h2>
+<div class="card">
+<p style="color:var(--dim)">Replaces the „Deploy / rollback for wants (migration 0099)” section of <code>architecture.md</code>. Commands run from the repo root; none prints configuration.</p>
+<ol>
+<li><b>Release gate</b> unchanged; now scores stems, stop-list, 4-char exact limit, 0.65.</li>
+<li><b>Build new images first:</b> <code>docker compose build backend matcher web</code>.</li>
+<li><b>Detect old 0099:</b> <code>docker compose exec -T postgres psql -U aj -d aj -tAc "SELECT to_regclass('public.matchable_listings') IS NULL AND EXISTS (SELECT 1 FROM alembic_version WHERE version_num = '0099')"</code> → <code>t</code> = old 0099.</li>
+<li><b>Backup:</b> <code>docker compose exec -T postgres pg_dump -U aj -Fc aj &gt; pre-wants-matcher.dump</code> (restorable thanks to H5).</li>
+<li><b>Old-0099 DBs only</b> (dev/test; deletes every want, match, WANT_* notification):
+  <ol><li><code>docker compose stop backend matcher</code></li>
+  <li><code>docker compose run --rm --no-deps backend alembic downgrade 0098</code> (uvicorn never starts)</li>
+  <li><code>docker compose run --rm --no-deps backend alembic upgrade head</code></li></ol>
+  <span class="sev warning">warning</span>Do not run <code>docker compose up</code> before 5.2: the backend's upgrade is a no-op, its contract check refuses to start, and the matcher waits at its gate.</li>
+<li><b>Deploy:</b> <code>docker compose up -d --remove-orphans</code>; a pre-0099 DB migrates on backend start; the matcher waits at its gate.</li>
+<li><b>Verify:</b> <code>alembic_version</code> = 0099 and step-3 query returns <code>f</code>; <code>\d wants</code> shows <code>stem_query</code>/<code>stem_words</code>/<code>match_requested_at</code>; <code>\dv</code> lists the three views; matcher logs „listening”; a new want shows „Szukamy…” then the item; flagged count drains to 0; marker advances each minute; <code>wants.bells_due</code> rows reach PROCESSED.</li>
+<li><b>Rollback</b> (no image-only rollback): stop backend + matcher; with the new image <code>docker compose run --rm --no-deps backend alembic downgrade 0098</code>; old compose file + images, <code>up -d --remove-orphans</code> (removes <code>matcher</code>); or restore the step-4 dump with the matching image.</li>
+<li><b>Future changes:</b> changing <code>fold_pl</code>, <code>words_pl</code> (stop-list) or <code>stem_word_pl</code> = new revision with DROP/ADD of <code>name_folded</code>, <code>name_query</code>, <code>stem_query</code>, <code>stem_words</code>; altering a column read by the views = drop/recreate them in the same revision; bodies stay <code>public.</code>-qualified.</li>
+<li><b>Measured cost:</b> FR-OPS-03 summary table.</li>
+</ol>
+</div>
+
+<h2 id="testing">Testing Approach</h2>
+<div class="card">
+<p>2-8 focused tests per implementation step group; verification runs only that group's new and changed tests; a full run at verification.</p>
+<b>Acceptance cases (matcher, fixed)</b>
+<table>
+<tr><th>Want</th><th>Item</th><th>Expected</th></tr>
+<tr><td>kurtka zimowa</td><td>Kurtka na zimę</td><td class="pass">MATCH</td></tr>
+<tr><td>kurtka na zimę</td><td>Kurtka zimowa</td><td class="pass">MATCH (not SUGGESTION „brakuje: na”)</td></tr>
+<tr><td>rower dla dziecka</td><td>Rower biegowy dla dziecka</td><td class="pass">MATCH; <code>dla</code> never counted</td></tr>
+<tr><td>Traktor Bruder Claas</td><td>Traktor bruder Deutz</td><td>SUGGESTION, <code>missing_words = {Claas}</code></td></tr>
+<tr><td>Traktor na Bruder</td><td>Traktor bruder Deutz</td><td class="pass">MATCH; never a SUGGESTION (2 want words)</td></tr>
+<tr><td>rowerek biegowy</td><td>Rower biegowy dla dziecka</td><td class="pass">MATCH</td></tr>
+<tr><td>kurtka zimowa</td><td>Kurtka przejściowa</td><td class="fail">none</td></tr>
+<tr><td>traktor bruder</td><td>Koparka Bruder</td><td class="fail">none</td></tr>
+<tr><td>kurtka</td><td>Kurtyna prysznicowa</td><td class="fail">none</td></tr>
+<tr><td>lego</td><td>Legowisko dla psa</td><td class="fail">none</td></tr>
+<tr><td>kurtka zimowq</td><td>Kurtka zimowa / Kurtka na zimę</td><td><span class="pass">MATCH</span> via typo (0.714) / <span class="fail">none</span> (0.429)</td></tr>
+</table>
+</div>
+<details class="card"><summary>Backend tests (src/backend/tests)</summary>
+<table>
+<tr><th>File</th><th>Change</th></tr>
+<tr><td><code>conftest.py</code></td><td>Receives <code>_Owner</code>, <code>_want</code>, <code>_product</code> (≥3 importers)</td></tr>
+<tr><td><code>test_wants_migration.py</code></td><td>New→new round trip; <b>old-shape downgrade</b> (transform head to old-0099 shape, keep <code>alembic_version</code>, downgrade 0098 succeeds, restore head in <code>finally</code>); contract objects; pinned function examples incl. stop-words, quote, <code>İ</code>; generated columns follow updates; <b>empty <code>search_path</code></b> insert/update; trigger NOTIFY with committed data on engine connections; WANT_* rows deleted</td></tr>
+<tr><td><code>test_wants_api.py</code></td><td><code>matching: true</code>, counts 0, no pairs; stop-words-only name 400 on create/update; 503 test deleted; 409 kept; matching PATCH deletes both tiers + unread bell and re-flags; note-only PATCH doesn't</td></tr>
+<tr><td><code>test_wants_edit_concurrency.py</code> (new)</td><td>Simulated matcher holds the lock and inserts a pair; PATCH waits; afterwards no pair remains and the flag is set</td></tr>
+<tr><td><code>test_wants_lifecycle.py</code></td><td>Resume flags and keeps matches; cap path; three <code>scanWants</code> tests (l.246, 272, 322) move to matcher <code>test_sweep.py</code></td></tr>
+<tr><td><code>test_wants_matches_api.py</code></td><td>Tiers seeded; <code>/matches</code> MATCH only; <code>/suggestions</code> key set, visibility, ≤10, 404s; counts; <code>matched_item_id</code>; <code>opened</code></td></tr>
+<tr><td><code>test_wants_bells_due.py</code> (new)</td><td>Moved scan-side notification tests + <code>_bell_rows</code>/<code>_pointer</code>; MATCH bells; skips SUGGESTION, deleted, <b>no-longer-visible</b> pairs; chunks sum; expiring; savepoint rollback + <code>attempts</code>; close/withdraw/edit after a run</td></tr>
+<tr><td><code>test_wants_notifications.py</code></td><td>Keeps createNotifications/deleteUnread/checkText cases</td></tr>
+<tr><td><code>test_wants_visibility_parity.py</code> (new)</td><td>Peers view vs <code>parties_share_group(private_only=True)</code>: standing/ended membership and leadership, ended GroupRole, wrong role type, member×leader both ways, deleted PRIVATE group, shared PUBLIC + unshared PRIVATE, PUBLIC only, none; call-site rule vs <code>items_visible_to(ALL)</code></td></tr>
+<tr><td><code>test_membership_definition_guard.py</code></td><td>Docstring names the SQL copy and the parity test</td></tr>
+<tr><td><code>test_wants_scan_removed.py</code> (new)</td><td>Modules gone, no job, handler registered, lifespan refuses on missing contract</td></tr>
+<tr><td><code>test_authorization_matrix.py</code></td><td>Row for <code>/suggestions</code></td></tr>
+<tr><td><code>test_wants_matcher.py</code>, <code>test_wants_scan.py</code></td><td>Deleted; cases ported; helpers relocated</td></tr>
+</table>
+</details>
+<details class="card"><summary>Matcher tests (src/matcher/tests)</summary>
+<p>Conftest: postgres:18 testcontainer, backend alembic with <code>cwd=../backend</code>, raw-SQL seeds, truncation between tests.</p>
+<table>
+<tr><th>File</th><th>Covers</th></tr>
+<tr><td><code>test_text_rules.py</code></td><td>Acceptance cases; 4-char exact; stop-words never in <code>missing_words</code>; description ignored; GUC 0.6 pinned</td></tr>
+<tr><td><code>test_forward.py</code></td><td>Ported predicates; born seen, FORWARD; no outbox; compare-and-clear; <code>updated_at</code> untouched; concurrent claimers</td></tr>
+<tr><td><code>test_suggestions.py</code></td><td>≥3 want words (stop-words not counted); ≥2 hits, 1 missing; cap 10 across runs; original case; never in outbox</td></tr>
+<tr><td><code>test_window.py</code></td><td>Unseen SCAN pairs; NOT NULL columns on all raw inserts; &gt;1000 pairs → two rows; marker overlap; advisory skip; no wait behind a claim; forward ≡ reverse</td></tr>
+<tr><td><code>test_sweep.py</code></td><td>Ported lifecycle sweep tests; <code>updated_at</code> bumped; reminded → <code>expiring</code></td></tr>
+<tr><td><code>test_loop.py</code></td><td>NOTIFY wake; poll; <b>failing want doesn't block another, retried after backoff</b>; startup gate; WARNING on lost race; errors logged once</td></tr>
+<tr><td><code>test_constants_drift.py</code></td><td><code>REMINDER_LEAD</code> equal via <code>ast</code>; moved names absent from backend; 4-char limit vs <code>stem_query_pl</code></td></tr>
+<tr><td><code>test_clock_guard.py</code></td><td>Only <code>matcher/clock.py</code> reads the clock</td></tr>
+</table>
+</details>
+<details class="card"><summary>Frontend tests (src/frontend/src/test)</summary>
+<table>
+<tr><th>File</th><th>Covers</th></tr>
+<tr><td><code>wantMatchesViewState.test.ts</code></td><td><code>matching</code> with/without stored matches, <code>matchingSlow</code>, suggestions rows, closed, stale/refresh-error</td></tr>
+<tr><td><code>WantMatchesView.test.tsx</code></td><td>Status text; skeleton only without matches; slow card + refetch; suggestions section; matches-only</td></tr>
+<tr><td><code>useWantMatches.test.tsx</code></td><td>Suggestions fetched; interval 2000/false; 60 s end flips <code>slow</code> (fakes Date + setTimeout/clearTimeout, no <code>findBy*</code> — documented exception); refetch restarts</td></tr>
+<tr><td><code>useWants.test.tsx</code></td><td>List polling while matching; stops after window</td></tr>
+<tr><td><code>WantedListView.test.tsx</code></td><td>„Szukamy…” instead of counts</td></tr>
+<tr><td><code>fixtures/wants.ts</code> + key sets</td><td><code>matching</code>, typed <code>wantSuggestion()</code></td></tr>
+</table>
+</details>
+<details class="card"><summary>Standards compliance</summary>
+<ul>
+<li><code>backend/migrations.md</code>: reverse-dependency, shape-tolerant downgrade; <code>lock_timeout</code>; <code>ix_</code>/<code>ck_</code> names; downgrade-then-upgrade + old-shape tests; runbook.</li>
+<li><code>backend/models.md</code>: new columns mapped; generated columns not written.</li>
+<li><code>backend/queries.md</code>: bound parameters; set-based; FROM-linter example repointed.</li>
+<li><code>backend/time.md</code>: naive UTC; matcher clock guard.</li>
+<li><code>global/error-handling.md</code>: 409 in writes; WARNING + retry (after backoff) in loops; <code>logger.exception</code>; example repointed.</li>
+<li><code>global/validation.md</code>: server-side 400 with specific Polish message.</li>
+<li><code>global/minimal-implementation.md</code>: dead code and moved constants removed; no flags.</li>
+<li><code>testing/backend-testing.md</code>: real postgres:18, key sets, 2–8 tests, naming, ≥3-importer helpers in conftest.</li>
+<li><code>testing/frontend-testing.md</code>: typed fixtures; Date-only fake timers with one documented exception; <code>createQueryWrapper</code>.</li>
+<li><code>frontend/components.md</code>, <code>accessibility.md</code>, <code>css.md</code>, <code>responsive.md</code>.</li>
+</ul>
+</details>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card">
+<ul>
+<li><b>AC-01</b> All acceptance cases pass in the matcher suite.</li>
+<li><b>AC-02</b> Writes store no pairs and return <code>matching: true</code>; the matcher clears and stores within seconds; stop-words-only name → 400.</li>
+<li><b>AC-03</b> Forward born seen, no outbox; window MATCH → <code>wants.bells_due</code> rows (≤1000 pairs), bells only for still-visible pairs; suggestions never belled.</li>
+<li><b>AC-04</b> <code>/matches</code> and counts MATCH-only; <code>/suggestions</code> ≤10 with <code>missing_words</code>; <code>matched_item_id</code> both tiers.</li>
+<li><b>AC-05</b> Parity test passes on every listed case.</li>
+<li><b>AC-06</b> No want scheduler job, <code>matcher.py</code>, <code>scan.py</code>, <code>text_queries.py</code>, 503 path, <code>short_words_query</code>, matcher-only constants in the backend.</li>
+<li><b>AC-07</b> Image builds without HF_TOKEN; waits for contract; survives DB restart; two copies no duplicates; failing want doesn't delay others.</li>
+<li><b>AC-08</b> Five screens + two components; polling stops at ~60 s with the slow card; „Odśwież teraz” resumes.</li>
+<li><b>AC-09</b> Measurement recorded; forward uses both text indexes through the views with no opaque visibility filter; reverse/suggestion/handler costs vs forward ≤17 ms, reverse ~12 ms/listing at 10k wants.</li>
+<li><b>AC-10</b> Runbook and docs updated (explicit commands, no-<code>up</code> warning, deploy order, verify, rollback without image-only, both runtime fixes, 60 s docstring).</li>
+<li><b>AC-11</b> Downgrade succeeds on new and old 0099 shape; want insert/update succeeds under empty <code>search_path</code>.</li>
+</ul>
+</div>
+
+<h2 id="audit">Audit resolution</h2>
+<div class="card tblwrap">
+<table>
+<tr><th>Finding</th><th>Resolution</th><th>Where</th></tr>
+<tr><td><span class="sev critical">C1</span></td><td>Shape-tolerant downgrade; old-shape test; explicit <code>docker compose run</code> commands</td><td>FR-DB-07, runbook 3–5, migration test, AC-11</td></tr>
+<tr><td><span class="sev warning">H1</span></td><td>Function removed; PUBLIC at call site, PRIVATE <code>EXISTS</code> over <code>private_group_peers</code>; EXPLAIN</td><td>FR-DB-05, FR-MR-01, Inlining, FR-OPS-03</td></tr>
+<tr><td><span class="sev warning">H2</span></td><td>Full rule; extended parity; handler re-check via <code>visible_matches</code></td><td>FR-DB-05, FR-BE-04, parity + bells tests</td></tr>
+<tr><td><span class="sev warning">H3</span></td><td>Lock <code>FOR NO KEY UPDATE</code> before delete; concurrency test</td><td>FR-BE-01, <code>test_wants_edit_concurrency.py</code></td></tr>
+<tr><td><span class="sev warning">H4</span></td><td>In-memory backoff; claim skips backing-off ids</td><td>FR-MT-04/10, <code>test_loop.py</code></td></tr>
+<tr><td><span class="sev warning">H5</span></td><td><code>public.</code>-qualified bodies; empty-<code>search_path</code> test</td><td>FR-DB-01..03, migration test</td></tr>
+<tr><td><span class="sev info">M1</span></td><td>Views → tables → functions; trigger function named</td><td>FR-DB-03, FR-DB-07</td></tr>
+<tr><td><span class="sev info">M2</span></td><td><code>want.name_folded &lt;% l.name_folded</code>; GUC pinned</td><td>FR-MR-02, <code>test_text_rules.py</code></td></tr>
+<tr><td><span class="sev info">M3</span></td><td>24-word stop-list; stop-words-only → 400; new examples; <code>ę</code>/<code>ą</code> exception</td><td>FR-DB-01, FR-BE-08, acceptance cases</td></tr>
+<tr><td><span class="sev info">M4</span></td><td><code>MatchedPair</code> in <code>match_notifications.py</code>; helpers to conftest; named tests moved</td><td>FR-BE-10, test tables</td></tr>
+<tr><td><span class="sev info">M5</span></td><td><code>matcher/rules.py</code>; backend leftovers deleted; drift test</td><td>FR-BE-02, FR-MT-10, <code>test_constants_drift.py</code></td></tr>
+<tr><td><span class="sev info">M6</span></td><td>Explicit commands, no-<code>up</code> warning, fail-fast, no image-only rollback</td><td>Runbook, FR-BE-09</td></tr>
+<tr><td><span class="sev info">L1</span></td><td>Raw-name tokenizer, aligned stems, quoted lexemes, ≥1-word guard</td><td>FR-DB-01, FR-BE-08, FR-MR-01</td></tr>
+<tr><td><span class="sev info">L2</span></td><td>All NOT NULL columns on raw inserts; test</td><td>FR-MT-06, <code>test_window.py</code></td></tr>
+<tr><td><span class="sev info">L3</span></td><td>Live item, preference row, live place stated</td><td>FR-DB-06</td></tr>
+<tr><td><span class="sev info">L4</span></td><td>Stored matches in <code>matching</code>; markSeen stated; list after window; timer-driven <code>slow</code></td><td>FR-FE-02..05</td></tr>
+<tr><td><span class="sev info">L5</span></td><td>l.503 fixed with l.125</td><td>FR-OPS-02</td></tr>
+<tr><td><span class="sev info">L6</span></td><td>Typo fixture pinned to „Kurtka zimowa”</td><td>Acceptance cases</td></tr>
+<tr><td><span class="sev info">L7</span></td><td><code>FOR NO KEY UPDATE</code> claims; window timeout; deadlock = lost race; LIMIT 10</td><td>FR-MT-04/05, Concurrency, FR-BE-07</td></tr>
+<tr><td><span class="sev info">L8</span></td><td>≤1000 pairs per row; measured</td><td>FR-MT-05, FR-OPS-03</td></tr>
+<tr><td><span class="sev info">L9</span></td><td>Committed data on engine connections, cleanup in <code>finally</code></td><td>Migration test</td></tr>
+</table>
+</div>
+</main>
+</body>
+</html>

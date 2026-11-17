@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wanted list - pending badge — Product Design</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      color: #222;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1.5rem;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+    }
+    header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+    #status { font-size: 0.8rem; color: #4a4; font-weight: 500; }
+    #status.disconnected { color: #a44; }
+
+    /* Screen navigation */
+    .screen-nav {
+      background: #fafafa;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 0.5rem 1.5rem;
+    }
+    .nav-screens {
+      display: flex;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.25rem;
+    }
+    .nav-screen {
+      padding: 0.3rem 0.7rem;
+      border-radius: 4px;
+      text-decoration: none;
+      color: #555;
+      font-size: 0.8rem;
+      background: #eee;
+      transition: background 0.15s;
+    }
+    .nav-screen:hover { background: #ddd; }
+    .nav-screen.active { background: #333; color: #fff; }
+    .nav-prevnext {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.25rem;
+    }
+    .nav-arrow {
+      font-size: 0.8rem;
+      color: #0066cc;
+      text-decoration: none;
+    }
+    .nav-arrow:hover { text-decoration: underline; }
+
+    /* Gallery */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      padding: 1rem 0;
+    }
+    .gallery-card {
+      display: block;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow 0.2s, transform 0.15s;
+    }
+    .gallery-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+    }
+    .gallery-card-title {
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #eee;
+      background: #fafafa;
+    }
+    .gallery-card-preview {
+      height: 230px;
+      overflow: hidden;
+      position: relative;
+      background: #0e0f11;
+    }
+    /* The screen renders in a private iframe at desktop width, scaled down to a
+       thumbnail. pointer-events off so the whole card stays a single click target. */
+    .gallery-frame {
+      width: 1280px;
+      height: 820px;
+      border: 0;
+      transform: scale(0.27);
+      transform-origin: top left;
+      pointer-events: none;
+    }
+
+    /* Mockup content */
+    main {
+      max-width: 1200px;
+      margin: 1.5rem auto;
+      padding: 1.5rem;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      min-height: 300px;
+      position: relative;
+    }
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      color: #999;
+      font-size: 1rem;
+      text-align: center;
+      line-height: 1.8;
+    }
+    .annotation-tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 3px;
+      pointer-events: none;
+      max-width: 250px;
+      z-index: 1000;
+      line-height: 1.3;
+    }
+    .annotation-tooltip::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: 10px;
+      width: 8px;
+      height: 8px;
+      background: rgba(0, 0, 0, 0.75);
+      transform: rotate(45deg);
+    }
+
+    /* Interactive screen-to-screen navigation */
+    [data-screen] { cursor: pointer; }
+    [data-screen]:hover { outline: 2px solid #0066cc; outline-offset: 2px; border-radius: 2px; }
+
+    /* Annotation toggle */
+    .annotations-hidden .annotation-tooltip { display: none; }
+    #annotation-toggle {
+      font-size: 0.8rem;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      background: #f0f0f0;
+      cursor: pointer;
+      margin-left: 0.75rem;
+    }
+    #annotation-toggle:hover { background: #e0e0e0; }
+    #annotation-toggle.active { background: #333; color: #fff; border-color: #333; }
+    #gallery-link {
+      display: inline-block; margin-right: 0.5rem; padding: 0.35rem 0.75rem;
+      border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem;
+      color: #333; text-decoration: none; background: #f5f5f5;
+    }
+    #gallery-link:hover { background: #e0e0e0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Wanted list - pending badge</h1>
+    <div>
+      <a href="/" id="gallery-link" title="Back to the gallery of all screens">⊞ Gallery</a>
+      <button id="annotation-toggle" class="active" title="Toggle annotation tooltips">Annotations</button>
+      <span id="status">Connected</span>
+    </div>
+  </header>
+
+  <nav class="screen-nav"><div class="nav-screens"><a href="/screen/want-detail-matching-pending" class="nav-screen">Want detail - matching pending</a><a href="/screen/want-detail-matching-slow" class="nav-screen">Want detail - matching slow</a><a href="/screen/want-detail-suggestions" class="nav-screen">Want detail - suggestions</a><a href="/screen/want-detail-matches-only" class="nav-screen">Want detail - matches only</a><a href="/screen/wanted-list-pending-badge" class="nav-screen active">Wanted list - pending badge</a></div><div class="nav-prevnext"><a href="/screen/want-detail-matches-only" class="nav-arrow">&larr; Want detail - matches only</a><span></span></div></nav>
+
+  <main id="mockup-container">
+    <style>
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Figtree:wght@400;600;700&display=swap');
+:root{--primary:#1b8168;--primary-fg:#117b63;--primary-soft:#dcf5ec;--accent:#a9c24f;--accent-soft:#eaf2ce;--accent-fg:#56701f;--cream:#f4f8f0;--line:#e2eadf;--line-strong:#cbdac7;--paper:#fff;--ink:#1e2e27;--ink-soft:#5c7069;--teal-soft:#d9ecec;--danger:#b23b3b;--danger-soft:#f6e4e2}
+body{background:#e7ede4}
+.phone{width:390px;max-width:100%;box-sizing:border-box;margin:24px auto;background:var(--cream);border-radius:32px;padding:20px 16px 28px;font-family:Figtree,system-ui,sans-serif;color:var(--ink);box-shadow:0 10px 40px rgba(0,0,0,.08);min-height:760px}
+.top{display:flex;justify-content:space-between;font-size:14px;margin-bottom:14px}.top a{color:var(--primary-fg);font-weight:700;text-decoration:none}
+h1{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;line-height:1.15;font-weight:800;margin:0}
+.sum{font-size:13px;color:var(--ink-soft);margin:6px 0 12px}
+.toggle{display:flex;justify-content:space-between;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:10px 14px;font-size:14px;margin-bottom:14px}
+.sw{width:40px;height:24px;border-radius:12px;background:var(--primary);position:relative}.sw:after{content:'';position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+h2{font-size:16px;font-weight:700;margin:4px 0 10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;list-style:none;padding:0;margin:0}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:20px;overflow:hidden;font-size:13px;position:relative}
+.thumb{aspect-ratio:1;background:linear-gradient(135deg,#d9ecec,#eaf2ce);display:flex;align-items:center;justify-content:center;font-size:40px}
+.cb{padding:8px 10px 10px}.name{font-weight:700;font-size:14px;margin-bottom:2px}.stan{color:var(--ink-soft);font-size:12px}
+.pill{display:inline-block;margin-top:6px;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;background:var(--primary-soft);color:var(--primary-fg)}
+.pill.swap{background:var(--accent-soft);color:var(--accent-fg)}
+.new{position:absolute;top:8px;left:8px;background:var(--primary);color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px}
+.missing{margin-top:6px;font-size:12px;color:var(--ink-soft)}.missing b{color:var(--ink);font-weight:700}
+.skel .thumb{background:var(--line);animation:p 1.2s infinite}.skel .bar{height:10px;border-radius:5px;background:var(--line);margin:6px 0;animation:p 1.2s infinite}
+@keyframes p{50%{opacity:.5}}
+.pending{display:flex;align-items:center;gap:10px;background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:14px;margin-bottom:14px;font-size:15px;font-weight:600}
+.spin{width:22px;height:22px;border-radius:50%;border:3px solid var(--primary-soft);border-top-color:var(--primary);animation:r 1s linear infinite;flex:none;box-sizing:border-box}@keyframes r{to{transform:rotate(360deg)}}
+.pending small{display:block;font-weight:400;color:var(--ink-soft);font-size:13px}
+.empty{display:flex;flex-direction:column;align-items:center;gap:10px;border:1.5px dashed var(--line-strong);background:var(--paper);border-radius:28px;padding:24px 20px;text-align:center}
+.bell{width:64px;height:64px;border-radius:24px;background:var(--accent-soft);color:var(--accent-fg);display:flex;align-items:center;justify-content:center;font-size:28px}
+.empty h3{font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:800;margin:0}.empty p{margin:0;color:var(--ink-soft);font-size:15px}
+.sugg{margin-top:22px;border-top:1px solid var(--line);padding-top:16px}
+.sugg h2{display:flex;gap:8px;align-items:center}.sugg .lead{font-size:13px;color:var(--ink-soft);margin:-4px 0 12px}
+.sugg .card{border-style:dashed;border-color:var(--line-strong)}
+.valid{font-size:13px;color:var(--ink-soft);margin:16px 0 10px}
+.btn{display:block;box-sizing:border-box;width:100%;border-radius:16px;padding:13px;font-weight:700;font-size:15px;text-align:center;border:1.5px solid var(--line-strong);background:var(--paper);color:var(--ink);margin-bottom:10px}
+.btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.row{display:flex;gap:10px}.row .btn{flex:1}.btn.danger{color:var(--danger)}
+.retry{font-size:13px;color:var(--primary-fg);font-weight:700;background:none;border:0;padding:0;margin-top:4px;cursor:pointer}
+.lh{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;margin:0 0 4px}
+.wc{background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:14px 16px;margin-bottom:10px;display:block;color:inherit;text-decoration:none}
+.wc .t{font-weight:700;font-size:16px}.wc .s{font-size:12px;color:var(--ink-soft);margin:2px 0 8px}
+.cnt{font-size:13px;font-weight:700;color:var(--primary-fg)}.cnt .new{position:static;margin-left:6px}
+.cnt.pend{display:flex;align-items:center;gap:6px;color:var(--ink-soft)}.cnt.pend .spin{width:14px;height:14px;border-width:2px}
+.add{background:var(--primary);color:#fff;border-radius:16px;padding:9px 16px;font-weight:700;font-size:14px;display:inline-block;margin:6px 0 16px}
+</style>
+<div id="mockup-content"><div class="phone"><h1 class="lh">Szukam</h1><a class="add">+ Dodaj poszukiwanie</a><a class="wc" href="#" data-screen="want-detail-matching-pending"><div class="t">kurtka zimowa</div><div class="s">Każda kategoria · Cała Polska</div><div class="cnt pend" role="status"><span class="spin" aria-hidden="true"></span>Szukamy…</div></a><a class="wc" href="#" data-screen="want-detail-suggestions"><div class="t">Traktor Bruder Claas</div><div class="s">Zabawki › Pojazdy · Cała Polska</div><div class="cnt" style="color:var(--ink-soft)">Jeszcze nic nie pasuje</div></a><a class="wc" href="#" data-screen="want-detail-matches-only"><div class="t">rowerek biegowy</div><div class="s">Rowery · Warszawa +10 km</div><div class="cnt">3 pasujące<span class="new">1 nowe</span></div></a></div></div>
+  </main>
+
+  <script>
+    // SSE client for live refresh. It must NOT hijack the user's location — during a
+    // multi-screen batch that would repeatedly yank the browser to the newest screen and
+    // make it impossible to browse the gallery. On the gallery/latest we reload in place
+    // (so new cards appear live); on an individual screen we show a dismissible toast so a
+    // reader is never interrupted mid-review.
+    const statusEl = document.getElementById('status');
+    const evtSource = new EventSource('/events');
+    function showRefreshToast() {
+      if (document.getElementById('refresh-toast')) return;
+      const t = document.createElement('button');
+      t.id = 'refresh-toast';
+      t.textContent = '↻ Screens updated — click to refresh';
+      t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;'
+        + 'background:#2563eb;color:#fff;border:0;border-radius:8px;padding:10px 16px;font:600 13px Inter,sans-serif;'
+        + 'cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35)';
+      t.onclick = function(){ window.location.reload(); };
+      document.body.appendChild(t);
+    }
+    evtSource.onmessage = function(e) {
+      if (e.data !== 'refresh') return;
+      if (window.location.pathname === '/' || window.location.pathname === '/latest') {
+        window.location.reload();
+      } else {
+        showRefreshToast();
+      }
+    };
+    evtSource.onopen = function() {
+      statusEl.textContent = 'Connected';
+      statusEl.className = '';
+    };
+    evtSource.onerror = function() {
+      statusEl.textContent = 'Reconnecting...';
+      statusEl.className = 'disconnected';
+    };
+
+    // Annotation overlay rendering
+    const annotations = [{"selector":".cnt.pend","text":"Replaces the match count while want.matching = true; the list polls with the same 2 s / 60 s rule"},{"selector":".cnt .new","text":"Existing new pill counts MATCH only; suggestions never counted"}];
+    function renderAnnotations() {
+      const container = document.getElementById('mockup-container');
+      annotations.forEach(function(ann) {
+        if (!ann.selector) return;
+        const target = container.querySelector(ann.selector);
+        if (!target) return;
+        const text = ann.note || ann.text || '';
+        if (!text) return;
+        const rect = target.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const tooltip = document.createElement('div');
+        tooltip.className = 'annotation-tooltip';
+        tooltip.textContent = text;
+        tooltip.style.top = (rect.bottom - containerRect.top + 6) + 'px';
+        tooltip.style.left = (rect.left - containerRect.left) + 'px';
+        container.appendChild(tooltip);
+      });
+    }
+    if (annotations.length > 0) requestAnimationFrame(renderAnnotations);
+
+    // Annotation toggle with localStorage persistence
+    var toggleBtn = document.getElementById('annotation-toggle');
+    var container = document.getElementById('mockup-container');
+    var annotationsVisible = localStorage.getItem('annotations-visible') !== 'false'; // default: true
+    function updateToggle() {
+      if (annotationsVisible) {
+        container.classList.remove('annotations-hidden');
+        toggleBtn.classList.add('active');
+      } else {
+        container.classList.add('annotations-hidden');
+        toggleBtn.classList.remove('active');
+      }
+    }
+    updateToggle();
+    toggleBtn.addEventListener('click', function() {
+      annotationsVisible = !annotationsVisible;
+      localStorage.setItem('annotations-visible', annotationsVisible);
+      updateToggle();
+    });
+
+    // Screen-to-screen navigation: clicking elements with data-screen="slug" navigates to that screen
+    document.getElementById('mockup-container').addEventListener('click', function(e) {
+      var target = e.target.closest('[data-screen]');
+      if (target) {
+        e.preventDefault();
+        window.location.href = '/screen/' + target.getAttribute('data-screen');
+      }
+    });
+  </script>
+</body>
+</html>

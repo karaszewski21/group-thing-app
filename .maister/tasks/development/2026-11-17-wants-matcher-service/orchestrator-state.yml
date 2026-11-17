@@ -1,0 +1,309 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases:
+  - phase-1
+  - phase-2
+  - phase-4
+  - phase-5
+  - phase-6
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    sequential: null
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: '2026-11-17T09:59:55Z'
+  updated: '2026-11-17T11:32:42Z'
+  task_path: .maister/tasks/development/2026-11-17-wants-matcher-service
+  task_ids: {}
+task:
+  title: Wydzielenie matchera Szukam do src/matcher + dwa poziomy dopasowań
+  description: 'Wydzielenie dopasowywania „Szukam” (wants) do osobnej aplikacji Python src/matcher (osobny kontener docker-compose) z kontraktem przez bazę (widok matchable_listings, funkcja can_see_listing,
+    NOTIFY wants_changed, want_matches.tier, outbox → powiadomienia w backendzie, osobny użytkownik bazy matcher) oraz dwa poziomy dopasowań: MATCH (wszystkie słowa po rdzeniu, prefiksowe tsquery + trigram
+    ~0.65) i SUGGESTION („Może Cię zainteresuje”, brakuje ≤1 słowa przy ≥2 wspólnych, bez dzwonka, ≤10). Front: stan „Szukamy…” i sekcja podpowiedzi z „brakuje: …”. Compose, runbook, architecture.md. Warunek
+    wydania 0099 obowiązuje.'
+  status: in_progress
+  tags:
+  - wants
+  - matcher
+  - search
+  - docker
+  priority: high
+task_context:
+  risk_level: medium-high
+  clarifications_resolved: true
+  scope_expanded: false
+  architecture_decision: Separate src/matcher (asyncpg raw SQL) over a DB contract in amended 0099; backend keeps API + bell rows via wants.bells_due outbox handler
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: phase-4-mockup-studio
+    product_design_path: null
+    mockup_count: 5
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  project_context:
+    project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+  phase_summaries:
+    codebase_analysis:
+      summary: Wants matching is one in-process SQL statement (app/wants/application/matcher.py) built from ORM models of six modules, run synchronously on create/update/resume and every 15 min via APScheduler;
+        none of the target DB contract exists yet.
+      key_files:
+      - src/backend/app/wants/application/matcher.py
+      - src/backend/app/wants/application/scan.py
+      - src/backend/app/wants/application/match_notifications.py
+      - src/backend/app/wants/application/writes.py
+      - src/backend/app/main.py
+      - src/backend/app/wants/models.py
+      - src/backend/app/wants/application/reads.py
+      - docker-compose.yml
+      - src/frontend/src/features/wanted/WantMatchesView.tsx
+      - src/frontend/src/hooks/useWantMatches.ts
+      primary_language: python
+      decisions:
+      - decision: Matcher uses raw SQL against a DB contract, not app.* imports
+        rationale: Importing app requires JWT_SECRET/DATABASE_URL and builds an engine at import
+      - decision: Visibility rule stays defined once (SQL function used by backend or parity test)
+        rationale: owner_shares_group_with is guarded by test_membership_definition_guard.py
+      - decision: Backend outbox handler writes bell rows
+        rationale: Slugs, message templates and 500-char cap live in Python
+      risks:
+      - Outbox dispatcher marks unhandled event types PROCESSED; pollers must split by event_types
+      - SUGGESTION tier per-lexeme counting is not served by GIN indexes; must be measured
+      - 0099 release gate (>=200 labelled pairs) must be re-run for new rules
+      artifacts:
+      - path: analysis/codebase-analysis.md
+        label: Codebase analysis
+        html: null
+    clarifications:
+      summary: Same DB and same login aj; MATCH bell via outbox (<=60 s OK); MATCH uses name only; late-takeable items stay a known limit.
+      decisions:
+      - decision: Same database, same login aj
+        rationale: User wants to focus on tables only
+      - decision: Bell via outbox, <=60 s latency accepted
+        rationale: Keeps message/slug rules in backend
+      - decision: MATCH counts name words only
+        rationale: Description words add noise
+      - decision: Late-takeable items out of scope
+        rationale: Known limit kept
+      risks: []
+      artifacts:
+      - path: analysis/clarifications.md
+        label: Clarifications
+        html: null
+    gap_analysis:
+      summary: 'None of the target pieces exist (tier, pending marker, view, SQL function, NOTIFY, stemming, matcher app, compose service, outbox handler). Typo check must be per word: whole-name 0.714
+        makes Traktor Bruder Claas a MATCH.'
+      integration_points:
+      - src/backend/alembic/versions/0099_wants.py
+      - src/backend/app/wants/application/writes.py
+      - src/backend/app/main.py
+      - src/backend/app/notifications/outbox_listener.py
+      - src/backend/app/wants/application/reads.py
+      - docker-compose.yml
+      - src/frontend/src/features/wanted/WantMatchesView.tsx
+      - src/frontend/src/hooks/useWantMatches.ts
+      decisions: []
+      risks:
+      - Whole-name trigram contradicts expected SUGGESTION example (0.714)
+      - Stem prefixes give false positives (Kurtyna, Legowisko); release gate must score final rules
+      - SQL visibility copy needs parity test or PRIVATE listings leak
+      - dispatch_pending commits even when a handler raises; wants handler must run in begin_nested()
+      - Backend has no healthcheck; matcher could start before migrations
+      artifacts:
+      - path: analysis/gap-analysis.md
+        label: Gap analysis
+        html: null
+    scope_clarifications:
+      scope_expanded: false
+      summary: All 15 decisions resolved; recommendations accepted except contract changes go into an amended 0099 instead of new 0100.
+      decisions:
+      - decision: Typo path per word, one threshold 0.65
+        rationale: Whole-name scoring misclassifies the Traktor example
+      - decision: Pending/queue via wants.match_requested_at + trigger NOTIFY
+        rationale: Durable queue and real pending signal for frontend
+      - decision: Forward matching in matcher; want-triggered matches born seen, no bell
+        rationale: Same behaviour as today
+      - decision: can_see_listing SQL function + backend parity test
+        rationale: Visibility stays effectively single-definition
+      - decision: 'Stemming in DB: stem_pl + generated stem_query/stem_words'
+        rationale: Rule lives with schema owner
+      - decision: Suggestions stored by matcher, wants with >=3 words, cap 10, no bell
+        rationale: Stable cap, cheap reads
+      - decision: Separate GET /wants/{id}/suggestions; counts MATCH only
+        rationale: Existing consumers unchanged
+      - decision: Frontend polls every 2 s up to ~60 s
+        rationale: Fast feedback, bounded polling
+      - decision: Expire/remind/purge in matcher; one wants.bells_due outbox event
+        rationale: Whole background lifecycle in one process; summed counts kept
+      - decision: Matcher waits for alembic_version at startup
+        rationale: No backend changes needed
+      - decision: SKIP LOCKED + advisory lock against duplicates
+        rationale: Second copy skips busy work
+      - decision: Matcher tests run backend alembic migrations
+        rationale: Always current schema
+      - decision: Amend 0099 instead of new 0100
+        rationale: User choice; 0099 not yet released
+      risks:
+      - Amending 0099 requires downgrade 0098 + upgrade head on existing DBs, deleting all wants data and WANT_* notifications
+      artifacts:
+      - path: analysis/scope-clarifications.md
+        label: Scope clarifications
+        html: null
+    ui_mockups:
+      summary: 'Five HTML mockups: pending, slow-pending, suggestions section with brakuje, matches-only result, list pending badge.'
+      format_used: html
+      components_designed:
+      - matching-status
+      - suggestion-card
+      decisions:
+      - decision: Suggestion cards reuse ItemCard with a dashed border and a brakuje line
+        rationale: Distinguish suggestions from matches without a new component
+      - decision: Slow state reuses the dashed empty card with Odswiez teraz
+        rationale: Consistent with activeEmpty
+      risks: []
+      artifacts:
+      - path: analysis/design-context/INDEX.md
+        label: Design index
+        html: null
+      - path: analysis/design-context/mockups/want-detail-matching-pending.html
+        label: 'Mockup: matching pending'
+        html: null
+      - path: analysis/design-context/mockups/want-detail-matching-slow.html
+        label: 'Mockup: matching slow'
+        html: null
+      - path: analysis/design-context/mockups/want-detail-suggestions.html
+        label: 'Mockup: suggestions'
+        html: null
+      - path: analysis/design-context/mockups/want-detail-matches-only.html
+        label: 'Mockup: matches only'
+        html: null
+      - path: analysis/design-context/mockups/wanted-list-pending-badge.html
+        label: 'Mockup: list pending badge'
+        html: null
+    design:
+      summary: 5 screens + 2 components indexed in analysis/design-context/INDEX.md; binding for implementation.
+      screen_count: 5
+      component_count: 2
+      index_path: analysis/design-context/INDEX.md
+      decisions: []
+      risks: []
+      artifacts: []
+    specification:
+      summary: 'Spec: 37 FRs (DB 7, BE 7, MT 9, MR 4, FE 7, OPS 3) and 10 acceptance criteria; matcher raw SQL over amended-0099 contract, MATCH/SUGGESTION rules, bells_due handler, /suggestions, frontend
+        states bound to 5 mockups.'
+      decisions:
+      - decision: 'short_words_query replaced: words <=4 chars become exact weight-A lexemes in stem_query, no typo path'
+        rationale: Prevents lego matching Legowisko
+      - decision: Startup gate checks revision >=99 AND matchable_listings exists
+        rationale: Amended 0099 keeps the same revision id
+      - decision: Window loop every 60 s with 2-min overlap; also stores suggestions
+        rationale: Low latency, harmless repeats
+      - decision: Suggestions fetched inside useWantMatches query
+        rationale: No new hook
+      - decision: Forward statement timeout 30 s, want stays flagged and is retried
+        rationale: No 503 path anymore
+      risks:
+      - Stem false positives
+      - Privacy parity of can_see_listing
+      - Cost of inlining the view
+      - Stale window pair
+      - Tokenizer vs ts-parser differences
+      - Starting suffix list is an assumption tuned by release gate
+      artifacts:
+      - path: implementation/spec.md
+        label: Specification
+        html: implementation/spec.html
+      - path: analysis/requirements.md
+        label: Requirements
+        html: null
+    spec_audit:
+      summary: Audit fail (1C/5H/6M/9L); all 21 findings resolved in spec revision 2 (41 FRs). Stop-words skipped (user). Added e/a-ending exception to 4-char exact rule (zime -> zim:*).
+      decisions:
+      - decision: Skip 24 Polish stop-words in words_pl
+        rationale: User decision (M3)
+      - decision: can_see_listing replaced by inlinable views group_holdings/private_group_peers
+        rationale: H1 inlining
+      - decision: Downgrade uses IF EXISTS + old-0099-shape test
+        rationale: C1
+      - decision: update_want locks the want row before deleting matches
+        rationale: H3
+      - decision: In-memory per-process backoff for failing wants
+        rationale: H4
+      - decision: Short words ending in e/a with >=3 chars before are stemmed
+        rationale: kurtka na zime -> Kurtka zimowa must MATCH
+      risks:
+      - 'resolved: C1 amended 0099 downgrade from new image fails on old-0099 DBs (needs IF EXISTS or old-image downgrade)'
+      - 'resolved: H1 can_see_listing with subquery cannot inline'
+      - 'resolved: H2 PRIVATE rule/parity cases incomplete; bells leak product names'
+      - 'resolved: H3 edit during matcher run leaves stale pairs (DELETE before row lock)'
+      - 'resolved: H4 failing want blocks queue'
+      - 'resolved: H5 unqualified function calls break pg_dump restore of generated columns'
+      - 'resolved: M3 stopwords na/dla count as want words'
+      - Short-word e/a exception refines the user 4-char rule; release gate scores it
+      artifacts:
+      - path: verification/spec-audit.md
+        label: Spec audit
+        html: null
+      - path: implementation/spec.md
+        label: Specification rev 2
+        html: implementation/spec.html
+    planning:
+      summary: 11 task groups, 83 steps; critical path 1-2-3-6-9-10-11; matcher track 4-5 parallel to backend 2-3; frontend 7-8 after 2. Full visual coverage 7/7.
+      decisions:
+      - decision: Backend deletions held until Group 3
+        rationale: Keep backend importable after Group 2
+      - decision: Local DB downgrade/upgrade (10.5) gated on explicit user approval
+        rationale: Deletes all wants data
+      risks:
+      - Group 5 per-word SQL / suggestion cap most uncertain
+      - Groups 1,2,5,6 exceed 2-8 tests (spec-mandated)
+      artifacts:
+      - path: implementation/implementation-plan.md
+        label: Implementation plan
+        html: implementation/implementation-plan.html
+      - path: implementation/visual-coverage.md
+        label: Visual coverage
+        html: null
+  design_resources:
+    ran: true
+    found_any: true
+    standards:
+    - path: .maister/docs/standards/frontend/components.md
+      topic: components
+    - path: .maister/docs/standards/frontend/accessibility.md
+      topic: a11y
+    - path: .maister/docs/standards/frontend/responsive.md
+      topic: responsive
+    - path: .maister/docs/standards/frontend/css.md
+      topic: css
+    - path: .maister/docs/standards/frontend/data-fetching.md
+      topic: polling
+    design_system:
+    - kind: css-var
+      path: src/frontend/src/app/globals.css
+      note: '@theme static tokens'
+    - kind: component-lib
+      path: src/frontend/src/components/shared/ItemCard.tsx
+      note: match tile
+    skill_hints: []
+  tech_clarified: true
