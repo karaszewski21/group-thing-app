@@ -20,6 +20,7 @@ from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.types import Text
 
 from app.core.auth_deps import Principal
+from app.db import TRANSACTION_CONFLICTS
 
 from ..domain import messages
 from ..domain.lifecycle import WantAction, auto_extension_due, new_expiry, refusal
@@ -28,6 +29,7 @@ from ..domain.status import WantStatus
 from ..domain.validation import clean_name, clean_note, clean_radius
 from ..infrastructure import (
     category_acl,
+    embeddings_acl,
     locations_acl,
     moderation_acl,
     notifications_acl,
@@ -35,12 +37,8 @@ from ..infrastructure import (
 )
 from ..models import Want, WantMatch
 from ..schemas import CreateWantRequest, UpdateWantRequest, WantResponse
-from . import reads
+from . import embeddings, reads
 from .errors import ActiveWantCapReached, WantActionRefused, WantMatchNotFound, WantNotFound
-
-# Deadlock detected and serialization failure: the transaction lost to a
-# concurrent one (e.g. the matcher service) and is safe to try again.
-TRANSACTION_CONFLICTS = frozenset({"40P01", "40001"})
 
 
 async def _check_texts(name: str, note: str | None, *, stored: Want | None = None) -> None:
@@ -151,12 +149,14 @@ async def _drop_unread_match_row(db: AsyncSession, want: Want) -> None:
 async def create_want(
     db: AsyncSession, principal: Principal, data: CreateWantRequest, *, now: datetime
 ) -> WantResponse:
-    """No database statement runs before the text checks. The new want is
-    flagged for a matching run."""
+    """No database statement runs before the text checks and the embed of
+    the name. The new want is flagged for a matching run, and its vector,
+    or on a miss a retry, is written in the same commit."""
     name = clean_name(data.name)
     note = clean_note(data.note)
     radius_km = clean_radius(data.radius_km, has_locality=data.locality_id is not None)
     await _check_texts(name, note)
+    vectors = await embeddings_acl.embed_queries([name])
     caller = await users_acl.get_caller_profile(db, principal)
     async with _mapped_database_errors(db):
         await _ensure_name_has_word(db, name)
@@ -179,6 +179,7 @@ async def create_want(
         db.add(want)
         await db.flush()
         want_id = cast(uuid.UUID, want.id)
+        await embeddings.store_or_stage(db, want_id, vectors, now=now)
         response = await reads.load_want(db, caller.party_id, want_id)
         await db.commit()
     return response
@@ -195,14 +196,17 @@ async def update_want(
     """The rules apply to the state after the edit. Clearing the locality
     clears the radius; an unchanged category or locality is not looked up
     again. A changed name, category, offer mode, locality or radius drops
-    the stored matches of both tiers and the unread match bell row and flags
+    the stored matches of every tier and the unread match bell row and flags
     the want for a new matching run; the note and the notification switch
     do not.
 
     The text checks and lookups run on an unlocked read, so the classifier
     never holds the row lock. The want is then locked, so a matcher run in
     progress is waited for and the pairs it stored are deleted too; a seeker
-    write committed in between (a changed `updated_at`) is the shared 409."""
+    write committed in between (a changed `updated_at`) is the shared 409.
+    A changed name is embedded on the unlocked read too; its vector, or on a
+    miss the deletion of the old one, is written under the lock. Other edits
+    keep the vector."""
     caller = await users_acl.get_caller_profile(db, principal)
     async with _mapped_database_errors(db):
         want = await _own_want(db, caller.party_id, want_id)
@@ -221,12 +225,14 @@ async def update_want(
             locality_cleared=want.locality_id is not None and locality_id is None,
         )
         await _check_texts(name, note, stored=want)
-        if name != want.name:
+        renamed = name != want.name
+        if renamed:
             await _ensure_name_has_word(db, name)
         if category_id != want.category_id:
             await _ensure_category_exists(db, category_id)
         if locality_id != want.locality_id:
             await _ensure_locality_exists(db, locality_id)
+        vectors = await embeddings_acl.embed_queries([name]) if renamed else None
 
         want = await _own_want(db, caller.party_id, want_id, for_update=True)
         if want.updated_at != read_version:
@@ -245,6 +251,8 @@ async def update_want(
             await db.execute(delete(WantMatch).where(WantMatch.want_id == want_id))
             await _drop_unread_match_row(db, want)
             want.match_requested_at = now
+        if renamed:
+            await embeddings.store_or_stage(db, want_id, vectors, now=now, replaces=True)
         want.name = name
         want.note = note
         want.category_id = category_id

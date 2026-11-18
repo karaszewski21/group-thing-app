@@ -1,0 +1,388 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases:
+  - phase-1
+  - phase-2
+  - phase-4
+  - phase-5
+  - phase-6
+  - phase-7
+  - phase-8
+  - phase-10
+  - phase-11
+  - phase-12
+  - phase-13
+  - phase-14
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    sequential: false
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: '2026-11-18T10:03:47Z'
+  updated: '2026-11-18T17:23:01Z'
+  task_path: .maister/tasks/development/2026-11-18-wants-semantic-similar-tier
+  task_ids: {}
+task:
+  title: Semantic SIMILAR tier for Szukam (embeddings + pgvector)
+  description: 'Implement the research outcome: add semantic matching to the Szukam matcher with a small embedding model (mmlw-roberta-base int8 ONNX in the API process) and pgvector halfvec side tables, as a bell-less third tier SIMILAR shown under „Powiązane rzeczy”. Research question: How should the Szukam matcher add semantic matching with a small embedding model and pgvector, so that synonyms and close meanings match, and what does it cost?'
+  status: completed
+  tags:
+  - wants
+  - matcher
+  - embeddings
+  - pgvector
+  priority: null
+task_context:
+  risk_level: high
+  clarifications_resolved: true
+  scope_expanded: false
+  architecture_decision: Research ADR-001..009 (DB contract, API-process embedder, halfvec side tables, exact scan, bell-less SIMILAR tier)
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: .maister/tasks/research/2026-11-18-wants-semantic-embeddings
+    research_question: How should the Szukam matcher add semantic matching with a small embedding model and pgvector, so that synonyms and close meanings match, and what does it cost?
+    research_type: mixed
+    confidence_level: medium
+  design_reference:
+    source: phase-4
+    product_design_path: null
+    mockup_count: 3
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  project_context:
+    project_doc_paths:
+    - .maister/docs/project/tech-stack.md
+    - .maister/docs/project/architecture.md
+  phase_summaries:
+    research:
+      summary: 'Option A chosen: mmlw-roberta-base int8 ONNX in the API process, halfvec(768) side tables product_embeddings/want_embeddings, exact scan without HNSW, bell-less born-seen SIMILAR tier capped at 10 run last in the asyncpg matcher; sync best-effort writer + outbox retry + reconcile sweep; revisions 0100_pgvector + 0101_want_similar on pgvector/pgvector:0.8.7-pg18-trixie; offline >=300-pair gate then shadow via later web deploy; UI section Powiązane rzeczy + GET /api/wants/{id}/similar.'
+      key_findings:
+      - 'Hard-negative AUC 0.50-0.73 for all small models: embeddings show related items, never ring a bell'
+      - 768-d vector is TOASTed (50x slower), halfvec avoids it; HNSW drops filtered rows, exact scan is fast at this scale
+      - 'No separate worker: embedder and outbox poller run in the API process; vector timing decides correctness'
+      recommended_approach: High-level design in analysis/research-context/high-level-design.md with ADR-001..009 in decision-log.md
+      decisions_made: []
+      decisions: []
+      risks:
+      - Quality on real names unproven; held-out no-go drops the tier
+      - VPS A capacity unmeasured
+      - Separate web deploy assumed, not verified
+      artifacts:
+      - path: analysis/research-context/research-report.md
+        label: Research report
+        html: null
+      - path: analysis/research-context/high-level-design.md
+        label: High-level design
+        html: null
+      - path: analysis/research-context/decision-log.md
+        label: Decision log
+        html: null
+      - path: analysis/research-context/solution-exploration.md
+        label: Solution exploration
+        html: null
+    design:
+      summary: 'Phase 4 mockups: 3 screens + 2 components in analysis/design-context/INDEX.md'
+      screen_count: 3
+      component_count: 2
+      index_path: analysis/design-context/INDEX.md
+    codebase_analysis:
+      summary: 'All I1-I15 anchors exist; SUGGESTION tier is the line-by-line template. Real refactors: matcher _statement/_LIMITS are word-specific, window counts SIMILAR as suggestions, matchable_listings lacks product_id so the embedding join lives in the recreated view.'
+      primary_language: Python + TypeScript
+      key_files:
+      - src/backend/alembic/versions/0099_wants.py
+      - src/matcher/matcher/statements.py
+      - src/matcher/matcher/window.py
+      - src/backend/app/wants/application/writes.py
+      - src/backend/app/wants/application/reads.py
+      - src/backend/app/product/service.py
+      - src/backend/app/main.py
+      - src/backend/app/moderation/onnx_models.py
+      - src/frontend/src/features/wanted/WantMatchesView.tsx
+      decisions: []
+      risks:
+      - list_wants(matched_item_id) is tier-agnostic
+      - reconcile job breaks test_wants_scan_removed jobs list
+      - unfiltered dispatch_pending tests will process embeddings.requested rows
+      - no int8 quantize step in Dockerfile yet
+      artifacts:
+      - path: analysis/codebase-analysis.md
+        label: Codebase analysis
+        html: null
+      - path: analysis/clarifications.md
+        label: Clarifications
+        html: null
+    clarifications:
+    - 'Scope: everything incl. frontend; shadow by deploy order'
+    - SEMANTIC_SIMILARITY_MIN provisional 0.86 (probe best-F1), release gate re-scores
+    - Dockerfile models stage with int8 + parity gate in scope
+    - pgvector/pgvector:0.8.7-pg18-trixie in compose + both conftests
+    gap_analysis:
+      summary: Additive, high-risk, strict-compatibility change across DB contract, backend, matcher and one UI section; 1 critical decision (list_wants tier filter) and 6 important ones.
+      integration_points:
+      - I1-I15 per high-level-design
+      decisions: []
+      risks:
+      - 'list_wants(matched_item_id) is tier-blind: SIMILAR would be visible to users during shadow mode unless filtered'
+      - First backfill moves changed_at on ~50k listings
+      artifacts:
+      - path: analysis/gap-analysis.md
+        label: Gap analysis
+        html: null
+    scope_clarifications:
+      scope_expanded: false
+      summary: C1 SIMILAR excluded from list_wants(matched_item_id); APScheduler 1-min sweep; sweep covers existing products and resumed wants; EMBEDDING_MODEL_ID constant + drift test; drain backfill before matcher deploy; lead copy set.
+      decisions:
+      - decision: list_wants(matched_item_id) counts MATCH+SUGGESTION only
+        rationale: Shadow stays invisible
+      - decision: Reconcile sweep as APScheduler 1-min job
+        rationale: Matches existing jobs
+      - decision: Existing products and resumed wants rely on the sweep
+        rationale: No hot-path reads
+      - decision: EMBEDDING_MODEL_ID backend constant + loader check + AST drift test
+        rationale: Pinned tuple testable in CI
+      - decision: Drain backfill before matcher deploy
+        rationale: Clean shadow metrics
+      - decision: 'Lead: Rzeczy o podobnym znaczeniu — mogą Ci się przydać.'
+        rationale: Promises related, not same
+      risks: []
+      artifacts:
+      - path: analysis/scope-clarifications.md
+        label: Scope clarifications
+        html: null
+    ui_mockups:
+      components_designed:
+      - SimilarSection
+      - SimilarCard
+      summary: 3 HTML screens (active, activeEmpty, matching) showing „Powiązane rzeczy” after „Może Cię zainteresuje”, dashed ItemCard tiles without footnote; format html.
+      decisions:
+      - decision: SimilarCard reuses ItemCard dashed without footnote
+        rationale: Related, not exact; matches suggestion styling
+      risks: []
+      artifacts:
+      - path: analysis/design-context/INDEX.md
+        label: Design index
+        html: null
+      - path: analysis/design-context/mockups/want-detail-active-with-matches-suggestions-and-related.html
+        label: 'Mockup: active'
+        html: analysis/design-context/mockups/want-detail-active-with-matches-suggestions-and-related.html
+      - path: analysis/design-context/mockups/want-detail-no-matches-only-related-items.html
+        label: 'Mockup: empty'
+        html: analysis/design-context/mockups/want-detail-no-matches-only-related-items.html
+      - path: analysis/design-context/mockups/want-detail-matching-in-progress-with-related-items.html
+        label: 'Mockup: matching'
+        html: analysis/design-context/mockups/want-detail-matching-in-progress-with-related-items.html
+    specification:
+      summary: 25 requirements, 15 reusable and 8 new components, 7 test groups; EMBEDDINGS_ENABLED + EMBEDDINGS_MODEL_DIR, pinned EMBEDDING_MODEL_ID tuple with one drift test, halfvec via CAST text, unmapped side tables, name change without fresh vector deletes it, no new auth row, full runbook text.
+      decisions:
+      - decision: Settings EMBEDDINGS_ENABLED (false) + EMBEDDINGS_MODEL_DIR (/models/embed)
+        rationale: Independent of moderation (ADR-009)
+      - decision: EMBEDDING_MODEL_ID pinned in service.py, Dockerfile ARGs, matcher rules.py; one drift test
+        rationale: Threshold valid only for one tuple
+      - decision: halfvec bound as CAST(:embedding AS halfvec); no pgvector package
+        rationale: Minimal deps
+      - decision: Name change without fresh vector deletes the stored vector
+        rationale: Never match a stale meaning
+      - decision: Locks FOR NO KEY UPDATE SKIP LOCKED per sub-batch of 32
+        rationale: No blocking of item inserts
+      - decision: WantSimilarResponse = {id,title,href,meta,reserved_by_me,proposed_by_me}
+        rationale: Suggestion card minus missing_words
+      risks:
+      - 0.86 from 41 positives; release needs >=300-pair gate
+      - <HF_COMMIT_SHA> must be resolved at implementation
+      - 'Old backend image cannot start at >=0100 (alembic upgrade head fails): no image-only backend rollback'
+      - Forward SIMILAR cost depends on planner pushdown; EXPLAIN required
+      artifacts:
+      - path: analysis/requirements.md
+        label: Requirements
+        html: null
+      - path: implementation/spec.md
+        label: Specification
+        html: implementation/spec.html
+    architecture_decision:
+      decision: Research ADR-001..009
+      summary: No new technical round; approaches fixed by research
+    spec_audit:
+      summary: 'pass-with-concerns (0 critical, 1 high, 6 medium, 11 low); all fixed in the spec revision: SIMILAR-only re-trigger via wants.similar_requested_at, handlers wait / sweep skips, stop matcher before alembic, carve-outs approved, single-worker embed executor.'
+      decisions:
+      - decision: Background re-triggers set similar_requested_at and run FORWARD_SIMILAR only
+        rationale: 'H1: no born-seen lexical pairs, no lost bells'
+      - decision: Handlers FOR NO KEY UPDATE wait; sweep SKIP LOCKED
+        rationale: 'M2: retry never lost'
+      - decision: Stop matcher, compose run alembic upgrade 0100 then head, up -d
+        rationale: 'M5: 5 s lock_timeout'
+      - decision: Side-table standards carve-outs approved
+        rationale: want_scan_markers precedent; standards-update when shipping
+      risks:
+      - At matcher deploy every ACTIVE want carries a SIMILAR flag to drain
+      - Handler can wait up to the matcher forward transaction
+      artifacts:
+      - path: verification/spec-audit.md
+        label: Spec audit
+        html: null
+      - path: implementation/spec.md
+        label: Specification (revised)
+        html: implementation/spec.html
+    implementation_planning:
+      summary: 13 groups, 89 steps, ~64-74 tests; waves from dependencies (G1, G9 start; G2 after G1; G3/G4/G6 parallel; G7 after G1+G2; G8 after G7; G10 after G9; G11 after G2+G7; G12/G13 last). Visual coverage 5/5.
+      decisions:
+      - decision: 13 groups mapped to spec test groups plus lifespan, infra, docs, test review
+        rationale: 2-8 tests per group, parallel layers
+      - decision: HF_COMMIT_SHA resolved once in step 2.2
+        rationale: Same value in three places
+      - decision: Real Docker models-stage build verified out of band (11.6)
+        rationale: Network/time bound
+      risks:
+      - HF API unreachable in 2.2 blocks the real SHA
+      - Docker + pgvector image must be pullable
+      - Forward SIMILAR EXPLAIN vs 150 ms target
+      - Lock-wait handler test could be flaky
+      artifacts:
+      - path: implementation/implementation-plan.md
+        label: Implementation plan
+        html: implementation/implementation-plan.html
+      - path: implementation/visual-coverage.md
+        label: Visual coverage
+        html: null
+    implementation:
+      summary: 13 groups / 89 steps done in 5 waves; ~71 new tests; full suites at baseline (backend 2 / vitest 33 known failures, mypy 15, ruff 65). One cross-group defect (SIMILAR taking lexical candidates) fixed with a lexical exclusion.
+      decisions:
+      - decision: SIMILAR excludes any lexical MATCH/SUGGESTION candidate (forward and window)
+        rationale: No lost bells on SIMILAR-only re-runs
+      - decision: MatMul-only QInt8 quantization
+        rationale: Plain QInt8 parity 0.9895 failed the 0.99 gate; MatMul-only 0.9904
+      - decision: Public is_busy() in app/embeddings
+        rationale: Callers no longer read private _stuck
+      risks:
+      - Parity margin thin (0.9904 vs 0.99)
+      - Full-image docker build with hf_token not run
+      - 'Untracked 0102 (other change) chains after 0101: release order to decide'
+      - Flaky backend run when suites run in parallel (0102 change's finally-blocks)
+      artifacts:
+      - path: implementation/work-log.md
+        label: Work log
+        html: null
+      - path: implementation/full-suite-results.md
+        label: Full suite results
+        html: null
+      - path: implementation/implementation-plan.md
+        label: Implementation plan (checked)
+        html: implementation/implementation-plan.html
+    e2e:
+      summary: 'GO: 9/9 scenarios passed on an isolated pgvector stack; visual fidelity 5/5 match; /similar contract and 404/401 checked; teardown clean.'
+      decisions: []
+      risks:
+      - Reserved captions not exercised live (unit-tested)
+      - /similar still returns rows for FULFILLED wants (UI hides, same as /suggestions)
+      - Next 16.4.4 security advisory noted by CLI (out of scope)
+      artifacts:
+      - path: verification/e2e-verification-report.md
+        label: E2E report
+        html: verification/e2e-verification-report.html
+      - path: verification/visual-fidelity.md
+        label: Visual fidelity
+        html: verification/visual-fidelity.html
+    user_docs:
+      summary: One-page Polish user guide for Powiązane rzeczy with 5 reused E2E screenshots.
+      decisions: []
+      risks:
+      - Screenshots contain a dev overlay badge; re-capture for publication
+      - Expired-want hiding stated from spec/unit tests, not live E2E
+      artifacts:
+      - path: documentation/user-guide.md
+        label: User guide
+        html: null
+  design_resources:
+    ran: true
+    standards:
+    - path: .maister/docs/standards/frontend/components.md
+      topic: components
+    - path: .maister/docs/standards/frontend/accessibility.md
+      topic: a11y
+    - path: .maister/docs/standards/frontend/responsive.md
+      topic: responsive
+    - path: .maister/docs/standards/frontend/css.md
+      topic: css
+    design_system:
+    - kind: tailwind
+      path: src/frontend/src/app/globals.css
+      note: '@theme static color roles + fonts'
+    - kind: component-lib
+      path: src/frontend/src/components/shared/ItemCard.tsx
+      note: dashed/footnote/reservedCaption
+    skill_hints: []
+    found_any: true
+  tech_clarified: true
+verification_context:
+  last_status: failed
+  issues_found:
+  - C1 Labelled-sample release gate not run; 0.86 provisional
+  - C2 Production image never built with hf_token
+  - W1 SIMILAR row blocks later lexical MATCH after product re-point (lost bell)
+  - W2 /similar failure breaks the whole want page
+  - W3 models stage unpinned quantizer, no weight hash; parity margin +0.0004
+  - W4 handlers/reconcile embed while holding row lock
+  - 'W5 single embed worker: writes queue behind reconcile batches'
+  - W6 one try around both reconcile sides
+  - W7 matcher param layout differs per tier
+  - W8 product vs want embedding modules drift
+  - 'W9 runbook: re-flag ACTIVE wants after matcher deploy'
+  - 'W10 runbook: model-change re-flag'
+  - W11 dangling 0102 references in architecture.md
+  - W12 suites ran on tree with withdrawn 0102 - re-run
+  - W13 standards stale postgres:18 + carve-out unrecorded
+  - W14 model load failure stops API; runbook flip flag after verify
+  - W15 VPS A unmeasured; step 0b ordering
+  - W16 no collation pre-check / fix path
+  - W17 web must not run ahead of backend / no UI switch
+  fixes_applied:
+  - W1 SIMILAR upgraded in place by later lexical hit
+  - W2 /similar failure falls back to empty
+  - W3 models stage pinned + model.sha256
+  - W4 embed without row lock
+  - W5 reconcile batch 8
+  - W6 per-side reconcile try
+  - W7 fixed param layout
+  - W8 modules aligned
+  - W9/W10 runbook re-flag steps
+  - W11 0102 refs removed
+  - W14 flag flip after health check
+  - W15 VPS A step 1b
+  - W16 OS/collation checks
+  - W17 web freeze
+  - I1 now after embed
+  - I3 docstrings
+  - I4 non-finite miss
+  - I5 always-on 0101 check
+  - P-L1..L4 cleanups
+  - S1 spec/.env.example
+  - N1 flush before vector write
+  - R-N1 runbook 7b/7c threshold change
+  - R-N2 pre-semantic tags + never-up
+  - RR-1 rollback re-flag
+  - CR-N3/N4/N5/N7 tests, 2 s timeout, keep previous similar, expiry re-check
+  - P-R1/N1/L5 Statement, shared ReconcileResult, dedup
+  - Spec/ADR drift amended
+  - --no-build on shadow up steps
+  - Release gate rescoped to before step 8
+  decisions_made:
+  - Fix all fixable issues
+  - W1 upgrade in place (reverses never-upgraded)
+  - W13 deferred to standards-update
+  - 'Cycle 2: fix all fixable'
+  - Release gate rescoped to before step 8 (web)
+  - Proceed with C1/C2 as operator steps
+  reverify_count: 2

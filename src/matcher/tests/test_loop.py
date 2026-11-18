@@ -173,7 +173,7 @@ def test_backoff_doublesFromTheStart_cappedAtTheMax_clearedOnSuccess() -> None:
     assert backoff.failed(want_id, now) == (1, now + rules.BACKOFF_START)
 
 
-async def test_waitForContract_waitsForTheRevisionAndTheView(
+async def test_waitForContract_waitsForTheRevisionTheViewAndTheTables(
     db: asyncpg.Pool, settings: Settings, caplog: pytest.LogCaptureFixture
 ) -> None:
     name = f"gate_{uuid.uuid4().hex[:12]}"
@@ -194,6 +194,17 @@ async def test_waitForContract_waitsForTheRevisionAndTheView(
             await asyncio.sleep(0.3)
             assert not gate.done()
             await empty.execute("UPDATE alembic_version SET version_num = '0099'")
+            await asyncio.sleep(0.3)
+            assert not gate.done()
+            await empty.execute("UPDATE alembic_version SET version_num = '0100'")
+            await asyncio.sleep(0.3)
+            assert not gate.done()
+            await empty.execute(
+                "CREATE TABLE product_embeddings (product_id uuid);"
+                "CREATE TABLE want_embeddings (want_id uuid);"
+                "CREATE TABLE wants (id uuid, similar_requested_at timestamp);"
+                "UPDATE alembic_version SET version_num = '0101'"
+            )
 
             await asyncio.wait_for(gate, timeout=5)
         finally:
@@ -205,6 +216,7 @@ async def test_waitForContract_waitsForTheRevisionAndTheView(
     messages = [record.getMessage() for record in caplog.records]
     assert any("no alembic_version" in message for message in messages)
     assert any("0098" in message for message in messages)
+    assert any("0100 is before 0101" in message for message in messages)
     assert all(record.levelname == "INFO" for record in caplog.records)
     assert all(gate_settings.dsn not in message for message in messages)
 

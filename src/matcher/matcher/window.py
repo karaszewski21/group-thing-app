@@ -22,7 +22,8 @@ another copy is skipped), in two transactions with the statement limits:
    `WINDOW_MAX_LISTINGS` listings wait after the marker, the `changed_at`
    of the last of the first `WINDOW_MAX_LISTINGS` (a capped run: the loop
    starts the next one at once, so a backlog drains over several runs). It
-   stages the bells of the MATCH pairs and moves the marker by
+   stages the bells of the MATCH pairs (SUGGESTION and SIMILAR pairs ring
+   none) and moves the marker by
    compare-and-set: `scanned_through` to `end`, `updated_at` to now (also
    the liveness signal); a miss is a lost race and rolls the match back."""
 
@@ -84,6 +85,7 @@ class WindowRun:
     capped: bool
     matches: int
     suggestions: int
+    similar: int
     outbox_rows: int
     expired: int
     reminded: list[uuid.UUID]
@@ -105,6 +107,7 @@ class _Match:
     capped: bool
     matches: int
     suggestions: int
+    similar: int
     outbox_rows: int
 
 
@@ -174,7 +177,16 @@ async def _match(connection: asyncpg.Connection, now: datetime) -> _Match:
         matches = [(pair.want_id, pair.item_id) for pair in pairs if pair.tier == "MATCH"]
         outbox_rows = await outbox.stage_bells_due(connection, pairs=matches, expiring=[])
         await _move_marker(connection, marker, end, now)
-    return _Match(start, end, capped, len(matches), len(pairs) - len(matches), outbox_rows)
+    tiers = [pair.tier for pair in pairs]
+    return _Match(
+        start,
+        end,
+        capped,
+        len(matches),
+        tiers.count("SUGGESTION"),
+        tiers.count("SIMILAR"),
+        outbox_rows,
+    )
 
 
 async def _unlock(connection: asyncpg.Connection) -> None:
@@ -209,6 +221,7 @@ async def run_window(pool: asyncpg.Pool, *, now: datetime) -> WindowRun | None:
         capped=match.capped,
         matches=match.matches,
         suggestions=match.suggestions,
+        similar=match.similar,
         outbox_rows=sweep.outbox_rows + match.outbox_rows,
         expired=sweep.expired,
         reminded=sweep.reminded,
@@ -230,17 +243,24 @@ async def run_logged(pool: asyncpg.Pool) -> bool:
     if run is None:
         return False
     did_work = bool(
-        run.capped or run.matches or run.suggestions or run.expired or run.reminded or run.purged
+        run.capped
+        or run.matches
+        or run.suggestions
+        or run.similar
+        or run.expired
+        or run.reminded
+        or run.purged
     )
     logger.log(
         logging.INFO if did_work else logging.DEBUG,
-        "window run: start=%s end=%s capped=%s matches=%d suggestions=%d outbox_rows=%d "
-        "expired=%d reminded=%d purged=%d duration_ms=%d",
+        "window run: start=%s end=%s capped=%s matches=%d suggestions=%d similar=%d "
+        "outbox_rows=%d expired=%d reminded=%d purged=%d duration_ms=%d",
         run.start.isoformat(),
         run.end.isoformat(),
         run.capped,
         run.matches,
         run.suggestions,
+        run.similar,
         run.outbox_rows,
         run.expired,
         len(run.reminded),

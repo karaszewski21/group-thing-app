@@ -9,6 +9,15 @@ SUGGESTION_CAP = 10
 WORD_SIMILARITY_MIN = 0.65
 SHORT_WORD_MAX_CHARS = 4
 
+# The SIMILAR tier. The threshold is provisional and holds only for the pinned
+# model tuple below: it is set by the release gate (the labelled Polish
+# sample), and a new `EMBEDDING_MODEL_ID` needs a new threshold. The id is
+# the backend's `app/embeddings/service.py` constant
+# (`tests/test_constants_drift.py`).
+SEMANTIC_SIMILARITY_MIN = 0.86
+SEMANTIC_CAP = 10
+EMBEDDING_MODEL_ID = "sdadas/mmlw-roberta-base@bdeb29a43c3d58af1e6ed9d1836703a1ddfbe1d7+int8"
+
 REMINDER_LEAD = timedelta(days=7)
 RETENTION = timedelta(days=30)
 

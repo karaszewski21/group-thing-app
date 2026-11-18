@@ -22,6 +22,7 @@ from ..schemas import (
     UpdateWantRequest,
     WantMatchResponse,
     WantResponse,
+    WantSimilarResponse,
     WantSuggestionResponse,
 )
 
@@ -93,6 +94,13 @@ async def list_suggestions(
     want_id: uuid.UUID, db: DbSession, principal: ReadPrincipal, storage: Storage
 ) -> list[WantSuggestionResponse]:
     return await reads.list_suggestions(db, principal, want_id, storage)
+
+
+@router.get("/{want_id}/similar", response_model=list[WantSimilarResponse])
+async def list_similar(
+    want_id: uuid.UUID, db: DbSession, principal: ReadPrincipal, storage: Storage
+) -> list[WantSimilarResponse]:
+    return await reads.list_similar(db, principal, want_id, storage)
 
 
 @router.post("/{want_id}/matches/seen", response_model=WantResponse)

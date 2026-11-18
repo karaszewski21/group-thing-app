@@ -48,9 +48,9 @@ This document describes the technology choices and rationale for **aj** — a pl
 
 ### Wants matcher (`src/matcher`, project `aj-matcher`)
 - **Purpose**: the separate matching process of the wants feature (`python -m matcher`, compose service `matcher`); see `project/architecture.md`, Wants.
-- **Runtime**: Python >=3.12, **asyncpg (0.31.0) is the only runtime dependency** (raw SQL over the backend's DB contract from migration 0099; no SQLAlchemy, no FastAPI, no import from `app.*`).
+- **Runtime**: Python >=3.12, **asyncpg (0.31.0) is the only runtime dependency** (raw SQL over the backend's DB contract from migrations 0099 and 0100–0101, the SIMILAR tier comparing the stored `halfvec` vectors in SQL; no SQLAlchemy, no FastAPI, no import from `app.*`).
 - **Own project files**: `pyproject.toml`, `uv.lock` and `Dockerfile` (`python:3.12-slim` + uv, no secrets), independent of `src/backend`.
-- **Dev tools**: pytest + pytest-asyncio + testcontainers (a `postgres:18` container migrated with the backend's Alembic, so `alembic`/`sqlalchemy` are dev-only pins), ruff, mypy `strict = true` with `asyncpg-stubs`. Commands in `project/architecture.md` (Wants, **Matcher commands**).
+- **Dev tools**: pytest + pytest-asyncio + testcontainers (a `pgvector/pgvector:0.8.7-pg18-trixie` container migrated with the backend's Alembic, so `alembic`/`sqlalchemy` are dev-only pins), ruff, mypy `strict = true` with `asyncpg-stubs`. Commands in `project/architecture.md` (Wants, **Matcher commands**).
 
 ### Frontend (`src/frontend`)
 
@@ -85,7 +85,7 @@ This document describes the technology choices and rationale for **aj** — a pl
 
 #### Backend
 
-pytest + pytest-asyncio against a real PostgreSQL 18 started by `testcontainers` (Docker required, `alembic upgrade head` once per session); see `standards/testing/backend-testing.md`. During the Java-to-Python migration the verticals were verified with manual live-uvicorn + real-Postgres scripts; the suite came later. The matcher has its own suite on the same pattern (`src/matcher/tests`).
+pytest + pytest-asyncio against a real PostgreSQL 18 (`pgvector/pgvector:0.8.7-pg18-trixie`) started by `testcontainers` (Docker required, `alembic upgrade head` once per session); see `standards/testing/backend-testing.md`. During the Java-to-Python migration the verticals were verified with manual live-uvicorn + real-Postgres scripts; the suite came later. The matcher has its own suite on the same pattern (`src/matcher/tests`).
 
 ## Database
 
@@ -94,6 +94,8 @@ pytest + pytest-asyncio against a real PostgreSQL 18 started by `testcontainers`
 - **ORM/Client**: SQLAlchemy 2.0 (async) — ORM for CRUD, Core `select()`/`text()` for dynamic filter DSLs
 - **Migration Tool**: Alembic
 - **Rationale**: Robust relational database with strong JSONB support for plugin data (`plugin_data`, `manifest`, `data` columns all `postgresql.JSONB`)
+- **Image**: `pgvector/pgvector:0.8.7-pg18-trixie` (compose and both test suites): PostgreSQL 18 with pgvector
+- **Extensions**: `pg_trgm` (0086, search and wants) and `vector` (pgvector 0.8.7, 0100, superuser): `halfvec(768)` columns in `product_embeddings`/`want_embeddings`, cosine distance `<=>`, exact scan with no vector index (revisit at about 500,000 listings)
 
 ## Build Tools & Package Management
 
@@ -110,8 +112,8 @@ pytest + pytest-asyncio against a real PostgreSQL 18 started by `testcontainers`
 ## Infrastructure
 
 ### Containerization
-- `docker-compose.yml` + `.env.example` live at the repo root (backend `Dockerfile` in `src/backend/`, frontend `Dockerfile` in `src/frontend/`) — `docker-compose up` brings up Postgres 18, the FastAPI service on port 8080, the Next.js server (`web`, standalone output on port 3000 inside the network, built from `src/frontend/Dockerfile` with the repo root as context), the wants `matcher` (built from `src/matcher/Dockerfile`, no port, `restart: unless-stopped`) and nginx (`frontend`, the stock `nginx:1.27-alpine` image with `src/frontend/nginx.conf` mounted) in front of both on port 5174 (see `project/architecture.md`, Deployment Architecture). The dev server (`npm run dev`) runs on port 5173
-- Both pytest suites (`src/backend/tests`, `src/matcher/tests`) start their own `postgres:18` testcontainer (Docker required), isolated from the compose database (see Testing above)
+- `docker-compose.yml` + `.env.example` live at the repo root (backend `Dockerfile` in `src/backend/`, frontend `Dockerfile` in `src/frontend/`) — `docker-compose up` brings up Postgres 18 (`pgvector/pgvector:0.8.7-pg18-trixie`), the FastAPI service on port 8080, the Next.js server (`web`, standalone output on port 3000 inside the network, built from `src/frontend/Dockerfile` with the repo root as context), the wants `matcher` (built from `src/matcher/Dockerfile`, no port, `restart: unless-stopped`) and nginx (`frontend`, the stock `nginx:1.27-alpine` image with `src/frontend/nginx.conf` mounted) in front of both on port 5174 (see `project/architecture.md`, Deployment Architecture). The dev server (`npm run dev`) runs on port 5173
+- Both pytest suites (`src/backend/tests`, `src/matcher/tests`) start their own `pgvector/pgvector:0.8.7-pg18-trixie` testcontainer (Docker required), isolated from the compose database (see Testing above)
 
 ### CI/CD
 - Not yet configured
@@ -120,7 +122,7 @@ pytest + pytest-asyncio against a real PostgreSQL 18 started by `testcontainers`
 - Two VPS (DE region, non-DO provider): VPS A runs nginx + FastAPI (with the Bielik-Guard text model in-process) + Postgres; VPS B runs the heavy AI models as a separate service (its own repo, `group-thing-ai`), including ShieldGemma-2 and the `moderation-cron` that decides product photos. VPS A runs no photo moderation worker
 - DigitalOcean Spaces (FRA1) + its CDN for photo storage only
 - Photo moderation integration runs in the other direction: VPS B's `moderation-cron` connects to the VPS A Postgres over the VPC (least-privilege role `gt_moderation_cron`, column-level grants, `ssl=require`) and to Spaces (read + put-ACL), with those credentials only in its `.env.cron`. The app itself never calls VPS B for moderation
-- The `ml` uv dependency group is installed only in the production API image (the default `runtime` target, built with `docker build --secret id=hf_token,env=HF_TOKEN src/backend`); Bielik-Guard is exported to ONNX at image build time, so torch never enters a runtime image. The `runtime-dev` target has no `ml` group and no model
+- The `ml` uv dependency group is installed only in the production API image (the default `runtime` target, built with `docker build --secret id=hf_token,env=HF_TOKEN src/backend`); Bielik-Guard and the embed model (`sdadas/mmlw-roberta-base` at a pinned revision, int8, into `/models/embed`) are exported to ONNX at image build time in the throwaway `models` stage, so torch and optimum never enter a runtime image and `onnxruntime.quantization` runs only in that stage. The `runtime-dev` target has no `ml` group and no model
 
 ## Development Tools
 
@@ -152,12 +154,21 @@ Actual pinned versions from `src/backend/pyproject.toml` / `uv.lock`:
 | python-multipart | 0.0.32 | Form-body parsing (OAuth2 `_token`/form fallbacks, photo uploads) |
 | boto3 | 1.43.107 | DigitalOcean Spaces (S3 API) photo storage, `app/storage/` — plain boto3 in `asyncio.to_thread` (one dependency, no aioboto3) |
 | pillow | 12.3.0 | Upload sanitization: decode allowlisted JPEG/PNG/WebP, EXIF strip, WebP re-encode (`app/storage/images.py`) |
-| onnxruntime (`ml` group) | 1.30.0 | API `runtime` image only: CPU inference of Bielik-Guard (text moderation) |
-| tokenizers (`ml` group) | 0.23.2 | API `runtime` image only: Bielik-Guard tokenizer |
+| onnxruntime (`ml` group) | 1.30.0 | API `runtime` image only: CPU inference of Bielik-Guard (text moderation) and of the embedder (`app/embeddings/onnx_embedder.py`); `onnxruntime.quantization` runs only in the Dockerfile `models` stage |
+| tokenizers (`ml` group) | 0.23.2 | API `runtime` image only: Bielik-Guard and embedder tokenizers |
 | numpy (`ml` group) | 2.5.3 | API `runtime` image only: tensor pre/post-processing |
 | ruff (dev) | 0.16.5 | Lint + format |
 | mypy (dev) | 2.3.1 | Static typing (strict) |
 | httpx | 0.28.1 | Used by tests (`AsyncClient`) and verification scripts; no runtime import in `app/` |
+
+Database extensions and baked-in models (not uv dependencies):
+
+| Component | Version | Purpose |
+|---|---|---|
+| pgvector (`vector` extension) | 0.8.7 (`pgvector/pgvector:0.8.7-pg18-trixie`) | `halfvec(768)` name vectors for the wants SIMILAR tier; cosine distance, exact scan, no vector index (migration 0100) |
+| `sdadas/mmlw-roberta-base`, int8 ONNX | revision `bdeb29a43c3d58af1e6ed9d1836703a1ddfbe1d7` | Polish name embedder (CLS pooling, L2-normalised, 768 dims), baked into `/models/embed` (`EMBEDDINGS_MODEL_DIR`); `EMBEDDING_MODEL_ID = "sdadas/mmlw-roberta-base@bdeb29a43c3d58af1e6ed9d1836703a1ddfbe1d7+int8"`, pinned in `app/embeddings/service.py`, the Dockerfile ARGs and `matcher/rules.py`; MatMul-only QInt8 behind a ≥ 0.99 cosine parity gate at build time (measured 0.9904); about 241 MB; `model.sha256` beside it records the weight hash (`4552576b345ea0464a3d5fa651a95376fb52841197868a4b02c4f8e129061e08` for the pinned stack below) |
+| Dockerfile `models` stage (build only, pip) | torch 2.7.1 (CPU), optimum-onnx 0.1.0, optimum 2.1.0, onnxruntime 1.32.0, onnx 1.23.2, transformers 4.57.6, tokenizers 0.22.2, numpy 2.5.5, huggingface_hub 0.36.2 | ONNX export and int8 quantization of both models; pinned to the resolution that measured the parity, so a bump re-runs the parity gate and, with a new weight hash, the release-gate sweep. The runtime `ml` group infers with onnxruntime 1.30.0 |
+| Bielik-Guard (`speakleash/Bielik-Guard-0.1B-v1.1`), ONNX | Hub latest at build | Text moderation, baked into `/models/text` (needs the `hf_token` build secret) |
 
 Frontend versions from `src/frontend/package-lock.json`:
 
@@ -188,5 +199,5 @@ Frontend versions from `src/frontend/package-lock.json`:
 - **JPA vs jOOQ** (formerly pending): resolved as SQLAlchemy ORM (declarative `Mapped[...]` models) for CRUD verticals, plus SQLAlchemy Core (`select()`/`text()`) for the two dynamic filter-DSL query services (`app/product/query_service.py`, `app/plugin/query_service.py`) — one library serving both roles. See `standards/backend/models.md` and `standards/backend/jooq.md`.
 
 ---
-*Last Updated*: 2026-11-02 (frontend: `.maister/tasks/migrations/2026-11-02-frontend-vite-to-nextjs/`)
+*Last Updated*: 2026-11-18 (wants semantic tier: `.maister/tasks/development/2026-11-18-wants-semantic-similar-tier/`)
 *Migrated from*: Java 25 / Spring Boot 4.0.5 / Maven — see `.maister/tasks/migrations/2026-08-31-java-to-python-fastapi/` for the full migration record

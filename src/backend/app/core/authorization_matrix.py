@@ -241,8 +241,9 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     (None, r"^/api/moderation(/.*)?$", ("ADMIN",)),  # 65
     # 66-67: app.wants - what a party is looking for. As conversations (rows
     # 53-54): for logged-in users only, so the OAuth `mcp:read`/`mcp:edit`
-    # scopes are not accepted. Every `/{id}` route (incl. `/matches` and
-    # `/suggestions`) selects the caller's own want in `app.wants.application`.
+    # scopes are not accepted. Every `/{id}` route (incl. `/matches`,
+    # `/suggestions` and `/similar`) selects the caller's own want in
+    # `app.wants.application`.
     (_methods("GET"), r"^/api/wants(/.*)?$", ("READ",)),  # 66
     (_methods("POST", "PATCH"), r"^/api/wants(/.*)?$", ("EDIT",)),  # 67
     (None, r"^.*$", "AUTHENTICATED"),  # 25 - catch-all

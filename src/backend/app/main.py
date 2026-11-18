@@ -13,7 +13,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -22,6 +23,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 
 from app.auth.router import router as auth_router
 from app.category.router import router as category_router
@@ -29,7 +31,8 @@ from app.config import settings
 from app.core import clock
 from app.core.auth_deps import register_auth_exception_handlers
 from app.core.errors import register_exception_handlers
-from app.db import async_session_factory
+from app.db import TRANSACTION_CONFLICTS, async_session_factory
+from app.embeddings import service as embeddings_service
 from app.events.router import router as events_router
 from app.families.router import router as families_router
 from app.groups.application.term_end_scan import scan_for_term_ended
@@ -48,12 +51,14 @@ from app.organizations.router import router as organizations_router
 from app.outbox import scheduler as outbox_scheduler
 from app.pages.router import router as pages_router
 from app.plugin.router import router as plugin_router
+from app.product import embeddings as product_embeddings
 from app.product.router import router as product_router
 from app.search.router import router as search_router
 from app.storage import outbox_listener as storage_outbox_listener
 from app.system.router import router as system_router
 from app.users.router import router as users_router
 from app.wants.application import bells_due as wants_bells_due
+from app.wants.application import embeddings as wants_embeddings
 from app.wants.router import router as wants_router
 
 logger = logging.getLogger(__name__)
@@ -73,6 +78,8 @@ _term_end_scheduler: AsyncIOScheduler | None = None
 # `standards/global/minimal-implementation.md`.
 _TERM_END_SCAN_INTERVAL_MINUTES = 1
 _MEDIA_SWEEP_INTERVAL_MINUTES = 15
+_EMBEDDING_RECONCILE_INTERVAL_MINUTES = 1
+_EMBEDDING_RECONCILE_LIMIT = 300
 
 
 async def _run_term_end_scan() -> None:
@@ -83,6 +90,54 @@ async def _run_term_end_scan() -> None:
 async def _run_media_sweep() -> None:
     async with async_session_factory() as db:
         await sweep_superseded_media(db)
+
+
+async def _reconcile_side(
+    side: str, reconcile: Callable[..., Awaitable[embeddings_service.ReconcileResult]]
+) -> tuple[int, int]:
+    """One side's `(filled, misses)` in its own session; a failure is logged
+    here and counts as `(0, 0)`, so it never stops the other side."""
+    try:
+        async with async_session_factory() as db:
+            result = await reconcile(db, limit=_EMBEDDING_RECONCILE_LIMIT)
+    except DBAPIError as exc:
+        sqlstate = getattr(exc.orig, "sqlstate", None)
+        if sqlstate in TRANSACTION_CONFLICTS:
+            logger.warning(
+                "embedding reconcile (%s) lost a race (%s); retrying next tick", side, sqlstate
+            )
+        else:
+            logger.exception("embedding reconcile (%s) failed", side)
+        return 0, 0
+    except Exception:
+        logger.exception("embedding reconcile (%s) failed", side)
+        return 0, 0
+    return result.filled, result.misses
+
+
+async def _run_embedding_reconcile() -> None:
+    """Fills missing and stale-model vectors of products, then wants, each in
+    its own session and with its own error handling. Scheduled with the flag
+    off too, so it returns at once while no embedder is set. A lost race
+    (deadlock or serialization failure) is one WARNING and the next tick
+    repeats the work; any other failure is logged once with its traceback
+    and never re-raised."""
+    if not embeddings_service.is_enabled():
+        return
+    started = time.monotonic()
+    products, product_misses = await _reconcile_side(
+        "products", product_embeddings.reconcile_embeddings
+    )
+    wants, want_misses = await _reconcile_side("wants", wants_embeddings.reconcile_embeddings)
+    misses = product_misses + want_misses
+    logger.log(
+        logging.INFO if products or wants or misses else logging.DEBUG,
+        "embedding reconcile: products=%d wants=%d misses=%d duration_ms=%d",
+        products,
+        wants,
+        misses,
+        (time.monotonic() - started) * 1000,
+    )
 
 
 _OLD_WANTS_SCHEMA = "schema is the old 0099; run the amended-0099 runbook (architecture.md)"
@@ -100,11 +155,39 @@ async def _check_wants_contract() -> None:
         raise RuntimeError(_OLD_WANTS_SCHEMA)
 
 
+_SIMILAR_SCHEMA = text(
+    """
+    SELECT to_regclass('public.product_embeddings') IS NOT NULL AS product_embeddings,
+           to_regclass('public.want_embeddings') IS NOT NULL AS want_embeddings,
+           EXISTS (
+               SELECT 1 FROM pg_attribute
+               WHERE attrelid = to_regclass('public.wants')
+                 AND attname = 'similar_requested_at' AND NOT attisdropped
+           ) AS "wants.similar_requested_at"
+    """
+)
+
+
+async def _check_similar_schema() -> None:
+    """Refuses to start on a database without migration 0101, whatever
+    `EMBEDDINGS_ENABLED` says: the ORM maps `wants.similar_requested_at`, so
+    every want read needs it."""
+    async with async_session_factory() as db:
+        present = (await db.execute(_SIMILAR_SCHEMA)).mappings().one()
+    missing = [name for name, exists in present.items() if not exists]
+    if missing:
+        message = (
+            f"schema lacks migration 0101 ({', '.join(missing)} missing); run alembic upgrade head"
+        )
+        logger.error(message)
+        raise RuntimeError(message)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Starts the 60 s outbox poller as a background task alongside the app
     process, after wiring every vertical's outbox event handlers. Also
-    starts the term-end scan and superseded-media sweep jobs on an
+    starts the term-end scan, superseded-media sweep and embedding reconcile jobs on an
     `AsyncIOScheduler` (APScheduler, interval-based) — the same "started on
     startup, cancelled/shut down on shutdown" lifecycle shape as the outbox
     poller, using APScheduler's own `start`/`shutdown(wait=False)` API
@@ -112,10 +195,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     global _outbox_task, _term_end_scheduler
     clock.check_timezone()
     await _check_wants_contract()
+    await _check_similar_schema()
     logger.info(
-        "MODERATION_TEXT_ENABLED=%s MODERATION_IMAGE_ENABLED=%s",
+        "MODERATION_TEXT_ENABLED=%s MODERATION_IMAGE_ENABLED=%s EMBEDDINGS_ENABLED=%s",
         settings.moderation_text_enabled,
         settings.moderation_image_enabled,
+        settings.embeddings_enabled,
     )
     if settings.legacy_moderation_enabled is not None:
         logger.warning(
@@ -128,10 +213,17 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         from app.moderation.onnx_models import OnnxTextClassifier
 
         text_guard.set_classifier(OnnxTextClassifier(Path(settings.moderation_models_dir) / "text"))
+    if settings.embeddings_enabled:
+        # Lazy for the same reason; a load or `model_id.txt` error aborts startup.
+        from app.embeddings.onnx_embedder import OnnxEmbedder
+
+        embeddings_service.set_embedder(OnnxEmbedder(Path(settings.embeddings_model_dir)))
 
     notifications_outbox_listener.register()
     storage_outbox_listener.register()
     wants_bells_due.register()
+    product_embeddings.register()
+    wants_embeddings.register()
     _outbox_task = asyncio.create_task(outbox_scheduler.run_forever())
 
     # APScheduler's default 1s misfire grace drops every run that starts even
@@ -144,6 +236,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         _run_term_end_scan, "interval", minutes=_TERM_END_SCAN_INTERVAL_MINUTES
     )
     _term_end_scheduler.add_job(_run_media_sweep, "interval", minutes=_MEDIA_SWEEP_INTERVAL_MINUTES)
+    _term_end_scheduler.add_job(
+        _run_embedding_reconcile, "interval", minutes=_EMBEDDING_RECONCILE_INTERVAL_MINUTES
+    )
     _term_end_scheduler.start()
 
     yield
@@ -153,6 +248,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await _outbox_task
     _term_end_scheduler.shutdown(wait=False)
     text_guard.set_classifier(None)
+    embeddings_service.set_embedder(None)
 
 
 app = FastAPI(lifespan=lifespan)

@@ -33,6 +33,7 @@ from app.core.errors import (
     EntityNotFoundException,
 )
 from app.core.pagination import PageParams
+from app.embeddings.service import embed_listings
 from app.moderation import rules
 from app.moderation.status import ModerationStatus
 from app.moderation.text_guard import TextField, check_text
@@ -41,7 +42,7 @@ from app.storage import images
 from app.storage.outbox_listener import OBJECTS_DELETE
 from app.storage.service import ObjectStorage
 
-from . import query_service
+from . import embeddings, query_service
 from .models import Product, ProductPhoto
 from .schemas import CreateProductRequest, UpdateProductRequest
 
@@ -149,6 +150,7 @@ async def create_product(db: AsyncSession, data: CreateProductRequest) -> Produc
     rules.ensure_no_contact_info(data.name, data.description)
     await check_text(TextField.PRODUCT_NAME, data.name)
     await check_text(TextField.PRODUCT_DESCRIPTION, data.description)
+    vectors = await embed_listings([data.name])
     product = Product(
         name=data.name,
         description=data.description,
@@ -157,6 +159,8 @@ async def create_product(db: AsyncSession, data: CreateProductRequest) -> Produc
         category_id=data.category_id,
     )
     db.add(product)
+    await db.flush()
+    await embeddings.save_name_vector(db, cast(uuid.UUID, product.id), vectors, renamed=False)
     await db.commit()
     return await get_product(db, cast(uuid.UUID, product.id))
 
@@ -172,11 +176,18 @@ async def update_product(
     rules.ensure_no_contact_info(data.name, data.description)
     await check_text(TextField.PRODUCT_NAME, data.name, product.name)
     await check_text(TextField.PRODUCT_DESCRIPTION, data.description, product.description)
+    renamed = data.name != product.name
+    vectors = await embed_listings([data.name]) if renamed else None
     product.name = data.name
     product.description = data.description
     product.photo_url = data.photo_url
     product.sku = data.sku
     product.category_id = data.category_id
+    if renamed:
+        # Flushed first so the product row is locked before the vector row,
+        # the same order as the handler and the reconcile.
+        await db.flush()
+        await embeddings.save_name_vector(db, product_id, vectors, renamed=True)
     await db.commit()
     return await get_product(db, product_id)
 
@@ -201,6 +212,7 @@ async def get_or_create_product_by_name(
 
     rules.ensure_no_contact_info(name)
     await check_text(TextField.PRODUCT_NAME, name)
+    vectors = await embed_listings([name])
     product = Product(
         name=name,
         description=None,
@@ -209,6 +221,8 @@ async def get_or_create_product_by_name(
         category_id=category_id,
     )
     db.add(product)
+    await db.flush()
+    await embeddings.save_name_vector(db, cast(uuid.UUID, product.id), vectors, renamed=False)
     await db.commit()
     return await get_product(db, cast(uuid.UUID, product.id))
 

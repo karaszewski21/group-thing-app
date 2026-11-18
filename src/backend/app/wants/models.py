@@ -1,4 +1,4 @@
-"""`app.wants` models (migration 0099). Cross-module references
+"""`app.wants` models (migrations 0099, 0101). Cross-module references
 (`parties.id`, `categories.id`, `localities.id`) are plain FK-id columns, and
 the module declares no `relationship()` at all, per
 `standards/backend/models.md`. `WantMatch.item_id` and
@@ -75,6 +75,11 @@ class Want(BaseEntity):
             "match_requested_at",
             postgresql_where=text("match_requested_at IS NOT NULL"),
         ),
+        Index(
+            "ix_wants_similar_requested_at",
+            "similar_requested_at",
+            postgresql_where=text("similar_requested_at IS NOT NULL"),
+        ),
     )
 
     seeker_party_id: Mapped[uuid.UUID] = mapped_column(
@@ -139,6 +144,9 @@ class Want(BaseEntity):
     # Set by every write that needs a matching run; the matcher service
     # clears it once the run is stored.
     match_requested_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    # Set by background re-triggers for a SIMILAR-only matching run. Written
+    # only by a Core `update()`, so `updated_at` (the version column) stays.
+    similar_requested_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
     match_notification_id: Mapped[uuid.UUID | None] = mapped_column(
         postgresql.UUID(as_uuid=True), nullable=True
     )
@@ -162,10 +170,12 @@ class Want(BaseEntity):
 
 class WantMatchTier(enum.StrEnum):
     """MATCH: every want word is in the item name. SUGGESTION: exactly one
-    is missing, named in `missing_words`."""
+    is missing, named in `missing_words`. SIMILAR: the item name is close in
+    meaning (embeddings), born seen and never a bell."""
 
     MATCH = "MATCH"
     SUGGESTION = "SUGGESTION"
+    SIMILAR = "SIMILAR"
 
 
 class WantMatch(BaseEntity):
@@ -175,9 +185,9 @@ class WantMatch(BaseEntity):
     __tablename__ = "want_matches"
     __table_args__ = (
         UniqueConstraint("want_id", "item_id", name="uq_want_matches_want_id_item_id"),
-        CheckConstraint("tier IN ('MATCH', 'SUGGESTION')", name="ck_want_matches_tier"),
+        CheckConstraint("tier IN ('MATCH', 'SUGGESTION', 'SIMILAR')", name="ck_want_matches_tier"),
         CheckConstraint(
-            "(tier = 'MATCH' AND missing_words IS NULL) "
+            "(tier IN ('MATCH', 'SIMILAR') AND missing_words IS NULL) "
             "OR (tier = 'SUGGESTION' AND coalesce(cardinality(missing_words), 0) > 0)",
             name="ck_want_matches_missing_words",
         ),

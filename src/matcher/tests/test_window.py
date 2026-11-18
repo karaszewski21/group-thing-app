@@ -353,7 +353,7 @@ def _inserted_columns(statement: str, table: str) -> set[str]:
 async def test_rawInserts_setEveryNotNullColumnWithoutADefault(db: asyncpg.Pool) -> None:
     inserts = {
         "outbox_entries": outbox.INSERT,
-        "want_matches": statements.WINDOW_MATCH,
+        "want_matches": statements.WINDOW_MATCH.sql,
         "want_scan_markers": window.MARKER_INSERT,
     }
     required = await db.fetch(

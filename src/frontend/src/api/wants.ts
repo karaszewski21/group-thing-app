@@ -77,6 +77,17 @@ export interface WantSuggestionResponse {
   proposed_by_me: boolean;
 }
 
+/** An item close in meaning to the want ("Powiązane rzeczy"): the match
+ * card without `is_new`. */
+export interface WantSimilarResponse {
+  id: string;
+  title: string;
+  href: string;
+  meta: ProductSearchResult["meta"];
+  reserved_by_me: boolean;
+  proposed_by_me: boolean;
+}
+
 /** The caller's active, expired and fulfilled wants; with `matchedItemId`
  * only the active ones holding that item as a match. */
 export function getMyWants(matchedItemId?: string): Promise<WantResponse[]> {
@@ -118,6 +129,11 @@ export function getWantMatches(id: string): Promise<WantMatchResponse[]> {
 /** At most 10 suggestions, best first. */
 export function getWantSuggestions(id: string): Promise<WantSuggestionResponse[]> {
   return api.get(`/wants/${encodeURIComponent(id)}/suggestions`);
+}
+
+/** At most 10 related items, best first. */
+export function getWantSimilar(id: string): Promise<WantSimilarResponse[]> {
+  return api.get(`/wants/${encodeURIComponent(id)}/similar`);
 }
 
 /** Resets `new_match_count`; an active want in its last 30 days is extended too. */

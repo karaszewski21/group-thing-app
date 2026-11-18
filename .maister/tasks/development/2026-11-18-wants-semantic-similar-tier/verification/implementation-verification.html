@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Verification — semantic SIMILAR tier</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.tile.crit b { color:var(--crit); } .tile.warn b { color:var(--warn); }
+.tile.info b { color:var(--info); } .tile.ok b { color:var(--ok); }
+header .meta { color:var(--dim); font-size:13px; }
+.verdict { background:var(--crit-soft); border:1px solid var(--crit); border-left-width:5px;
+  border-radius:var(--radius); padding:12px 16px; margin:14px 0; font-weight:650; color:var(--crit); }
+.tldr ul { margin:6px 0; padding-left:20px; } .tldr li { margin:3px 0; }
+.tldr h3 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); margin:12px 0 4px; }
+.split { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:760px) { .split { grid-template-columns:1fr; } }
+.toc { font-size:13px; color:var(--dim); margin:10px 0; }
+.wrap { overflow-x:auto; }
+.ok { color:var(--ok); font-weight:600; } .residual { color:var(--warn); font-weight:600; }
+ol.steps li { margin:6px 0; } ol.steps ul { margin:4px 0; }
+ul.check { list-style:none; padding-left:4px; } ul.check li::before { content:"☑ "; color:var(--ok); }
+ul.links { columns:3; column-gap:24px; padding-left:18px; }
+@media (max-width:760px) { ul.links { columns:1; } }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a>
+  <a href="../implementation/implementation-plan.html">Plan</a>
+  <span class="here">Verification</span>
+  <a href="implementation-verification.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">implementation-verification</span>
+  <h1>Implementation Verification: semantic SIMILAR tier (after re-verification cycle 2)</h1>
+  <div class="meta">Re-verification count: 2 · Task <code>2026-11-18-wants-semantic-similar-tier</code></div>
+</header>
+
+<div class="verdict">❌ Failed — operational gates only · Shadow deploy GO with mitigations · Full release NO-GO until C1</div>
+
+<div class="tiles">
+  <div class="tile crit"><b>2</b><span>critical (operational)</span></div>
+  <div class="tile warn"><b>2</b><span>warning</span></div>
+  <div class="tile info"><b>10</b><span>info</span></div>
+  <div class="tile ok"><b>46</b><span>resolved over 2 cycles</span></div>
+  <div class="tile ok"><b>89/89</b><span>steps</span></div>
+</div>
+
+<section class="tldr card" id="tldr">
+  <div class="split">
+    <div>
+      <h3>TL;DR</h3>
+      <ul>
+        <li><b>Verdict: ❌ Failed.</b> The only blockers left are operational deployment gates; there are no code defects.
+          <ul>
+            <li><b>Shadow deploy (runbook steps 1–7): GO with mitigations.</b> It needs C2, a full image build with <code>hf_token</code>, plus the operator steps listed below.</li>
+            <li><b>Full release (step 8, web): NO-GO</b> until C1, the labelled-sample gate, is done. It is now scoped to "before step 8".</li>
+          </ul>
+        </li>
+        <li><b>Code:</b> code review is clean (0 critical, 0 warnings, 3 optional info items). Pragmatic review is appropriate. Reality check shows H1/M1/M2 resolved. All 89 of 89 steps are done.</li>
+        <li><b>Tests (cycle 2, current tree):</b> at baseline with 0 regressions.
+          <ul>
+            <li>backend: 1577 passed, 2 failed (both known), 1 skipped</li>
+            <li>matcher: 125 passed</li>
+            <li>frontend: 33 known failures</li>
+            <li>ruff 65, mypy 15, typecheck 0, lint 38</li>
+          </ul>
+        </li>
+        <li><b>Remaining issues:</b> 2 critical (operational), 2 warning (W13 deferred, W15 operational), 10 info. Two fix cycles resolved 46 findings.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Open Questions / Risks</h3>
+      <ul>
+        <li><b>Base 0099 release status unconfirmed.</b> Production must be confirmed to run 0099 with wants live, or the 0099 per-word gate (≥200 pairs) must have passed. Otherwise the shadow deploy also ships the per-word tier and its MATCH bells.</li>
+        <li><b>Parity margin.</b> Parity is 0.9904 against a 0.99 floor. The model is quantized with onnxruntime 1.32.0, but the runtime infers with 1.30.0, and runtime parity has not been measured.</li>
+        <li><b>No embedder warm-up.</b> The first reconcile batch may exceed the 2 s budget and log <code>busy</code>/<code>timeout</code> WARNINGs after a deploy (retry path covers it).</li>
+        <li><b>Release gate sign-off.</b> The owner's sign-off for moving the gate before step 8 must be recorded in the release notes before step 1.</li>
+        <li><b>Uncommitted tree.</b> The working tree is uncommitted. Build from exactly the verified tree.</li>
+      </ul>
+    </div>
+  </div>
+  <details>
+    <summary>Executive summary</summary>
+    <p>Two fix-and-reverify cycles closed every fixable finding:</p>
+    <ul>
+      <li>the lost-bell defect (W1, a SIMILAR row upgraded in place)</li>
+      <li>the page-breaking <code>/similar</code> failure, now kept, with previous data on poll failure</li>
+      <li>embedding under row locks</li>
+      <li>reconcile starvation and worker sharing</li>
+      <li>a lock-order deadlock (N1)</li>
+      <li>an unpinned build stage</li>
+      <li>the matcher parameter coupling</li>
+      <li>the runbook gaps: threshold change, image tags, never-up rule, <code>--no-build</code>, re-flags, and the gate rescope</li>
+    </ul>
+    <p>The verdict stays Failed only because the production-readiness criteria still list the operational release gates.</p>
+  </details>
+</section>
+
+<nav class="toc">Contents:
+  <a href="#issues">Remaining issues</a> ·
+  <a href="#history">Fix &amp; Re-Verification History</a> ·
+  <a href="#operator">Operator steps</a> ·
+  <a href="#checks">Per-check status</a> ·
+  <a href="#reports">Sibling reports</a>
+</nav>
+
+<main>
+
+<h2 id="issues">Remaining issues</h2>
+<div class="card wrap">
+<table>
+  <thead><tr><th>ID</th><th>Sev</th><th>Source</th><th>Issue</th><th>Fixable</th></tr></thead>
+  <tbody>
+    <tr><td><b>C1</b></td><td><span class="sev critical">critical</span></td><td>production</td><td>Labelled-sample release gate (≥300 pairs) not run; 0.86 provisional. Blocks step 8 (web) only. Owner sign-off on the rescope still to be recorded</td><td>no (operational)</td></tr>
+    <tr><td><b>C2</b></td><td><span class="sev critical">critical</span></td><td>production</td><td>Full image not yet built with <code>hf_token</code> (runbook step 1). Blocks the shadow deploy until step 1 passes: parity ≥ 0.99, sha256 line, <code>model_id.txt</code></td><td>no (operator)</td></tr>
+    <tr><td><b>W15</b></td><td><span class="sev warning">warning</span></td><td>production</td><td>VPS A measurement (step 1b) not run</td><td>no (operator)</td></tr>
+    <tr><td><b>W13</b></td><td><span class="sev warning">warning</span></td><td>completeness</td><td>Standards update deferred</td><td>deferred</td></tr>
+    <tr><td>P-1</td><td><span class="sev info">info</span></td><td>production</td><td>Base 0099 release status unconfirmed</td><td>no (operator check)</td></tr>
+    <tr><td>P-2</td><td><span class="sev info">info</span></td><td>production</td><td>Runtime-ORT (1.30.0) parity unchecked; margin +0.0004</td><td>partly (run parity script in the runtime container)</td></tr>
+    <tr><td>CR-C1</td><td><span class="sev info">info</span></td><td>code</td><td>No embedder warm-up under the 2 s reconcile budget</td><td>yes (optional)</td></tr>
+    <tr><td>CR-C2</td><td><span class="sev info">info</span></td><td>code</td><td><code>/similar</code> fallback reads the cache via the closure key, not the <code>queryFn</code> context</td><td>yes (optional)</td></tr>
+    <tr><td>CR-C3</td><td><span class="sev info">info</span></td><td>code</td><td>Kept <code>similar</code> can briefly outlive an edit when <code>/similar</code> fails</td><td>no (accepted)</td></tr>
+    <tr><td>CR-I6/I9/I10</td><td><span class="sev info">info</span></td><td>code</td><td>client-disconnect stuck marking; tile style shared with suggestions; reconcile queries during backfill</td><td>no (accepted)</td></tr>
+    <tr><td>P-L6</td><td><span class="sev info">info</span></td><td>pragmatic</td><td>Test files have 10–16 tests</td><td>no (accepted)</td></tr>
+    <tr><td>TS-1</td><td><span class="sev info">info</span></td><td>test suite</td><td>Other features' migration tests don't check the upgrade return code (load-sensitive)</td><td>out of scope</td></tr>
+    <tr><td>P-R1-rest</td><td><span class="sev info">info</span></td><td>pragmatic</td><td>Window end still <code>$6</code>/<code>$8</code></td><td>no (accepted)</td></tr>
+    <tr><td>P-3</td><td><span class="sev info">info</span></td><td>production</td><td>Backend has no <code>restart:</code> policy (pre-existing; runbook recovery covers it)</td><td>out of scope</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="history">Fix &amp; Re-Verification History</h2>
+<div class="card wrap">
+<table>
+  <thead><tr><th>Cycle</th><th>Issue</th><th>Fix</th><th>Outcome</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>W1 lost bell after re-point</td><td>Lexical tiers skip only lexical rows; <code>ON CONFLICT … DO UPDATE … WHERE tier='SIMILAR'</code></td><td class="ok">✓ resolved (probe v2 + 3 tests)</td></tr>
+    <tr><td>1</td><td>W2 <code>/similar</code> breaks page</td><td>Fallback to <code>NO_SIMILAR</code></td><td class="ok">✓ resolved</td></tr>
+    <tr><td>1</td><td>W3 unpinned build</td><td>Pins + <code>model.sha256</code> (deterministic hash 4552576b…1e08)</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>1</td><td>W4 embed under lock</td><td>Embed → lock → re-check → upsert</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>1</td><td>W5 writes behind reconcile</td><td>Batch 8</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>1</td><td>W6 shared try</td><td><code>_reconcile_side</code></td><td class="ok">✓ resolved</td></tr>
+    <tr><td>1</td><td>W7 param layout</td><td>Fixed <code>$1–$5</code>, SIMILAR <code>$6/$7</code></td><td class="ok">✓ resolved</td></tr>
+    <tr><td>1</td><td>W8 module drift</td><td>Aligned</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>1</td><td>W9/W10/W14/W16/W17 runbook</td><td>Re-flags, two-step flag flip, collation, web freeze</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>1</td><td>W11 0102 refs, W12 stale evidence</td><td>Removed; suites re-run</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>1</td><td>I1/I3/I4/I5, P-L1..L4, S1</td><td><code>now</code> after embed, docstrings, non-finite miss, always-on 0101 check, cleanups</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>2</td><td>N1 lock-order deadlock</td><td><code>flush()</code> before vector write + statement-order test</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>2</td><td>R-N1 threshold change</td><td>Runbook 7b/7c (delete below new min, re-flag)</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>2</td><td>R-N2 old images</td><td><code>pre-semantic</code> tags, never-up rule</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>2</td><td>RR-1 rollback re-flag</td><td>Added</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>2</td><td>CR-N3/N4/N5/N7, CR-I2</td><td>Tests, 2 s timeout, keep previous similar, expiry re-check, stale-pair doc</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>2</td><td>P-R1/N1/L5</td><td>Frozen <code>Statement</code>, shared <code>ReconcileResult</code>, parity-name dedup</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>2</td><td>D-N1/N3 spec/ADR drift</td><td>Amended</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>2</td><td>PR2-N3 <code>--no-build</code></td><td>Added to steps 4.3 and 6</td><td class="ok">✓ resolved</td></tr>
+    <tr><td>—</td><td>C1 gate</td><td>Rescoped to before step 8 (user decision)</td><td class="residual">residual (operational)</td></tr>
+    <tr><td>—</td><td>C2, W15</td><td>—</td><td class="residual">residual (operator)</td></tr>
+    <tr><td>—</td><td>W13</td><td>—</td><td class="residual">residual-deferred</td></tr>
+  </tbody>
+</table>
+<p style="color:var(--dim);font-size:13px;margin:10px 0 0">Re-verification count: 2.</p>
+</div>
+
+<h2 id="operator">Operator steps before the shadow deploy</h2>
+<div class="card">
+<ol class="steps">
+  <li>☐ Record the owner's gate-rescope sign-off in the release notes.</li>
+  <li>☐ Confirm the base 0099 status.</li>
+  <li>☐ Build from the verified tree.</li>
+  <li>☐ Start the web freeze.</li>
+  <li>☐ Run <code>docker tag … backend:pre-semantic</code>.</li>
+  <li>☐ Step 1: <code>docker compose build backend</code> with <code>HF_TOKEN</code> present (check presence only). Confirm:
+    <ul>
+      <li>parity ≥ 0.99</li>
+      <li>the sha256 line is printed</li>
+      <li><code>model_id.txt</code> matches the expected model id</li>
+    </ul>
+  </li>
+  <li>☐ Step 1b on VPS A.</li>
+  <li>☐ Steps 2–7, following the never-up rule. Tag the matcher before step 6.</li>
+</ol>
+</div>
+
+<h2 id="checks">Per-check status</h2>
+<div class="card wrap">
+<table>
+  <thead><tr><th>Check</th><th>Status</th><th>Detail</th><th>Report</th></tr></thead>
+  <tbody>
+    <tr><td>Implementation plan</td><td class="pass">89/89 done</td><td>Fixes logged in <code>implementation/work-log.md</code> under "Verification fixes" cycles 1 and 2</td><td>—</td></tr>
+    <tr><td>Test suite (cycle 2)</td><td class="pass">at baseline</td><td>0 regressions; see breakdown below</td><td><a href="test-suite-results.md" target="_blank" rel="noopener">test-suite-results.md ↗</a></td></tr>
+    <tr><td>Standards compliance</td><td><span class="sev warning">warning</span>mostly compliant</td><td>W13 deferred to <code>/maister:standards-update</code>: the <code>postgres:18</code> image in <code>backend-testing.md</code>, and the side-table carve-out in <code>models.md</code>/<code>migrations.md</code></td><td>—</td></tr>
+    <tr><td>Documentation completeness</td><td class="pass">complete</td><td>Runbook coverage listed below; Spec R11/R12/R13/R26 and ADR-002 amended</td><td>—</td></tr>
+    <tr><td>Code review</td><td class="pass">clean</td><td>0 critical, 0 warning, 3 info</td><td><a href="code-review-reverify2.md" target="_blank" rel="noopener">code-review-reverify2.md ↗</a></td></tr>
+    <tr><td>Pragmatic review</td><td class="pass">appropriate</td><td>R1/N1/L5 resolved in cycle 2</td><td><a href="pragmatic-reverify.md" target="_blank" rel="noopener">pragmatic-reverify.md ↗</a> (+ cycle-2 fixes)</td></tr>
+    <tr><td>Production readiness</td><td class="fail">shadow GO with mitigations; full release NO-GO (C1)</td><td>Operational release gates C1, C2, W15</td><td><a href="production-readiness-reverify2.md" target="_blank" rel="noopener">production-readiness-reverify2.md ↗</a></td></tr>
+    <tr><td>Reality check</td><td class="pass">ready for shadow</td><td>H1/M1/M2 resolved</td><td><a href="reality-reverify.md" target="_blank" rel="noopener">reality-reverify.md ↗</a></td></tr>
+    <tr><td>Completeness</td><td><span class="sev warning">warning</span>passed with issues</td><td>W13 deferred</td><td><a href="completeness-reverify.md" target="_blank" rel="noopener">completeness-reverify.md ↗</a></td></tr>
+    <tr><td>Visual fidelity</td><td style="color:var(--dim)">pending</td><td>Comes in Phase 12 (E2E)</td><td>—</td></tr>
+  </tbody>
+</table>
+
+<details style="margin-top:12px">
+  <summary>Test suite breakdown (cycle 2)</summary>
+  <table style="margin-top:8px">
+    <thead><tr><th>Suite</th><th>Result</th><th>Baseline</th></tr></thead>
+    <tbody>
+      <tr><td>backend (alone, head 0101)</td><td>1577 passed, 2 failed, 1 skipped</td><td>2 failed (same)</td></tr>
+      <tr><td>matcher</td><td>125 passed</td><td>—</td></tr>
+      <tr><td>frontend</td><td>1873 passed, 33 failed</td><td>33 failed (identical ids)</td></tr>
+      <tr><td>ruff / mypy / typecheck / lint</td><td>65 / 15 / 0 / 38</td><td>same</td></tr>
+    </tbody>
+  </table>
+</details>
+
+<details style="margin-top:10px">
+  <summary>Runbook coverage (documentation completeness)</summary>
+  <ul>
+    <li>gate before step 8 with sign-off</li>
+    <li>7b sweep and 7c threshold change</li>
+    <li><code>pre-semantic</code> tags</li>
+    <li>never <code>up</code> between steps 1 and 4.2</li>
+    <li><code>--no-build</code> on the shadow <code>up</code> steps</li>
+    <li>rollback re-flags</li>
+    <li>stale-pair note</li>
+    <li>collation checks</li>
+    <li>web freeze</li>
+  </ul>
+</details>
+
+<details style="margin-top:10px">
+  <summary>Verification checklist</summary>
+  <ul class="check">
+    <li>Test suite re-run, cycle 2, sequential</li>
+    <li>Code review and production re-checks, cycle 2. Side reports are on disk.</li>
+    <li>Canonical report rewritten with the post-fix verdict and the full fix history</li>
+  </ul>
+</details>
+</div>
+
+<h2 id="reports">Sibling reports</h2>
+<div class="card">
+<ul class="links">
+  <li><a href="completeness-report.md" target="_blank" rel="noopener">completeness-report ↗</a></li>
+  <li><a href="completeness-reverify.md" target="_blank" rel="noopener">completeness-reverify ↗</a></li>
+  <li><a href="code-review-report.md" target="_blank" rel="noopener">code-review-report ↗</a></li>
+  <li><a href="code-review-reverify.md" target="_blank" rel="noopener">code-review-reverify ↗</a></li>
+  <li><a href="code-review-reverify2.md" target="_blank" rel="noopener">code-review-reverify2 ↗</a></li>
+  <li><a href="pragmatic-review.md" target="_blank" rel="noopener">pragmatic-review ↗</a></li>
+  <li><a href="pragmatic-reverify.md" target="_blank" rel="noopener">pragmatic-reverify ↗</a></li>
+  <li><a href="production-readiness-report.md" target="_blank" rel="noopener">production-readiness-report ↗</a></li>
+  <li><a href="production-readiness-reverify.md" target="_blank" rel="noopener">production-readiness-reverify ↗</a></li>
+  <li><a href="production-readiness-reverify2.md" target="_blank" rel="noopener">production-readiness-reverify2 ↗</a></li>
+  <li><a href="reality-check.md" target="_blank" rel="noopener">reality-check ↗</a></li>
+  <li><a href="reality-reverify.md" target="_blank" rel="noopener">reality-reverify ↗</a></li>
+  <li><a href="test-suite-results.md" target="_blank" rel="noopener">test-suite-results ↗</a></li>
+</ul>
+</div>
+
+</main>
+</body>
+</html>

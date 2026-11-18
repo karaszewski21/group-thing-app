@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import * as wantsApi from "../api/wants";
 import { useWantMatches } from "../hooks/useWantMatches";
-import { makeWant, makeWantMatch, makeWantSuggestion } from "./fixtures/wants";
+import { makeWant, makeWantMatch, makeWantSimilar, makeWantSuggestion } from "./fixtures/wants";
 import { createQueryWrapper, createTestQueryClient } from "./queryClient";
 
 type TestClient = ReturnType<typeof createTestQueryClient>;
@@ -15,6 +15,7 @@ vi.mock("../api/wants", () => ({
   getWant: vi.fn(),
   getWantMatches: vi.fn(),
   getWantSuggestions: vi.fn(),
+  getWantSimilar: vi.fn(),
   markWantMatchesSeen: vi.fn(),
   markWantMatchOpened: vi.fn(),
 }));
@@ -22,6 +23,7 @@ vi.mock("../api/wants", () => ({
 const WANT = makeWant({ match_count: 1, new_match_count: 1 });
 const MATCH = makeWantMatch({ is_new: true });
 const SUGGESTION = makeWantSuggestion();
+const SIMILAR = makeWantSimilar();
 const MATCHING_WANT = makeWant({ matching: true });
 
 function notFoundError() {
@@ -32,6 +34,7 @@ async function renderLoaded(client = createTestQueryClient()) {
   vi.mocked(wantsApi.getWant).mockResolvedValue(WANT);
   vi.mocked(wantsApi.getWantMatches).mockResolvedValue([MATCH]);
   vi.mocked(wantsApi.getWantSuggestions).mockResolvedValue([SUGGESTION]);
+  vi.mocked(wantsApi.getWantSimilar).mockResolvedValue([SIMILAR]);
   const hook = renderHook(() => useWantMatches("want-1"), { wrapper: createQueryWrapper(client) });
   await waitFor(() => expect(hook.result.current.loading).toBe(false));
   return hook;
@@ -61,16 +64,19 @@ afterEach(() => {
 });
 
 describe("useWantMatches", () => {
-  it("loads the want with its matches and suggestions under the wants prefix, and nothing without a token", async () => {
+  it("loads the want with its matches, suggestions and related items under the wants prefix, and nothing without a token", async () => {
     mockAuth = { token: null };
     const anonymous = renderHook(() => useWantMatches("want-1"), { wrapper: createQueryWrapper() });
     const firstEmpty = anonymous.result.current.matches;
     const firstNoSuggestions = anonymous.result.current.suggestions;
+    const firstNoSimilar = anonymous.result.current.similar;
     anonymous.rerender();
     expect(anonymous.result.current.want).toBeNull();
     expect(anonymous.result.current.matches).toBe(firstEmpty);
     expect(anonymous.result.current.suggestions).toBe(firstNoSuggestions);
     expect(anonymous.result.current.suggestions).toEqual([]);
+    expect(anonymous.result.current.similar).toBe(firstNoSimilar);
+    expect(anonymous.result.current.similar).toEqual([]);
     expect(anonymous.result.current.loading).toBe(false);
     expect(wantsApi.getWant).not.toHaveBeenCalled();
 
@@ -81,16 +87,19 @@ describe("useWantMatches", () => {
     expect(result.current.want).toEqual(WANT);
     expect(result.current.matches).toEqual([MATCH]);
     expect(result.current.suggestions).toEqual([SUGGESTION]);
+    expect(result.current.similar).toEqual([SIMILAR]);
     expect(result.current.slow).toBe(false);
     expect(result.current.notFound).toBe(false);
     expect(result.current.error).toBeNull();
     expect(wantsApi.getWant).toHaveBeenCalledWith("want-1");
     expect(wantsApi.getWantMatches).toHaveBeenCalledWith("want-1");
     expect(wantsApi.getWantSuggestions).toHaveBeenCalledWith("want-1");
+    expect(wantsApi.getWantSimilar).toHaveBeenCalledWith("want-1");
     expect(client.getQueryData(["wants", "matches", "token-a", "want-1"])).toEqual({
       want: WANT,
       matches: [MATCH],
       suggestions: [SUGGESTION],
+      similar: [SIMILAR],
     });
   });
 
@@ -98,6 +107,7 @@ describe("useWantMatches", () => {
     vi.mocked(wantsApi.getWant).mockRejectedValue(notFoundError());
     vi.mocked(wantsApi.getWantMatches).mockRejectedValue(notFoundError());
     vi.mocked(wantsApi.getWantSuggestions).mockRejectedValue(notFoundError());
+    vi.mocked(wantsApi.getWantSimilar).mockRejectedValue(notFoundError());
     const missing = renderHook(() => useWantMatches("want-1"), { wrapper: createQueryWrapper() });
     await waitFor(() => expect(missing.result.current.notFound).toBe(true));
     expect(missing.result.current.error).toBeNull();
@@ -105,12 +115,78 @@ describe("useWantMatches", () => {
 
     vi.mocked(wantsApi.getWantMatches).mockResolvedValue([]);
     vi.mocked(wantsApi.getWantSuggestions).mockResolvedValue([]);
+    vi.mocked(wantsApi.getWantSimilar).mockResolvedValue([]);
     vi.mocked(wantsApi.getWant).mockRejectedValue(
       new ApiError(503, "Service Unavailable", { status: 503, error: "x", message: "Spróbuj za chwilę." }),
     );
     const failing = renderHook(() => useWantMatches("want-2"), { wrapper: createQueryWrapper() });
     await waitFor(() => expect(failing.result.current.error).toBe("Spróbuj za chwilę."));
     expect(failing.result.current.notFound).toBe(false);
+  });
+
+  it.each([
+    ["a 500", new ApiError(500, "Internal Server Error", { status: 500, error: "x", message: "Błąd serwera." })],
+    ["a 404 (older backend)", notFoundError()],
+  ])("keeps the want, matches and suggestions when /similar alone fails with %s", async (_label, failure) => {
+    vi.mocked(wantsApi.getWant).mockResolvedValue(WANT);
+    vi.mocked(wantsApi.getWantMatches).mockResolvedValue([MATCH]);
+    vi.mocked(wantsApi.getWantSuggestions).mockResolvedValue([SUGGESTION]);
+    vi.mocked(wantsApi.getWantSimilar).mockRejectedValue(failure);
+    const { result, rerender } = renderHook(() => useWantMatches("want-1"), { wrapper: createQueryWrapper() });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.want).toEqual(WANT);
+    expect(result.current.matches).toEqual([MATCH]);
+    expect(result.current.suggestions).toEqual([SUGGESTION]);
+    expect(result.current.similar).toEqual([]);
+    expect(result.current.notFound).toBe(false);
+    expect(result.current.error).toBeNull();
+    const firstSimilar = result.current.similar;
+    rerender();
+    expect(result.current.similar).toBe(firstSimilar);
+  });
+
+  it("keeps the related items of the last read when /similar fails on a refetch, and updates the rest", async () => {
+    const OTHER_SIMILAR = makeWantSimilar({ id: "item-13", title: "Rowerek trójkołowy" });
+    vi.mocked(wantsApi.getWant).mockResolvedValue(WANT);
+    vi.mocked(wantsApi.getWantMatches).mockResolvedValue([MATCH]);
+    vi.mocked(wantsApi.getWantSuggestions).mockResolvedValue([SUGGESTION]);
+    vi.mocked(wantsApi.getWantSimilar).mockResolvedValue([SIMILAR, OTHER_SIMILAR]);
+    const { result } = renderHook(() => useWantMatches("want-1"), { wrapper: createQueryWrapper() });
+    await waitFor(() => expect(result.current.similar).toHaveLength(2));
+
+    const UPDATED_WANT = makeWant({ match_count: 2, new_match_count: 2 });
+    const NEW_MATCH = makeWantMatch({ id: "item-2", is_new: true });
+    const NEW_SUGGESTION = makeWantSuggestion({ id: "item-8" });
+    vi.mocked(wantsApi.getWant).mockResolvedValue(UPDATED_WANT);
+    vi.mocked(wantsApi.getWantMatches).mockResolvedValue([MATCH, NEW_MATCH]);
+    vi.mocked(wantsApi.getWantSuggestions).mockResolvedValue([NEW_SUGGESTION]);
+    vi.mocked(wantsApi.getWantSimilar).mockRejectedValue(
+      new ApiError(500, "Internal Server Error", { status: 500, error: "x", message: "Błąd serwera." }),
+    );
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    expect(wantsApi.getWantSimilar).toHaveBeenCalledTimes(2);
+    expect(result.current.want).toEqual(UPDATED_WANT);
+    expect(result.current.matches).toEqual([MATCH, NEW_MATCH]);
+    expect(result.current.suggestions).toEqual([NEW_SUGGESTION]);
+    expect(result.current.similar).toEqual([SIMILAR, OTHER_SIMILAR]);
+    expect(result.current.error).toBeNull();
+    expect(result.current.notFound).toBe(false);
+  });
+
+  it("still reports not found when the want itself is missing and /similar answers", async () => {
+    vi.mocked(wantsApi.getWant).mockRejectedValue(notFoundError());
+    vi.mocked(wantsApi.getWantMatches).mockResolvedValue([]);
+    vi.mocked(wantsApi.getWantSuggestions).mockResolvedValue([]);
+    vi.mocked(wantsApi.getWantSimilar).mockResolvedValue([SIMILAR]);
+    const { result } = renderHook(() => useWantMatches("want-1"), { wrapper: createQueryWrapper() });
+    await waitFor(() => expect(result.current.notFound).toBe(true));
+    expect(result.current.want).toBeNull();
+    expect(result.current.similar).toEqual([]);
+    expect(result.current.error).toBeNull();
   });
 
   it("markSeen resolves only after the whole wants prefix is invalidated", async () => {
@@ -149,6 +225,7 @@ describe("useWantMatches", () => {
     vi.mocked(wantsApi.getWant).mockResolvedValueOnce(MATCHING_WANT).mockResolvedValue(WANT);
     vi.mocked(wantsApi.getWantMatches).mockResolvedValue([]);
     vi.mocked(wantsApi.getWantSuggestions).mockResolvedValue([]);
+    vi.mocked(wantsApi.getWantSimilar).mockResolvedValue([]);
     const client = createTestQueryClient();
     const { result } = renderHook(() => useWantMatches("want-1"), { wrapper: createQueryWrapper(client) });
     await waitFor(() => expect(result.current.want?.matching).toBe(true));
@@ -171,6 +248,7 @@ describe("useWantMatches", () => {
       vi.mocked(wantsApi.getWant).mockResolvedValue(MATCHING_WANT);
       vi.mocked(wantsApi.getWantMatches).mockResolvedValue([MATCH]);
       vi.mocked(wantsApi.getWantSuggestions).mockResolvedValue([]);
+      vi.mocked(wantsApi.getWantSimilar).mockResolvedValue([]);
       const hook = renderHook(() => useWantMatches("want-1"), { wrapper: createQueryWrapper(client) });
       await flushFetches();
       expect(hook.result.current.want).toEqual(MATCHING_WANT);

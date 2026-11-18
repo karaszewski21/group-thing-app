@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Want detail — active with matches, suggestions and related — Product Design</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      color: #222;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1.5rem;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+    }
+    header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+    #status { font-size: 0.8rem; color: #4a4; font-weight: 500; }
+    #status.disconnected { color: #a44; }
+
+    /* Screen navigation */
+    .screen-nav {
+      background: #fafafa;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 0.5rem 1.5rem;
+    }
+    .nav-screens {
+      display: flex;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.25rem;
+    }
+    .nav-screen {
+      padding: 0.3rem 0.7rem;
+      border-radius: 4px;
+      text-decoration: none;
+      color: #555;
+      font-size: 0.8rem;
+      background: #eee;
+      transition: background 0.15s;
+    }
+    .nav-screen:hover { background: #ddd; }
+    .nav-screen.active { background: #333; color: #fff; }
+    .nav-prevnext {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.25rem;
+    }
+    .nav-arrow {
+      font-size: 0.8rem;
+      color: #0066cc;
+      text-decoration: none;
+    }
+    .nav-arrow:hover { text-decoration: underline; }
+
+    /* Gallery */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      padding: 1rem 0;
+    }
+    .gallery-card {
+      display: block;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow 0.2s, transform 0.15s;
+    }
+    .gallery-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+    }
+    .gallery-card-title {
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #eee;
+      background: #fafafa;
+    }
+    .gallery-card-preview {
+      height: 230px;
+      overflow: hidden;
+      position: relative;
+      background: #0e0f11;
+    }
+    /* The screen renders in a private iframe at desktop width, scaled down to a
+       thumbnail. pointer-events off so the whole card stays a single click target. */
+    .gallery-frame {
+      width: 1280px;
+      height: 820px;
+      border: 0;
+      transform: scale(0.27);
+      transform-origin: top left;
+      pointer-events: none;
+    }
+
+    /* Mockup content */
+    main {
+      max-width: 1200px;
+      margin: 1.5rem auto;
+      padding: 1.5rem;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      min-height: 300px;
+      position: relative;
+    }
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      color: #999;
+      font-size: 1rem;
+      text-align: center;
+      line-height: 1.8;
+    }
+    .annotation-tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 3px;
+      pointer-events: none;
+      max-width: 250px;
+      z-index: 1000;
+      line-height: 1.3;
+    }
+    .annotation-tooltip::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: 10px;
+      width: 8px;
+      height: 8px;
+      background: rgba(0, 0, 0, 0.75);
+      transform: rotate(45deg);
+    }
+
+    /* Interactive screen-to-screen navigation */
+    [data-screen] { cursor: pointer; }
+    [data-screen]:hover { outline: 2px solid #0066cc; outline-offset: 2px; border-radius: 2px; }
+
+    /* Annotation toggle */
+    .annotations-hidden .annotation-tooltip { display: none; }
+    #annotation-toggle {
+      font-size: 0.8rem;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      background: #f0f0f0;
+      cursor: pointer;
+      margin-left: 0.75rem;
+    }
+    #annotation-toggle:hover { background: #e0e0e0; }
+    #annotation-toggle.active { background: #333; color: #fff; border-color: #333; }
+    #gallery-link {
+      display: inline-block; margin-right: 0.5rem; padding: 0.35rem 0.75rem;
+      border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem;
+      color: #333; text-decoration: none; background: #f5f5f5;
+    }
+    #gallery-link:hover { background: #e0e0e0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Want detail — active with matches, suggestions and related</h1>
+    <div>
+      <a href="/" id="gallery-link" title="Back to the gallery of all screens">⊞ Gallery</a>
+      <button id="annotation-toggle" class="active" title="Toggle annotation tooltips">Annotations</button>
+      <span id="status">Connected</span>
+    </div>
+  </header>
+
+  
+
+  <main id="mockup-container">
+    <style>
+.app{--primary:#1b8168;--on-primary:#fff;--primary-fg:#117b63;--primary-soft:#dcf5ec;--accent-soft:#eaf2ce;--accent-fg:#56701f;
+--cream:#f4f8f0;--stage:#edf1ea;--line:#e2eadf;--line-strong:#cbdac7;--paper:#fff;--ink:#1e2e27;--ink-soft:#5c7069;
+font-family:Figtree,"Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--stage);min-height:100%;padding:16px 0}
+.phone{max-width:420px;margin:0 auto;background:var(--cream);padding:18px 16px 28px;border-radius:24px}
+.top{display:flex;justify-content:space-between;font-size:14px;margin-bottom:14px}
+.top a{font-weight:800;color:var(--primary-fg);text-decoration:none}
+h1{font-family:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;font-size:26px;line-height:1.15;font-weight:800;margin:0}
+.sum{margin-top:6px;font-size:13px;color:var(--ink-soft)}
+.toggle{display:flex;justify-content:space-between;align-items:center;margin:12px 0;padding:10px 12px;border:1px solid var(--line);background:var(--paper);border-radius:16px;font-size:14px;font-weight:700}
+.sw{width:42px;height:24px;border-radius:12px;background:var(--primary);position:relative}.sw:after{content:"";position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+h2{font-size:16px;font-weight:700;margin:4px 0 10px;display:flex;gap:8px;align-items:center}
+.grid{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card{position:relative;display:flex;flex-direction:column;border:1px solid var(--line);background:var(--paper);border-radius:16px;padding:10px;cursor:pointer}
+.card.dashed{border-style:dashed;border-color:var(--line-strong)}
+.thumb{aspect-ratio:1/1;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:34px}
+.dim{opacity:.6}
+.name{margin-top:8px;font-size:13px;font-weight:700}
+.cond{font-size:11px;color:var(--ink-soft);margin:2px 0 8px}
+.pills{margin-top:auto;display:flex;gap:4px;flex-wrap:wrap}
+.pill{font-size:11px;font-weight:800;border-radius:999px;padding:2px 8px;background:var(--primary-soft);color:var(--primary-fg)}
+.pill.res{background:var(--line);color:var(--ink-soft)}
+.new{position:absolute;top:16px;left:16px;border-radius:999px;background:var(--primary);color:var(--on-primary);font-size:11px;font-weight:800;padding:2px 8px}
+.foot{margin-top:6px;font-size:12px;color:var(--ink-soft)}.foot b{color:var(--ink)}
+.sec{margin-top:22px;border-top:1px solid var(--line);padding-top:16px}
+.lead{margin:-4px 0 12px;font-size:13px;color:var(--ink-soft)}
+.empty{display:flex;flex-direction:column;align-items:center;gap:10px;border:1.5px dashed var(--line-strong);border-radius:28px;background:var(--paper);padding:28px 20px;text-align:center}
+.empty .ic{width:64px;height:64px;border-radius:24px;background:var(--accent-soft);color:var(--accent-fg);display:flex;align-items:center;justify-content:center;font-size:28px}
+.empty h3{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:20px;font-weight:800;margin:0}
+.empty p{font-size:15px;color:var(--ink-soft);margin:0}
+.status{display:flex;gap:10px;align-items:center;border-radius:16px;background:var(--primary-soft);color:var(--primary-fg);font-size:14px;font-weight:700;padding:10px 12px;margin-bottom:12px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--primary)}
+.skel{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.skel li{border:1px solid var(--line);background:var(--paper);border-radius:16px;padding:10px}
+.skel span{display:block;background:var(--line);border-radius:999px}
+.valid{margin:14px 0 10px;font-size:13px;color:var(--ink-soft)}
+.btn{display:flex;min-height:48px;align-items:center;justify-content:center;border-radius:999px;padding:0 20px;font-size:15px;font-weight:800}
+.btn.p{background:var(--primary);color:var(--on-primary)}.btn.g{border:1.5px solid var(--line);background:var(--paper);flex:1}.btn.d{border:1.5px solid #f6e4e2;background:var(--paper);color:#b23b3b;flex:1}
+.row{display:flex;gap:10px;margin-top:10px}
+</style>
+<div id="mockup-content"><div class="app"><div class="phone"><div class="top"><a>‹ Szukam</a><a>Edytuj</a></div><h1>Samochód zabawka</h1><p class="sum">Oddam lub zamienię · Zabawki · do 10 km od Krakowa</p><div class="toggle">Powiadomienia o nowych rzeczach <span class="sw"></span></div><h2>3 pasujące rzeczy</h2><ul class="grid matches"><li><article class="card"><span class="thumb" style="background:#e6efe2">🚙</span><span class="new">nowe</span><span class="name">Samochód zabawka czerwony</span><span class="cond">Stan: Dobry</span><span class="pills"><span class="pill">Oddam</span></span></article></li><li><article class="card"><span class="thumb" style="background:#f1e8d8">🚓</span><span class="name">Zabawka samochód policja</span><span class="cond">Stan: Dobry</span><span class="pills"><span class="pill">Oddam</span></span></article></li><li><article class="card"><span class="thumb dim" style="background:#dfe9ef">🪵</span><span class="name">Samochód zabawka drewniany</span><span class="cond">Stan: Dobry</span><span class="pills"><span class="pill">Oddam</span><span class="pill res">Zarezerwowane przez Ciebie</span></span></article></li></ul><section class="sec suggestions"><h2><span aria-hidden="true">💡</span> Może Cię zainteresuje</h2><p class="lead">Podobne rzeczy — brakuje im jednego słowa z Twojego „Szukam”.</p><ul class="grid"><li><article class="card dashed"><span class="thumb" style="background:#e9e6f2">📡</span><span class="name">Samochód zdalnie sterowany</span><span class="cond">Stan: Dobry</span><span class="pills"><span class="pill">Oddam</span></span><p class="foot">brakuje: <b>„zabawka”</b></p></article></li></ul></section><section class="sec similar"><h2><span aria-hidden="true">🔗</span> Powiązane rzeczy</h2><p class="lead">Rzeczy o podobnym znaczeniu — mogą Ci się przydać.</p><ul class="grid"><li><article class="card dashed"><span class="thumb" style="background:#e6efe2">🚗</span><span class="name">Zabawka - auto mercedes</span><span class="cond">Stan: Dobry</span><span class="pills"><span class="pill">Oddam</span></span></article></li><li><article class="card dashed"><span class="thumb" style="background:#f1e8d8">🚚</span><span class="name">Resorak ciężarówka z naczepą</span><span class="cond">Stan: Używany</span><span class="pills"><span class="pill">Zamienię</span></span></article></li><li><article class="card dashed"><span class="thumb dim" style="background:#dfe9ef">🏎️</span><span class="name">Wyścigówka na baterie</span><span class="cond">Stan: Dobry</span><span class="pills"><span class="pill">Oddam</span><span class="pill res">Zarezerwowane</span></span></article></li><li><article class="card dashed"><span class="thumb dim" style="background:#efe0e6">🛣️</span><span class="name">Tor samochodowy z garażem</span><span class="cond">Stan: Bardzo dobry</span><span class="pills"><span class="pill">Oddam</span><span class="pill res">Twoja propozycja</span></span></article></li></ul></section><div class="actions"><p class="valid">Ważne jeszcze 74 dni</p><div class="btn p">Znalezione — zamknij</div><div class="row"><div class="btn g">Przedłuż</div><div class="btn d">Wycofaj</div></div></div></div></div></div>
+  </main>
+
+  <script>
+    // SSE client for live refresh. It must NOT hijack the user's location — during a
+    // multi-screen batch that would repeatedly yank the browser to the newest screen and
+    // make it impossible to browse the gallery. On the gallery/latest we reload in place
+    // (so new cards appear live); on an individual screen we show a dismissible toast so a
+    // reader is never interrupted mid-review.
+    const statusEl = document.getElementById('status');
+    const evtSource = new EventSource('/events');
+    function showRefreshToast() {
+      if (document.getElementById('refresh-toast')) return;
+      const t = document.createElement('button');
+      t.id = 'refresh-toast';
+      t.textContent = '↻ Screens updated — click to refresh';
+      t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;'
+        + 'background:#2563eb;color:#fff;border:0;border-radius:8px;padding:10px 16px;font:600 13px Inter,sans-serif;'
+        + 'cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35)';
+      t.onclick = function(){ window.location.reload(); };
+      document.body.appendChild(t);
+    }
+    evtSource.onmessage = function(e) {
+      if (e.data !== 'refresh') return;
+      if (window.location.pathname === '/' || window.location.pathname === '/latest') {
+        window.location.reload();
+      } else {
+        showRefreshToast();
+      }
+    };
+    evtSource.onopen = function() {
+      statusEl.textContent = 'Connected';
+      statusEl.className = '';
+    };
+    evtSource.onerror = function() {
+      statusEl.textContent = 'Reconnecting...';
+      statusEl.className = 'disconnected';
+    };
+
+    // Annotation overlay rendering
+    const annotations = [{"selector":".similar h2","text":"New SimilarSection: same structure as SuggestionsSection (section aria-labelledby, h2, aria-hidden emoji). Placed after „Może Cię zainteresuje”, before ActiveActions"},{"selector":".similar .card","text":"SimilarCard = ItemCard dashed, no „brakuje:” footnote, never marked „nowe”. reservedCaption shared with MatchCard/SuggestionCard"},{"selector":".similar .lead","text":"Lead copy decided in Phase 2 (editable in review)"},{"selector":".matches","text":"Existing MATCH grid (MatchCard), counts only MATCH"},{"selector":".suggestions","text":"Existing SUGGESTION section, unchanged"}];
+    function renderAnnotations() {
+      const container = document.getElementById('mockup-container');
+      annotations.forEach(function(ann) {
+        if (!ann.selector) return;
+        const target = container.querySelector(ann.selector);
+        if (!target) return;
+        const text = ann.note || ann.text || '';
+        if (!text) return;
+        const rect = target.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const tooltip = document.createElement('div');
+        tooltip.className = 'annotation-tooltip';
+        tooltip.textContent = text;
+        tooltip.style.top = (rect.bottom - containerRect.top + 6) + 'px';
+        tooltip.style.left = (rect.left - containerRect.left) + 'px';
+        container.appendChild(tooltip);
+      });
+    }
+    if (annotations.length > 0) requestAnimationFrame(renderAnnotations);
+
+    // Annotation toggle with localStorage persistence
+    var toggleBtn = document.getElementById('annotation-toggle');
+    var container = document.getElementById('mockup-container');
+    var annotationsVisible = localStorage.getItem('annotations-visible') !== 'false'; // default: true
+    function updateToggle() {
+      if (annotationsVisible) {
+        container.classList.remove('annotations-hidden');
+        toggleBtn.classList.add('active');
+      } else {
+        container.classList.add('annotations-hidden');
+        toggleBtn.classList.remove('active');
+      }
+    }
+    updateToggle();
+    toggleBtn.addEventListener('click', function() {
+      annotationsVisible = !annotationsVisible;
+      localStorage.setItem('annotations-visible', annotationsVisible);
+      updateToggle();
+    });
+
+    // Screen-to-screen navigation: clicking elements with data-screen="slug" navigates to that screen
+    document.getElementById('mockup-container').addEventListener('click', function(e) {
+      var target = e.target.closest('[data-screen]');
+      if (target) {
+        e.preventDefault();
+        window.location.href = '/screen/' + target.getAttribute('data-screen');
+      }
+    });
+  </script>
+</body>
+</html>

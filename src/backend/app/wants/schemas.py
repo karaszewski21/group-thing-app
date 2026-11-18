@@ -113,3 +113,15 @@ class WantSuggestionResponse(BaseModel):
     missing_words: list[str]
     reserved_by_me: bool
     proposed_by_me: bool
+
+
+class WantSimilarResponse(BaseModel):
+    """A related-item card: an item close in meaning to the want, stored as a
+    SIMILAR pair; `id` is the item id."""
+
+    id: uuid.UUID
+    title: str
+    href: str
+    meta: WantMatchMeta
+    reserved_by_me: bool
+    proposed_by_me: bool

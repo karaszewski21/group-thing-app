@@ -1,8 +1,8 @@
 """Reads of the seeker's own wants and of a want's match cards. A want is
 always selected by its id together with its seeker, and a withdrawn want is
 never returned. The counters count, and the match list shows, the stored
-MATCH pairs that pass `visible_matches`; the suggestion list shows the
-SUGGESTION pairs that pass it."""
+MATCH pairs that pass `visible_matches`; the suggestion and related-items
+lists show the SUGGESTION and SIMILAR pairs that pass it."""
 
 from __future__ import annotations
 
@@ -44,12 +44,14 @@ from ..schemas import (
     WantMatchMeta,
     WantMatchResponse,
     WantResponse,
+    WantSimilarResponse,
     WantSuggestionResponse,
 )
 from .errors import WantNotFound
 
 CATEGORY_PATH_SEPARATOR = " › "
 SUGGESTIONS_LIMIT = 10
+SIMILAR_LIMIT = 10
 
 
 def visible_matches(seeker_party_id: uuid.UUID, listed: FromClause, *columns: Any) -> Select[Any]:
@@ -190,13 +192,17 @@ async def list_wants(
     db: AsyncSession, principal: Principal, *, matched_item_id: uuid.UUID | None = None
 ) -> list[WantResponse]:
     """With `matched_item_id` only the ACTIVE wants that hold the item as a
-    stored pair of either tier."""
+    stored MATCH or SUGGESTION pair; a SIMILAR pair does not count."""
     caller = await users_acl.get_caller_profile(db, principal)
     statement = _wants_select(caller.party_id)
     if matched_item_id is not None:
         statement = statement.where(
             Want.status == WantStatus.ACTIVE,
-            exists().where(WantMatch.want_id == Want.id, WantMatch.item_id == matched_item_id),
+            exists().where(
+                WantMatch.want_id == Want.id,
+                WantMatch.item_id == matched_item_id,
+                WantMatch.tier.in_((WantMatchTier.MATCH, WantMatchTier.SUGGESTION)),
+            ),
         )
     rows = await db.execute(statement)
     return [WantResponse.model_validate(row) for row in rows]
@@ -269,6 +275,15 @@ def _suggestions_select(caller: users_acl.CallerProfile, want_id: uuid.UUID) -> 
         _cards_select(caller, want_id, WantMatchTier.SUGGESTION, WantMatch.missing_words)
         .order_by(WantMatch.score.desc(), WantMatch.item_id)
         .limit(SUGGESTIONS_LIMIT)
+    )
+
+
+def _similar_select(caller: users_acl.CallerProfile, want_id: uuid.UUID) -> Select[Any]:
+    """The best `SIMILAR_LIMIT` related items."""
+    return (
+        _cards_select(caller, want_id, WantMatchTier.SIMILAR)
+        .order_by(WantMatch.score.desc(), WantMatch.item_id)
+        .limit(SIMILAR_LIMIT)
     )
 
 
@@ -361,3 +376,16 @@ async def list_suggestions(
         WantSuggestionResponse(**fields, missing_words=row.missing_words)
         for row, fields in zip(rows, await _card_fields(db, rows, storage), strict=True)
     ]
+
+
+async def list_similar(
+    db: AsyncSession,
+    principal: Principal,
+    want_id: uuid.UUID,
+    storage: ObjectStorage | None,
+) -> list[WantSimilarResponse]:
+    """At most `SIMILAR_LIMIT` SIMILAR cards, best score first."""
+    caller = await users_acl.get_caller_profile(db, principal)
+    await _ensure_own_want(db, caller, want_id)
+    rows = list((await db.execute(_similar_select(caller, want_id))).all())
+    return [WantSimilarResponse(**fields) for fields in await _card_fields(db, rows, storage)]

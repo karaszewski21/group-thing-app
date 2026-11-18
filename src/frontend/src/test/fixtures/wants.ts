@@ -1,4 +1,4 @@
-import type { WantMatchResponse, WantResponse, WantSuggestionResponse } from "../../api/wants";
+import type { WantMatchResponse, WantResponse, WantSimilarResponse, WantSuggestionResponse } from "../../api/wants";
 
 /** Typed want fixtures shared by the frontend tests. The default want is
  * active, has no filters and no matches; pass overrides for the rest. */
@@ -47,6 +47,18 @@ export function makeWantSuggestion(overrides: Partial<WantSuggestionResponse> = 
     href: "/ania/product/item-7",
     meta: { mode: "SWAP", condition: "GOOD", thumb_url: null, reserved: false, reserved_until: null },
     missing_words: ["Claas"],
+    reserved_by_me: false,
+    proposed_by_me: false,
+    ...overrides,
+  };
+}
+
+export function makeWantSimilar(overrides: Partial<WantSimilarResponse> = {}): WantSimilarResponse {
+  return {
+    id: "item-12",
+    title: "Hulajnoga trójkołowa",
+    href: "/ania/product/item-12",
+    meta: { mode: "GIFT", condition: "GOOD", thumb_url: null, reserved: false, reserved_until: null },
     reserved_by_me: false,
     proposed_by_me: false,
     ...overrides,

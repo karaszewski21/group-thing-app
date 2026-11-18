@@ -1,12 +1,7 @@
 import { Fragment } from "react";
 import type { WantSuggestionResponse } from "../../api/wants";
 import { ItemCard } from "../../components/shared/ItemCard";
-
-function reservedCaption(suggestion: WantSuggestionResponse): string | undefined {
-  if (suggestion.reserved_by_me) return "Zarezerwowane przez Ciebie";
-  if (suggestion.proposed_by_me) return "Twoja propozycja";
-  return suggestion.meta.reserved ? "Zarezerwowane" : undefined;
-}
+import { reservedCaption } from "./reservedCaption";
 
 /** An item missing one word of the want's name: the MatchCard tile with a
  * dashed border and the missing words, never marked "nowe". `onOpen` reports

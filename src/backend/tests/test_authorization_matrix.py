@@ -146,6 +146,7 @@ async def test_conversationRoutes_mcpScopeToken_returns403_loginTokenReaches200(
         ("GET", "/api/wants", ("READ",)),
         ("GET", "/api/wants/42/matches", ("READ",)),
         ("GET", "/api/wants/42/suggestions", ("READ",)),
+        ("GET", "/api/wants/42/similar", ("READ",)),
         ("POST", "/api/wants", ("EDIT",)),
         ("PATCH", "/api/wants/42", ("EDIT",)),
         ("POST", "/api/wants/42/close", ("EDIT",)),
@@ -197,6 +198,27 @@ async def test_wantSuggestions_guest_returns401_loginTokenReaches404ForAnUnknown
     )
 
     assert guest.status_code == 401, guest.text
+    assert logged_in.status_code == 404, logged_in.text
+
+
+async def test_wantSimilar_mcpReadOnlyToken_returns403_loginTokenReaches404ForAnUnknownWant(
+    client: AsyncClient,
+) -> None:
+    registered = await client.post(
+        "/api/auth/register",
+        json={"role": "GUEST", "email": "matrix.similar@example.com", "password": "secret123"},
+    )
+    assert registered.status_code == 201, registered.text
+    login_token = registered.json()["token"]
+    username = jwt.decode(login_token, options={"verify_signature": False})["sub"]
+    url = f"/api/wants/{uuid.uuid4()}/similar"
+
+    mcp = await client.get(
+        url, headers={"Authorization": f"Bearer {_oauth_token(username, ['mcp:read'])}"}
+    )
+    logged_in = await client.get(url, headers={"Authorization": f"Bearer {login_token}"})
+
+    assert mcp.status_code == 403, mcp.text
     assert logged_in.status_code == 404, logged_in.text
 
 

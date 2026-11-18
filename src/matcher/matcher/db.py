@@ -17,9 +17,17 @@ from matcher.settings import Settings
 
 logger = logging.getLogger("matcher")
 
-# The amended 0099 that creates the contract; `alembic_version` is compared
-# numerically, so any later revision passes.
-CONTRACT_REVISION = 99
+# 0101, which adds the SIMILAR tier to the 0099 contract in one transaction:
+# `product_embeddings`, `want_embeddings`, `wants.similar_requested_at` and
+# its trigger. A recorded 0101 implies all of them; the table checks below
+# only name what is missing. `alembic_version` is compared numerically, so
+# any later revision passes.
+CONTRACT_REVISION = 101
+_CONTRACT_RELATIONS = (
+    ("public.matchable_listings", "view"),
+    ("public.product_embeddings", "table"),
+    ("public.want_embeddings", "table"),
+)
 LOST_RACE_SQLSTATES = frozenset({"40P01", "40001"})
 
 
@@ -52,8 +60,9 @@ async def missing_contract(connection: asyncpg.Connection) -> str | None:
     ]
     if not any(version.isdigit() and int(version) >= CONTRACT_REVISION for version in versions):
         return f"revision {', '.join(versions) or 'none'} is before {CONTRACT_REVISION:04d}"
-    if await connection.fetchval("SELECT to_regclass('public.matchable_listings') IS NULL"):
-        return "no public.matchable_listings view"
+    for relation, kind in _CONTRACT_RELATIONS:
+        if await connection.fetchval("SELECT to_regclass($1) IS NULL", relation):
+            return f"no {relation} {kind}"
     return None
 
 

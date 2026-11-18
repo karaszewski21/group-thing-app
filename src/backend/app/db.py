@@ -14,6 +14,10 @@ engine = create_async_engine(settings.database_url, pool_pre_ping=True, hide_par
 
 async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
+# Deadlock detected and serialization failure: the transaction lost to a
+# concurrent one (e.g. the matcher service) and is safe to try again.
+TRANSACTION_CONFLICTS = frozenset({"40P01", "40001"})
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency yielding an `AsyncSession` scoped to one request."""

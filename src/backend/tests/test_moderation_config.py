@@ -11,6 +11,8 @@ _MODERATION_ENV_VARS = (
     "MODERATION_TEXT_ENABLED",
     "MODERATION_IMAGE_ENABLED",
     "MODERATION_TEXT_REJECT_THRESHOLD",
+    "EMBEDDINGS_ENABLED",
+    "EMBEDDINGS_MODEL_DIR",
 )
 
 
@@ -53,3 +55,10 @@ def test_settings_legacyModerationEnabledEnv_ignored(monkeypatch: pytest.MonkeyP
 
     assert settings.moderation_image_enabled is False
     assert settings.legacy_moderation_enabled == "true"  # kept only to warn at startup
+
+
+def test_settings_defaults_embeddingsOffWithOwnModelDir(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = _settings(monkeypatch)
+
+    assert settings.embeddings_enabled is False
+    assert settings.embeddings_model_dir == "/models/embed"

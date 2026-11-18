@@ -18,6 +18,7 @@ vi.mock("../api/wants", () => ({
   extendWant: vi.fn(),
   closeWant: vi.fn(),
   resumeWant: vi.fn(),
+  getWantSimilar: vi.fn(),
 }));
 
 const WANT = makeWant();
@@ -234,6 +235,7 @@ describe("wants API module", () => {
     await actual.getWant("want-1");
     await actual.getWantMatches("want-1");
     await actual.getWantSuggestions("want-1");
+    await actual.getWantSimilar("want-1");
     await actual.createWant({ name: "Kask" });
     await actual.updateWant("want-1", { note: null });
     await actual.extendWant("want-1");
@@ -248,6 +250,7 @@ describe("wants API module", () => {
       "/wants/want-1",
       "/wants/want-1/matches",
       "/wants/want-1/suggestions",
+      "/wants/want-1/similar",
     ]);
     expect(patch).toHaveBeenCalledWith("/wants/want-1", { note: null });
     expect(post.mock.calls).toEqual([

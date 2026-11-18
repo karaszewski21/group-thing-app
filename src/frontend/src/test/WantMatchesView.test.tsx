@@ -2,9 +2,9 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import * as wantsApi from "../api/wants";
-import type { WantMatchResponse, WantResponse, WantSuggestionResponse } from "../api/wants";
+import type { WantMatchResponse, WantResponse, WantSimilarResponse, WantSuggestionResponse } from "../api/wants";
 import { WantMatchesView } from "../features/wanted/WantMatchesView";
-import { makeWant, makeWantMatch, makeWantSuggestion } from "./fixtures/wants";
+import { makeWant, makeWantMatch, makeWantSimilar, makeWantSuggestion } from "./fixtures/wants";
 import { createQueryWrapper } from "./queryClient";
 import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
@@ -15,6 +15,7 @@ vi.mock("../api/wants", () => ({
   getWant: vi.fn(),
   getWantMatches: vi.fn(),
   getWantSuggestions: vi.fn(),
+  getWantSimilar: vi.fn(),
   updateWant: vi.fn(),
   extendWant: vi.fn(),
   closeWant: vi.fn(),
@@ -29,10 +30,16 @@ function apiError(status: number, message: string) {
   return new ApiError(status, "Error", { status, error: "Error", message });
 }
 
-function serve(want: WantResponse, matches: WantMatchResponse[] = [], suggestions: WantSuggestionResponse[] = []) {
+function serve(
+  want: WantResponse,
+  matches: WantMatchResponse[] = [],
+  suggestions: WantSuggestionResponse[] = [],
+  similar: WantSimilarResponse[] = [],
+) {
   vi.mocked(wantsApi.getWant).mockResolvedValue(want);
   vi.mocked(wantsApi.getWantMatches).mockResolvedValue(matches);
   vi.mocked(wantsApi.getWantSuggestions).mockResolvedValue(suggestions);
+  vi.mocked(wantsApi.getWantSimilar).mockResolvedValue(similar);
 }
 
 /** The match grid's placeholder tiles, hidden from assistive technology. */
@@ -41,6 +48,11 @@ function skeletonTiles(): Element[] {
 }
 
 const SUGGESTIONS_HEADING = "Może Cię zainteresuje";
+const SIMILAR_HEADING = "Powiązane rzeczy";
+
+function follows(earlier: Node, later: Node): boolean {
+  return (earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+}
 
 function renderView() {
   return renderWithRoute(<WantMatchesView />, {
@@ -63,6 +75,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-11-15T10:00:00Z"));
   vi.mocked(wantsApi.getMyWants).mockResolvedValue([]);
   vi.mocked(wantsApi.getWantSuggestions).mockResolvedValue([]);
+  vi.mocked(wantsApi.getWantSimilar).mockResolvedValue([]);
   vi.mocked(wantsApi.markWantMatchesSeen).mockResolvedValue(makeWant());
   vi.mocked(wantsApi.markWantMatchOpened).mockResolvedValue(undefined);
 });
@@ -460,5 +473,113 @@ describe("WantMatchesView", () => {
     expect(screen.queryByRole("region")).not.toBeInTheDocument();
     expect(screen.queryByText(SUGGESTIONS_HEADING)).not.toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("shows „Powiązane rzeczy” after the suggestions and before the actions of an active want", async () => {
+    serve(makeWant(), [makeWantMatch()], [makeWantSuggestion()], [makeWantSimilar()]);
+    renderView();
+
+    const section = await screen.findByRole("region", { name: SIMILAR_HEADING });
+    const heading = within(section).getByRole("heading", { level: 2, name: SIMILAR_HEADING });
+    expect(heading.querySelector('[aria-hidden="true"]')).toHaveTextContent("🔗");
+    expect(within(section).getByText("Rzeczy o podobnym znaczeniu — mogą Ci się przydać.")).toBeInTheDocument();
+    expect(within(section).getByRole("list")).toHaveClass("grid", "grid-cols-2", "gap-3", "sm:grid-cols-3");
+    const matchCount = screen.getByRole("heading", { level: 2, name: "1 pasująca rzecz" });
+    const suggestions = screen.getByRole("region", { name: SUGGESTIONS_HEADING });
+    expect(follows(matchCount, suggestions)).toBe(true);
+    expect(follows(suggestions, section)).toBe(true);
+    expect(follows(section, screen.getByText("Ważne jeszcze 90 dni"))).toBe(true);
+  });
+
+  it("keeps the empty card before „Powiązane rzeczy”, and while matching puts them after the skeleton or the matches", async () => {
+    serve(makeWant(), [], [], [makeWantSimilar()]);
+    const empty = renderView();
+
+    const section = await screen.findByRole("region", { name: SIMILAR_HEADING });
+    expect(follows(screen.getByRole("heading", { name: "Jeszcze nic nie pasuje" }), section)).toBe(true);
+    expect(follows(section, screen.getByText("Ważne jeszcze 90 dni"))).toBe(true);
+    empty.unmount();
+
+    serve(makeWant({ matching: true }), [], [], [makeWantSimilar()]);
+    const skeleton = renderView();
+    const matchingSection = await screen.findByRole("region", { name: SIMILAR_HEADING });
+    expect(skeletonTiles()).toHaveLength(4);
+    expect(follows(skeletonTiles()[3], matchingSection)).toBe(true);
+    expect(screen.queryByText("Jeszcze nic nie pasuje")).not.toBeInTheDocument();
+    expect(follows(matchingSection, screen.getByText("Ważne jeszcze 90 dni"))).toBe(true);
+    skeleton.unmount();
+
+    serve(makeWant({ matching: true }), [makeWantMatch()], [], [makeWantSimilar()]);
+    renderView();
+    const withMatches = await screen.findByRole("region", { name: SIMILAR_HEADING });
+    expect(follows(screen.getByRole("link", { name: "Rowerek biegowy Puky" }), withMatches)).toBe(true);
+  });
+
+  it("has no „Powiązane rzeczy” without related items, nor on an expired or a fulfilled want", async () => {
+    serve(makeWant(), [makeWantMatch()]);
+    const none = renderView();
+    await screen.findByRole("link", { name: "Rowerek biegowy Puky" });
+    expect(screen.queryByText(SIMILAR_HEADING)).not.toBeInTheDocument();
+    none.unmount();
+
+    for (const closed of [
+      makeWant({ status: "EXPIRED", expires_at: "2026-11-12T09:00:00", closed_at: "2026-11-12T09:00:00" }),
+      makeWant({ status: "FULFILLED", closed_at: "2026-11-10T09:00:00" }),
+    ]) {
+      serve(closed, [makeWantMatch()], [], [makeWantSimilar()]);
+      const view = renderView();
+      await screen.findByRole("link", { name: "Rowerek biegowy Puky" });
+      expect(screen.queryByText(SIMILAR_HEADING)).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Hulajnoga trójkołowa" })).not.toBeInTheDocument();
+      view.unmount();
+    }
+  });
+
+  // Fakes setTimeout too, as the slow-card test above, to reach matchingSlow.
+  it("has no „Powiązane rzeczy” without related items while empty, matching or matching slowly", async () => {
+    vi.useRealTimers();
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.setSystemTime(new Date("2026-11-15T10:00:00Z"));
+    serve(makeWant(), [], [makeWantSuggestion()]);
+    const empty = renderView();
+    await act(async () => {});
+    expect(screen.getByRole("heading", { name: "Jeszcze nic nie pasuje" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: SUGGESTIONS_HEADING })).toBeInTheDocument();
+    expect(screen.queryByText(SIMILAR_HEADING)).not.toBeInTheDocument();
+    empty.unmount();
+
+    serve(makeWant({ matching: true }));
+    renderView();
+    await act(async () => {});
+    expect(screen.getByText("Szukamy pasujących rzeczy…")).toBeInTheDocument();
+    expect(screen.queryByText(SIMILAR_HEADING)).not.toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(screen.getByRole("heading", { name: "Wyniki pojawią się wkrótce" })).toBeInTheDocument();
+    expect(screen.queryByText(SIMILAR_HEADING)).not.toBeInTheDocument();
+    expect(wantsApi.getWantSimilar).toHaveBeenCalledWith("want-1");
+  });
+
+  it("a related card is dashed without „brakuje:” or „nowe”, captions a reservation and reports its opening", async () => {
+    serve(makeWant(), [], [], [
+      makeWantSimilar(),
+      makeWantSimilar({
+        id: "item-13",
+        title: "Autko na pedały",
+        meta: { mode: "SWAP", condition: "GOOD", thumb_url: null, reserved: true, reserved_until: null },
+      }),
+    ]);
+    renderView();
+
+    await screen.findByRole("region", { name: SIMILAR_HEADING });
+    const card = cardOf("Hulajnoga trójkołowa");
+    expect(card).toHaveClass("border-dashed");
+    expect(within(card).queryByText(/brakuje:/)).not.toBeInTheDocument();
+    expect(within(card).queryByText("nowe")).not.toBeInTheDocument();
+    expect(within(card).queryByText(/Zarezerwowan|propozycja/)).not.toBeInTheDocument();
+    expect(within(cardOf("Autko na pedały")).getByText("Zarezerwowane")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("link", { name: "Hulajnoga trójkołowa" }));
+    expect(wantsApi.markWantMatchOpened).toHaveBeenCalledWith("want-1", "item-12");
   });
 });

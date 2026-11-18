@@ -1,17 +1,23 @@
-"""The request loop (FR-MT-04): a seeker's write flags a want
-(`match_requested_at`) and the trigger NOTIFYs `wants_changed`. The loop
-LISTENs on a dedicated connection, polls every `REQUEST_POLL` as well, and
-on each wake-up drains the flagged wants, one transaction per want:
+"""The request loop (FR-MT-04, R26): a seeker's write flags a want for a full
+run (`match_requested_at`), a background re-trigger for a SIMILAR-only run
+(`similar_requested_at`), and either trigger NOTIFYs `wants_changed`. The
+loop LISTENs on a dedicated connection, polls every `REQUEST_POLL` as well,
+and on each wake-up drains the flagged wants, one transaction per want:
 
-- claim the oldest flag `FOR NO KEY UPDATE SKIP LOCKED`, so copies never
-  share a want and window inserts (the FK's `KEY SHARE`) never wait (L7);
-- run the forward match for an ACTIVE want (pairs born seen, no outbox row);
-- compare-and-clear the flag against the value claimed, so a newer request
-  stays, without touching `updated_at`, so a seeker's loaded version stays
-  valid.
+- claim a flagged want `FOR NO KEY UPDATE SKIP LOCKED`, full requests first
+  and the oldest flag first within each kind, so copies never share a want
+  and window inserts (the FK's `KEY SHARE`) never wait (L7);
+- for an ACTIVE want run what was asked for (pairs born seen, no outbox
+  row): the full forward match, or only its SIMILAR tier, so a background
+  re-trigger stores no lexical pair and the window still rings its bell;
+- compare-and-clear the claimed flag(s) against the values claimed, so a
+  newer request stays, without touching `updated_at`, so a seeker's loaded
+  version stays valid. A full run includes SIMILAR, so it also clears a
+  SIMILAR flag set at or before its claim.
 
-A failing want is rolled back and skipped by this process's claims for a
-doubling backoff (H4), so it never blocks the others."""
+A failing want is rolled back (both flags stay) and skipped by this
+process's claims of either kind for a doubling backoff (H4), so it never
+blocks the others."""
 
 import asyncio
 import contextlib
@@ -29,15 +35,27 @@ logger = logging.getLogger("matcher")
 CHANNEL = "wants_changed"
 
 CLAIM = """
-SELECT id, status, match_requested_at
+SELECT id, status, match_requested_at, similar_requested_at
 FROM wants
-WHERE match_requested_at IS NOT NULL AND id <> ALL($1::uuid[])
-ORDER BY match_requested_at, id
+WHERE (match_requested_at IS NOT NULL OR similar_requested_at IS NOT NULL)
+  AND id <> ALL($1::uuid[])
+ORDER BY match_requested_at IS NULL, least(match_requested_at, similar_requested_at), id
 LIMIT 1
 FOR NO KEY UPDATE SKIP LOCKED
 """
 
-CLEAR = "UPDATE wants SET match_requested_at = NULL WHERE id = $1 AND match_requested_at = $2"
+# `$3` NULL: the comparison is NULL and the SIMILAR flag keeps its value.
+CLEAR = """
+UPDATE wants
+SET match_requested_at = CASE WHEN match_requested_at = $2 THEN NULL ELSE match_requested_at END,
+    similar_requested_at = CASE WHEN similar_requested_at <= $3::timestamp
+                           THEN NULL ELSE similar_requested_at END
+WHERE id = $1
+"""
+
+CLEAR_SIMILAR = (
+    "UPDATE wants SET similar_requested_at = NULL WHERE id = $1 AND similar_requested_at = $2"
+)
 
 
 class Backoff:
@@ -63,6 +81,24 @@ class Backoff:
         self._retry_after.pop(want_id, None)
 
 
+async def _process(connection: asyncpg.Connection, claimed: asyncpg.Record, now: datetime) -> None:
+    """Runs and clears the claimed request in the claim's transaction."""
+    want_id = claimed["id"]
+    full = claimed["match_requested_at"] is not None
+    if claimed["status"] == "ACTIVE":
+        await db.limit_transaction(connection)
+        if full:
+            await statements.match_forward(connection, want_id, now=now)
+        else:
+            await statements.match_similar_forward(connection, want_id, now=now)
+    if full:
+        await connection.execute(
+            CLEAR, want_id, claimed["match_requested_at"], claimed["similar_requested_at"]
+        )
+    else:
+        await connection.execute(CLEAR_SIMILAR, want_id, claimed["similar_requested_at"])
+
+
 async def process_next(pool: asyncpg.Pool, backoff: Backoff, *, now: datetime) -> bool:
     """Claims and processes one flagged want; `False` when none is claimable.
     A failure after the claim is logged and backs the want off; one before it
@@ -74,18 +110,16 @@ async def process_next(pool: asyncpg.Pool, backoff: Backoff, *, now: datetime) -
                 claimed = await connection.fetchrow(CLAIM, backoff.waiting(now))
                 if claimed is None:
                     return False
-                if claimed["status"] == "ACTIVE":
-                    await db.limit_transaction(connection)
-                    await statements.match_forward(connection, claimed["id"], now=now)
-                await connection.execute(CLEAR, claimed["id"], claimed["match_requested_at"])
+                await _process(connection, claimed, now)
         except Exception as exc:
             if claimed is None:
                 raise
             failures, retry_after = backoff.failed(claimed["id"], now)
+            kind = "" if claimed["match_requested_at"] is not None else "similar only, "
             db.log_failure(
                 logger,
                 exc,
-                f"matching want {claimed['id']} (failure {failures},"
+                f"matching want {claimed['id']} ({kind}failure {failures},"
                 f" retry after {retry_after.isoformat()})",
             )
             return True

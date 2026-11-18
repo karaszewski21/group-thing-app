@@ -13,9 +13,13 @@ exactly the data that test created.
 
 from __future__ import annotations
 
+import hashlib
+import math
 import os
+import random
 import subprocess
 import sys
+import threading
 import uuid
 from collections.abc import AsyncGenerator, Callable, Collection, Generator, Iterator
 from contextlib import contextmanager
@@ -38,6 +42,7 @@ from tests.fake_storage import FakeStorage
 
 if TYPE_CHECKING:
     from app.wants.domain.status import WantStatus
+    from app.wants.models import WantMatchTier
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
@@ -45,6 +50,7 @@ BACKEND_ROOT = Path(__file__).resolve().parent.parent
 # cannot leak into the suite. Set before any test module imports `app.config`;
 # moderation tests opt in by monkeypatching `settings.moderation_text_enabled`.
 os.environ["MODERATION_TEXT_ENABLED"] = "false"
+os.environ["EMBEDDINGS_ENABLED"] = "false"
 
 
 def _to_asyncpg_url(sync_url: str) -> str:
@@ -55,7 +61,7 @@ def _to_asyncpg_url(sync_url: str) -> str:
 
 @pytest.fixture(scope="session")
 def postgres_container() -> Generator[PostgresContainer, None, None]:
-    with PostgresContainer("postgres:18") as container:
+    with PostgresContainer("pgvector/pgvector:0.8.7-pg18-trixie") as container:
         yield container
 
 
@@ -230,6 +236,55 @@ def fake_storage() -> FakeStorage:
     return FakeStorage()
 
 
+def fake_unit_vector(text: str, dimensions: int = 768) -> list[float]:
+    """A deterministic unit vector per text, so equal texts embed equally."""
+    rng = random.Random(hashlib.sha256(text.encode("utf-8")).digest())
+    raw = [rng.gauss(0.0, 1.0) for _ in range(dimensions)]
+    norm = math.sqrt(math.fsum(x * x for x in raw))
+    return [x / norm for x in raw]
+
+
+class FakeEmbedder:
+    """Stand-in for `OnnxEmbedder`. `overrides` maps chosen texts to fixed
+    vectors, `fail` makes `embed` raise, and `delay` blocks `embed` on the
+    event until it is set (a stuck inference)."""
+
+    def __init__(self, overrides: dict[str, list[float]] | None = None) -> None:
+        from app.embeddings.service import EMBEDDING_MODEL_ID
+
+        self.model_id = EMBEDDING_MODEL_ID
+        self.overrides = dict(overrides or {})
+        self.fail = False
+        self.delay: threading.Event | None = None
+        self.calls: list[list[str]] = []
+
+    @property
+    def texts(self) -> list[str]:
+        return [text for batch in self.calls for text in batch]
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        self.calls.append(list(texts))
+        if self.delay is not None:
+            self.delay.wait()
+        if self.fail:
+            raise RuntimeError("embedding failed")
+        return [self.overrides.get(text) or fake_unit_vector(text) for text in texts]
+
+
+@pytest.fixture
+def fake_embedder(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeEmbedder]:
+    from app.config import settings
+    from app.embeddings import service
+
+    monkeypatch.setattr(settings, "embeddings_enabled", True)
+    embedder = FakeEmbedder()
+    service.set_embedder(embedder)
+    yield embedder
+    if embedder.delay is not None:
+        embedder.delay.set()
+    service.set_embedder(None)
+
+
 @pytest.fixture
 async def client(
     db_session: AsyncSession, fake_storage: FakeStorage
@@ -371,13 +426,18 @@ async def seed_want_matches(
     missing_words: list[str] | None = None,
     seen: bool = True,
     score: float = 0.5,
+    tier: WantMatchTier | None = None,
 ) -> None:
     """Stored pairs as the matcher service writes them, committed: MATCH
-    pairs, or SUGGESTION pairs when `missing_words` is given. FORWARD pairs
-    are born seen; `seen=False` stores them as new."""
+    pairs, or SUGGESTION pairs when `missing_words` is given, unless `tier`
+    says otherwise (SIMILAR pairs have no `missing_words`). FORWARD pairs are
+    born seen; `seen=False` stores them as new."""
     from app.wants.domain.status import WantMatchSource
     from app.wants.models import WantMatch, WantMatchTier
 
+    if tier is None:
+        tier = WantMatchTier.MATCH if missing_words is None else WantMatchTier.SUGGESTION
+    assert tier != WantMatchTier.SIMILAR or missing_words is None
     now = datetime.utcnow()
     db.add_all(
         WantMatch(
@@ -386,7 +446,7 @@ async def seed_want_matches(
             source=WantMatchSource.FORWARD if seen else WantMatchSource.SCAN,
             score=score,
             seen_at=now if seen else None,
-            tier=WantMatchTier.MATCH if missing_words is None else WantMatchTier.SUGGESTION,
+            tier=tier,
             missing_words=missing_words,
         )
         for item_id in item_ids

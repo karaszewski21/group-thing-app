@@ -1,11 +1,6 @@
 import type { WantMatchResponse } from "../../api/wants";
 import { ItemCard } from "../../components/shared/ItemCard";
-
-function reservedCaption(match: WantMatchResponse): string | undefined {
-  if (match.reserved_by_me) return "Zarezerwowane przez Ciebie";
-  if (match.proposed_by_me) return "Twoja propozycja";
-  return match.meta.reserved ? "Zarezerwowane" : undefined;
-}
+import { reservedCaption } from "./reservedCaption";
 
 /** One matching item on a want's match list. The tile is one link, so a
  * click anywhere on it opens the item; `onOpen` reports that, also for a

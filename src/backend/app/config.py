@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     moderation_models_dir: str = "/models"
     # Any Bielik-Guard category score >= this -> the write is rejected (400).
     moderation_text_reject_threshold: float = 0.8
+    # Name embeddings for the SIMILAR want tier; independent of moderation.
+    embeddings_enabled: bool = False
+    # Exported int8 ONNX embed model with its `model_id.txt`.
+    embeddings_model_dir: str = "/models/embed"
     # Removed `MODERATION_ENABLED`; read only so startup can warn that it is ignored.
     legacy_moderation_enabled: str | None = Field(
         default=None, validation_alias="MODERATION_ENABLED"

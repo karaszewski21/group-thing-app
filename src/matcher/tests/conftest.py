@@ -1,10 +1,11 @@
 """Shared fixtures for the matcher suite.
 
-Session-scoped: a postgres:18 testcontainer migrated with the backend's own
-`alembic upgrade head` (run from `src/backend`, whose `script_location` is
-cwd-relative), and an asyncpg pool on it. Function-scoped `db`: the same pool
-with the seeded tables truncated first, because the loop tests need committed
-data seen across connections (no rollback-per-test as in the backend).
+Session-scoped: a `pgvector/pgvector:0.8.7-pg18-trixie` testcontainer
+migrated with the backend's own `alembic upgrade head` (run from
+`src/backend`, whose `script_location` is cwd-relative), and an asyncpg pool
+on it. Function-scoped `db`: the same pool with the seeded tables truncated
+first, because the loop tests need committed data seen across connections
+(no rollback-per-test as in the backend).
 
 The seed helpers write raw SQL and set every NOT NULL column without a default.
 """
@@ -36,6 +37,8 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2] / "backend"
 Db = asyncpg.Pool | asyncpg.Connection
 
 _TRUNCATED = (
+    "want_embeddings",
+    "product_embeddings",
     "want_matches",
     "want_scan_markers",
     "wants",
@@ -64,7 +67,7 @@ _locality_ids = itertools.count(1)
 
 @pytest.fixture(scope="session")
 def postgres_container() -> Iterator[PostgresContainer]:
-    with PostgresContainer("postgres:18") as container:
+    with PostgresContainer("pgvector/pgvector:0.8.7-pg18-trixie") as container:
         yield container
 
 

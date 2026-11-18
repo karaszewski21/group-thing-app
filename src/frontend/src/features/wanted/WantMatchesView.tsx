@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import type { WantMatchResponse, WantResponse, WantSuggestionResponse } from "../../api/wants";
+import type { WantMatchResponse, WantResponse, WantSimilarResponse, WantSuggestionResponse } from "../../api/wants";
 import { BellIcon } from "../../components/shared/appIcons";
 import { FOCUS_CLASS } from "../../components/shared/chipStyles";
 import { ConfirmDeleteDialog } from "../../components/shared/ConfirmDeleteDialog";
@@ -9,6 +9,7 @@ import { Link, useAppNavigate, useAppParams } from "../../routing/navigation";
 import { viewPath, wantEditPath } from "../../routing/paths";
 import { MatchCard } from "./MatchCard";
 import { MatchingStatus } from "./MatchingStatus";
+import { SimilarCard } from "./SimilarCard";
 import { SuggestionCard } from "./SuggestionCard";
 import { resolveWantMatchesView, type ActiveWantView, type ClosedWantView } from "./wantMatchesViewState";
 import { WantNotFound } from "./WantNotFound";
@@ -35,10 +36,10 @@ const HEADER_LINK = `font-extrabold text-primary-fg ${FOCUS_CLASS}`;
 export function WantMatchesView() {
   const { id = "" } = useAppParams();
   const navigate = useAppNavigate();
-  const { want, matches, suggestions, slow, loading, notFound, error, refetch, markSeen, markOpened } =
+  const { want, matches, suggestions, similar, slow, loading, notFound, error, refetch, markSeen, markOpened } =
     useWantMatches(id);
   const { update, extend, close, resume } = useWants();
-  const view = resolveWantMatchesView({ want, matches, suggestions, slow, loading, notFound, error });
+  const view = resolveWantMatchesView({ want, matches, suggestions, similar, slow, loading, notFound, error });
 
   const [newIds, setNewIds] = useState<ReadonlySet<string> | null>(null);
   if (newIds === null && want !== null) {
@@ -103,6 +104,8 @@ export function WantMatchesView() {
   );
   const suggestionsSection = (list: WantSuggestionResponse[]) =>
     list.length > 0 && <SuggestionsSection suggestions={list} onOpen={reportOpened} />;
+  const similarSection = (list: WantSimilarResponse[]) =>
+    list.length > 0 && <SimilarSection similar={list} onOpen={reportOpened} />;
   const toggle = (shown: WantResponse) => (
     <WantNotificationToggle
       checked={shown.notifications_enabled}
@@ -157,6 +160,7 @@ export function WantMatchesView() {
           <MatchingStatus />
           {view.matches.length > 0 ? matchList(view.matches) : <SkeletonGrid />}
           {suggestionsSection(view.suggestions)}
+          {similarSection(view.similar)}
           <ActiveActions view={view} actions={actions} />
           {withdrawDialog(view.want)}
         </>
@@ -182,6 +186,7 @@ export function WantMatchesView() {
           </EmptyCard>
           {view.matches.length > 0 && <div className="mt-3.5">{matchList(view.matches)}</div>}
           {suggestionsSection(view.suggestions)}
+          {similarSection(view.similar)}
           <ActiveActions view={view} actions={actions} />
           {withdrawDialog(view.want)}
         </>
@@ -193,6 +198,7 @@ export function WantMatchesView() {
           {toggle(view.want)}
           {matchList(view.matches)}
           {suggestionsSection(view.suggestions)}
+          {similarSection(view.similar)}
           <ActiveActions view={view} actions={actions} />
           {withdrawDialog(view.want)}
         </>
@@ -208,6 +214,7 @@ export function WantMatchesView() {
             text="Damy znać, gdy ktoś doda pasującą rzecz."
           />
           {suggestionsSection(view.suggestions)}
+          {similarSection(view.similar)}
           <ActiveActions view={view} actions={actions} />
           {withdrawDialog(view.want)}
         </>
@@ -343,6 +350,23 @@ function SuggestionsSection({
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {suggestions.map((suggestion) => (
           <SuggestionCard key={suggestion.id} suggestion={suggestion} onOpen={() => onOpen(suggestion.id)} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function SimilarSection({ similar, onOpen }: { similar: WantSimilarResponse[]; onOpen: (itemId: string) => void }) {
+  const headingId = useId();
+  return (
+    <section aria-labelledby={headingId} className="mt-5.5 border-t border-line pt-4">
+      <h2 id={headingId} className="mb-2.5 flex items-center gap-2 text-base font-bold text-ink">
+        <span aria-hidden="true">🔗</span> Powiązane rzeczy
+      </h2>
+      <p className="-mt-1 mb-3 text-[13px] text-ink-soft">Rzeczy o podobnym znaczeniu — mogą Ci się przydać.</p>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {similar.map((item) => (
+          <SimilarCard key={item.id} similar={item} onOpen={() => onOpen(item.id)} />
         ))}
       </ul>
     </section>

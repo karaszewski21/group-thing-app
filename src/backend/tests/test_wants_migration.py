@@ -3,8 +3,8 @@ tables, their generated columns and CHECKs, and the matcher's DB contract
 (text functions, `match_requested_at` with its NOTIFY trigger, the tier
 columns and the three views). The downgrade tests take the shared session
 database to 0098 and always upgrade it back to head, so later tests see the
-full schema; one of them first rebuilds the shape of the first version of
-0099, which the same downgrade must also undo.
+full schema; one of them first goes down to 0099 and rebuilds the shape of
+the first version of 0099, which the same downgrade must also undo.
 
 Wants are inserted in SQL, not through the ORM, so these tests pin the
 schema alone."""
@@ -197,6 +197,7 @@ async def test_migration0099_downgradeUpgrade_roundTrip(
         "ix_wants_active_expires_at": ["expires_at"],
         "ix_wants_closed_at": ["closed_at"],
         "ix_wants_match_requested_at": ["match_requested_at"],
+        "ix_wants_similar_requested_at": ["similar_requested_at"],
     }
     partial = {
         name: ix["dialect_options"].get("postgresql_where") for name, ix in wants["indexes"].items()
@@ -225,6 +226,9 @@ async def test_migration0099_downgradeFromOldShape_succeeds(
     engine: AsyncEngine, database_url: str
 ) -> None:
     try:
+        result = _alembic(database_url, "downgrade", "0099")
+        assert result.returncode == 0, result.stderr
+        await engine.dispose()
         async with engine.begin() as conn:
             for statement in OLD_SHAPE:
                 await conn.execute(text(statement))
@@ -313,6 +317,8 @@ async def test_contractFunctions_bodies_immutableAndPublicQualified(
         "lat",
         "lng",
         "changed_at",
+        "embedding",
+        "model_id",
     ]
 
 

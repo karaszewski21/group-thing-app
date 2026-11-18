@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:18
+    image: pgvector/pgvector:0.8.7-pg18-trixie
     environment:
       POSTGRES_USER: aj
       POSTGRES_PASSWORD: aj
@@ -42,6 +42,7 @@ services:
       SPACES_PUBLIC_BASE_URL: ${SPACES_PUBLIC_BASE_URL:-}
       MODERATION_TEXT_ENABLED: "true"
       MODERATION_IMAGE_ENABLED: ${MODERATION_IMAGE_ENABLED:-false}
+      EMBEDDINGS_ENABLED: ${EMBEDDINGS_ENABLED:-false}
     depends_on:
       postgres:
         condition: service_healthy

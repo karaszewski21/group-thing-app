@@ -2,8 +2,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { ApiError } from "../api/client";
 import { extractProblemMessage } from "../api/problem";
-import type { WantMatchResponse, WantResponse, WantSuggestionResponse } from "../api/wants";
-import { getWant, getWantMatches, getWantSuggestions, markWantMatchesSeen, markWantMatchOpened } from "../api/wants";
+import type { WantMatchResponse, WantResponse, WantSimilarResponse, WantSuggestionResponse } from "../api/wants";
+import {
+  getWant,
+  getWantMatches,
+  getWantSimilar,
+  getWantSuggestions,
+  markWantMatchesSeen,
+  markWantMatchOpened,
+} from "../api/wants";
 import { useAuth } from "../auth/AuthContext";
 import { useMatchingPolledQuery, WANTS_KEY } from "./useWants";
 
@@ -12,6 +19,8 @@ interface UseWantMatchesResult {
   matches: WantMatchResponse[];
   /** „Może Cię zainteresuje”: items missing one word of the want's name. */
   suggestions: WantSuggestionResponse[];
+  /** „Powiązane rzeczy”: items close in meaning; never counted as matches. */
+  similar: WantSimilarResponse[];
   /** Still matching after the 60 s polling window; `refetch` resumes it. */
   slow: boolean;
   loading: boolean;
@@ -29,16 +38,18 @@ interface WantWithMatches {
   want: WantResponse;
   matches: WantMatchResponse[];
   suggestions: WantSuggestionResponse[];
+  similar: WantSimilarResponse[];
 }
 
 const NO_MATCHES: WantMatchResponse[] = [];
 const NO_SUGGESTIONS: WantSuggestionResponse[] = [];
+const NO_SIMILAR: WantSimilarResponse[] = [];
 
 function wantIsMatching(data: WantWithMatches): boolean {
   return data.want.matching;
 }
 
-/** One want with its matches and suggestions, under the wants prefix so
+/** One want with its matches, suggestions and related items, under the wants prefix so
  * that every want write refreshes it. Keyed by token, as the list. While the
  * matcher has yet to answer the want it re-reads every 2 s for 60 s, then
  * reports `slow`. */
@@ -46,15 +57,22 @@ export function useWantMatches(wantId: string): UseWantMatchesResult {
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const enabled = token !== null && wantId !== "";
+  const queryKey = [WANTS_KEY, "matches", token, wantId];
   const { query, slow, restart } = useMatchingPolledQuery({
-    queryKey: [WANTS_KEY, "matches", token, wantId],
+    queryKey,
     queryFn: async (): Promise<WantWithMatches> => {
-      const [want, matches, suggestions] = await Promise.all([
+      const [want, matches, suggestions, similar] = await Promise.all([
         getWant(wantId),
         getWantMatches(wantId),
         getWantSuggestions(wantId),
+        // Non-critical: a failing or missing `/similar` (an older backend
+        // answers 404) leaves the want, its matches and suggestions shown,
+        // and keeps the related items of the last successful read.
+        getWantSimilar(wantId).catch(
+          () => queryClient.getQueryData<WantWithMatches>(queryKey)?.similar ?? NO_SIMILAR,
+        ),
       ]);
-      return { want, matches, suggestions };
+      return { want, matches, suggestions, similar };
     },
     enabled,
     isMatching: wantIsMatching,
@@ -91,6 +109,7 @@ export function useWantMatches(wantId: string): UseWantMatchesResult {
     want: query.data?.want ?? null,
     matches: query.data?.matches ?? NO_MATCHES,
     suggestions: query.data?.suggestions ?? NO_SUGGESTIONS,
+    similar: query.data?.similar ?? NO_SIMILAR,
     slow,
     loading: query.isPending && enabled,
     notFound,

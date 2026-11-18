@@ -1,9 +1,10 @@
 """The match list of a want (`GET /api/wants/{id}/matches`, MATCH pairs
 only): the card, its order and its reservation flags, the read-time filter
-it shares with the want's counters, the `matched_item_id` lookup over both
-tiers, the "seen" and "opened" marks, and the statement count of the list.
-Then the suggestion list (`GET /api/wants/{id}/suggestions`). The pairs are
-seeded as the matcher service writes them."""
+it shares with the want's counters, the `matched_item_id` lookup over the
+MATCH and SUGGESTION tiers (never SIMILAR), the "seen" and "opened" marks,
+and the statement count of the list. Then the suggestion list
+(`GET /api/wants/{id}/suggestions`). The pairs are seeded as the matcher
+service writes them."""
 
 from __future__ import annotations
 
