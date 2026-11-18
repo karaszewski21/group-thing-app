@@ -55,7 +55,10 @@ async def _schema_state(engine: AsyncEngine) -> dict[str, object]:
                 await conn.execute(
                     text(
                         "SELECT table_name || '.' || column_name FROM information_schema.columns "
-                        "WHERE column_name IN ('search_vector', 'path_text') ORDER BY 1"
+                        "WHERE column_name IN ('search_vector', 'path_text') "
+                        "AND (table_schema, table_name) IN (SELECT table_schema, table_name "
+                        "FROM information_schema.tables WHERE table_type = 'BASE TABLE') "
+                        "ORDER BY 1"
                     )
                 )
             )

@@ -46,6 +46,12 @@ This document describes the technology choices and rationale for **aj** — a pl
 #### uvicorn (0.52.4, `[standard]` extras)
 - **Purpose**: ASGI server
 
+### Wants matcher (`src/matcher`, project `aj-matcher`)
+- **Purpose**: the separate matching process of the wants feature (`python -m matcher`, compose service `matcher`); see `project/architecture.md`, Wants.
+- **Runtime**: Python >=3.12, **asyncpg (0.31.0) is the only runtime dependency** (raw SQL over the backend's DB contract from migration 0099; no SQLAlchemy, no FastAPI, no import from `app.*`).
+- **Own project files**: `pyproject.toml`, `uv.lock` and `Dockerfile` (`python:3.12-slim` + uv, no secrets), independent of `src/backend`.
+- **Dev tools**: pytest + pytest-asyncio + testcontainers (a `postgres:18` container migrated with the backend's Alembic, so `alembic`/`sqlalchemy` are dev-only pins), ruff, mypy `strict = true` with `asyncpg-stubs`. Commands in `project/architecture.md` (Wants, **Matcher commands**).
+
 ### Frontend (`src/frontend`)
 
 #### Next.js (16.4.4, App Router)
@@ -79,7 +85,7 @@ This document describes the technology choices and rationale for **aj** — a pl
 
 #### Backend
 
-No automated pytest/TestContainers-python suite exists yet (deliberately deferred — see the migration's `spec.md` "Out of Scope"). Each vertical was verified during migration via live-uvicorn + real-Postgres manual verification scripts (not committed as a test suite). `standards/testing/backend-testing.md` remains the target strategy for whenever that follow-up work happens — it documents the JVM/JUnit-era conventions but its integration-first philosophy (test against real Postgres, not mocks) still applies.
+pytest + pytest-asyncio against a real PostgreSQL 18 started by `testcontainers` (Docker required, `alembic upgrade head` once per session); see `standards/testing/backend-testing.md`. During the Java-to-Python migration the verticals were verified with manual live-uvicorn + real-Postgres scripts; the suite came later. The matcher has its own suite on the same pattern (`src/matcher/tests`).
 
 ## Database
 
@@ -104,8 +110,8 @@ No automated pytest/TestContainers-python suite exists yet (deliberately deferre
 ## Infrastructure
 
 ### Containerization
-- `docker-compose.yml` + `.env.example` live at the repo root (backend `Dockerfile` in `src/backend/`, frontend `Dockerfile` in `src/frontend/`) — `docker-compose up` brings up Postgres 18, the FastAPI service on port 8080, the Next.js server (`web`, standalone output on port 3000 inside the network, built from `src/frontend/Dockerfile` with the repo root as context) and nginx (`frontend`, the stock `nginx:1.27-alpine` image with `src/frontend/nginx.conf` mounted) in front of both on port 5174 (see `project/architecture.md`, Deployment Architecture). The dev server (`npm run dev`) runs on port 5173
-- TestContainers-style isolation for a real pytest suite is deferred (see Testing above)
+- `docker-compose.yml` + `.env.example` live at the repo root (backend `Dockerfile` in `src/backend/`, frontend `Dockerfile` in `src/frontend/`) — `docker-compose up` brings up Postgres 18, the FastAPI service on port 8080, the Next.js server (`web`, standalone output on port 3000 inside the network, built from `src/frontend/Dockerfile` with the repo root as context), the wants `matcher` (built from `src/matcher/Dockerfile`, no port, `restart: unless-stopped`) and nginx (`frontend`, the stock `nginx:1.27-alpine` image with `src/frontend/nginx.conf` mounted) in front of both on port 5174 (see `project/architecture.md`, Deployment Architecture). The dev server (`npm run dev`) runs on port 5173
+- Both pytest suites (`src/backend/tests`, `src/matcher/tests`) start their own `postgres:18` testcontainer (Docker required), isolated from the compose database (see Testing above)
 
 ### CI/CD
 - Not yet configured

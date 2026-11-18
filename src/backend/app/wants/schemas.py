@@ -50,8 +50,9 @@ class CloseWantRequest(BaseModel):
 
 class WantResponse(BaseModel):
     """`category_path` is the category's full path joined with " › ".
-    `match_count` and `new_match_count` count the stored matches the seeker
-    can still see. Timestamps are naive UTC."""
+    `match_count` and `new_match_count` count the stored MATCH pairs the
+    seeker can still see. `matching` is true while an ACTIVE want waits for
+    its matching run. Timestamps are naive UTC."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -70,6 +71,7 @@ class WantResponse(BaseModel):
     expires_at: datetime
     closed_at: datetime | None
     created_at: datetime
+    matching: bool
     match_count: int
     new_match_count: int
 
@@ -96,5 +98,18 @@ class WantMatchResponse(BaseModel):
     href: str
     meta: WantMatchMeta
     is_new: bool
+    reserved_by_me: bool
+    proposed_by_me: bool
+
+
+class WantSuggestionResponse(BaseModel):
+    """A suggestion card: an item whose name lacks exactly one want word,
+    named in `missing_words`; `id` is the item id."""
+
+    id: uuid.UUID
+    title: str
+    href: str
+    meta: WantMatchMeta
+    missing_words: list[str]
     reserved_by_me: bool
     proposed_by_me: bool

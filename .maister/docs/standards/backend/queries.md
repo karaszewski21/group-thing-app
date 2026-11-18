@@ -12,7 +12,6 @@ Request only the columns/relationships you need rather than eagerly loading ever
 ### Recursive CTE Members Use an Explicit Join
 Build the recursive member of a CTE with `select(...).join_from(parent, cte, onclause)` (or `.join(...)`), never a comma FROM plus a WHERE: SQLAlchemy's FROM linter reports the comma form as a cartesian product, an `SAWarning` on every execution.
 Pin it with a test that compiles the statement with `linting=compiler.COLLECT_CARTESIAN_PRODUCTS | compiler.WARN_LINTING` inside `warnings.catch_warnings()` + `simplefilter("error", SAWarning)`. Compiling directly bypasses the cache, since SQLAlchemy lints only the first compile of a cached statement shape.
-Reference: `src/backend/app/wants/application/matcher.py` (`_product_category_path`), `tests/test_wants_matcher.py::test_matchStatement_bothDirections_noCartesianProductWarning`.
 ```python
 path = path.union_all(
     select(parent.id, parent.parent_id).join_from(parent, path, parent.id == path.c.parent_id)
@@ -26,7 +25,7 @@ Index columns used in WHERE, JOIN, and ORDER BY clauses via an explicit `op.crea
 Wrap related operations in a single `AsyncSession` transaction (`async with session.begin(): ...`, or the session's default autobegin-then-`commit()`/`rollback()` pattern) to maintain consistency.
 
 ### Query Timeouts
-Set timeouts (e.g. via the connection pool / `asyncpg` statement timeout) to prevent runaway queries from impacting performance. Not currently configured anywhere in this codebase — flagged as a gap if a runaway-query incident ever occurs.
+Set timeouts (e.g. via the connection pool / `asyncpg` statement timeout) to prevent runaway queries from impacting performance. Scope them to the transaction (`SET LOCAL` / `set_config(..., true)`), as the public search does per request (`app/search/application/search.py`, `SET LOCAL statement_timeout`) and the wants matcher per run (`src/matcher/matcher/db.py::limit_transaction`, 30 s).
 
 ### Cache Expensive Queries
 Cache results of complex or frequent queries when appropriate. Not currently needed by any listing endpoint in this codebase.

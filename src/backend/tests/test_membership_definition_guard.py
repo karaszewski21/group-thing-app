@@ -5,7 +5,13 @@
   `not_in`) must not also reference `Membership` or `Leadership`;
   projecting the column is fine;
 - rule 2: no `Membership.valid_to` / `Leadership.valid_to` `.is_(None)`,
-  so "active" lives in the shared clauses only."""
+  so "active" lives in the shared clauses only.
+
+One SQL copy of the rule exists outside `app/`, for the `matcher` service:
+the views `group_holdings` and `private_group_peers` in
+`alembic/versions/0099_wants.py`. This guard does not see it;
+`tests/test_wants_visibility_parity.py` checks it against `membership.py`
+and `visibility.parties_share_group` case by case."""
 
 from __future__ import annotations
 

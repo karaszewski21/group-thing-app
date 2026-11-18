@@ -4,8 +4,9 @@
   "scripts": {
     "web": "cd src/frontend && npm run dev",
     "server": "cd src/backend && uv run uvicorn app.main:app --host 0.0.0.0 --port 8080",
+    "matcher": "docker compose stop matcher && cd src/matcher && uv run --system-certs --env-file ../backend/.env python -m matcher",
     "install:all": "npm --prefix src/frontend install && npm --prefix plugins/warehouse install && npm --prefix plugins/box-size install && npm --prefix plugins/ai-description install && npm --prefix plugins/events install",
-    "dev:all": "concurrently --kill-others-on-fail -n web,warehouse,box-size,ai-desc,events -c blue,yellow,magenta,cyan,green \"npm --prefix src/frontend run dev\" \"npm --prefix plugins/warehouse run dev\" \"npm --prefix plugins/box-size run dev\" \"npm --prefix plugins/ai-description run dev\" \"npm --prefix plugins/events run dev\""
+    "dev:all": "docker compose stop backend matcher && concurrently --kill-others-on-fail -n web,server,matcher -c blue,green,magenta \"npm run web\" \"npm run server\" \"npm run matcher\""
   },
   "devDependencies": {
     "concurrently": "^9.2.5"

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { WantMatchResponse, WantResponse } from "../../api/wants";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import type { WantMatchResponse, WantResponse, WantSuggestionResponse } from "../../api/wants";
 import { BellIcon } from "../../components/shared/appIcons";
 import { FOCUS_CLASS } from "../../components/shared/chipStyles";
 import { ConfirmDeleteDialog } from "../../components/shared/ConfirmDeleteDialog";
@@ -8,6 +8,8 @@ import { useWants } from "../../hooks/useWants";
 import { Link, useAppNavigate, useAppParams } from "../../routing/navigation";
 import { viewPath, wantEditPath } from "../../routing/paths";
 import { MatchCard } from "./MatchCard";
+import { MatchingStatus } from "./MatchingStatus";
+import { SuggestionCard } from "./SuggestionCard";
 import { resolveWantMatchesView, type ActiveWantView, type ClosedWantView } from "./wantMatchesViewState";
 import { WantNotFound } from "./WantNotFound";
 import { WantNotificationToggle } from "./WantNotificationToggle";
@@ -33,9 +35,10 @@ const HEADER_LINK = `font-extrabold text-primary-fg ${FOCUS_CLASS}`;
 export function WantMatchesView() {
   const { id = "" } = useAppParams();
   const navigate = useAppNavigate();
-  const { want, matches, loading, notFound, error, refetch, markSeen, markOpened } = useWantMatches(id);
+  const { want, matches, suggestions, slow, loading, notFound, error, refetch, markSeen, markOpened } =
+    useWantMatches(id);
   const { update, extend, close, resume } = useWants();
-  const view = resolveWantMatchesView({ want, matches, loading, notFound, error });
+  const view = resolveWantMatchesView({ want, matches, suggestions, slow, loading, notFound, error });
 
   const [newIds, setNewIds] = useState<ReadonlySet<string> | null>(null);
   if (newIds === null && want !== null) {
@@ -86,15 +89,20 @@ export function WantMatchesView() {
     onResume: () => void run(resume),
     onWithdraw: () => setConfirmingWithdraw(true),
   };
+  const reportOpened = (itemId: string) => {
+    markOpened(itemId).catch(() => {});
+  };
   const grid = (list: WantMatchResponse[]) => (
-    <MatchGrid
-      matches={list}
-      newIds={newIds ?? NO_NEW_IDS}
-      onOpen={(itemId) => {
-        markOpened(itemId).catch(() => {});
-      }}
-    />
+    <MatchGrid matches={list} newIds={newIds ?? NO_NEW_IDS} onOpen={reportOpened} />
   );
+  const matchList = (list: WantMatchResponse[]) => (
+    <>
+      <h2 className="mt-1 mb-2.5 text-base font-bold text-ink">{matchCountLabel(list.length)}</h2>
+      {grid(list)}
+    </>
+  );
+  const suggestionsSection = (list: WantSuggestionResponse[]) =>
+    list.length > 0 && <SuggestionsSection suggestions={list} onOpen={reportOpened} />;
   const toggle = (shown: WantResponse) => (
     <WantNotificationToggle
       checked={shown.notifications_enabled}
@@ -141,13 +149,50 @@ export function WantMatchesView() {
     case "notFound":
       // A withdrawn want is gone before the list opens; no "not found" in between.
       return leaving ? null : <WantNotFound />;
+    case "matching":
+      return (
+        <>
+          <WantHeader want={view.want} editable />
+          {toggle(view.want)}
+          <MatchingStatus />
+          {view.matches.length > 0 ? matchList(view.matches) : <SkeletonGrid />}
+          {suggestionsSection(view.suggestions)}
+          <ActiveActions view={view} actions={actions} />
+          {withdrawDialog(view.want)}
+        </>
+      );
+    case "matchingSlow":
+      return (
+        <>
+          <WantHeader want={view.want} editable />
+          {toggle(view.want)}
+          <EmptyCard
+            icon="⏳"
+            title="Wyniki pojawią się wkrótce"
+            text="Szukanie trwa dłużej niż zwykle. Zajrzyj tu za chwilę — damy też znać o nowych rzeczach."
+            live
+          >
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className={`-my-2 min-h-11 rounded-md px-2 text-[13px] font-extrabold text-primary-fg ${FOCUS_CLASS}`}
+            >
+              Odśwież teraz
+            </button>
+          </EmptyCard>
+          {view.matches.length > 0 && <div className="mt-3.5">{matchList(view.matches)}</div>}
+          {suggestionsSection(view.suggestions)}
+          <ActiveActions view={view} actions={actions} />
+          {withdrawDialog(view.want)}
+        </>
+      );
     case "active":
       return (
         <>
           <WantHeader want={view.want} editable />
           {toggle(view.want)}
-          <h2 className="mt-1 mb-2.5 text-base font-bold text-ink">{matchCountLabel(view.matches.length)}</h2>
-          {grid(view.matches)}
+          {matchList(view.matches)}
+          {suggestionsSection(view.suggestions)}
           <ActiveActions view={view} actions={actions} />
           {withdrawDialog(view.want)}
         </>
@@ -157,16 +202,12 @@ export function WantMatchesView() {
         <>
           <WantHeader want={view.want} editable />
           {toggle(view.want)}
-          <div className="flex flex-col items-center gap-2.5 rounded-[28px] border-[1.5px] border-dashed border-line-strong bg-paper px-5 py-7 text-center">
-            <span
-              aria-hidden="true"
-              className="flex h-16 w-16 items-center justify-center rounded-3xl bg-accent-soft text-accent-fg"
-            >
-              <BellIcon c="currentColor" />
-            </span>
-            <h2 className="font-serif text-xl font-extrabold text-ink">Jeszcze nic nie pasuje</h2>
-            <p className="text-[15px] text-ink-soft">Damy znać, gdy ktoś doda pasującą rzecz.</p>
-          </div>
+          <EmptyCard
+            icon={<BellIcon c="currentColor" />}
+            title="Jeszcze nic nie pasuje"
+            text="Damy znać, gdy ktoś doda pasującą rzecz."
+          />
+          {suggestionsSection(view.suggestions)}
           <ActiveActions view={view} actions={actions} />
           {withdrawDialog(view.want)}
         </>
@@ -177,12 +218,7 @@ export function WantMatchesView() {
         <>
           <WantHeader want={view.want} editable={false} />
           <ClosedNotice view={view} actions={actions} />
-          {view.matches.length > 0 && (
-            <>
-              <h2 className="mt-1 mb-2.5 text-base font-bold text-ink">{matchCountLabel(view.matches.length)}</h2>
-              {grid(view.matches)}
-            </>
-          )}
+          {view.matches.length > 0 && matchList(view.matches)}
         </>
       );
   }
@@ -233,6 +269,83 @@ function MatchGrid({
         <MatchCard key={match.id} match={match} isNew={newIds.has(match.id)} onOpen={() => onOpen(match.id)} />
       ))}
     </ul>
+  );
+}
+
+/** The dashed card of an active want without results to show. A `live`
+ * card announces itself, as the matching status does. */
+function EmptyCard({
+  icon,
+  title,
+  text,
+  live = false,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  text: string;
+  live?: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <div
+      role={live ? "status" : undefined}
+      aria-live={live ? "polite" : undefined}
+      className="flex flex-col items-center gap-2.5 rounded-[28px] border-[1.5px] border-dashed border-line-strong bg-paper px-5 py-7 text-center"
+    >
+      <span
+        aria-hidden="true"
+        className="flex h-16 w-16 items-center justify-center rounded-3xl bg-accent-soft text-[28px] text-accent-fg"
+      >
+        {icon}
+      </span>
+      <h2 className="font-serif text-xl font-extrabold text-ink">{title}</h2>
+      <p className="text-[15px] text-ink-soft">{text}</p>
+      {children}
+    </div>
+  );
+}
+
+const SKELETON_TILES = 4;
+const SKELETON_PULSE = "animate-pulse bg-line motion-reduce:animate-none";
+
+/** Placeholder tiles shaped like ItemCard while the first results are on their way. */
+function SkeletonGrid() {
+  return (
+    <ul aria-hidden="true" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {Array.from({ length: SKELETON_TILES }, (_, index) => (
+        <li key={index} className="flex flex-col rounded-2xl border border-line bg-paper p-2.5">
+          <span className={`aspect-square w-full rounded-xl ${SKELETON_PULSE}`} />
+          <span className={`mt-2.5 h-2.5 w-4/5 rounded-full ${SKELETON_PULSE}`} />
+          <span className={`mt-1.5 h-2.5 w-1/2 rounded-full ${SKELETON_PULSE}`} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function SuggestionsSection({
+  suggestions,
+  onOpen,
+}: {
+  suggestions: WantSuggestionResponse[];
+  onOpen: (itemId: string) => void;
+}) {
+  const headingId = useId();
+  return (
+    <section aria-labelledby={headingId} className="mt-5.5 border-t border-line pt-4">
+      <h2 id={headingId} className="mb-2.5 flex items-center gap-2 text-base font-bold text-ink">
+        <span aria-hidden="true">💡</span> Może Cię zainteresuje
+      </h2>
+      <p className="-mt-1 mb-3 text-[13px] text-ink-soft">
+        Podobne rzeczy — brakuje im jednego słowa z Twojego „Szukam”.
+      </p>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {suggestions.map((suggestion) => (
+          <SuggestionCard key={suggestion.id} suggestion={suggestion} onOpen={() => onOpen(suggestion.id)} />
+        ))}
+      </ul>
+    </section>
   );
 }
 

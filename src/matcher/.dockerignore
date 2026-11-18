@@ -1,0 +1,11 @@
+# Local secrets and the host's virtualenv must never reach the image
+# (`COPY . .` would clobber the Linux `.venv` built by `uv sync`).
+.env
+.env.*
+.venv
+__pycache__
+*.pyc
+.mypy_cache
+.pytest_cache
+.ruff_cache
+tests

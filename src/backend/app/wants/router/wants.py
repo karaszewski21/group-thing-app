@@ -22,6 +22,7 @@ from ..schemas import (
     UpdateWantRequest,
     WantMatchResponse,
     WantResponse,
+    WantSuggestionResponse,
 )
 
 router = APIRouter(prefix="/api/wants", tags=["wants"])
@@ -85,6 +86,13 @@ async def list_matches(
     want_id: uuid.UUID, db: DbSession, principal: ReadPrincipal, storage: Storage
 ) -> list[WantMatchResponse]:
     return await reads.list_matches(db, principal, want_id, storage)
+
+
+@router.get("/{want_id}/suggestions", response_model=list[WantSuggestionResponse])
+async def list_suggestions(
+    want_id: uuid.UUID, db: DbSession, principal: ReadPrincipal, storage: Storage
+) -> list[WantSuggestionResponse]:
+    return await reads.list_suggestions(db, principal, want_id, storage)
 
 
 @router.post("/{want_id}/matches/seen", response_model=WantResponse)

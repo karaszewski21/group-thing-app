@@ -1,10 +1,10 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import * as wantsApi from "../api/wants";
-import type { WantMatchResponse, WantResponse } from "../api/wants";
+import type { WantMatchResponse, WantResponse, WantSuggestionResponse } from "../api/wants";
 import { WantMatchesView } from "../features/wanted/WantMatchesView";
-import { makeWant, makeWantMatch } from "./fixtures/wants";
+import { makeWant, makeWantMatch, makeWantSuggestion } from "./fixtures/wants";
 import { createQueryWrapper } from "./queryClient";
 import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
@@ -14,6 +14,7 @@ vi.mock("../api/wants", () => ({
   getMyWants: vi.fn(),
   getWant: vi.fn(),
   getWantMatches: vi.fn(),
+  getWantSuggestions: vi.fn(),
   updateWant: vi.fn(),
   extendWant: vi.fn(),
   closeWant: vi.fn(),
@@ -28,10 +29,18 @@ function apiError(status: number, message: string) {
   return new ApiError(status, "Error", { status, error: "Error", message });
 }
 
-function serve(want: WantResponse, matches: WantMatchResponse[] = []) {
+function serve(want: WantResponse, matches: WantMatchResponse[] = [], suggestions: WantSuggestionResponse[] = []) {
   vi.mocked(wantsApi.getWant).mockResolvedValue(want);
   vi.mocked(wantsApi.getWantMatches).mockResolvedValue(matches);
+  vi.mocked(wantsApi.getWantSuggestions).mockResolvedValue(suggestions);
 }
+
+/** The match grid's placeholder tiles, hidden from assistive technology. */
+function skeletonTiles(): Element[] {
+  return Array.from(document.querySelectorAll('ul[aria-hidden="true"] > li'));
+}
+
+const SUGGESTIONS_HEADING = "Może Cię zainteresuje";
 
 function renderView() {
   return renderWithRoute(<WantMatchesView />, {
@@ -53,6 +62,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-11-15T10:00:00Z"));
   vi.mocked(wantsApi.getMyWants).mockResolvedValue([]);
+  vi.mocked(wantsApi.getWantSuggestions).mockResolvedValue([]);
   vi.mocked(wantsApi.markWantMatchesSeen).mockResolvedValue(makeWant());
   vi.mocked(wantsApi.markWantMatchOpened).mockResolvedValue(undefined);
 });
@@ -352,5 +362,103 @@ describe("WantMatchesView", () => {
     serve(makeWant(), [makeWantMatch()]);
     fireEvent.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
     expect(await screen.findByRole("heading", { level: 1, name: "Rowerek biegowy" })).toBeInTheDocument();
+  });
+  it("while matching shows the status row and skeleton tiles, or the stored matches without a skeleton", async () => {
+    serve(makeWant({ matching: true }));
+    const empty = renderView();
+
+    await screen.findByText("Szukamy pasujących rzeczy…");
+    const status = screen.getByRole("status");
+    expect(status).toHaveAttribute("aria-live", "polite");
+    expect(status).toHaveTextContent("Szukamy pasujących rzeczy…To zwykle kilka sekund.");
+    expect(skeletonTiles()).toHaveLength(4);
+    expect(screen.queryByText("Jeszcze nic nie pasuje")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Edytuj" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: TOGGLE_LABEL })).toBeInTheDocument();
+    expect(screen.getByText("Ważne jeszcze 90 dni")).toBeInTheDocument();
+    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual([
+      "Znalezione — zamknij",
+      "Przedłuż",
+      "Wycofaj",
+    ]);
+    empty.unmount();
+
+    serve(makeWant({ matching: true }), [makeWantMatch()]);
+    renderView();
+
+    const link = await screen.findByRole("link", { name: "Rowerek biegowy Puky" });
+    expect(screen.getByRole("status")).toHaveTextContent("Szukamy pasujących rzeczy…");
+    expect(screen.getByRole("status").compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(skeletonTiles()).toHaveLength(0);
+  });
+
+  // Documented exception to the Date-only fake-timer rule (as in
+  // useWantMatches.test.tsx): the 60 s window end is a `setTimeout`, so this
+  // test fakes it and steps it with act(); no `findBy*` or `waitFor`. The
+  // Date-only clock from beforeEach is replaced, not extended: a second
+  // useFakeTimers call over it leaves setTimeout real.
+  it("after 60 s of matching shows the slow card whose „Odśwież teraz” reads the want again", async () => {
+    vi.useRealTimers();
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.setSystemTime(new Date("2026-11-15T10:00:00Z"));
+    serve(makeWant({ matching: true }));
+    renderView();
+    await act(async () => {});
+    expect(screen.getByText("Szukamy pasujących rzeczy…")).toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(60_000));
+
+    const card = screen.getByRole("status");
+    expect(card).toHaveAttribute("aria-live", "polite");
+    expect(within(card).getByRole("heading", { name: "Wyniki pojawią się wkrótce" })).toBeInTheDocument();
+    expect(card).toHaveTextContent(
+      "Szukanie trwa dłużej niż zwykle. Zajrzyj tu za chwilę — damy też znać o nowych rzeczach.",
+    );
+    expect(skeletonTiles()).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Wycofaj" })).toBeInTheDocument();
+
+    const fetches = vi.mocked(wantsApi.getWant).mock.calls.length;
+    serve(makeWant(), [makeWantMatch()]);
+    await act(async () => {
+      fireEvent.click(within(card).getByRole("button", { name: "Odśwież teraz" }));
+    });
+    expect(wantsApi.getWant).toHaveBeenCalledTimes(fetches + 1);
+    expect(screen.getByRole("link", { name: "Rowerek biegowy Puky" })).toBeInTheDocument();
+    expect(screen.queryByText("Wyniki pojawią się wkrótce")).not.toBeInTheDocument();
+  });
+
+  it("shows suggestions under the empty card with the missing words, and reports an opened suggestion", async () => {
+    serve(makeWant({ name: "Traktor Bruder Claas" }), [], [
+      makeWantSuggestion(),
+      makeWantSuggestion({ id: "item-8", title: "Traktor Fendt", missing_words: ["Bruder", "Claas"] }),
+    ]);
+    renderView();
+
+    const section = await screen.findByRole("region", { name: SUGGESTIONS_HEADING });
+    const heading = within(section).getByRole("heading", { level: 2, name: SUGGESTIONS_HEADING });
+    expect(heading.querySelector('[aria-hidden="true"]')).toHaveTextContent("💡");
+    expect(within(section).getByText("Podobne rzeczy — brakuje im jednego słowa z Twojego „Szukam”.")).toBeInTheDocument();
+    const emptyCard = screen.getByRole("heading", { name: "Jeszcze nic nie pasuje" });
+    expect(emptyCard.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const card = cardOf("Traktor bruder Deutz");
+    expect(within(card).getByText(/^brakuje:/)).toHaveTextContent("brakuje: „Claas”");
+    expect(within(card).queryByText("nowe")).not.toBeInTheDocument();
+    expect(card).toHaveClass("border-dashed");
+    expect(within(cardOf("Traktor Fendt")).getByText(/^brakuje:/)).toHaveTextContent("brakuje: „Bruder”, „Claas”");
+
+    fireEvent.click(screen.getByRole("link", { name: "Traktor bruder Deutz" }));
+    expect(wantsApi.markWantMatchOpened).toHaveBeenCalledWith("want-1", "item-7");
+  });
+
+  it("with matches and no suggestions renders the count and the grid without a suggestions section", async () => {
+    serve(makeWant(), [makeWantMatch({ is_new: true }), makeWantMatch({ id: "item-2", title: "Rowerek drewniany" })]);
+    renderView();
+
+    expect(await screen.findByRole("heading", { level: 2, name: "2 pasujące rzeczy" })).toBeInTheDocument();
+    expect(within(cardOf("Rowerek biegowy Puky")).getByText("nowe")).toBeInTheDocument();
+    expect(screen.queryByRole("region")).not.toBeInTheDocument();
+    expect(screen.queryByText(SUGGESTIONS_HEADING)).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });

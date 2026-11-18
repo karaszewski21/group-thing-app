@@ -179,7 +179,7 @@ ul { padding-left:20px; } li { margin:3px 0; }
 <tr><td>FR-DB-06</td><td>View <code>matchable_listings</code>: listing preference row, live item, AVAILABLE, no PROPOSED swap, live own place; listed columns</td><td>Must</td></tr>
 <tr><td>FR-DB-07</td><td>Shape-tolerant downgrade in the M1 order; works on new and old 0099</td><td>Must</td></tr>
 <tr><td colspan="3" class="area">Backend</td></tr>
-<tr><td>FR-BE-01</td><td>Writes set <code>match_requested_at</code>; <code>update_want</code> locks <code>FOR NO KEY UPDATE</code>, then deletes both tiers + unread bell, flags, flushes, commits</td><td>Must</td></tr>
+<tr><td>FR-BE-01</td><td>Writes set <code>match_requested_at</code>; <code>update_want</code> checks on an unlocked read, then locks <code>FOR NO KEY UPDATE</code> and compares <code>updated_at</code> (409 on a change), then deletes both tiers + unread bell under the lock, flags, flushes, commits (rev. 3)</td><td>Must</td></tr>
 <tr><td>FR-BE-02</td><td>Remove forward timeout path, <code>text_queries.py</code>, <code>matcher.py</code>, <code>scan.py</code>, matcher-only constants, <code>WantScanMarker</code>; keep 409 mapping</td><td>Must</td></tr>
 <tr><td>FR-BE-03</td><td><code>main.py</code>: remove scan job, register handler, fix „30s” docstring to 60 s</td><td>Must</td></tr>
 <tr><td>FR-BE-04</td><td><code>wants.bells_due</code> handler in a savepoint: MATCH pairs that still exist and pass <code>visible_matches</code>, still-ACTIVE expiring wants, <code>write_bell_rows</code></td><td>Must</td></tr>
@@ -194,16 +194,16 @@ ul { padding-left:20px; } li { margin:3px 0; }
 <tr><td>FR-MT-02</td><td><code>DATABASE_URL</code> only; never logged</td><td>Must</td></tr>
 <tr><td>FR-MT-03</td><td>Startup gate on revision + contract; then „listening”</td><td>Must</td></tr>
 <tr><td>FR-MT-04</td><td>Request loop: LISTEN + 10 s poll; claim <code>FOR NO KEY UPDATE SKIP LOCKED</code> skipping backing-off ids; MATCH + SUGGESTION under 30 s timeout; compare-and-clear; backoff on failure</td><td>Must</td></tr>
-<tr><td>FR-MT-05</td><td>Window loop every 60 s under advisory lock + 30 s timeout: sweep, window (marker − 2 min / now − 20 min), pairs, chunked outbox rows, marker CAS</td><td>Must</td></tr>
+<tr><td>FR-MT-05</td><td>Window loop every 60 s under a session advisory lock, 30 s timeout: sweep committed on its own (reminders in its own outbox row), then the match of <code>(start, end]</code> capped at <code>WINDOW_MAX_LISTINGS</code> (capped runs back to back); overlap only within 2 min before the previous run's clock (marker <code>updated_at</code>), else start at the marker; first run now − 20 min; chunked MATCH rows with <code>expiring: []</code>; marker CAS to <code>end</code>, <code>updated_at</code> = now (rev. 3)</td><td>Must</td></tr>
 <tr><td>FR-MT-06</td><td>Raw inserts set every NOT NULL column without default (outbox, <code>want_matches</code>, <code>want_scan_markers</code>)</td><td>Must</td></tr>
 <tr><td>FR-MT-07</td><td>Lost race → one WARNING + retry; else <code>logger.exception</code>; loops never crash; reconnect + re-LISTEN</td><td>Must</td></tr>
 <tr><td>FR-MT-08</td><td><code>matcher/clock.py</code> naive UTC + clock guard</td><td>Must</td></tr>
 <tr><td>FR-MT-09</td><td>Safe with several copies</td><td>Must</td></tr>
-<tr><td>FR-MT-10</td><td><code>matcher/rules.py</code> single home of constants, bound as parameters</td><td>Must</td></tr>
+<tr><td>FR-MT-10</td><td><code>matcher/rules.py</code> single home of constants (incl. <code>WINDOW_MAX_LISTINGS</code>, <code>SHUTDOWN_GRACE</code>), bound as parameters</td><td>Must</td></tr>
 <tr><td colspan="3" class="area">Matching rules</td></tr>
 <tr><td>FR-MR-01</td><td>Shared predicates incl. ≥1 want word and the FR-DB-05 visibility rule</td><td>Must</td></tr>
 <tr><td>FR-MR-02</td><td>MATCH: every want word hits (stem/exact lexeme on weight A, or typo ≥0.65 for &gt;4 chars); top 20; candidates <code>@@ stem_query</code> OR <code>want.name_folded &lt;% l.name_folded</code> OR stems prefix</td><td>Must</td></tr>
-<tr><td>FR-MR-03</td><td>SUGGESTION: ≥3 want words, ≥2 hits, exactly 1 missing; original word in <code>missing_words</code>; ≤10 per want in total</td><td>Must</td></tr>
+<tr><td>FR-MR-03</td><td>SUGGESTION: ≥3 want words, ≥2 hits, exactly 1 missing; original word in <code>missing_words</code>; ≤10 per want in total, counting only stored suggestions still in <code>matchable_listings</code> (rev. 3)</td><td>Must</td></tr>
 <tr><td>FR-MR-04</td><td>Description words never count</td><td>Must</td></tr>
 <tr><td colspan="3" class="area">Frontend</td></tr>
 <tr><td>FR-FE-01</td><td><code>matching</code>, <code>WantSuggestionResponse</code>, <code>getWantSuggestions</code>; server 400 message shown</td><td>Must</td></tr>

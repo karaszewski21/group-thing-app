@@ -6,10 +6,17 @@ orchestrator:
   - phase-4
   - phase-5
   - phase-6
+  - phase-7
+  - phase-8
+  - phase-10
+  - phase-11
+  - phase-12
+  - phase-13
+  - phase-14
   failed_phases: []
   auto_fix_attempts: {}
   options:
-    sequential: null
+    sequential: false
     html_output: true
     mockup_format: html
     spec_audit_enabled: true
@@ -21,7 +28,7 @@ orchestrator:
     reality_check_enabled: true
     production_check_enabled: true
   created: '2026-11-17T09:59:55Z'
-  updated: '2026-11-17T11:32:42Z'
+  updated: '2026-11-18T07:25:05Z'
   task_path: .maister/tasks/development/2026-11-17-wants-matcher-service
   task_ids: {}
 task:
@@ -30,7 +37,7 @@ task:
     NOTIFY wants_changed, want_matches.tier, outbox → powiadomienia w backendzie, osobny użytkownik bazy matcher) oraz dwa poziomy dopasowań: MATCH (wszystkie słowa po rdzeniu, prefiksowe tsquery + trigram
     ~0.65) i SUGGESTION („Może Cię zainteresuje”, brakuje ≤1 słowa przy ≥2 wspólnych, bez dzwonka, ≤10). Front: stan „Szukamy…” i sekcja podpowiedzi z „brakuje: …”. Compose, runbook, architecture.md. Warunek
     wydania 0099 obowiązuje.'
-  status: in_progress
+  status: completed
   tags:
   - wants
   - matcher
@@ -284,6 +291,48 @@ task_context:
       - path: implementation/visual-coverage.md
         label: Visual coverage
         html: null
+    implementation:
+      summary: 11/11 groups in 7 waves; matcher 81 tests, backend 1515 passed (2 pre-existing), frontend 1853 passed (33 pre-existing); dev DB rebuilt to amended 0099 after pg_dump; compose smoke test passed.
+      decisions:
+      - decision: Accept correlated OR EXISTS SubPlan for PRIVATE visibility (H1 amended in spec)
+        rationale: User decision; about 2% of window time
+      - decision: Accept window cost about 39 ms per listing at 10k wants, documented as risk
+        rationale: User decision; watch duration_ms
+      - decision: Local dev DB downgrade 0098 + upgrade head with pg_dump first
+        rationale: User approved
+      risks:
+      - Window limit about 500 new listings/min at 10k wants vs 30 s timeout
+      - Bells handler about 3 s per 1000-pair row; batching is a follow-up
+      - 0099 release gate (>=200 labelled pairs) still applies
+      artifacts:
+      - path: implementation/work-log.md
+        label: Work log
+        html: null
+      - path: implementation/measurement/results.md
+        label: Measurement results
+        html: null
+    e2e:
+      summary: 7/7 scenarios passed on the rebuilt stack at 390x844; visual fidelity 6 match / 1 minor / 0 drift.
+      decisions: []
+      risks:
+      - 'Minor: after a matcher restart the first window run can store and bell a pair for a want still pending forward matching (I3)'
+      artifacts:
+      - path: verification/e2e-verification-report.md
+        label: E2E report
+        html: verification/e2e-verification-report.html
+      - path: verification/visual-fidelity.md
+        label: Visual fidelity
+        html: verification/visual-fidelity.html
+    user_docs:
+      summary: Polish user guide, 292 lines, 18 screenshots (10 reused from E2E, 8 new).
+      decisions: []
+      risks:
+      - Oddam chip label reads from the lister's side in the want form
+      - Throwaway account docs-anna-*@example.com with one active want left in the dev DB
+      artifacts:
+      - path: documentation/user-guide.md
+        label: User guide
+        html: null
   design_resources:
     ran: true
     found_any: true
@@ -307,3 +356,25 @@ task_context:
       note: match tile
     skill_hints: []
   tech_clarified: true
+verification_context:
+  last_status: failed
+  issues_found:
+  - C1 release gate not scored (critical, not fixable)
+  - W1-W13 warnings (see verification/implementation-verification.md)
+  fixes_applied:
+  - 'W1: window bounded (WINDOW_MAX_LISTINGS=300), sweep in own transaction, capped runs back to back'
+  - 'W2: suggestion cap counts only items still in matchable_listings'
+  - 'W3: update_want checks on unlocked read, then lock + updated_at check (409)'
+  - 'W4: matcher restart: unless-stopped'
+  - 'W5: SIGTERM/SIGINT handler, pool close with 5 s grace, exit 0'
+  - 'W6: outbox dispatcher logs ERROR on FAILED transition'
+  - 'W8-W11: docs (4-char rule mirrors migration, matcher commands, suite rule, tech-stack)'
+  - 'Round 2 N1: window_start bounds the overlap to 2 min before the previous run clock'
+  - 'Round 2 N4: marker updated_at = run now; N2: unlock never masks the error'
+  - 'Round 2 R-1/R-3-R-5: spec rev 3 and doc drift fixed'
+  decisions_made:
+  - 'User: fix W1-W6 + W8-W11; W7 follow-up; W12/W13 accepted'
+  - 'User: round 2 fix N1+N4+N2+R-1/R-3-R-5; N3/N5 stay info'
+  - 'User: burst limit (>~1000 listings in 2 min) accepted as known limit + follow-up'
+  - 'User: round 2 verified by focused code review (clean)'
+  reverify_count: 2

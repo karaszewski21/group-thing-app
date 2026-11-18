@@ -46,6 +46,23 @@ services:
       postgres:
         condition: service_healthy
 
+  # Wants matcher (`python -m matcher`): no ports, no secrets. It waits at its
+  # startup gate until the backend's migrations have created the 0099 contract.
+  # No healthcheck: python is PID 1, so a process check only repeats "the
+  # container runs"; its health signal is the window log line and the
+  # `want_scan_markers` marker (architecture.md, 0099 runbook step 7). No
+  # `init`: it starts no child processes and handles SIGTERM itself.
+  matcher:
+    build: src/matcher
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://aj:aj@postgres:5432/aj
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_started
+
   # Next.js standalone server: pages, server metadata, public/ assets.
   web:
     build:

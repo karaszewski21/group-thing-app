@@ -4,6 +4,7 @@ the end-to-end `groups` -> outbox -> `notifications` path)."""
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import pytest
@@ -102,3 +103,27 @@ async def test_dispatchPending_exceedsMaxAttempts_marksFailed(db_session: AsyncS
     entry = (await db_session.execute(select(OutboxEntry))).scalar_one()
     assert entry.status == OutboxStatus.FAILED
     assert entry.attempts == MAX_ATTEMPTS
+
+
+async def test_dispatchPending_lastAttemptFails_logsOneErrorNamingTheEntry(
+    db_session: AsyncSession, caplog: pytest.LogCaptureFixture
+) -> None:
+    async def _failing_handler(_db: AsyncSession, _payload: dict[str, Any]) -> None:
+        raise RuntimeError("boom")
+
+    registry.register_handler(_EVENT_TYPE, _failing_handler)
+    await service.append(db_session, event_type=_EVENT_TYPE, payload={})
+    await db_session.commit()
+    entry = (await db_session.execute(select(OutboxEntry))).scalar_one()
+
+    with caplog.at_level(logging.ERROR, logger="app.outbox.dispatcher"):
+        for _ in range(MAX_ATTEMPTS - 1):
+            await dispatch_pending(db_session)
+        assert not caplog.records
+        await dispatch_pending(db_session)
+
+    assert [record.levelno for record in caplog.records] == [logging.ERROR]
+    message = caplog.records[0].getMessage()
+    assert str(entry.id) in message
+    assert _EVENT_TYPE in message
+    assert f"after {MAX_ATTEMPTS} attempts" in message

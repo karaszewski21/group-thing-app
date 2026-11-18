@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "../../routing/navigation";
 import type { ExchangeMode, ReservedByResponse } from "../../api/groups";
 import type { ItemCondition } from "../../api/inventories";
@@ -21,6 +22,10 @@ interface ItemCardProps {
   marker?: string;
   /** Called when the link is opened, by a click or a middle-click (new tab). */
   onOpen?: () => void;
+  /** A dashed border, for a tile that is only a suggestion. */
+  dashed?: boolean;
+  /** An extra line under the badges. */
+  footnote?: ReactNode;
 }
 
 /** A neutral item tile: thumbnail (or placeholder), name, condition, the
@@ -36,12 +41,16 @@ export function ItemCard({
   reservedCaption,
   marker,
   onOpen,
+  dashed = false,
+  footnote,
 }: ItemCardProps) {
   const conditionLabel = CONDITION_LABELS[condition as ItemCondition] ?? condition;
   const dim = reservation || reservedCaption ? "opacity-60" : "";
 
   return (
-    <article className="relative flex h-full flex-col rounded-2xl border border-line bg-paper p-2.5">
+    <article
+      className={`relative flex h-full flex-col rounded-2xl border bg-paper p-2.5 ${dashed ? "border-dashed border-line-strong" : "border-line"}`}
+    >
       {thumbUrl ? (
         <SafeImage src={thumbUrl} alt="" className={`aspect-square w-full rounded-xl object-cover ${dim}`} placeholderSize={32} />
       ) : (
@@ -68,6 +77,7 @@ export function ItemCard({
       <span className="mt-auto">
         <ItemTileBadges modes={[mode]} reservation={reservation} reservedCaption={reservedCaption} />
       </span>
+      {footnote && <p className="mt-1.5 text-xs text-ink-soft">{footnote}</p>}
     </article>
   );
 }

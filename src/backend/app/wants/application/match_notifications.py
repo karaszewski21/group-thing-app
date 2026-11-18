@@ -34,7 +34,9 @@ from ..infrastructure import (
     product_acl,
 )
 from ..models import Want
-from .matcher import MatchedPair
+
+# `(want_id, item_id)` of one stored pair.
+MatchedPair = tuple[uuid.UUID, uuid.UUID]
 
 
 @dataclass(frozen=True)

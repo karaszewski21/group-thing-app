@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Verification — Wants matcher service</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; flex:1 1 140px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.tile.crit b { color:var(--crit); } .tile.warn b { color:var(--warn); } .tile.ok b { color:var(--ok); }
+header .meta { color:var(--dim); font-size:13px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.verdict { border-left:5px solid var(--crit); background:var(--crit-soft); }
+.verdict .head { font-size:17px; font-weight:700; color:var(--crit); }
+.verdict .sub { font-size:14px; font-weight:600; color:var(--ok); margin-top:2px; }
+.verdict ul { margin:10px 0 0; padding-left:20px; }
+.resolved { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; background:var(--ok-soft); color:var(--ok); margin-right:6px; white-space:nowrap; }
+.accepted { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; background:var(--warn-soft); color:var(--warn); margin-right:6px; white-space:nowrap; }
+.open { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; background:var(--crit-soft); color:var(--crit); margin-right:6px; white-space:nowrap; }
+.pending { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; background:var(--info-soft); color:var(--info); margin-right:6px; white-space:nowrap; }
+.risks li { margin:4px 0; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0; }
+.scroll { overflow-x:auto; }
+td.id { white-space:nowrap; font-weight:600; }
+ul.check { list-style:none; padding-left:0; } ul.check li { margin:3px 0; }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:760px) { .two { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a>
+  <a href="../implementation/implementation-plan.html">Plan</a>
+  <span class="here">Verification</span>
+  <a href="implementation-verification.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <h1>Implementation Verification: Wants matcher service (MATCH / SUGGESTION)</h1>
+  <div class="meta">
+    <span class="badge">Implementation verification</span>
+    <span>After 2 fix rounds</span>
+    <a href="implementation-verification.md" target="_blank" rel="noopener">Open markdown twin ↗</a>
+  </div>
+</header>
+
+<section class="card verdict tldr" id="verdict">
+  <div class="head">❌ Failed: deployment blocker only</div>
+  <div class="sub">The code passes with minor issues.</div>
+  <p style="margin:8px 0 0">The one critical item is the 0099 release gate (labelled sample of ≥200 pairs not scored). It blocks deploy by design and cannot be fixed in code.</p>
+  <ul>
+    <li>Plan 83/83. Tests: backend 1518 passed, matcher 95 passed, frontend 1852 passed. 0 regressions; the backend 2 and frontend 33 failures are pre-existing, plus 1 frontend flake that passes in isolation.</li>
+    <li>Of the 13 original warnings, 10 are fixed (W1–W6, W8–W11) and 3 were accepted by the user (W7 follow-up, W12, W13). The round-1 regression N1 is fixed in round 2.</li>
+    <li>What remains is info-level only, plus one accepted burst limit.</li>
+  </ul>
+</section>
+
+<div class="tiles">
+  <div class="tile crit"><b>1</b><span>critical (release gate)</span></div>
+  <div class="tile warn"><b>3</b><span>accepted warnings</span></div>
+  <div class="tile ok"><b>10 + 3</b><span>warnings fixed + N1/N2/N4 fixed</span></div>
+  <div class="tile ok"><b>0</b><span>regressions</span></div>
+  <div class="tile"><b>83/83</b><span>plan steps</span></div>
+</div>
+
+<section class="card">
+  <h2 style="margin-top:0">Open Questions / Risks</h2>
+  <ul class="risks">
+    <li><span class="sev critical">critical</span><b>Release gate (C1):</b> still open. No deploy until the labelled Polish sample is scored and <code>rules.py</code> and the stemmer are tuned. While 0099 is unreleased, changes go by amending 0099.</li>
+    <li><span class="accepted">accepted</span><b>Burst limit:</b> more than about 1,000–1,200 listings created within 2 real minutes can time out one window run, and that run then repeats until someone intervenes. The sweep keeps working. The signal is a repeated <code>window run failed</code> ERROR with the same <code>start</code>. This is a follow-up.</li>
+    <li><span class="accepted">accepted</span><b>Follow-up W7:</b> the bells handler sends one statement per seeker, about 3 s per 1000-pair row.</li>
+    <li><span class="pending">pending</span><b>Not yet checked live:</b> the SUGGESTION tier on the stack (the running image predates the fixes) and visual fidelity. Both are pending Phase 12 E2E.</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents:
+  <a href="#history">Fix history</a> ·
+  <a href="#remaining">Remaining issues</a> ·
+  <a href="#checks">Per-check results</a> ·
+  <a href="#tests">Test suite</a> ·
+  <a href="#details">Plan, standards, docs, visual</a> ·
+  <a href="#overall">Overall assessment</a> ·
+  <a href="#recs">Recommendations</a> ·
+  <a href="#checklist">Checklist</a>
+</nav>
+
+<main>
+
+<section class="card">
+  <h2 style="margin-top:0">Executive Summary</h2>
+  <p>All 11 task groups are implemented, and the compose smoke test passed end to end on the rebuilt dev DB. Verification found no critical code defects and no security issues. Two fix rounds addressed the matcher's operational gaps: the window is now bounded and burst-safe, the sweep runs in its own transaction, shutdown is clean, there is a restart policy, and FAILED outbox rows are logged. They also fixed the suggestion-cap staleness, the lock order in <code>update_want</code>, and the docs. Each fix round was re-verified.</p>
+</section>
+
+<h2 id="history">Fix &amp; Re-Verification History</h2>
+<div class="card scroll">
+<table>
+  <thead><tr><th>Issue</th><th>Fix applied</th><th>Re-check outcome</th></tr></thead>
+  <tbody>
+    <tr><td><b>W1</b> window unbounded, single transaction</td><td>R1: sweep in its own transaction, <code>WINDOW_MAX_LISTINGS = 300</code>, marker moves to <code>end</code>, capped runs back to back. R2: <code>window_start</code> limits the overlap to 2 min before the previous run's clock</td><td><span class="resolved">✓ resolved</span>Burst and tie tests pass; the review gave an induction proof that no listing is skipped</td></tr>
+    <tr><td><b>W2</b> suggestion cap counts stale rows</td><td>Counts only items still in <code>matchable_listings</code></td><td><span class="resolved">✓ resolved</span>The test fails on the old SQL. Info N3 remains: private-group visibility and reserved items</td></tr>
+    <tr><td><b>W3</b> lock held during the classifier</td><td>Unlocked checks, then the lock and an <code>updated_at</code> check (409); matches deleted under the lock</td><td><span class="resolved">✓ resolved</span>+2 concurrency tests</td></tr>
+    <tr><td><b>W4</b> no restart policy</td><td><code>restart: unless-stopped</code>; no healthcheck, which is documented</td><td><span class="resolved">✓ resolved</span>A hung process is still not detected (info)</td></tr>
+    <tr><td><b>W5</b> no SIGTERM handler</td><td>Handlers with a Windows fallback, pool close within 5 s, exit 0</td><td><span class="resolved">✓ resolved</span>Portable test</td></tr>
+    <tr><td><b>W6</b> FAILED bells rows silent</td><td>The dispatcher logs one ERROR, "FAILED after N attempts"</td><td><span class="resolved">✓ resolved</span>caplog test; monitoring grep in the runbook</td></tr>
+    <tr><td><b>W8–W11</b> docs</td><td>4-char rule mirrors 0099 (amend while unreleased, then a new revision); matcher commands and README; matcher-suite rule; tech-stack</td><td><span class="resolved">✓ resolved</span></td></tr>
+    <tr><td><b>R1 regression:</b> ruff E501 in the <code>writes.py</code> comment</td><td>Comment shortened</td><td><span class="resolved">✓ resolved</span>ruff 65</td></tr>
+    <tr><td><b>R1 regression:</b> wrong comment about expiry and <code>updated_at</code></td><td>Corrected</td><td><span class="resolved">✓ resolved</span></td></tr>
+    <tr><td><b>N1</b> (from R1) overlap not counted in the cap</td><td><code>window_start(marker, previous_run_at)</code></td><td><span class="resolved">✓ resolved</span></td></tr>
+    <tr><td><b>N2</b> unlock masks the error</td><td><code>_unlock()</code> logs at DEBUG and never raises</td><td><span class="resolved">✓ resolved</span></td></tr>
+    <tr><td><b>N4</b> marker <code>updated_at</code> = past end</td><td><code>updated_at</code> = run's now, <code>scanned_through</code> = end</td><td><span class="resolved">✓ resolved</span></td></tr>
+    <tr><td><b>R-1, R-3–R-5</b> spec and doc drift</td><td>Spec rev 3, doc fixes</td><td><span class="resolved">✓ resolved</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="remaining">Remaining Issues</h2>
+<div class="card scroll">
+<table>
+  <thead><tr><th>Severity</th><th>#</th><th>Issue</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td><span class="sev critical">critical</span></td><td class="id">C1</td><td>0099 release gate not scored</td><td><span class="open">open</span>Fixable: no (process)</td></tr>
+    <tr><td><span class="sev warning">warning</span></td><td class="id">W7</td><td>The bells handler sends one statement per seeker</td><td><span class="accepted">accepted</span>follow-up</td></tr>
+    <tr><td><span class="sev warning">warning</span></td><td class="id">W12</td><td>Lossy rollback with no image-only path</td><td><span class="accepted">accepted</span>acceptable while unreleased</td></tr>
+    <tr><td><span class="sev warning">warning</span></td><td class="id">W13</td><td>Superuser DSN</td><td><span class="accepted">accepted</span>Phase 1 decision: same login <code>aj</code></td></tr>
+    <tr><td><span class="sev info">info</span></td><td class="id">N3</td><td>The cap keeps a slot for a suggestion from a private group the seeker has left, and frees one for a reserved item that <code>/suggestions</code> may still show. Its count runs per candidate row.</td><td></td></tr>
+    <tr><td><span class="sev info">info</span></td><td class="id">N5</td><td><code>update_want</code> is about 73 lines.</td><td></td></tr>
+    <tr><td><span class="sev info">info</span></td><td class="id">R2-I1</td><td>A marker written by the old backend ORM scan would shorten the first overlap. This does not apply: 0099 was never deployed, and the dev DB's marker table was recreated during the downgrade and upgrade.</td><td>n/a</td></tr>
+    <tr><td><span class="sev info">info</span></td><td class="id">R2-I2</td><td>No integration test for a capped run that ends near its own clock followed by a late commit. The unit table covers that case.</td><td></td></tr>
+    <tr><td><span class="sev info">info</span></td><td class="id">Initial</td><td>From the initial reviews: the window does not skip flagged wants (a millisecond race), <code>LC_CTYPE</code> is not checked at startup, the backoff map is never evicted, the outage traceback is logged every 10 s, the Dockerfile pins no uv version and runs as root, the page polls 4 endpoints while matching, there are several <code>role="status"</code> badges, <code>reservedCaption</code> and <code>SUGGESTIONS_LIMIT</code> are duplicated, there are tombstone tests, the module is named <code>requests.py</code>, and reconnect uses a fixed 10 s.</td><td></td></tr>
+    <tr><td><span class="sev info">info</span></td><td class="id">Data</td><td>Smoke-test data is still in the dev DB (2 <code>smoke-*@example.com</code> users, 1 product, 1 listed item).</td><td></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="checks">Per-Check Results: Initial vs Re-verification</h2>
+<div class="card scroll">
+<table>
+  <thead><tr><th>Review</th><th>Initial</th><th>Re-verification</th></tr></thead>
+  <tbody>
+    <tr><td><a href="code-review-report.md" target="_blank" rel="noopener">Code review</a></td><td>0 critical / 2 warning / 11 info</td><td>Round 1 (<a href="code-review-reverify.md" target="_blank" rel="noopener">md</a>): W2–W6 resolved, W1 partial, new N1. Round 2 (<a href="code-review-reverify-2.md" target="_blank" rel="noopener">md</a>): N1, N2 and N4 resolved, 0 warnings, 2 info <span class="resolved">✓</span></td></tr>
+    <tr><td><a href="pragmatic-review.md" target="_blank" rel="noopener">Pragmatic review</a></td><td>appropriate, 0 / 3 / 7</td><td>Not re-run. Its warnings were docs-only (W8–W10), and the completeness re-check confirmed them</td></tr>
+    <tr><td><a href="production-readiness-report.md" target="_blank" rel="noopener">Production readiness</a></td><td><span class="fail">NO-GO</span> 68/100, 1 / 7 / 7</td><td>(<a href="production-readiness-reverify.md" target="_blank" rel="noopener">md</a>) <span class="fail">NO-GO</span> 80/100 for B1 only. GO with mitigations once the gate passes</td></tr>
+    <tr><td><a href="reality-check.md" target="_blank" rel="noopener">Reality check</a></td><td>~90%, 0 / 2 / 5</td><td>(<a href="reality-check-reverify.md" target="_blank" rel="noopener">md</a>) ~95%. W1 (cap) resolved; W2 (window) partial and then fixed in round 2</td></tr>
+    <tr><td><a href="completeness-report.md" target="_blank" rel="noopener">Completeness</a></td><td>passed with issues, 0 / 1 / 9</td><td>(<a href="completeness-reverify.md" target="_blank" rel="noopener">md</a>) passed with issues. R-1–R-5 fixed in round 2; R-2 (work-log) written</td></tr>
+  </tbody>
+</table>
+<p style="margin-bottom:0"><b>Security:</b> no SQL injection, no PRIVATE visibility leak, no secrets in logs or images.</p>
+</div>
+
+<h2 id="tests">Test Suite Results</h2>
+<div class="card scroll">
+<table>
+  <thead><tr><th>Run</th><th>Backend</th><th>Matcher</th><th>Frontend</th><th>Static</th></tr></thead>
+  <tbody>
+    <tr><td>Initial</td><td>1515 passed / 2 failed</td><td>81 passed</td><td>1853 passed / 33 failed</td><td>mypy 15, ruff 65, typecheck 0, lint 38</td></tr>
+    <tr><td>After round 1</td><td>1518 passed / 2 failed</td><td>86 passed</td><td>1852 passed / 34 failed (33 + 1 flake)</td><td>ruff 66 → fixed back to 65</td></tr>
+    <tr><td>After round 2 (matcher only)</td><td>— (unchanged)</td><td class="pass">95 passed, ruff, format and mypy strict clean</td><td>— (unchanged)</td><td>—</td></tr>
+  </tbody>
+</table>
+<p style="margin-bottom:0">Every backend and frontend failure is pre-existing; the 2 backend failures were confirmed at HEAD in a worktree. The flake (<code>DeleteGroupDialog</code> focus) passes 3/3 in isolation and is outside the diff. Details: <a href="test-suite-results.md" target="_blank" rel="noopener">test-suite-results.md</a>, <a href="test-suite-results-reverify.md" target="_blank" rel="noopener">test-suite-results-reverify.md</a>.</p>
+</div>
+
+<h2 id="details">Plan, Standards, Documentation, Visual Fidelity</h2>
+<div class="two">
+  <div class="card"><b>Implementation Plan</b> <span class="pass">83/83</span>
+    <p>83/83 steps (94 checkboxes including headers). Every group was spot-checked in code. The work-log has entries for every group, the completion entry, both fix rounds, and the user decisions (H1, window cost, dev-DB rebuild, fix scopes, burst limit).</p></div>
+  <div class="card"><b>Standards Compliance</b> <span class="pass">19/19</span>
+    <p>19 of 19 applicable standards are followed. The W-1 gap is closed: the matcher is documented in <code>tech-stack.md</code> and in the INDEX Tech Stack line.</p></div>
+  <div class="card"><b>Documentation Completeness</b> <span class="pass">complete</span>
+    <p>Spec revision 3 describes the post-fix behaviour (FR-BE-01, FR-MT-05, FR-MT-10, FR-MR-03). <code>architecture.md</code> covers the Wants section, the matcher service, the runbook steps 1–10 and the cost table. <code>INDEX.md</code>, <code>tech-stack.md</code>, the three standards and <code>src/matcher/README.md</code> are updated. No dead references remain.</p></div>
+  <div class="card"><b>Visual Fidelity</b> <span class="pending">pending</span>
+    <p><code>verification/visual-fidelity.md</code> will be written by the Phase 12 E2E verifier. Group 8 noted two deviations of its own: the slow-card heading is h2 instead of h3, and stored matches are shown under the slow card.</p></div>
+</div>
+
+<h2 id="overall">Overall Assessment</h2>
+<div class="card scroll">
+<table>
+  <thead><tr><th>Area</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>Implementation</td><td class="pass">✅ 100%</td></tr>
+    <tr><td>Tests</td><td class="pass">✅ 99%, 0 regressions</td></tr>
+    <tr><td>Standards</td><td class="pass">✅ 19/19</td></tr>
+    <tr><td>Documentation</td><td class="pass">✅ complete (spec rev 3)</td></tr>
+    <tr><td>Code review</td><td class="pass">✅ 0 critical / 0 open warnings</td></tr>
+    <tr><td>Pragmatic</td><td class="pass">✅ appropriate</td></tr>
+    <tr><td>Production</td><td class="fail">❌ NO-GO (release gate only), 80/100</td></tr>
+    <tr><td>Reality</td><td class="pass">✅ ~95%, no critical gaps</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="recs">Recommendations</h2>
+<div class="card">
+<ol style="margin:0;padding-left:20px">
+  <li>Score the release-gate sample before any deploy, then set the <code>rules.py</code> and stemmer values by amending 0099.</li>
+  <li>Phase 12: rebuild the stack image (the running matcher predates the fixes), then run E2E for the five screens and a live SUGGESTION.</li>
+  <li>Follow-ups: batch the bells handler (W7), alert on a stalled marker <code>updated_at</code> or on repeated <code>window run failed</code>, and decide on the N3 visibility case.</li>
+</ol>
+</div>
+
+<h2 id="checklist">Verification Checklist</h2>
+<div class="card">
+<ul class="check">
+  <li><span class="pass">✓</span> Completeness checker (initial + re-check)</li>
+  <li><span class="pass">✓</span> Test suite (initial + after round 1; matcher after round 2)</li>
+  <li><span class="pass">✓</span> Code review (initial + round 1 + round 2)</li>
+  <li><span class="pass">✓</span> Pragmatic review (initial)</li>
+  <li><span class="pass">✓</span> Production readiness (initial + re-check)</li>
+  <li><span class="pass">✓</span> Reality check (initial + re-check)</li>
+  <li><span style="color:var(--dim)">☐</span> Visual fidelity (Phase 12)</li>
+</ul>
+</div>
+
+</main>
+</body>
+</html>

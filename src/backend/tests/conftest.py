@@ -17,11 +17,11 @@ import os
 import subprocess
 import sys
 import uuid
-from collections.abc import AsyncGenerator, Callable, Generator, Iterator
+from collections.abc import AsyncGenerator, Callable, Collection, Generator, Iterator
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -35,6 +35,9 @@ from sqlalchemy.ext.asyncio import (
 from testcontainers.postgres import PostgresContainer
 
 from tests.fake_storage import FakeStorage
+
+if TYPE_CHECKING:
+    from app.wants.domain.status import WantStatus
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
@@ -247,3 +250,145 @@ async def client(
     finally:
         app.dependency_overrides.pop(get_db, None)
         app.dependency_overrides.pop(get_storage, None)
+
+
+async def _product(
+    client: AsyncClient, token: str, name: str, category_id: str | None = None
+) -> str:
+    """The id of the catalogue product `name`, in a leaf category unless
+    `category_id` is given."""
+    from tests.test_term_item_listings import _auth
+
+    response = await client.post(
+        "/api/products/resolve",
+        json={
+            "name": name,
+            "category_id": category_id or (await leaf_category_ids(client, _auth(token)))[0],
+        },
+        headers=_auth(token),
+    )
+    assert response.status_code == 200, response.text
+    return str(response.json()["id"])
+
+
+class _Owner:
+    """A registered party with one inventory and one place in Kęty, listing
+    items for the wants tests."""
+
+    def __init__(self, client: AsyncClient, token: str, inventory_id: str, place_id: str) -> None:
+        self._client = client
+        self.token = token
+        self._inventory_id = inventory_id
+        self.place_id = place_id
+
+    @classmethod
+    async def create(cls, client: AsyncClient, email: str) -> _Owner:
+        from tests.test_search_location import KETY, _inventory, _place
+        from tests.test_term_item_listings import _register
+
+        token, _ = await _register(client, "GUEST", email)
+        return cls(
+            client, token, await _inventory(client, token), await _place(client, token, KETY)
+        )
+
+    async def lists(
+        self,
+        name: str,
+        *,
+        mode: str = "GIFT",
+        category_id: str | None = None,
+        locality_id: str | None = None,
+    ) -> uuid.UUID:
+        from tests.test_search_location import _place
+
+        place_id = (
+            await _place(self._client, self.token, locality_id) if locality_id else self.place_id
+        )
+        product_id = await _product(self._client, self.token, name, category_id)
+        return await self.lists_product(product_id, place_id=place_id, mode=mode)
+
+    async def lists_product(
+        self, product_id: str, *, place_id: str | None = None, mode: str = "GIFT"
+    ) -> uuid.UUID:
+        """A new item of `product_id`, listed with `mode`."""
+        from tests.test_term_item_listings import _auth
+
+        headers = _auth(self.token)
+        item = await self._client.post(
+            "/api/inventory-items",
+            json={
+                "inventory_id": self._inventory_id,
+                "product_id": product_id,
+                "condition": "GOOD",
+                "location_id": place_id or self.place_id,
+            },
+            headers=headers,
+        )
+        assert item.status_code == 201, item.text
+        item_id = item.json()["id"]
+        preference = await self._client.put(
+            f"/api/item-listing-preferences/{item_id}", json={"mode": mode}, headers=headers
+        )
+        assert preference.status_code == 200, preference.text
+        return uuid.UUID(item_id)
+
+
+async def _want(
+    db: AsyncSession,
+    seeker: uuid.UUID,
+    name: str,
+    *,
+    status: WantStatus | None = None,
+    expires_in: timedelta | None = None,
+    **fields: Any,
+) -> uuid.UUID:
+    """A want inserted through the ORM and committed, ACTIVE for the whole
+    validity period unless told otherwise."""
+    from app.wants.domain.limits import VALIDITY
+    from app.wants.domain.status import WantStatus
+    from app.wants.models import Want
+
+    status = status or WantStatus.ACTIVE
+    now = datetime.utcnow()
+    want = Want(
+        seeker_party_id=seeker,
+        name=name,
+        status=status,
+        expires_at=now + (expires_in if expires_in is not None else VALIDITY),
+        closed_at=None if status == WantStatus.ACTIVE else now,
+        **fields,
+    )
+    db.add(want)
+    await db.commit()
+    return uuid.UUID(str(want.id))
+
+
+async def seed_want_matches(
+    db: AsyncSession,
+    want_id: str | uuid.UUID,
+    item_ids: Collection[uuid.UUID],
+    *,
+    missing_words: list[str] | None = None,
+    seen: bool = True,
+    score: float = 0.5,
+) -> None:
+    """Stored pairs as the matcher service writes them, committed: MATCH
+    pairs, or SUGGESTION pairs when `missing_words` is given. FORWARD pairs
+    are born seen; `seen=False` stores them as new."""
+    from app.wants.domain.status import WantMatchSource
+    from app.wants.models import WantMatch, WantMatchTier
+
+    now = datetime.utcnow()
+    db.add_all(
+        WantMatch(
+            want_id=uuid.UUID(str(want_id)),
+            item_id=item_id,
+            source=WantMatchSource.FORWARD if seen else WantMatchSource.SCAN,
+            score=score,
+            seen_at=now if seen else None,
+            tier=WantMatchTier.MATCH if missing_words is None else WantMatchTier.SUGGESTION,
+            missing_words=missing_words,
+        )
+        for item_id in item_ids
+    )
+    await db.commit()

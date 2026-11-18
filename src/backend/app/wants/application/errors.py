@@ -5,11 +5,7 @@ from __future__ import annotations
 
 import uuid
 
-from app.core.errors import (
-    BusinessConflictException,
-    EntityNotFoundException,
-    ServiceUnavailableException,
-)
+from app.core.errors import BusinessConflictException, EntityNotFoundException
 
 from ..domain import messages
 
@@ -39,8 +35,3 @@ class WantActionRefused(BusinessConflictException):
 class ActiveWantCapReached(BusinessConflictException):
     def __init__(self) -> None:
         super().__init__(messages.CAP_REACHED_MESSAGE)
-
-
-class ForwardMatchTimedOut(ServiceUnavailableException):
-    def __init__(self) -> None:
-        super().__init__(messages.FORWARD_MATCH_TIMEOUT_MESSAGE)

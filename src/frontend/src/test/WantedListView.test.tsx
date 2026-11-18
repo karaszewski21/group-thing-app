@@ -209,4 +209,19 @@ describe("WantedListView", () => {
     expect(await screen.findByRole("link", { name: "Rowerek biegowy" })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
+  it("a matching card shows the „Szukamy…” status in place of the counts, the others stay as they are", async () => {
+    renderList([{ ...BIKE, matching: true }, SEAT]);
+
+    const bike = await findCard("Rowerek biegowy");
+    const status = within(bike).getByRole("status");
+    expect(status).toHaveTextContent("Szukamy…");
+    expect(status.querySelector('[aria-hidden="true"]')).not.toBeNull();
+    expect(within(bike).queryByText("2 nowe")).not.toBeInTheDocument();
+    expect(within(bike).queryByText("5 pasujących rzeczy")).not.toBeInTheDocument();
+    expect(within(bike).getByText("Ważne jeszcze 74 dni")).toBeInTheDocument();
+
+    const seat = await findCard("Fotelik samochodowy 9–18 kg");
+    expect(within(seat).getByText("1 pasująca rzecz")).toBeInTheDocument();
+    expect(within(seat).queryByRole("status")).not.toBeInTheDocument();
+  });
 });

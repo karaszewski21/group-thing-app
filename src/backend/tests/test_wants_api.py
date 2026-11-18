@@ -1,7 +1,8 @@
-"""`/api/wants`: create with its forward match, the want response and its
-counters, validation and moderation, the cap of active wants, the forward
-match timeout, 404 for a foreign or withdrawn want, what a PATCH resets, and
-the statement counts of create and list."""
+"""`/api/wants`: create flagging the want for the matcher service, the want
+response and its counters, validation (incl. the stop-words-only name) and
+moderation, the cap of active wants, the "try again" 409, 404 for a foreign
+or withdrawn want, what a PATCH resets and re-flags, and the statement
+counts of create and list."""
 
 from __future__ import annotations
 
@@ -21,16 +22,14 @@ from app.locations.models import Locality
 from app.moderation import text_guard
 from app.moderation.rules import CONTACT_INFO_MESSAGE
 from app.notifications.models import Notification, NotificationKind
-from app.wants.application import matcher
-from app.wants.application.text_queries import short_words_query
+from app.wants.application import reads
 from app.wants.domain.limits import MAX_ACTIVE_WANTS, VALIDITY
-from app.wants.domain.status import WantMatchSource, WantStatus
+from app.wants.domain.status import WantStatus
 from app.wants.models import Want, WantMatch
-from tests.conftest import count_queries, leaf_category_ids
+from tests.conftest import _Owner, count_queries, leaf_category_ids, seed_want_matches
 from tests.test_search_location import KETY
 from tests.test_term_item_listings import _auth, _register
 from tests.test_text_guard import FakeTextClassifier
-from tests.test_wants_matcher import _Owner
 
 WANT_KEYS = {
     "id",
@@ -48,12 +47,15 @@ WANT_KEYS = {
     "expires_at",
     "closed_at",
     "created_at",
+    "matching",
     "match_count",
     "new_match_count",
 }
 NOT_FOUND_MESSAGE = "Nie znaleziono poszukiwania."
 CAP_MESSAGE = "Masz już 30 aktywnych poszukiwań. Zamknij któreś, aby dodać nowe."
-TIMEOUT_MESSAGE = "Szukanie dopasowań trwa zbyt długo. Spróbuj ponownie za chwilę."
+NAME_NEEDS_A_WORD_MESSAGE = (
+    "Wpisz, czego szukasz — nazwa nie może składać się z samych spójników i przyimków."
+)
 TRY_AGAIN_MESSAGE = "Dane zostały w międzyczasie zmienione — odśwież i spróbuj ponownie"
 
 
@@ -80,7 +82,6 @@ async def _seed_wants(
         Want(
             seeker_party_id=seeker,
             name=f"Rzecz {number}",
-            short_words_query=short_words_query(f"Rzecz {number}"),
             status=status,
             expires_at=now + VALIDITY,
             closed_at=None if status == WantStatus.ACTIVE else now,
@@ -114,14 +115,30 @@ class _PgError(Exception):
         self.sqlstate = sqlstate
 
 
-def _failing_match(sqlstate: str) -> Any:
-    async def match_want(*args: Any, **kwargs: Any) -> Any:
-        raise OperationalError("INSERT", {}, _PgError(sqlstate))
+def _failing_load(sqlstate: str) -> Any:
+    async def load_want(*args: Any, **kwargs: Any) -> Any:
+        raise OperationalError("SELECT", {}, _PgError(sqlstate))
 
-    return match_want
+    return load_want
 
 
-async def test_createWant_matchingItems_returns201WithSeenMatchesAndNoNotification(
+async def _match_requested_at(db: AsyncSession, want_id: str | uuid.UUID) -> datetime | None:
+    return await db.scalar(
+        select(Want.match_requested_at)
+        .where(Want.id == uuid.UUID(str(want_id)))
+        .execution_options(populate_existing=True)
+    )
+
+
+async def _clear_match_request(db: AsyncSession, want_id: str | uuid.UUID) -> None:
+    """What the matcher service does once its run is stored."""
+    await db.execute(
+        update(Want).where(Want.id == uuid.UUID(str(want_id))).values(match_requested_at=None)
+    )
+    await db.commit()
+
+
+async def test_createWant_listedItemsWouldMatch_returns201MatchingWithNoPairsAndNoNotification(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner = await _Owner.create(client, "wa.create.o@example.com")
@@ -140,9 +157,8 @@ async def test_createWant_matchingItems_returns201WithSeenMatchesAndNoNotificati
     while parent_id:
         path.insert(0, categories[str(parent_id)]["name"])
         parent_id = categories[str(parent_id)]["parent_id"]
-    first = await owner.lists("Hulajnoga miejska", category_id=leaf)
-    second = await owner.lists("Hulajnoga dla dzieci", category_id=leaf)
-    await owner.lists("Wrotki", category_id=leaf)
+    await owner.lists("Hulajnoga miejska", category_id=leaf)
+    before = datetime.utcnow()
 
     response = await client.post(
         "/api/wants",
@@ -175,19 +191,12 @@ async def test_createWant_matchingItems_returns201WithSeenMatchesAndNoNotificati
     assert want["notifications_enabled"] is True
     assert want["status"] == "ACTIVE"
     assert want["closed_at"] is None
-    assert (want["match_count"], want["new_match_count"]) == (2, 0)
-
-    matches = (
-        await db_session.execute(
-            select(WantMatch.item_id, WantMatch.source, WantMatch.seen_at).where(
-                WantMatch.want_id == uuid.UUID(want["id"])
-            )
-        )
-    ).all()
-    assert {match.item_id for match in matches} == {first, second}
-    assert all(
-        match.source == WantMatchSource.FORWARD and match.seen_at is not None for match in matches
-    )
+    assert want["matching"] is True
+    assert (want["match_count"], want["new_match_count"]) == (0, 0)
+    assert await _matched_items(db_session, want["id"]) == set()
+    requested_at = await _match_requested_at(db_session, want["id"])
+    assert requested_at is not None
+    assert before <= requested_at <= datetime.utcnow()
     notifications = await db_session.scalar(
         select(func.count()).select_from(Notification).where(Notification.party_id == seeker)
     )
@@ -208,6 +217,8 @@ async def test_createAndPatchWant_invalidInput_returns400_radiusZeroAndClearedLo
         ({"name": " ab "}, "Nazwa musi mieć od 3 do 80 znaków."),
         ({"name": "x" * 81}, "Nazwa musi mieć od 3 do 80 znaków."),
         ({"name": "-- --"}, "Nazwa musi zawierać literę lub cyfrę."),
+        ({"name": "na i z"}, NAME_NEEDS_A_WORD_MESSAGE),
+        ({"name": "Dla  Z"}, NAME_NEEDS_A_WORD_MESSAGE),
         ({"name": "rower", "note": "x" * 301}, "Notatka może mieć najwyżej 300 znaków."),
         ({"name": "rower", "radius_km": 10}, "Promień można ustawić tylko razem z miejscowością."),
         (
@@ -238,6 +249,7 @@ async def test_createAndPatchWant_invalidInput_returns400_radiusZeroAndClearedLo
     cleared = await client.patch(url, json={"locality_id": None}, headers=_auth(token))
     radius_alone = await client.patch(url, json={"radius_km": 5}, headers=_auth(token))
     no_name = await client.patch(url, json={"name": None}, headers=_auth(token))
+    stop_words_only = await client.patch(url, json={"name": "na i z"}, headers=_auth(token))
     unknown_field = await client.patch(url, json={"status": "FULFILLED"}, headers=_auth(token))
 
     assert widened.status_code == 200, widened.text
@@ -250,6 +262,9 @@ async def test_createAndPatchWant_invalidInput_returns400_radiusZeroAndClearedLo
     assert radius_alone.json()["message"] == "Promień można ustawić tylko razem z miejscowością."
     assert no_name.status_code == 400, no_name.text
     assert no_name.json()["message"] == "Nazwa musi mieć od 3 do 80 znaków."
+    assert stop_words_only.status_code == 400, stop_words_only.text
+    assert stop_words_only.json()["message"] == NAME_NEEDS_A_WORD_MESSAGE
+    assert (await client.get(url, headers=_auth(token))).json()["name"] == "rower"
     assert unknown_field.status_code == 400, unknown_field.text
     assert unknown_field.json()["message"] == "Validation failed"
 
@@ -331,34 +346,8 @@ async def test_createWant_thirtyActiveWants_returns409AndWritesNothing(
     await _create_want(client, token, "rower")
 
 
-async def test_forwardMatch_statementTimeout_returns503AndSavesNothing(
-    client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    token, seeker = await _register(client, "GUEST", "wa.timeout.s@example.com")
-    want = await _create_want(client, token, "rower")
-
-    with monkeypatch.context() as patched:
-        patched.setattr(matcher, "match_want", _failing_match("57014"))
-        created = await client.post("/api/wants", json={"name": "sanki"}, headers=_auth(token))
-        renamed = await client.patch(
-            f"/api/wants/{want['id']}", json={"name": "narty"}, headers=_auth(token)
-        )
-
-    for response in (created, renamed):
-        assert response.status_code == 503, response.text
-        assert response.json()["message"] == TIMEOUT_MESSAGE
-    assert await _want_count(db_session, seeker) == 1
-    kept = await client.get(f"/api/wants/{want['id']}", headers=_auth(token))
-    assert kept.json()["name"] == "rower"
-
-    # too_many_connections: not mapped, so it propagates unchanged.
-    monkeypatch.setattr(matcher, "match_want", _failing_match("53300"))
-    with pytest.raises(OperationalError):
-        await client.post("/api/wants", json={"name": "sanki"}, headers=_auth(token))
-
-
 @pytest.mark.parametrize("sqlstate", ["40P01", "40001"])
-async def test_forwardMatch_deadlockOrSerializationFailure_returns409TryAgainAndSavesNothing(
+async def test_wantWrite_deadlockOrSerializationFailure_returns409TryAgainAndSavesNothing(
     client: AsyncClient,
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
@@ -368,7 +357,7 @@ async def test_forwardMatch_deadlockOrSerializationFailure_returns409TryAgainAnd
     want = await _create_want(client, token, "rower")
 
     with monkeypatch.context() as patched:
-        patched.setattr(matcher, "match_want", _failing_match(sqlstate))
+        patched.setattr(reads, "load_want", _failing_load(sqlstate))
         created = await client.post("/api/wants", json={"name": "sanki"}, headers=_auth(token))
         renamed = await client.patch(
             f"/api/wants/{want['id']}", json={"name": "narty"}, headers=_auth(token)
@@ -380,6 +369,11 @@ async def test_forwardMatch_deadlockOrSerializationFailure_returns409TryAgainAnd
     assert await _want_count(db_session, seeker) == 1
     kept = await client.get(f"/api/wants/{want['id']}", headers=_auth(token))
     assert kept.json()["name"] == "rower"
+
+    # too_many_connections: not mapped, so it propagates unchanged.
+    monkeypatch.setattr(reads, "load_want", _failing_load("53300"))
+    with pytest.raises(OperationalError):
+        await client.post("/api/wants", json={"name": "sanki"}, headers=_auth(token))
 
 
 async def test_wantRoutes_foreignWithdrawnOrUnknownWant_return404_editOfClosedWant409(
@@ -430,16 +424,18 @@ async def test_wantRoutes_foreignWithdrawnOrUnknownWant_return404_editOfClosedWa
     )
 
 
-async def test_patchWant_noteOrSwitchKeepsMatches_matchingFieldResetsThemAndTheUnreadBellRow(
+async def test_patchWant_noteOrSwitchKeepsPairs_matchingFieldDeletesBothTiersAndBellAndReflags(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner = await _Owner.create(client, "wa.patch.o@example.com")
     token, seeker = await _register(client, "GUEST", "wa.patch.s@example.com")
     sledge = await owner.lists("Sanki drewniane")
-    skis = await owner.lists("Narty zjazdowe")
-    want = await _create_want(client, token, "sanki")
+    plastic = await owner.lists("Sanki plastikowe")
+    want = await _create_want(client, token, "sanki drewniane dziecięce")
     want_id = uuid.UUID(want["id"])
     url = f"/api/wants/{want['id']}"
+    await seed_want_matches(db_session, want_id, [sledge], seen=False)
+    await seed_want_matches(db_session, want_id, [plastic], missing_words=["drewniane"])
     bell_row = Notification(
         party_id=seeker,
         kind=NotificationKind.WANT_MATCH_FOUND,
@@ -451,17 +447,15 @@ async def test_patchWant_noteOrSwitchKeepsMatches_matchingFieldResetsThemAndTheU
     assert stored is not None
     stored.match_notification_id = bell_row.id
     stored.match_notification_count = 3
-    await db_session.execute(
-        update(WantMatch).where(WantMatch.want_id == want_id).values(seen_at=None)
-    )
     await db_session.commit()
+    await _clear_match_request(db_session, want_id)
 
     async def bell_state() -> tuple[uuid.UUID | None, int, int]:
         pointer, count = (
             await db_session.execute(
-                select(Want.match_notification_id, Want.match_notification_count).where(
-                    Want.id == want_id
-                )
+                select(Want.match_notification_id, Want.match_notification_count)
+                .where(Want.id == want_id)
+                .execution_options(populate_existing=True)
             )
         ).one()
         rows = await db_session.scalar(
@@ -469,54 +463,65 @@ async def test_patchWant_noteOrSwitchKeepsMatches_matchingFieldResetsThemAndTheU
         )
         return pointer, count, rows or 0
 
-    for body in ({"note": "dla dzieci"}, {"notifications_enabled": False}, {"name": " sanki "}):
+    for body in (
+        {"note": "dla dzieci"},
+        {"notifications_enabled": False},
+        {"name": " sanki drewniane dziecięce "},
+    ):
         kept = await client.patch(url, json=body, headers=_auth(token))
 
         assert kept.status_code == 200, kept.text
+        assert kept.json()["matching"] is False
         assert (kept.json()["match_count"], kept.json()["new_match_count"]) == (1, 1)
-        assert await _matched_items(db_session, want["id"]) == {sledge}
+        assert await _matched_items(db_session, want["id"]) == {sledge, plastic}
         assert await bell_state() == (bell_row.id, 3, 1)
+        assert await _match_requested_at(db_session, want_id) is None
 
+    before = datetime.utcnow()
     renamed = await client.patch(url, json={"name": "narty"}, headers=_auth(token))
 
     assert renamed.status_code == 200, renamed.text
     assert renamed.json()["name"] == "narty"
     assert renamed.json()["note"] == "dla dzieci"
-    assert (renamed.json()["match_count"], renamed.json()["new_match_count"]) == (1, 0)
-    assert await _matched_items(db_session, want["id"]) == {skis}
+    assert renamed.json()["matching"] is True
+    assert (renamed.json()["match_count"], renamed.json()["new_match_count"]) == (0, 0)
+    assert await _matched_items(db_session, want["id"]) == set()
     assert await bell_state() == (None, 0, 0)
+    requested_at = await _match_requested_at(db_session, want_id)
+    assert requested_at is not None and requested_at >= before
 
+    await _clear_match_request(db_session, want_id)
     narrowed = await client.patch(url, json={"offer_mode": "SWAP"}, headers=_auth(token))
 
     assert narrowed.status_code == 200, narrowed.text
-    assert narrowed.json()["match_count"] == 0
-    assert await _matched_items(db_session, want["id"]) == set()
+    assert narrowed.json()["matching"] is True
+    assert await _match_requested_at(db_session, want_id) is not None
 
 
-async def test_createAndListWants_moreMatchesAndWants_sameStatementCount(
-    client: AsyncClient, engine: AsyncEngine
+async def test_createAndListWants_morePairsAndWants_sameStatementCount(
+    client: AsyncClient, db_session: AsyncSession, engine: AsyncEngine
 ) -> None:
     owner = await _Owner.create(client, "wa.count.o@example.com")
     token, _ = await _register(client, "GUEST", "wa.count.s@example.com")
     (leaf,) = await leaf_category_ids(client, _auth(token))
-    await owner.lists("Sanki drewniane")
-    for name in ("Narty zjazdowe", "Narty biegowe", "Narty dla dzieci"):
-        await owner.lists(name)
-    await _create_want(client, token, "wrotki")
+    sledge = await owner.lists("Sanki drewniane")
+    skis = [await owner.lists(name) for name in ("Narty zjazdowe", "Narty biegowe", "Narty małe")]
 
-    with count_queries(engine) as create_one_match:
-        one_match = await _create_want(client, token, "sanki", category_id=leaf, locality_id=KETY)
+    with count_queries(engine) as create_first:
+        first = await _create_want(client, token, "sanki", category_id=leaf, locality_id=KETY)
+    await seed_want_matches(db_session, first["id"], [sledge])
     with count_queries(engine) as list_one:
         await client.get("/api/wants", headers=_auth(token))
-    with count_queries(engine) as create_three_matches:
-        three_matches = await _create_want(
-            client, token, "narty", category_id=leaf, locality_id=KETY
-        )
+    with count_queries(engine) as create_second:
+        second = await _create_want(client, token, "narty", category_id=leaf, locality_id=KETY)
+    await seed_want_matches(db_session, second["id"], skis[:2])
+    await seed_want_matches(db_session, second["id"], skis[2:], missing_words=["dziecięce"])
     await _create_want(client, token, "narty")
     with count_queries(engine) as list_several:
         listed = await client.get("/api/wants", headers=_auth(token))
 
-    assert (one_match["match_count"], three_matches["match_count"]) == (1, 3)
-    assert [want["match_count"] for want in listed.json()] == [3, 3, 1, 0]
-    assert len(create_three_matches) == len(create_one_match)
+    assert [want["match_count"] for want in listed.json()] == [0, 2, 1]
+    assert len(create_second) == len(create_first)
+    assert not any("INSERT INTO want_matches" in statement for statement in create_first)
+    assert any("words_pl" in statement for statement in create_first)
     assert len(list_several) == len(list_one)

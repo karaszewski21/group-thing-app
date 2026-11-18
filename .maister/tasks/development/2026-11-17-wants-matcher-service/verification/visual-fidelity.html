@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Fidelity — wants matcher service</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.verdict { border-left:4px solid var(--warn); background:var(--warn-soft); }
+.shots { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-top:10px; }
+.shots figure { margin:0; } .shots figcaption { font-size:12px; color:var(--dim); }
+.pair { display:grid; grid-template-columns:1fr 1fr; gap:12px; } .pair figure{margin:0} .pair figcaption{font-size:12px;color:var(--dim)}
+.ok{color:var(--ok);font-weight:700}.wn{color:var(--warn);font-weight:700}
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="implementation-verification.html">Verification</a>
+  <a href="e2e-verification-report.html">E2E</a>
+  <span class="here">Visual fidelity</span>
+  <a href="visual-fidelity.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header><span class="badge">visual fidelity · report-only</span>
+<h1>Visual Fidelity — „Szukam” frontend</h1>
+<div style="color:var(--dim)">LLM-judged structural match (not pixel diff) · source: analysis/design-context/INDEX.md · 2026-11-17</div></header>
+<div class="tiles">
+  <div class="tile"><b>7</b><span>compared</span></div>
+  <div class="tile"><b class="ok">6</b><span>✓ match</span></div>
+  <div class="tile"><b class="wn">1</b><span>⚠ minor deviation</span></div>
+  <div class="tile"><b>0</b><span>✗ drift</span></div>
+</div>
+<section class="tldr card">
+<h2 style="margin-top:0">TL;DR</h2>
+<p>The implementation matches the five mockup screens and both components structurally: 6 ✓, 1 ⚠, 0 ✗. The single deviation is on <code>/wanted</code> and comes from list copy and styling this task left unchanged. The new „Szukamy…” badge itself matches.</p>
+<h3>Key Decisions</h3><ul><li>Mockups were rendered at the same 390 px width (<code>screenshots/mockup-*.png</code>) and compared region by region.</li><li>Data-dependent differences (summary line, item names, counts, thumbnails) were ignored.</li></ul>
+<h3>Open Questions / Risks</h3><p>None. No substantive drift.</p>
+</section>
+<main>
+<div class="card" id="screen-want-matching"><h3><span class="ok">✓</span> screen:want-matching — Match</h3>
+<p>Header → toggle → status row → 2×2 skeleton grid (aria-hidden) → validity → actions, same order. Actions unchanged.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-want-detail-matching-pending.png" alt="mockup want-detail-matching-pending"><figcaption>Mockup render · <a href="../analysis/design-context/mockups/want-detail-matching-pending.html">want-detail-matching-pending.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/09-want-matching-pending.png" alt="implementation 09-want-matching-pending.png"><figcaption>Implementation · 09-want-matching-pending.png</figcaption></figure></div></div><div class="card" id="component-matching-status"><h3><span class="ok">✓</span> component:matching-status — Match</h3>
+<p>Inline card row with a spinner, „Szukamy pasujących rzeczy…” + „To zwykle kilka sekund.”; role=status, aria-live=polite; spinner aria-hidden, motion-reduce respected.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-want-detail-matching-pending.png" alt="mockup want-detail-matching-pending"><figcaption>Mockup render · <a href="../analysis/design-context/mockups/want-detail-matching-pending.html">want-detail-matching-pending.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/09-want-matching-pending.png" alt="implementation 09-want-matching-pending.png"><figcaption>Implementation · 09-want-matching-pending.png</figcaption></figure></div></div><div class="card" id="screen-want-matching-slow"><h3><span class="ok">✓</span> screen:want-matching-slow — Match</h3>
+<p>Dashed card, ⏳ tile (aria-hidden), heading and body copy word for word, text button „Odśwież teraz”; role=status polite; no skeleton. Resume verified (13).</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-want-detail-matching-slow.png" alt="mockup want-detail-matching-slow"><figcaption>Mockup render · <a href="../analysis/design-context/mockups/want-detail-matching-slow.html">want-detail-matching-slow.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/12-want-matching-slow.png" alt="implementation 12-want-matching-slow.png"><figcaption>Implementation · 12-want-matching-slow.png</figcaption></figure></div></div><div class="card" id="screen-want-results"><h3><span class="ok">✓</span> screen:want-results — Match</h3>
+<p>Empty dashed card → bordered section → „💡 Może Cię zainteresuje” h2 (aria-labelledby, emoji aria-hidden) → lead copy → 2-column grid → validity → actions.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-want-detail-suggestions.png" alt="mockup want-detail-suggestions"><figcaption>Mockup render · <a href="../analysis/design-context/mockups/want-detail-suggestions.html">want-detail-suggestions.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/04-want-suggestions.png" alt="implementation 04-want-suggestions.png"><figcaption>Implementation · 04-want-suggestions.png</figcaption></figure></div></div><div class="card" id="component-suggestion-card"><h3><span class="ok">✓</span> component:suggestion-card — Match</h3>
+<p>ItemCard tile with a dashed border, name, „Stan: …”, mode pill, „brakuje: „Claas”” with the word bold, no „nowe”; links to the item.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-want-detail-suggestions.png" alt="mockup want-detail-suggestions"><figcaption>Mockup render · <a href="../analysis/design-context/mockups/want-detail-suggestions.html">want-detail-suggestions.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/07-claas-window-suggestion.png" alt="implementation 07-claas-window-suggestion.png"><figcaption>Implementation · 07-claas-window-suggestion.png</figcaption></figure></div></div><div class="card" id="screen-want-results-matches-only"><h3><span class="ok">✓</span> screen:want-results-matches-only — Match</h3>
+<p>Count line → MatchCards with „nowe” on unseen pairs (see 08) → no suggestions section.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-want-detail-matches-only.png" alt="mockup want-detail-matches-only"><figcaption>Mockup render · <a href="../analysis/design-context/mockups/want-detail-matches-only.html">want-detail-matches-only.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/15-matches-only.png" alt="implementation 15-matches-only.png"><figcaption>Implementation · 15-matches-only.png</figcaption></figure></div></div><div class="card" id="screen-wanted-list"><h3><span class="wn">⚠</span> screen:wanted-list — Minor deviation</h3>
+<p>Match: spinner + „Szukamy…” in role=status replaces the counts. Deviation (pre-existing, unchanged by this task): the empty card reads „Jeszcze nic · powiadomimy Cię” with a bell on a cream pill, counts sit in a full-width green pill, the page has „‹ Konto” / „+ Dodaj” (mockup: „+ Dodaj poszukiwanie”), each card has a validity line. Impact: none on the new element.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mockup-wanted-list-pending-badge.png" alt="mockup wanted-list-pending-badge"><figcaption>Mockup render · <a href="../analysis/design-context/mockups/wanted-list-pending-badge.html">wanted-list-pending-badge.html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/10-wanted-list-badge.png" alt="implementation 10-wanted-list-badge.png"><figcaption>Implementation · 10-wanted-list-badge.png</figcaption></figure></div></div>
+</main>
+</body>
+</html>

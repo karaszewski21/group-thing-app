@@ -15,6 +15,9 @@ from app.wants.domain.limits import (
 
 NAME_LENGTH_MESSAGE = f"Nazwa musi mieć od {NAME_MIN_LENGTH} do {NAME_MAX_LENGTH} znaków."
 NAME_WITHOUT_LETTER_OR_DIGIT_MESSAGE = "Nazwa musi zawierać literę lub cyfrę."
+NAME_NEEDS_A_WORD_MESSAGE = (
+    "Wpisz, czego szukasz — nazwa nie może składać się z samych spójników i przyimków."
+)
 NOTE_TOO_LONG_MESSAGE = f"Notatka może mieć najwyżej {NOTE_MAX_LENGTH} znaków."
 RADIUS_WITHOUT_LOCALITY_MESSAGE = "Promień można ustawić tylko razem z miejscowością."
 RADIUS_OUT_OF_RANGE_MESSAGE = f"Promień musi mieć od {RADIUS_MIN_KM} do {RADIUS_MAX_KM} km."
@@ -31,7 +34,6 @@ RESUME_ACTIVE_MESSAGE = "To poszukiwanie jest już aktywne."
 
 WANT_NOT_FOUND_MESSAGE = "Nie znaleziono poszukiwania."
 MATCH_NOT_FOUND_MESSAGE = "Nie znaleziono dopasowania."
-FORWARD_MATCH_TIMEOUT_MESSAGE = "Szukanie dopasowań trwa zbyt długo. Spróbuj ponownie za chwilę."
 
 
 def single_match_message(want_name: str, product_name: str) -> str:

@@ -1,7 +1,9 @@
-"""The match list of a want (`GET /api/wants/{id}/matches`): the card, its
-order and its reservation flags, the read-time filter it shares with the
-want's counters, the `matched_item_id` lookup, the "seen" and "opened" marks,
-and the statement count of the list."""
+"""The match list of a want (`GET /api/wants/{id}/matches`, MATCH pairs
+only): the card, its order and its reservation flags, the read-time filter
+it shares with the want's counters, the `matched_item_id` lookup over both
+tiers, the "seen" and "opened" marks, and the statement count of the list.
+Then the suggestion list (`GET /api/wants/{id}/suggestions`). The pairs are
+seeded as the matcher service writes them."""
 
 from __future__ import annotations
 
@@ -17,7 +19,7 @@ from app.groups.models import ItemListingPreference, SwapProposal, SwapProposalS
 from app.inventory.models import InventoryItem
 from app.moderation.status import ModerationStatus
 from app.wants.models import Want, WantMatch
-from tests.conftest import count_queries
+from tests.conftest import _Owner, count_queries, seed_want_matches
 from tests.test_event_item_reservations import _attendees, _listed_items
 from tests.test_event_item_reservations import _take as _take_at_event
 from tests.test_organizer_bridges import _photo, _uploader_id
@@ -25,7 +27,6 @@ from tests.test_organizer_page import _organization_slug
 from tests.test_term_item_listings import _auth, _register
 from tests.test_wants_api import NOT_FOUND_MESSAGE, WANT_KEYS, _create_want
 from tests.test_wants_lifecycle import _is_new_period
-from tests.test_wants_matcher import _Owner
 
 CARD_KEYS = {
     "id",
@@ -36,12 +37,28 @@ CARD_KEYS = {
     "reserved_by_me",
     "proposed_by_me",
 }
+SUGGESTION_KEYS = {
+    "id",
+    "title",
+    "href",
+    "meta",
+    "missing_words",
+    "reserved_by_me",
+    "proposed_by_me",
+}
 META_KEYS = {"mode", "condition", "thumb_url", "reserved", "reserved_until"}
 MATCH_NOT_FOUND_MESSAGE = "Nie znaleziono dopasowania."
 
 
 async def _matches(client: AsyncClient, token: str, want_id: str) -> list[dict[str, Any]]:
     response = await client.get(f"/api/wants/{want_id}/matches", headers=_auth(token))
+    assert response.status_code == 200, response.text
+    cards: list[dict[str, Any]] = response.json()
+    return cards
+
+
+async def _suggestions(client: AsyncClient, token: str, want_id: str) -> list[dict[str, Any]]:
+    response = await client.get(f"/api/wants/{want_id}/suggestions", headers=_auth(token))
     assert response.status_code == 200, response.text
     cards: list[dict[str, Any]] = response.json()
     return cards
@@ -109,6 +126,7 @@ async def test_listMatches_storedMatch_returnsExactCardKeySet_foreignOrWithdrawn
     stranger, _ = await _register(client, "GUEST", "wx.card.x@example.com")
     sledge = await owner.lists("Sanki drewniane")
     want = await _create_want(client, token, "sanki")
+    await seed_want_matches(db_session, want["id"], [sledge])
     owner_party = await db_session.scalar(
         select(ItemListingPreference.owner_party_id).where(ItemListingPreference.item_id == sledge)
     )
@@ -155,6 +173,9 @@ async def test_listMatches_order_availableFirstThenReserved_newFirstThenScore(
     reserved_new = await owner.lists("Narty skiturowe")
     reserved_seen = await owner.lists("Narty stare")
     want = await _create_want(client, token, "narty")
+    await seed_want_matches(
+        db_session, want["id"], [seen_best, new_weak, new_strong, reserved_new, reserved_seen]
+    )
     for item_id, score, is_new in (
         (seen_best, 0.9, False),
         (new_weak, 0.5, True),
@@ -193,6 +214,9 @@ async def test_listMatches_reservationFlags_ownReservationAndOwnProposalThatIsNo
     proposed_by_other = await owner.lists("Rower składany", mode="SWAP")
     proposed_by_both = await owner.lists("Rower dziecięcy", mode="SWAP")
     want = await _create_want(client, token, "rower")
+    await seed_want_matches(
+        db_session, want["id"], [free, mine, theirs, proposed_by_other, proposed_by_both]
+    )
     await _take(client, token, mine)
     await _take(client, stranger, theirs)
     now = datetime.utcnow()
@@ -240,6 +264,7 @@ async def test_listMatches_organizationsItemWithPhotoReservedForAnEvent_slugHref
     )
     await db_session.commit()
     want = await _create_want(client, token, "sanki")
+    await seed_want_matches(db_session, want["id"], [sledge])
     status, body = await _take_at_event(client, event_id, sledge, token)
     assert status == 200, body
 
@@ -265,6 +290,7 @@ async def test_listMatches_unlistedHiddenOrNowOwnItem_leftOutAndNotCounted(
     hidden = await owner.lists("Wrotki retro")
     handed_over = await owner.lists("Wrotki sportowe")
     want = await _create_want(client, token, "wrotki")
+    await seed_want_matches(db_session, want["id"], [kept, unlisted, hidden, handed_over])
     await _mark_unseen(db_session, want["id"])
     assert len(await _matches(client, token, want["id"])) == 4
     assert await _counters(client, token, want["id"]) == (4, 4)
@@ -292,17 +318,21 @@ async def test_listMatches_unlistedHiddenOrNowOwnItem_leftOutAndNotCounted(
     assert [card["is_new"] for card in cards] == [True]
 
 
-async def test_listWants_matchedItemId_returnsOnlyActiveWantsHoldingTheItem(
-    client: AsyncClient,
+async def test_listWants_matchedItemId_returnsActiveWantsHoldingTheItemInEitherTier(
+    client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner = await _Owner.create(client, "wx.item.o@example.com")
     token, _ = await _register(client, "GUEST", "wx.item.s@example.com")
     stranger, _ = await _register(client, "GUEST", "wx.item.x@example.com")
     scooter = await owner.lists("Hulajnoga miejska")
     holding = await _create_want(client, token, "hulajnoga")
+    suggesting = await _create_want(client, token, "hulajnoga miejska czerwona")
     fulfilled = await _create_want(client, token, "hulajnoga miejska")
     await _create_want(client, token, "deskorolka")
-    await _create_want(client, stranger, "hulajnoga")
+    foreign = await _create_want(client, stranger, "hulajnoga")
+    for want_id in (holding["id"], fulfilled["id"], foreign["id"]):
+        await seed_want_matches(db_session, want_id, [scooter])
+    await seed_want_matches(db_session, suggesting["id"], [scooter], missing_words=["czerwona"])
     closed = await client.post(
         f"/api/wants/{fulfilled['id']}/close", json={"outcome": "FULFILLED"}, headers=_auth(token)
     )
@@ -321,11 +351,12 @@ async def test_listWants_matchedItemId_returnsOnlyActiveWantsHoldingTheItem(
     everything = await client.get("/api/wants", headers=_auth(token))
 
     assert found.status_code == 200, found.text
-    assert [want["id"] for want in found.json()] == [holding["id"]]
+    assert [want["id"] for want in found.json()] == [suggesting["id"], holding["id"]]
     assert set(found.json()[0]) == WANT_KEYS
+    assert [want["match_count"] for want in found.json()] == [0, 1]
     assert unknown.json() == []
     assert malformed.status_code == 400, malformed.text
-    assert len(everything.json()) == 3
+    assert len(everything.json()) == 4
 
 
 async def test_markMatchesSeen_resetsNewCount_extendsOnlyActiveWantInItsLast30Days(
@@ -334,9 +365,9 @@ async def test_markMatchesSeen_resetsNewCount_extendsOnlyActiveWantInItsLast30Da
     owner = await _Owner.create(client, "wx.seen.o@example.com")
     token, _ = await _register(client, "GUEST", "wx.seen.s@example.com")
     stranger, _ = await _register(client, "GUEST", "wx.seen.x@example.com")
-    await owner.lists("Rolki męskie")
-    await owner.lists("Rolki damskie")
+    rollers = [await owner.lists("Rolki męskie"), await owner.lists("Rolki damskie")]
     want = await _create_want(client, token, "rolki")
+    await seed_want_matches(db_session, want["id"], rollers)
     want_id = uuid.UUID(want["id"])
     url = f"/api/wants/{want['id']}/matches/seen"
 
@@ -395,15 +426,18 @@ async def test_markMatchesSeen_resetsNewCount_extendsOnlyActiveWantInItsLast30Da
     assert foreign.json()["message"] == NOT_FOUND_MESSAGE
 
 
-async def test_markMatchOpened_firstOpenOnly_unknownPair404(
+async def test_markMatchOpened_firstOpenOnlyForEitherTier_unknownPair404(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner = await _Owner.create(client, "wx.open.o@example.com")
     token, _ = await _register(client, "GUEST", "wx.open.s@example.com")
     stranger, _ = await _register(client, "GUEST", "wx.open.x@example.com")
     tent = await owner.lists("Namiot turystyczny")
+    beach_tent = await owner.lists("Namiot plażowy")
     other_item = await owner.lists("Plecak górski")
-    want = await _create_want(client, token, "namiot")
+    want = await _create_want(client, token, "namiot turystyczny duży")
+    await seed_want_matches(db_session, want["id"], [tent])
+    await seed_want_matches(db_session, want["id"], [beach_tent], missing_words=["turystyczny"])
     await _mark_unseen(db_session, want["id"])
     url = f"/api/wants/{want['id']}/matches"
 
@@ -418,6 +452,9 @@ async def test_markMatchOpened_firstOpenOnly_unknownPair404(
     assert second.status_code == 204, second.text
     assert stored.opened_at == opened_at
     assert stored.seen_at is None
+    suggestion = await client.post(f"{url}/{beach_tent}/opened", headers=_auth(token))
+    assert suggestion.status_code == 204, suggestion.text
+    assert (await _stored_match(db_session, want["id"], beach_tent)).opened_at is not None
 
     for item_id in (other_item, uuid.uuid4()):
         unknown = await client.post(f"{url}/{item_id}/opened", headers=_auth(token))
@@ -429,18 +466,19 @@ async def test_markMatchOpened_firstOpenOnly_unknownPair404(
 
 
 async def test_listMatches_severalMatchesAndOwners_sameStatementCount(
-    client: AsyncClient, engine: AsyncEngine
+    client: AsyncClient, db_session: AsyncSession, engine: AsyncEngine
 ) -> None:
     owner = await _Owner.create(client, "wx.count.o@example.com")
     second_owner = await _Owner.create(client, "wx.count.p@example.com")
     token, _ = await _register(client, "GUEST", "wx.count.s@example.com")
-    await owner.lists("Sanki drewniane")
-    for name in ("Narty zjazdowe", "Narty biegowe"):
-        await owner.lists(name)
+    sledge = await owner.lists("Sanki drewniane")
+    skis = [await owner.lists(name) for name in ("Narty zjazdowe", "Narty biegowe")]
     taken = await second_owner.lists("Narty dla dzieci")
-    await second_owner.lists("Narty skiturowe")
+    skis += [taken, await second_owner.lists("Narty skiturowe")]
     one = await _create_want(client, token, "sanki")
     several = await _create_want(client, token, "narty")
+    await seed_want_matches(db_session, one["id"], [sledge])
+    await seed_want_matches(db_session, several["id"], skis)
     await _take(client, token, taken)
 
     with count_queries(engine) as one_match:
@@ -450,3 +488,93 @@ async def test_listMatches_severalMatchesAndOwners_sameStatementCount(
 
     assert (len(one_card), len(several_cards)) == (1, 4)
     assert len(several_matches) == len(one_match)
+
+
+async def test_listSuggestions_suggestionPairs_exactKeySetBestTenAndApartFromMatches(
+    client: AsyncClient, db_session: AsyncSession, engine: AsyncEngine
+) -> None:
+    owner = await _Owner.create(client, "wx.sugg.o@example.com")
+    token, _ = await _register(client, "GUEST", "wx.sugg.s@example.com")
+    match = await owner.lists("Kask rowerowy dziecięcy")
+    suggested = [await owner.lists(f"Kask rowerowy {number}") for number in range(12)]
+    want = await _create_want(client, token, "kask rowerowy dziecięcy")
+    await seed_want_matches(db_session, want["id"], [match])
+    for number, item_id in enumerate(suggested):
+        await seed_want_matches(
+            db_session, want["id"], [item_id], missing_words=["dziecięcy"], score=number / 100
+        )
+    owner_party = await db_session.scalar(
+        select(ItemListingPreference.owner_party_id).where(
+            ItemListingPreference.item_id == suggested[11]
+        )
+    )
+
+    with count_queries(engine) as statements:
+        cards = await _suggestions(client, token, want["id"])
+
+    assert len(cards) == 10
+    assert [card["id"] for card in cards] == [str(item_id) for item_id in suggested[:1:-1]]
+    for card in cards:
+        assert set(card) == SUGGESTION_KEYS
+        assert set(card["meta"]) == META_KEYS
+    assert cards[0] == {
+        "id": str(suggested[11]),
+        "title": "Kask rowerowy 11",
+        "href": f"/{owner_party}/product/{suggested[11]}",
+        "meta": {
+            "mode": "GIFT",
+            "condition": "GOOD",
+            "thumb_url": None,
+            "reserved": False,
+            "reserved_until": None,
+        },
+        "missing_words": ["dziecięcy"],
+        "reserved_by_me": False,
+        "proposed_by_me": False,
+    }
+    assert [card["id"] for card in await _matches(client, token, want["id"])] == [str(match)]
+    assert await _counters(client, token, want["id"]) == (1, 0)
+    one = await _create_want(client, token, "kask rowerowy czerwony")
+    await seed_want_matches(db_session, one["id"], [match], missing_words=["czerwony"])
+    with count_queries(engine) as one_statements:
+        assert len(await _suggestions(client, token, one["id"])) == 1
+    assert len(one_statements) == len(statements)
+
+
+async def test_listSuggestions_hiddenOrUnlistedItemLeftOut_foreignOrWithdrawnWant404(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    owner = await _Owner.create(client, "wx.suggvis.o@example.com")
+    token, _ = await _register(client, "GUEST", "wx.suggvis.s@example.com")
+    stranger, _ = await _register(client, "GUEST", "wx.suggvis.x@example.com")
+    kept = await owner.lists("Fotelik samochodowy czarny")
+    hidden = await owner.lists("Fotelik samochodowy szary")
+    unlisted = await owner.lists("Fotelik samochodowy niebieski")
+    want = await _create_want(client, token, "fotelik samochodowy izofix")
+    await seed_want_matches(
+        db_session, want["id"], [kept, hidden, unlisted], missing_words=["izofix"]
+    )
+    for item_id, body in (
+        (unlisted, {"mode": None}),
+        (hidden, {"mode": "GIFT", "visibility": "PRIVATE"}),
+    ):
+        changed = await client.put(
+            f"/api/item-listing-preferences/{item_id}", json=body, headers=_auth(owner.token)
+        )
+        assert changed.status_code == 200, changed.text
+
+    cards = await _suggestions(client, token, want["id"])
+
+    assert [card["id"] for card in cards] == [str(kept)]
+    assert cards[0]["missing_words"] == ["izofix"]
+    assert await _matches(client, token, want["id"]) == []
+
+    foreign = await client.get(f"/api/wants/{want['id']}/suggestions", headers=_auth(stranger))
+    unknown = await client.get(f"/api/wants/{uuid.uuid4()}/suggestions", headers=_auth(token))
+    await client.post(
+        f"/api/wants/{want['id']}/close", json={"outcome": "WITHDRAWN"}, headers=_auth(token)
+    )
+    withdrawn = await client.get(f"/api/wants/{want['id']}/suggestions", headers=_auth(token))
+    for response in (foreign, unknown, withdrawn):
+        assert response.status_code == 404, response.text
+        assert response.json()["message"] == NOT_FOUND_MESSAGE

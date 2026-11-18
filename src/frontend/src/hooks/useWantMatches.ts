@@ -1,46 +1,70 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { ApiError } from "../api/client";
 import { extractProblemMessage } from "../api/problem";
-import type { WantMatchResponse, WantResponse } from "../api/wants";
-import { getWant, getWantMatches, markWantMatchesSeen, markWantMatchOpened } from "../api/wants";
+import type { WantMatchResponse, WantResponse, WantSuggestionResponse } from "../api/wants";
+import { getWant, getWantMatches, getWantSuggestions, markWantMatchesSeen, markWantMatchOpened } from "../api/wants";
 import { useAuth } from "../auth/AuthContext";
-import { WANTS_KEY } from "./useWants";
+import { useMatchingPolledQuery, WANTS_KEY } from "./useWants";
 
 interface UseWantMatchesResult {
   want: WantResponse | null;
   matches: WantMatchResponse[];
+  /** „Może Cię zainteresuje”: items missing one word of the want's name. */
+  suggestions: WantSuggestionResponse[];
+  /** Still matching after the 60 s polling window; `refetch` resumes it. */
+  slow: boolean;
   loading: boolean;
   /** The want is unknown, foreign, withdrawn or already removed. */
   notFound: boolean;
   error: string | null;
+  /** Re-reads the want and opens a new polling window. */
   refetch: () => Promise<void>;
   /** Marks every match as seen; the counters of all wants queries refresh. */
   markSeen: () => Promise<void>;
   markOpened: (itemId: string) => Promise<void>;
 }
 
-const NO_MATCHES: WantMatchResponse[] = [];
+interface WantWithMatches {
+  want: WantResponse;
+  matches: WantMatchResponse[];
+  suggestions: WantSuggestionResponse[];
+}
 
-/** One want with its matches, under the wants prefix so that every want
- * write refreshes it. Keyed by token, as the list. */
+const NO_MATCHES: WantMatchResponse[] = [];
+const NO_SUGGESTIONS: WantSuggestionResponse[] = [];
+
+function wantIsMatching(data: WantWithMatches): boolean {
+  return data.want.matching;
+}
+
+/** One want with its matches and suggestions, under the wants prefix so
+ * that every want write refreshes it. Keyed by token, as the list. While the
+ * matcher has yet to answer the want it re-reads every 2 s for 60 s, then
+ * reports `slow`. */
 export function useWantMatches(wantId: string): UseWantMatchesResult {
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const enabled = token !== null && wantId !== "";
-  const query = useQuery({
+  const { query, slow, restart } = useMatchingPolledQuery({
     queryKey: [WANTS_KEY, "matches", token, wantId],
-    queryFn: async () => {
-      const [want, matches] = await Promise.all([getWant(wantId), getWantMatches(wantId)]);
-      return { want, matches };
+    queryFn: async (): Promise<WantWithMatches> => {
+      const [want, matches, suggestions] = await Promise.all([
+        getWant(wantId),
+        getWantMatches(wantId),
+        getWantSuggestions(wantId),
+      ]);
+      return { want, matches, suggestions };
     },
     enabled,
+    isMatching: wantIsMatching,
   });
   const { refetch: queryRefetch } = query;
 
   const refetch = useCallback(async () => {
+    restart();
     await queryRefetch();
-  }, [queryRefetch]);
+  }, [restart, queryRefetch]);
 
   const markSeen = useCallback(async () => {
     try {
@@ -66,6 +90,8 @@ export function useWantMatches(wantId: string): UseWantMatchesResult {
   return {
     want: query.data?.want ?? null,
     matches: query.data?.matches ?? NO_MATCHES,
+    suggestions: query.data?.suggestions ?? NO_SUGGESTIONS,
+    slow,
     loading: query.isPending && enabled,
     notFound,
     error: query.error && !notFound ? extractProblemMessage(query.error) : null,

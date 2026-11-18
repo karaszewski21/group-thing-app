@@ -1,5 +1,5 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useQuery, useQueryClient, type QueryKey, type UseQueryResult } from "@tanstack/react-query";
+import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../api/client";
 import { extractProblemMessage } from "../api/problem";
 import type { WantCloseOutcome, WantCreateRequest, WantResponse, WantUpdateRequest } from "../api/wants";
@@ -20,6 +20,69 @@ interface UseWantsResult {
 
 export const WANTS_KEY = "wants";
 const NO_WANTS: WantResponse[] = [];
+
+/** While the matcher has yet to answer a want, its queries re-read this often… */
+export const MATCHING_POLL_MS = 2_000;
+/** …for at most this long after the hook first sees it matching. */
+export const MATCHING_WINDOW_MS = 60_000;
+
+interface MatchingPolledQueryOptions<T> {
+  queryKey: QueryKey;
+  queryFn: () => Promise<T>;
+  enabled: boolean;
+  /** Whether the loaded data still waits for the matcher. */
+  isMatching: (data: T) => boolean;
+}
+
+interface MatchingPolledQuery<T> {
+  query: UseQueryResult<T>;
+  /** The window ran out while the data still waits for the matcher. */
+  slow: boolean;
+  /** Opens a new window, so polling resumes while still matching. */
+  restart: () => void;
+}
+
+/** A query that polls every 2 s while its data is matching, for one 60 s
+ * window. The window opens when the hook first sees matching data (again
+ * after matching stopped and started, and on `restart`). Its end is one
+ * `setTimeout` setting `expired`, so `slow` re-renders even when no data
+ * changes. Polling pauses in a background tab (TanStack default). */
+export function useMatchingPolledQuery<T>({
+  isMatching,
+  ...options
+}: MatchingPolledQueryOptions<T>): MatchingPolledQuery<T> {
+  const [expired, setExpired] = useState(false);
+  const [round, setRound] = useState(0);
+  const query = useQuery({
+    ...options,
+    refetchInterval: (q) =>
+      q.state.data !== undefined && isMatching(q.state.data) && !expired ? MATCHING_POLL_MS : false,
+  });
+  const matching = query.data !== undefined && isMatching(query.data);
+
+  const [wasMatching, setWasMatching] = useState(matching);
+  if (wasMatching !== matching) {
+    setWasMatching(matching);
+    if (matching) setExpired(false);
+  }
+
+  useEffect(() => {
+    if (!matching || expired) return;
+    const timer = setTimeout(() => setExpired(true), MATCHING_WINDOW_MS);
+    return () => clearTimeout(timer);
+  }, [matching, expired, round]);
+
+  const restart = useCallback(() => {
+    setExpired(false);
+    setRound((n) => n + 1);
+  }, []);
+
+  return { query, slow: matching && expired, restart };
+}
+
+function anyMatching(wants: WantResponse[]): boolean {
+  return wants.some((want) => want.matching);
+}
 
 export const WANT_NETWORK_ERROR_MESSAGE = "Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.";
 
@@ -47,14 +110,17 @@ async function passingMessageThrough<T>(call: () => Promise<T>): Promise<T> {
 
 /** The caller's own wants (active, expired, fulfilled). The token is part of
  * the key: another account's wants must never show, even briefly. Writes
- * refresh every wants query, the match lists included. */
+ * refresh every wants query, the match lists included. While any want is
+ * matching the list polls for one window; after it a card keeps „Szukamy…”
+ * until the next focus or mount refetch. */
 export function useWants(): UseWantsResult {
   const { token } = useAuth();
   const queryClient = useQueryClient();
-  const query = useQuery({
+  const { query } = useMatchingPolledQuery({
     queryKey: [WANTS_KEY, "mine", token],
     queryFn: () => getMyWants(),
     enabled: token !== null,
+    isMatching: anyMatching,
   });
   const { refetch: queryRefetch } = query;
 

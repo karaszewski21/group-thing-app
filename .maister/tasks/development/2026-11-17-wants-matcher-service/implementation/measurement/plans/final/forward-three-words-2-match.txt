@@ -1,0 +1,225 @@
+Insert on want_matches  (cost=117967.13..117967.40 rows=5 width=192) (actual time=2.878..2.887 rows=0.00 loops=1)
+  Conflict Resolution: NOTHING
+  Conflict Arbiter Indexes: uq_want_matches_want_id_item_id
+  Tuples Inserted: 0
+  Conflicting Tuples: 0
+  Buffers: shared hit=2730
+  CTE matchable_wants
+    ->  Nested Loop Left Join  (cost=0.57..16.63 rows=1 width=188) (actual time=0.022..0.023 rows=1.00 loops=1)
+          Buffers: shared hit=6
+          ->  Index Scan using pk_wants on wants w_1  (cost=0.29..8.31 rows=1 width=203) (actual time=0.009..0.010 rows=1.00 loops=1)
+                Index Cond: (id = '002f28e0-07aa-4f17-8313-02fa51feb2c6'::uuid)
+                Filter: ((stem_query IS NOT NULL) AND (expires_at > '2026-11-17 13:54:32.112914'::timestamp without time zone) AND ((status)::text = 'ACTIVE'::text))
+                Index Searches: 1
+                Buffers: shared hit=3
+          ->  Index Scan using pk_localities on localities wl  (cost=0.29..8.31 rows=1 width=24) (actual time=0.005..0.005 rows=1.00 loops=1)
+                Index Cond: ((id)::text = (w_1.locality_id)::text)
+                Index Searches: 1
+                Buffers: shared hit=3
+  ->  Subquery Scan on "*SELECT*"  (cost=117950.50..117950.77 rows=5 width=192) (actual time=2.877..2.885 rows=0.00 loops=1)
+        Buffers: shared hit=2730
+        ->  Subquery Scan on r  (cost=117950.50..117950.72 rows=5 width=172) (actual time=2.877..2.884 rows=0.00 loops=1)
+              Buffers: shared hit=2730
+              ->  WindowAgg  (cost=117950.50..117950.66 rows=5 width=84) (actual time=2.876..2.884 rows=0.00 loops=1)
+                    Window: w1 AS (PARTITION BY w.id ORDER BY (word_similarity(w.name_folded, btrim(regexp_replace(lower(translate((pr.name)::text, 'ąćęłńóśźżĄĆĘŁŃÓŚŹŻ'::text, 'acelnoszzACELNOSZZ'::text)), '\s+'::text, ' '::text, 'g'::text)))), p.created_at, p.item_id ROWS UNBOUNDED PRECEDING)
+                    Run Condition: (row_number() OVER w1 <= '20'::bigint)
+                    Buffers: shared hit=2730
+                    InitPlan 3
+                      ->  CTE Scan on matchable_wants  (cost=0.00..0.02 rows=1 width=32) (actual time=0.024..0.025 rows=1.00 loops=1)
+                            Storage: Memory  Maximum Storage: 17kB
+                            Buffers: shared hit=6
+                    InitPlan 4
+                      ->  CTE Scan on matchable_wants matchable_wants_1  (cost=0.00..0.02 rows=1 width=32) (actual time=0.000..0.001 rows=1.00 loops=1)
+                            Storage: Memory  Maximum Storage: 17kB
+                    ->  Sort  (cost=117950.43..117950.45 rows=5 width=44) (actual time=2.875..2.882 rows=0.00 loops=1)
+                          Sort Key: w.id, (word_similarity(w.name_folded, btrim(regexp_replace(lower(translate((pr.name)::text, 'ąćęłńóśźżĄĆĘŁŃÓŚŹŻ'::text, 'acelnoszzACELNOSZZ'::text)), '\s+'::text, ' '::text, 'g'::text)))) DESC, p.created_at DESC, p.item_id
+                          Sort Method: quicksort  Memory: 25kB
+                          Buffers: shared hit=2730
+                          ->  Nested Loop  (cost=845.63..117950.38 rows=5 width=44) (actual time=2.871..2.878 rows=0.00 loops=1)
+                                Buffers: shared hit=2730
+                                ->  Nested Loop Anti Join  (cost=841.93..117931.63 rows=5 width=384) (actual time=2.871..2.877 rows=0.00 loops=1)
+                                      Join Filter: (m.want_id = w.id)
+                                      Buffers: shared hit=2730
+                                      ->  Nested Loop  (cost=841.63..117848.63 rows=76 width=384) (actual time=2.871..2.877 rows=0.00 loops=1)
+                                            Join Filter: ((p.owner_party_id <> w.seeker_party_id) AND ((w.offer_mode IS NULL) OR ((p.mode)::text = (w.offer_mode)::text)) AND ((w.category_id IS NULL) OR (w.category_id = ANY ((array_agg(path.id))))) AND ((w.locality_id IS NULL) OR ((lo.id)::text = (w.locality_id)::text) OR (('12742'::double precision * asin(LEAST('1'::double precision, sqrt((power(sin((radians(((lo.lat)::double precision - (w.want_lat)::double precision)) / '2'::double precision)), '2'::double precision) + ((cos(radians((w.want_lat)::double precision)) * cos(radians((lo.lat)::double precision))) * power(sin((radians(((lo.lng)::double precision - (w.want_lng)::double precision)) / '2'::double precision)), '2'::double precision))))))) <= (w.radius_km)::double precision)) AND (((p.visibility)::text = 'PUBLIC'::text) OR EXISTS(SubPlan 2)))
+                                            Rows Removed by Join Filter: 158
+                                            Buffers: shared hit=2730
+                                            ->  Hash Anti Join  (cost=841.63..104792.45 rows=283 width=210) (actual time=0.568..2.729 rows=158.00 loops=1)
+                                                  Hash Cond: (p.item_id = s.listing_item_id)
+                                                  Buffers: shared hit=2730
+                                                  ->  Nested Loop  (cost=832.11..104779.36 rows=283 width=210) (actual time=0.563..2.698 rows=158.00 loops=1)
+                                                        Buffers: shared hit=2729
+                                                        ->  Nested Loop  (cost=831.82..103842.20 rows=283 width=194) (actual time=0.556..2.244 rows=158.00 loops=1)
+                                                              Buffers: shared hit=2255
+                                                              ->  Nested Loop  (cost=831.54..103756.79 rows=283 width=202) (actual time=0.552..2.001 rows=158.00 loops=1)
+                                                                    Buffers: shared hit=1781
+                                                                    ->  Nested Loop  (cost=831.25..103649.31 rows=283 width=182) (actual time=0.548..1.622 rows=158.00 loops=1)
+                                                                          Buffers: shared hit=1307
+                                                                          ->  Nested Loop  (cost=830.97..103536.20 rows=299 width=166) (actual time=0.544..1.260 rows=172.00 loops=1)
+                                                                                Buffers: shared hit=791
+                                                                                ->  Nested Loop  (cost=830.68..102198.01 rows=299 width=150) (actual time=0.539..0.852 rows=172.00 loops=1)
+                                                                                      Buffers: shared hit=275
+                                                                                      ->  Bitmap Heap Scan on products pr  (cost=27.27..496.15 rows=299 width=134) (actual time=0.512..0.708 rows=172.00 loops=1)
+                                                                                            Recheck Cond: ((search_vector @@ (InitPlan 3).col1) OR ((InitPlan 4).col1 <% btrim(regexp_replace(lower(translate((name)::text, 'ąćęłńóśźżĄĆĘŁŃÓŚŹŻ'::text, 'acelnoszzACELNOSZZ'::text)), '\s+'::text, ' '::text, 'g'::text))))
+                                                                                            Filter: ((search_vector @@ (InitPlan 3).col1) OR ((InitPlan 4).col1 <% btrim(regexp_replace(lower(translate((name)::text, 'ąćęłńóśźżĄĆĘŁŃÓŚŹŻ'::text, 'acelnoszzACELNOSZZ'::text)), '\s+'::text, ' '::text, 'g'::text))))
+                                                                                            Heap Blocks: exact=148
+                                                                                            Buffers: shared hit=209
+                                                                                            ->  BitmapOr  (cost=27.27..27.27 rows=300 width=0) (actual time=0.492..0.493 rows=0.00 loops=1)
+                                                                                                  Buffers: shared hit=61
+                                                                                                  ->  Bitmap Index Scan on ix_products_search_vector  (cost=0.00..13.31 rows=100 width=0) (actual time=0.082..0.082 rows=172.00 loops=1)
+                                                                                                        Index Cond: (search_vector @@ (InitPlan 3).col1)
+                                                                                                        Index Searches: 1
+                                                                                                        Buffers: shared hit=13
+                                                                                                  ->  Bitmap Index Scan on ix_products_name_trgm  (cost=0.00..13.81 rows=200 width=0) (actual time=0.410..0.410 rows=75.00 loops=1)
+                                                                                                        Index Cond: (btrim(regexp_replace(lower(translate((name)::text, 'ąćęłńóśźżĄĆĘŁŃÓŚŹŻ'::text, 'acelnoszzACELNOSZZ'::text)), '\s+'::text, ' '::text, 'g'::text)) %> (InitPlan 4).col1)
+                                                                                                        Index Searches: 1
+                                                                                                        Buffers: shared hit=48
+                                                                                      ->  Memoize  (cost=803.41..803.42 rows=1 width=32) (actual time=0.001..0.001 rows=1.00 loops=172)
+                                                                                            Cache Key: pr.category_id
+                                                                                            Cache Mode: binary
+                                                                                            Hits: 166  Misses: 6  Evictions: 0  Overflows: 0  Memory Usage: 2kB
+                                                                                            Buffers: shared hit=66
+                                                                                            ->  Aggregate  (cost=803.40..803.41 rows=1 width=32) (actual time=0.013..0.013 rows=1.00 loops=6)
+                                                                                                  Buffers: shared hit=66
+                                                                                                  CTE path
+                                                                                                    ->  Recursive Union  (cost=0.28..801.12 rows=101 width=32) (actual time=0.003..0.011 rows=3.67 loops=6)
+                                                                                                          Storage: Memory  Maximum Storage: 33kB
+                                                                                                          Buffers: shared hit=66
+                                                                                                          ->  Index Scan using pk_categories on categories c  (cost=0.28..8.30 rows=1 width=32) (actual time=0.003..0.003 rows=1.00 loops=6)
+                                                                                                                Index Cond: (id = pr.category_id)
+                                                                                                                Index Searches: 6
+                                                                                                                Buffers: shared hit=18
+                                                                                                          ->  Nested Loop  (cost=0.28..79.18 rows=10 width=32) (actual time=0.002..0.002 rows=0.73 loops=22)
+                                                                                                                Buffers: shared hit=48
+                                                                                                                ->  WorkTable Scan on path path_1  (cost=0.00..0.20 rows=10 width=16) (actual time=0.000..0.000 rows=1.00 loops=22)
+                                                                                                                ->  Index Scan using pk_categories on categories parent  (cost=0.28..7.90 rows=1 width=32) (actual time=0.001..0.001 rows=0.73 loops=22)
+                                                                                                                      Index Cond: (id = path_1.parent_id)
+                                                                                                                      Index Searches: 16
+                                                                                                                      Buffers: shared hit=48
+                                                                                                  ->  CTE Scan on path  (cost=0.00..2.02 rows=101 width=16) (actual time=0.003..0.011 rows=3.67 loops=6)
+                                                                                                        Storage: Memory  Maximum Storage: 17kB
+                                                                                                        Buffers: shared hit=66
+                                                                                ->  Index Scan using ix_inventory_items_product_id on inventory_items i  (cost=0.29..4.47 rows=1 width=48) (actual time=0.002..0.002 rows=1.00 loops=172)
+                                                                                      Index Cond: (product_id = pr.id)
+                                                                                      Filter: (deleted_at IS NULL)
+                                                                                      Index Searches: 172
+                                                                                      Buffers: shared hit=516
+                                                                          ->  Index Scan using uq_inventory_balances_item_id on inventory_balances b  (cost=0.29..0.38 rows=1 width=16) (actual time=0.002..0.002 rows=0.92 loops=172)
+                                                                                Index Cond: (item_id = i.id)
+                                                                                Filter: ((status)::text = 'AVAILABLE'::text)
+                                                                                Rows Removed by Filter: 0
+                                                                                Index Searches: 172
+                                                                                Buffers: shared hit=516
+                                                                    ->  Index Scan using ix_item_listing_preferences_item_id on item_listing_preferences p  (cost=0.29..0.38 rows=1 width=52) (actual time=0.002..0.002 rows=1.00 loops=158)
+                                                                          Index Cond: (item_id = i.id)
+                                                                          Index Searches: 158
+                                                                          Buffers: shared hit=474
+                                                              ->  Index Scan using pk_locations on locations loc  (cost=0.28..0.30 rows=1 width=24) (actual time=0.001..0.001 rows=1.00 loops=158)
+                                                                    Index Cond: (id = i.location_id)
+                                                                    Filter: (deleted_at IS NULL)
+                                                                    Index Searches: 158
+                                                                    Buffers: shared hit=474
+                                                        ->  Index Scan using pk_localities on localities lo  (cost=0.29..3.31 rows=1 width=24) (actual time=0.003..0.003 rows=1.00 loops=158)
+                                                              Index Cond: ((id)::text = (loc.locality_id)::text)
+                                                              Index Searches: 158
+                                                              Buffers: shared hit=474
+                                                  ->  Hash  (cost=9.50..9.50 rows=2 width=16) (actual time=0.003..0.004 rows=0.00 loops=1)
+                                                        Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                                                        Buffers: shared hit=1
+                                                        ->  Bitmap Heap Scan on swap_proposals s  (cost=4.16..9.50 rows=2 width=16) (actual time=0.003..0.003 rows=0.00 loops=1)
+                                                              Recheck Cond: ((status)::text = 'PROPOSED'::text)
+                                                              Buffers: shared hit=1
+                                                              ->  Bitmap Index Scan on ix_swap_proposals_listing_item_id_proposed  (cost=0.00..4.15 rows=2 width=0) (actual time=0.001..0.001 rows=0.00 loops=1)
+                                                                    Index Searches: 1
+                                                                    Buffers: shared hit=1
+                                            ->  CTE Scan on matchable_wants w  (cost=0.00..0.02 rows=1 width=410) (actual time=0.000..0.000 rows=1.00 loops=158)
+                                                  Storage: Memory  Maximum Storage: 17kB
+                                            SubPlan 2
+                                              ->  Nested Loop  (cost=9.71..118.65 rows=3 width=0) (never executed)
+                                                    Join Filter: ("*SELECT* 1".group_id = "*SELECT* 1_1".group_id)
+                                                    ->  Nested Loop  (cost=4.85..70.38 rows=3 width=32) (never executed)
+                                                          Join Filter: (g.id = "*SELECT* 1".group_id)
+                                                          ->  Seq Scan on groups g  (cost=0.00..8.75 rows=300 width=16) (never executed)
+                                                                Filter: ((visibility)::text = 'PRIVATE'::text)
+                                                          ->  Materialize  (cost=4.85..48.14 rows=3 width=16) (never executed)
+                                                                ->  Append  (cost=4.85..48.12 rows=3 width=16) (never executed)
+                                                                      ->  Subquery Scan on "*SELECT* 1"  (cost=4.85..28.56 rows=2 width=16) (never executed)
+                                                                            ->  Nested Loop  (cost=4.85..28.54 rows=2 width=32) (never executed)
+                                                                                  ->  Nested Loop  (cost=4.58..27.95 rows=2 width=16) (never executed)
+                                                                                        ->  Bitmap Heap Scan on group_roles r_1  (cost=4.30..11.33 rows=2 width=16) (never executed)
+                                                                                              Recheck Cond: (party_id = p.owner_party_id)
+                                                                                              Filter: ((valid_to IS NULL) AND ((role_type)::text = 'MEMBER'::text))
+                                                                                              ->  Bitmap Index Scan on ix_group_roles_party_id  (cost=0.00..4.30 rows=2 width=0) (never executed)
+                                                                                                    Index Cond: (party_id = p.owner_party_id)
+                                                                                                    Index Searches: 0
+                                                                                        ->  Index Scan using ix_memberships_from_role_id on memberships m_1  (cost=0.28..8.30 rows=1 width=32) (never executed)
+                                                                                              Index Cond: (from_role_id = r_1.id)
+                                                                                              Filter: (valid_to IS NULL)
+                                                                                              Index Searches: 0
+                                                                                  ->  Index Scan using pk_groups on groups g_1  (cost=0.27..0.30 rows=1 width=16) (never executed)
+                                                                                        Index Cond: (id = m_1.to_group_id)
+                                                                                        Filter: (deleted_at IS NULL)
+                                                                                        Index Searches: 0
+                                                                      ->  Subquery Scan on "*SELECT* 2"  (cost=11.61..19.55 rows=1 width=16) (never executed)
+                                                                            ->  Nested Loop  (cost=11.61..19.54 rows=1 width=32) (never executed)
+                                                                                  ->  Hash Join  (cost=11.34..19.13 rows=1 width=16) (never executed)
+                                                                                        Hash Cond: (l.from_role_id = r_2.id)
+                                                                                        ->  Seq Scan on leaderships l  (cost=0.00..7.00 rows=300 width=32) (never executed)
+                                                                                              Filter: (valid_to IS NULL)
+                                                                                        ->  Hash  (cost=11.33..11.33 rows=1 width=16) (never executed)
+                                                                                              ->  Bitmap Heap Scan on group_roles r_2  (cost=4.30..11.33 rows=1 width=16) (never executed)
+                                                                                                    Recheck Cond: (party_id = p.owner_party_id)
+                                                                                                    Filter: ((valid_to IS NULL) AND ((role_type)::text = 'ORGANIZATOR'::text))
+                                                                                                    ->  Bitmap Index Scan on ix_group_roles_party_id  (cost=0.00..4.30 rows=2 width=0) (never executed)
+                                                                                                          Index Cond: (party_id = p.owner_party_id)
+                                                                                                          Index Searches: 0
+                                                                                  ->  Index Scan using pk_groups on groups g_2  (cost=0.27..0.41 rows=1 width=16) (never executed)
+                                                                                        Index Cond: (id = l.to_group_id)
+                                                                                        Filter: (deleted_at IS NULL)
+                                                                                        Index Searches: 0
+                                                    ->  Materialize  (cost=4.85..48.14 rows=3 width=16) (never executed)
+                                                          ->  Append  (cost=4.85..48.12 rows=3 width=16) (never executed)
+                                                                ->  Subquery Scan on "*SELECT* 1_1"  (cost=4.85..28.56 rows=2 width=16) (never executed)
+                                                                      ->  Nested Loop  (cost=4.85..28.54 rows=2 width=32) (never executed)
+                                                                            ->  Nested Loop  (cost=4.58..27.95 rows=2 width=16) (never executed)
+                                                                                  ->  Bitmap Heap Scan on group_roles r_3  (cost=4.30..11.33 rows=2 width=16) (never executed)
+                                                                                        Recheck Cond: (party_id = w.seeker_party_id)
+                                                                                        Filter: ((valid_to IS NULL) AND ((role_type)::text = 'MEMBER'::text))
+                                                                                        ->  Bitmap Index Scan on ix_group_roles_party_id  (cost=0.00..4.30 rows=2 width=0) (never executed)
+                                                                                              Index Cond: (party_id = w.seeker_party_id)
+                                                                                              Index Searches: 0
+                                                                                  ->  Index Scan using ix_memberships_from_role_id on memberships m_2  (cost=0.28..8.30 rows=1 width=32) (never executed)
+                                                                                        Index Cond: (from_role_id = r_3.id)
+                                                                                        Filter: (valid_to IS NULL)
+                                                                                        Index Searches: 0
+                                                                            ->  Index Scan using pk_groups on groups g_3  (cost=0.27..0.30 rows=1 width=16) (never executed)
+                                                                                  Index Cond: (id = m_2.to_group_id)
+                                                                                  Filter: (deleted_at IS NULL)
+                                                                                  Index Searches: 0
+                                                                ->  Subquery Scan on "*SELECT* 2_1"  (cost=11.61..19.55 rows=1 width=16) (never executed)
+                                                                      ->  Nested Loop  (cost=11.61..19.54 rows=1 width=32) (never executed)
+                                                                            ->  Hash Join  (cost=11.34..19.13 rows=1 width=16) (never executed)
+                                                                                  Hash Cond: (l_1.from_role_id = r_4.id)
+                                                                                  ->  Seq Scan on leaderships l_1  (cost=0.00..7.00 rows=300 width=32) (never executed)
+                                                                                        Filter: (valid_to IS NULL)
+                                                                                  ->  Hash  (cost=11.33..11.33 rows=1 width=16) (never executed)
+                                                                                        ->  Bitmap Heap Scan on group_roles r_4  (cost=4.30..11.33 rows=1 width=16) (never executed)
+                                                                                              Recheck Cond: (party_id = w.seeker_party_id)
+                                                                                              Filter: ((valid_to IS NULL) AND ((role_type)::text = 'ORGANIZATOR'::text))
+                                                                                              ->  Bitmap Index Scan on ix_group_roles_party_id  (cost=0.00..4.30 rows=2 width=0) (never executed)
+                                                                                                    Index Cond: (party_id = w.seeker_party_id)
+                                                                                                    Index Searches: 0
+                                                                            ->  Index Scan using pk_groups on groups g_4  (cost=0.27..0.41 rows=1 width=16) (never executed)
+                                                                                  Index Cond: (id = l_1.to_group_id)
+                                                                                  Filter: (deleted_at IS NULL)
+                                                                                  Index Searches: 0
+                                      ->  Index Scan using ix_want_matches_item_id on want_matches m  (cost=0.29..0.99 rows=8 width=32) (never executed)
+                                            Index Cond: (item_id = p.item_id)
+                                            Index Searches: 0
+                                ->  Aggregate  (cost=3.71..3.72 rows=1 width=48) (never executed)
+                                      Filter: (count(*) FILTER (WHERE ((pr.search_vector @@ to_tsquery('simple'::regconfig, (((''''::text || replace(s_1.stem, ''''::text, ''''''::text)) || ''':'::text) || CASE WHEN ((char_length(btrim(regexp_replace(lower(translate(s_1.word, 'ąćęłńóśźżĄĆĘŁŃÓŚŹŻ'::text, 'acelnoszzACELNOSZZ'::text)), '\s+'::text, ' '::text, 'g'::text))) > 4) OR (s_1.stem <> btrim(regexp_replace(lower(translate(s_1.word, 'ąćęłńóśźżĄĆĘŁŃÓŚŹŻ'::text, 'acelnoszzACELNOSZZ'::text)), '\s+'::text, ' '::text, 'g'::text)))) THEN '*A'::text ELSE 'A'::text END))) OR ((char_length(btrim(regexp_replace(lower(translate(s_1.word, 'ąćęłńóśźżĄĆĘŁŃÓŚŹŻ'::text, 'acelnoszzACELNOSZZ'::text)), '\s+'::text, ' '::text, 'g'::text))) > 4) AND (word_similarity(btrim(regexp_replace(lower(translate(s_1.word, 'ąćęłńóśźżĄĆĘŁŃÓŚŹŻ'::text, 'acelnoszzACELNOSZZ'::text)), '\s+'::text, ' '::text, 'g'::text)), btrim(regexp_replace(lower(translate((pr.name)::text, 'ąćęłńóśźżĄĆĘŁŃÓŚŹŻ'::text, 'acelnoszzACELNOSZZ'::text)), '\s+'::text, ' '::text, 'g'::text))) >= '0.65'::real)))) = count(*))
+                                      ->  Function Scan on s_1  (cost=0.26..0.35 rows=10 width=64) (never executed)
+Planning:
+  Buffers: shared hit=260
+Planning Time: 3.606 ms
+Execution Time: 3.052 ms

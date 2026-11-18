@@ -1,14 +1,26 @@
 """Reads of the seeker's own wants and of a want's match cards. A want is
 always selected by its id together with its seeker, and a withdrawn want is
 never returned. The counters count, and the match list shows, the stored
-matches that pass `visible_matches`."""
+MATCH pairs that pass `visible_matches`; the suggestion list shows the
+SUGGESTION pairs that pass it."""
 
 from __future__ import annotations
 
 import uuid
 from typing import Any
 
-from sqlalchemy import FromClause, Select, Subquery, exists, false, func, literal, or_, select
+from sqlalchemy import (
+    FromClause,
+    Select,
+    Subquery,
+    and_,
+    exists,
+    false,
+    func,
+    literal,
+    or_,
+    select,
+)
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -27,11 +39,17 @@ from ..infrastructure import (
     product_acl,
     users_acl,
 )
-from ..models import Want, WantMatch
-from ..schemas import WantMatchMeta, WantMatchResponse, WantResponse
+from ..models import Want, WantMatch, WantMatchTier
+from ..schemas import (
+    WantMatchMeta,
+    WantMatchResponse,
+    WantResponse,
+    WantSuggestionResponse,
+)
 from .errors import WantNotFound
 
 CATEGORY_PATH_SEPARATOR = " › "
+SUGGESTIONS_LIMIT = 10
 
 
 def visible_matches(seeker_party_id: uuid.UUID, listed: FromClause, *columns: Any) -> Select[Any]:
@@ -65,6 +83,7 @@ def _match_counts(seeker_party_id: uuid.UUID) -> Subquery:
             func.count().label("match_count"),
             func.count().filter(WantMatch.seen_at.is_(None)).label("new_match_count"),
         )
+        .where(WantMatch.tier == WantMatchTier.MATCH)
         .group_by(WantMatch.want_id)
         .subquery("match_counts")
     )
@@ -129,6 +148,9 @@ def _wants_select(seeker_party_id: uuid.UUID, *, include_withdrawn: bool = False
             Want.expires_at,
             Want.closed_at,
             Want.created_at,
+            and_(Want.match_requested_at.is_not(None), Want.status == WantStatus.ACTIVE).label(
+                "matching"
+            ),
             func.coalesce(counts.c.match_count, 0).label("match_count"),
             func.coalesce(counts.c.new_match_count, 0).label("new_match_count"),
         )
@@ -168,7 +190,7 @@ async def list_wants(
     db: AsyncSession, principal: Principal, *, matched_item_id: uuid.UUID | None = None
 ) -> list[WantResponse]:
     """With `matched_item_id` only the ACTIVE wants that hold the item as a
-    stored match."""
+    stored pair of either tier."""
     caller = await users_acl.get_caller_profile(db, principal)
     statement = _wants_select(caller.party_id)
     if matched_item_id is not None:
@@ -185,10 +207,11 @@ async def get_want(db: AsyncSession, principal: Principal, want_id: uuid.UUID) -
     return await load_want(db, caller.party_id, want_id)
 
 
-def _matches_select(caller: users_acl.CallerProfile, want_id: uuid.UUID) -> Select[Any]:
-    """The want's match cards without their photo and owner slug: available
-    items first, then reserved ones; inside each, new matches first, then
-    the best score."""
+def _cards_select(
+    caller: users_acl.CallerProfile, want_id: uuid.UUID, tier: WantMatchTier, *columns: Any
+) -> Select[Any]:
+    """The want's cards of `tier` without their photo and owner slug,
+    unordered; `columns` are added to the card columns."""
     preference = groups_acl.ItemListingPreference
     proposal = groups_acl.SwapProposal
     listed = groups_acl.with_pending_proposer(
@@ -198,7 +221,6 @@ def _matches_select(caller: users_acl.CallerProfile, want_id: uuid.UUID) -> Sele
         listed.c.balance_status != inventory_acl.BalanceStatus.AVAILABLE,
         listed.c.proposer_party_id.is_not(None),
     ).label("reserved")
-    is_new = WantMatch.seen_at.is_(None).label("is_new")
     # `listed.c.proposer_party_id` is only the oldest pending proposer.
     proposed_by_me = (
         exists()
@@ -209,40 +231,50 @@ def _matches_select(caller: users_acl.CallerProfile, want_id: uuid.UUID) -> Sele
         )
         .label("proposed_by_me")
     )
-    return (
-        visible_matches(
-            caller.party_id,
-            listed,
-            WantMatch.item_id,
-            preference.owner_party_id,
-            preference.mode,
-            listed.c.product_id,
-            listed.c.product_name,
-            listed.c.condition,
-            reserved,
-            inventory_acl.newest_open_reservation_starts_at(listed.c.item_id).label(
-                "reserved_until"
-            ),
-            is_new,
-            func.coalesce(listed.c.reserved_by_user_id == caller.account_user_id, false()).label(
-                "reserved_by_me"
-            ),
-            proposed_by_me,
-        )
-        .where(WantMatch.want_id == want_id)
-        .order_by(reserved, is_new.desc(), WantMatch.score.desc(), WantMatch.item_id)
+    return visible_matches(
+        caller.party_id,
+        listed,
+        WantMatch.item_id,
+        preference.owner_party_id,
+        preference.mode,
+        listed.c.product_id,
+        listed.c.product_name,
+        listed.c.condition,
+        reserved,
+        inventory_acl.newest_open_reservation_starts_at(listed.c.item_id).label("reserved_until"),
+        func.coalesce(listed.c.reserved_by_user_id == caller.account_user_id, false()).label(
+            "reserved_by_me"
+        ),
+        proposed_by_me,
+        *columns,
+    ).where(WantMatch.want_id == want_id, WantMatch.tier == tier)
+
+
+def _matches_select(caller: users_acl.CallerProfile, want_id: uuid.UUID) -> Select[Any]:
+    """Available items first, then reserved ones; inside each, new matches
+    first, then the best score."""
+    is_new = WantMatch.seen_at.is_(None).label("is_new")
+    statement = _cards_select(caller, want_id, WantMatchTier.MATCH, is_new)
+    return statement.order_by(
+        statement.selected_columns.reserved,
+        is_new.desc(),
+        WantMatch.score.desc(),
+        WantMatch.item_id,
     )
 
 
-async def list_matches(
-    db: AsyncSession,
-    principal: Principal,
-    want_id: uuid.UUID,
-    storage: ObjectStorage | None,
-) -> list[WantMatchResponse]:
-    """Every match card of the want, unpaged. The owners' Organizations and
-    the photos are one batch each."""
-    caller = await users_acl.get_caller_profile(db, principal)
+def _suggestions_select(caller: users_acl.CallerProfile, want_id: uuid.UUID) -> Select[Any]:
+    """The best `SUGGESTIONS_LIMIT` suggestions."""
+    return (
+        _cards_select(caller, want_id, WantMatchTier.SUGGESTION, WantMatch.missing_words)
+        .order_by(WantMatch.score.desc(), WantMatch.item_id)
+        .limit(SUGGESTIONS_LIMIT)
+    )
+
+
+async def _ensure_own_want(
+    db: AsyncSession, caller: users_acl.CallerProfile, want_id: uuid.UUID
+) -> None:
     known = await db.scalar(
         select(
             exists().where(
@@ -254,7 +286,13 @@ async def list_matches(
     )
     if not known:
         raise WantNotFound(want_id)
-    rows = (await db.execute(_matches_select(caller, want_id))).all()
+
+
+async def _card_fields(
+    db: AsyncSession, rows: list[Any], storage: ObjectStorage | None
+) -> list[dict[str, Any]]:
+    """The fields every card shares, one dict per row. The owners'
+    Organizations and the photos are one batch each."""
     organizations = await organizations_acl.get_own_organizations_by_party_ids(
         db, {row.owner_party_id for row in rows}
     )
@@ -263,7 +301,7 @@ async def list_matches(
         if storage is not None
         else {}
     )
-    cards: list[WantMatchResponse] = []
+    cards: list[dict[str, Any]] = []
     for row in rows:
         organization = organizations.get(row.owner_party_id)
         slug = groups_acl.derive_party_slug(
@@ -271,11 +309,11 @@ async def list_matches(
         )
         photo = photos.get(row.product_id)
         cards.append(
-            WantMatchResponse(
-                id=row.item_id,
-                title=row.product_name,
-                href=links.product_path(slug, row.item_id),
-                meta=WantMatchMeta(
+            {
+                "id": row.item_id,
+                "title": row.product_name,
+                "href": links.product_path(slug, row.item_id),
+                "meta": WantMatchMeta(
                     mode=row.mode,
                     condition=row.condition,
                     thumb_url=(
@@ -286,9 +324,40 @@ async def list_matches(
                     reserved=row.reserved,
                     reserved_until=row.reserved_until if row.reserved else None,
                 ),
-                is_new=row.is_new,
-                reserved_by_me=row.reserved_by_me,
-                proposed_by_me=row.proposed_by_me,
-            )
+                "reserved_by_me": row.reserved_by_me,
+                "proposed_by_me": row.proposed_by_me,
+            }
         )
     return cards
+
+
+async def list_matches(
+    db: AsyncSession,
+    principal: Principal,
+    want_id: uuid.UUID,
+    storage: ObjectStorage | None,
+) -> list[WantMatchResponse]:
+    """Every MATCH card of the want, unpaged."""
+    caller = await users_acl.get_caller_profile(db, principal)
+    await _ensure_own_want(db, caller, want_id)
+    rows = list((await db.execute(_matches_select(caller, want_id))).all())
+    return [
+        WantMatchResponse(**fields, is_new=row.is_new)
+        for row, fields in zip(rows, await _card_fields(db, rows, storage), strict=True)
+    ]
+
+
+async def list_suggestions(
+    db: AsyncSession,
+    principal: Principal,
+    want_id: uuid.UUID,
+    storage: ObjectStorage | None,
+) -> list[WantSuggestionResponse]:
+    """At most `SUGGESTIONS_LIMIT` SUGGESTION cards, best score first."""
+    caller = await users_acl.get_caller_profile(db, principal)
+    await _ensure_own_want(db, caller, want_id)
+    rows = list((await db.execute(_suggestions_select(caller, want_id))).all())
+    return [
+        WantSuggestionResponse(**fields, missing_words=row.missing_words)
+        for row, fields in zip(rows, await _card_fields(db, rows, storage), strict=True)
+    ]

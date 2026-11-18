@@ -5,6 +5,7 @@ loop that owns its own session per poll."""
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Collection
 from datetime import datetime
 
@@ -13,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import registry
 from .models import OutboxEntry, OutboxStatus
+
+logger = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 5
 
@@ -53,8 +56,9 @@ async def dispatch_pending(
     An event type with no registered handler is still marked PROCESSED —
     nothing wanted it, which isn't a failure. A handler raising increments
     `attempts`/`last_error` and leaves the entry PENDING for a later poll,
-    until `MAX_ATTEMPTS` is reached and it's marked FAILED (never re-raises
-    into the caller — the poll loop must keep running).
+    until `MAX_ATTEMPTS` is reached and it's marked FAILED with one ERROR
+    log line (never re-raises into the caller — the poll loop must keep
+    running).
 
     `event_types`/`exclude_event_types` split the outbox between pollers
     in different processes: a poller must never claim an event whose
@@ -70,6 +74,13 @@ async def dispatch_pending(
             entry.last_error = str(exc)[:1000]
             if entry.attempts >= MAX_ATTEMPTS:
                 entry.status = OutboxStatus.FAILED
+                logger.error(
+                    "outbox entry %s (%s) FAILED after %d attempts: %s",
+                    entry.id,
+                    entry.event_type,
+                    entry.attempts,
+                    entry.last_error,
+                )
         else:
             entry.status = OutboxStatus.PROCESSED
             entry.processed_at = datetime.utcnow()

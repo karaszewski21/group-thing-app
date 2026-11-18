@@ -1,7 +1,7 @@
 """Lifecycle of a want through the seeker's actions: extend, close as
-fulfilled or withdrawn, and resume or reopen with its cap check and forward
-match. Then the sweep of the scan: expiry, the reminder before it and the
-purge of closed wants."""
+fulfilled or withdrawn, and resume or reopen with its cap check, flagging
+the want for the matcher service. The sweep (expiry, reminder, purge) is the
+matcher service's and is tested there."""
 
 from __future__ import annotations
 
@@ -10,17 +10,23 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from httpx import AsyncClient
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.notifications.models import Notification, NotificationKind
-from app.wants.domain.limits import MAX_ACTIVE_WANTS, REMINDER_LEAD, RETENTION, VALIDITY
-from app.wants.domain.status import WantMatchSource, WantStatus
-from app.wants.models import Want, WantMatch
+from app.wants.domain.limits import MAX_ACTIVE_WANTS, VALIDITY
+from app.wants.domain.status import WantStatus
+from app.wants.models import Want
+from tests.conftest import _Owner, seed_want_matches
 from tests.test_term_item_listings import _auth, _register
-from tests.test_wants_api import CAP_MESSAGE, _create_want, _matched_items, _seed_wants
-from tests.test_wants_matcher import _Owner
-from tests.test_wants_scan import _scan
+from tests.test_wants_api import (
+    CAP_MESSAGE,
+    _clear_match_request,
+    _create_want,
+    _match_requested_at,
+    _matched_items,
+    _seed_wants,
+)
 
 
 async def _stored(db: AsyncSession, want_id: str) -> Want:
@@ -73,6 +79,7 @@ async def test_extendWant_active_startsNewPeriodAndKeepsMatches_closedWant409(
     token, _ = await _register(client, "GUEST", "wl.extend.s@example.com")
     bike = await owner.lists("Rower miejski")
     want = await _create_want(client, token, "rower")
+    await seed_want_matches(db_session, want["id"], [bike])
     stored = await _stored(db_session, want["id"])
     stored.expires_at = datetime.utcnow() + timedelta(days=3)
     stored.reminded_at = datetime.utcnow()
@@ -159,14 +166,17 @@ async def test_closeWant_withdrawn_deletesUnreadMatchRowAndHidesTheWant(
     assert (await client.get(f"/api/wants/{want['id']}", headers=_auth(token))).status_code == 404
 
 
-async def test_resumeWant_expiredOrFulfilled_startsNewPeriodKeepsMatchesAndAddsSeenPairs_active409(
+async def test_resumeWant_expiredOrFulfilled_startsNewPeriodKeepsPairsAndFlagsTheWant_active409(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     owner = await _Owner.create(client, "wl.resume.o@example.com")
     token, _ = await _register(client, "GUEST", "wl.resume.s@example.com")
-    first_bike = await owner.lists("Rower miejski")
-    expired = await _create_want(client, token, "rower")
+    bike = await owner.lists("Rower miejski")
+    suggested = await owner.lists("Rower górski")
+    expired = await _create_want(client, token, "rower miejski czerwony")
     fulfilled = await _create_want(client, token, "rower górski")
+    await seed_want_matches(db_session, expired["id"], [bike])
+    await seed_want_matches(db_session, expired["id"], [suggested], missing_words=["czerwony"])
     stored = await _stored(db_session, expired["id"])
     stored.status = WantStatus.EXPIRED
     stored.expires_at = datetime.utcnow() - timedelta(days=2)
@@ -174,7 +184,10 @@ async def test_resumeWant_expiredOrFulfilled_startsNewPeriodKeepsMatchesAndAddsS
     stored.reminded_at = datetime.utcnow() - timedelta(days=9)
     await db_session.commit()
     await _post(client, token, fulfilled["id"], "close", outcome="FULFILLED")
-    second_bike = await owner.lists("Rower górski")
+    for want in (expired, fulfilled):
+        await _clear_match_request(db_session, want["id"])
+    closed = (await client.get("/api/wants", headers=_auth(token))).json()
+    assert [want["matching"] for want in closed] == [False, False]
     before = datetime.utcnow()
 
     resumed = await _post(client, token, expired["id"], "resume")
@@ -184,24 +197,17 @@ async def test_resumeWant_expiredOrFulfilled_startsNewPeriodKeepsMatchesAndAddsS
         assert response.status_code == 200, response.text
         assert response.json()["status"] == "ACTIVE"
         assert response.json()["closed_at"] is None
+        assert response.json()["matching"] is True
         assert _is_new_period(response.json()["expires_at"], before)
         assert response.json()["new_match_count"] == 0
-    assert (resumed.json()["match_count"], reopened.json()["match_count"]) == (2, 1)
+        requested_at = await _match_requested_at(db_session, response.json()["id"])
+        assert requested_at is not None and requested_at >= before
+    assert (resumed.json()["match_count"], reopened.json()["match_count"]) == (1, 0)
     reminded_at = await db_session.scalar(
         select(Want.reminded_at).where(Want.id == uuid.UUID(expired["id"]))
     )
     assert reminded_at is None
-    matches = (
-        await db_session.execute(
-            select(WantMatch.item_id, WantMatch.source, WantMatch.seen_at).where(
-                WantMatch.want_id == uuid.UUID(expired["id"])
-            )
-        )
-    ).all()
-    assert {match.item_id for match in matches} == {first_bike, second_bike}
-    assert all(
-        match.source == WantMatchSource.FORWARD and match.seen_at is not None for match in matches
-    )
+    assert await _matched_items(db_session, expired["id"]) == {bike, suggested}
 
     already_active = await _post(client, token, expired["id"], "resume")
 
@@ -225,133 +231,4 @@ async def test_resumeWant_thirtyActiveWants_returns409AndLeavesTheWantClosed(
     ).one()
     assert status == WantStatus.FULFILLED
     assert closed_at is not None
-
-
-async def _set(db: AsyncSession, want_id: uuid.UUID, **columns: Any) -> None:
-    await db.execute(update(Want).where(Want.id == want_id).values(**columns))
-    await db.commit()
-
-
-async def _reminders(db: AsyncSession, seeker: uuid.UUID) -> list[tuple[str, str | None]]:
-    result = await db.execute(
-        select(Notification.message, Notification.link_path)
-        .where(
-            Notification.party_id == seeker, Notification.kind == NotificationKind.WANT_EXPIRING
-        )
-        .order_by(Notification.created_at, Notification.message)
-    )
-    return [(row.message, row.link_path) for row in result]
-
-
-async def test_scanWants_wantAtOrPastItsEnd_becomesExpiredWithClosedAtAtItsEnd(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    _, seeker = await _register(client, "GUEST", "wl.expire.s@example.com")
-    past, at_the_end, running = await _seed_wants(db_session, seeker, 3)
-    now = datetime.utcnow()
-    await _set(db_session, past, expires_at=now - timedelta(days=2))
-    await _set(db_session, at_the_end, expires_at=now)
-    await _set(db_session, running, expires_at=now + timedelta(seconds=1))
-
-    await _scan(db_session, now)
-
-    rows = {
-        row.id: (row.status, row.closed_at)
-        for row in await db_session.execute(
-            select(Want.id, Want.status, Want.closed_at).where(Want.seeker_party_id == seeker)
-        )
-    }
-    assert rows == {
-        past: (WantStatus.EXPIRED, now - timedelta(days=2)),
-        at_the_end: (WantStatus.EXPIRED, now),
-        running: (WantStatus.ACTIVE, None),
-    }
-    assert [link for _, link in await _reminders(db_session, seeker)] == [f"/wanted/{running}"]
-
-
-async def test_scanWants_wantInItsLastWeek_remindedOncePerPeriodAlsoWhenMuted_againAfterExtend(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    token, seeker = await _register(client, "GUEST", "wl.remind.s@example.com")
-    enabled, muted, early = await _seed_wants(db_session, seeker, 3)
-    now = datetime.utcnow()
-    await _set(db_session, enabled, expires_at=now + REMINDER_LEAD)
-    await _set(
-        db_session, muted, expires_at=now + timedelta(days=2), notifications_enabled=False
-    )
-    await _set(db_session, early, expires_at=now + REMINDER_LEAD + timedelta(hours=1))
-    expected = [
-        (
-            "Poszukiwanie «Rzecz 0» wygaśnie za 7 dni. Przedłuż je, jeśli nadal szukasz.",
-            f"/wanted/{enabled}",
-        ),
-        (
-            "Poszukiwanie «Rzecz 1» wygaśnie za 7 dni. Przedłuż je, jeśli nadal szukasz.",
-            f"/wanted/{muted}",
-        ),
-    ]
-
-    await _scan(db_session, now)
-
-    assert await _reminders(db_session, seeker) == expected
-    reminded = (
-        await db_session.execute(
-            select(Want.id, Want.reminded_at, Want.match_notification_id).where(
-                Want.seeker_party_id == seeker
-            )
-        )
-    ).all()
-    assert {row.id: row.reminded_at for row in reminded} == {enabled: now, muted: now, early: None}
-    assert {row.match_notification_id for row in reminded} == {None}
-
-    await _scan(db_session, now + timedelta(minutes=15))
-
-    assert await _reminders(db_session, seeker) == expected
-
-    extended = await _post(client, token, str(enabled), "extend")
-    assert extended.status_code == 200, extended.text
-    await _scan(db_session, now + timedelta(minutes=30))
-    assert await _reminders(db_session, seeker) == expected
-
-    await _set(db_session, enabled, expires_at=now + timedelta(days=5))
-    await _scan(db_session, now + timedelta(minutes=45))
-
-    assert await _reminders(db_session, seeker) == [*expected, expected[0]]
-
-
-async def test_scanWants_closedThirtyDaysAgo_purgedWithItsMatches_activeKeptAndBellRowsStay(
-    client: AsyncClient, db_session: AsyncSession
-) -> None:
-    token, seeker = await _register(client, "GUEST", "wl.purge.s@example.com")
-    purged, recent, long_expired = await _seed_wants(db_session, seeker, 3, WantStatus.FULFILLED)
-    (active,) = await _seed_wants(db_session, seeker, 1)
-    now = datetime.utcnow()
-    await _unread_match_row(db_session, seeker, str(purged))
-    db_session.add_all(
-        WantMatch(want_id=want_id, item_id=uuid.uuid4(), source=WantMatchSource.SCAN, score=1.0)
-        for want_id in (purged, recent)
-    )
-    await db_session.commit()
-    db_session.expire_all()
-    await _set(db_session, purged, closed_at=now - RETENTION)
-    await _set(db_session, recent, closed_at=now - RETENTION + timedelta(seconds=1))
-    # Not swept for longer than the retention: expired and purged by one run.
-    await _set(
-        db_session,
-        long_expired,
-        status=WantStatus.ACTIVE,
-        closed_at=None,
-        expires_at=now - RETENTION - timedelta(days=1),
-    )
-    await _set(db_session, active, created_at=now - timedelta(days=400))
-
-    await _scan(db_session, now)
-
-    left = (
-        await db_session.execute(select(Want.id).where(Want.seeker_party_id == seeker))
-    ).scalars()
-    assert set(left) == {recent, active}
-    assert set((await db_session.execute(select(WantMatch.want_id))).scalars()) == {recent}
-    assert await _bell_rows(db_session, seeker) == 1
-    listed = await client.get("/api/wants", headers=_auth(token))
-    assert {row["id"] for row in listed.json()} == {str(recent), str(active)}
+    assert await _match_requested_at(db_session, closed_id) is None

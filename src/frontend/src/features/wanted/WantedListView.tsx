@@ -15,6 +15,7 @@ import {
   newCountLabel,
   wantSummary,
 } from "./wantText";
+import { MatchingBadge } from "./MatchingStatus";
 import { resolveWantedListView } from "./wantedListViewState";
 
 /** "Przedłuż" appears on a want with this many days left, or fewer. */
@@ -173,21 +174,13 @@ function ActiveWantCard({ want, extend }: { want: WantResponse; extend: WantActi
         want={want}
         summary={wantSummary(want, "name")}
         pill={
+          !want.matching &&
           want.new_match_count > 0 && (
             <span className={`${PILL} bg-primary text-on-primary`}>{newCountLabel(want.new_match_count)}</span>
           )
         }
       />
-      {want.match_count > 0 ? (
-        <p className="rounded-2xl bg-primary-soft px-3 py-2.5 text-sm font-extrabold text-primary-fg">
-          {matchCountLabel(want.match_count)}
-        </p>
-      ) : (
-        <div className="flex items-center gap-2 rounded-2xl bg-cream px-3 py-2.5 text-sm text-ink">
-          <BellIcon c="currentColor" />
-          <p>Jeszcze nic · powiadomimy Cię</p>
-        </div>
-      )}
+      <MatchBand want={want} />
       <div className={`flex flex-wrap items-center gap-x-1.5 ${META}`}>
         <p>Ważne jeszcze {daysLabel(daysLeft)}</p>
         {daysLeft <= EXTEND_OFFER_DAYS && (
@@ -212,6 +205,25 @@ function ActiveWantCard({ want, extend }: { want: WantResponse; extend: WantActi
         </p>
       )}
     </li>
+  );
+}
+
+/** The card's results line: "Szukamy…" while the matcher has yet to answer,
+ * then the match count or the empty band. */
+function MatchBand({ want }: { want: WantResponse }) {
+  if (want.matching) return <MatchingBadge />;
+  if (want.match_count > 0) {
+    return (
+      <p className="rounded-2xl bg-primary-soft px-3 py-2.5 text-sm font-extrabold text-primary-fg">
+        {matchCountLabel(want.match_count)}
+      </p>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2 rounded-2xl bg-cream px-3 py-2.5 text-sm text-ink">
+      <BellIcon c="currentColor" />
+      <p>Jeszcze nic · powiadomimy Cię</p>
+    </div>
   );
 }
 

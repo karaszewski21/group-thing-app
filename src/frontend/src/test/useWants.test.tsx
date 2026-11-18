@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "../api/client";
 import * as wantsApi from "../api/wants";
 import type { WantResponse } from "../api/wants";
@@ -46,6 +46,10 @@ async function renderLoaded(client = createTestQueryClient()) {
 beforeEach(() => {
   vi.resetAllMocks();
   mockAuth = { token: "token-a" };
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("useWants", () => {
@@ -141,6 +145,60 @@ describe("useWants", () => {
   });
 });
 
+describe("useWants matching polling", () => {
+  function nextInterval(client: ReturnType<typeof createTestQueryClient>) {
+    const query = client.getQueryCache().find({ queryKey: ["wants", "mine", "token-a"] });
+    const option = query?.observers[0]?.options.refetchInterval;
+    return typeof option === "function" ? option(query!) : option;
+  }
+
+  it("does not poll a list with no want matching", async () => {
+    const client = createTestQueryClient();
+    await renderLoaded(client);
+    expect(nextInterval(client)).toBe(false);
+  });
+
+  // Documented exception to the Date-only fake-timer rule: the 60 s window
+  // end is a `setTimeout`, so it is faked too and stepped inside `act`;
+  // no `waitFor`/`findBy*`, whose timeout would run on the faked clock.
+  it("polls every 2 s while any listed want is matching, and stops after the 60 s window", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.mocked(wantsApi.getMyWants).mockResolvedValue([makeWant({ id: "want-2" }), makeWant({ matching: true })]);
+    const client = createTestQueryClient();
+    const { result } = renderHook(() => useWants(), { wrapper: createQueryWrapper(client) });
+    await act(async () => {});
+    expect(result.current.data).toHaveLength(2);
+    expect(nextInterval(client)).toBe(2000);
+
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(nextInterval(client)).toBe(false);
+    expect(result.current.data[1].matching).toBe(true);
+  });
+
+  // Same documented timer exception as above.
+  it("after a run-out window and the matcher's answer, a want matching again opens a new window", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.mocked(wantsApi.getMyWants).mockResolvedValue([makeWant({ matching: true })]);
+    const client = createTestQueryClient();
+    const { result } = renderHook(() => useWants(), { wrapper: createQueryWrapper(client) });
+    await act(async () => {});
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(nextInterval(client)).toBe(false);
+
+    vi.mocked(wantsApi.getMyWants).mockResolvedValue([makeWant()]);
+    await act(() => result.current.refetch());
+    expect(nextInterval(client)).toBe(false);
+
+    vi.mocked(wantsApi.getMyWants).mockResolvedValue([makeWant(), makeWant({ id: "want-2", matching: true })]);
+    await act(() => result.current.refetch());
+    act(() => vi.advanceTimersByTime(59_000));
+    expect(nextInterval(client)).toBe(2000);
+
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(nextInterval(client)).toBe(false);
+  });
+});
+
 describe("useWantsMatchingItem", () => {
   it("stays idle without an item or a token, so the lookup runs only once asked for", async () => {
     const idle = renderHook(() => useWantsMatchingItem(null), { wrapper: createQueryWrapper() });
@@ -175,6 +233,7 @@ describe("wants API module", () => {
     await actual.getMyWants("item-9");
     await actual.getWant("want-1");
     await actual.getWantMatches("want-1");
+    await actual.getWantSuggestions("want-1");
     await actual.createWant({ name: "Kask" });
     await actual.updateWant("want-1", { note: null });
     await actual.extendWant("want-1");
@@ -188,6 +247,7 @@ describe("wants API module", () => {
       "/wants?matched_item_id=item-9",
       "/wants/want-1",
       "/wants/want-1/matches",
+      "/wants/want-1/suggestions",
     ]);
     expect(patch).toHaveBeenCalledWith("/wants/want-1", { note: null });
     expect(post.mock.calls).toEqual([

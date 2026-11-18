@@ -48,6 +48,7 @@ const CATEGORIES = [category("toys", "Zabawki", null), category(BIKES_ID, "Pojaz
 const CAP_MESSAGE = "Masz już 30 aktywnych poszukiwań. Zamknij któreś, aby dodać nowe.";
 const CONTACT_MESSAGE =
   "Nazwa i opis nie mogą zawierać danych kontaktowych (numeru telefonu, e-maila, linków ani komunikatorów)";
+const NAME_NEEDS_A_WORD_MESSAGE = "Wpisz, czego szukasz — nazwa nie może składać się z samych spójników i przyimków.";
 const NAME_HINT = "Wpisz, czego szukasz (3–80 znaków).";
 const NAME_ERROR = "Nazwa musi mieć od 3 do 80 znaków.";
 const SAVED = makeWant({ id: "want-9" });
@@ -446,5 +447,19 @@ describe("WantFormView", () => {
 
     expect(await screen.findByText("Lista dopasowań")).toBeInTheDocument();
     expect(replaceCalls()).toEqual([{ method: "replace", url: "/wanted/want-1", scroll: true }]);
+  });
+  it("shows the server's 400 for a name of only conjunctions and prepositions verbatim, with no client stop-list", async () => {
+    vi.mocked(wantsApi.createWant).mockRejectedValueOnce(
+      new ApiError(400, "Bad Request", { status: 400, error: "Bad Request", message: NAME_NEEDS_A_WORD_MESSAGE }),
+    );
+    renderCreate();
+    typeName("na i z");
+    fireEvent.click(submitButton());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(NAME_NEEDS_A_WORD_MESSAGE);
+    expect(screen.getByRole("alert").textContent).toBe(NAME_NEEDS_A_WORD_MESSAGE);
+    expect(wantsApi.createWant).toHaveBeenCalledWith(expect.objectContaining({ name: "na i z" }));
+    expect(nameInput()).toHaveValue("na i z");
+    expect(replaceCalls()).toEqual([]);
   });
 });

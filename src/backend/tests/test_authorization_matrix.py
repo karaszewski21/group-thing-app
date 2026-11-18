@@ -145,6 +145,7 @@ async def test_conversationRoutes_mcpScopeToken_returns403_loginTokenReaches200(
     [
         ("GET", "/api/wants", ("READ",)),
         ("GET", "/api/wants/42/matches", ("READ",)),
+        ("GET", "/api/wants/42/suggestions", ("READ",)),
         ("POST", "/api/wants", ("EDIT",)),
         ("PATCH", "/api/wants/42", ("EDIT",)),
         ("POST", "/api/wants/42/close", ("EDIT",)),
@@ -178,6 +179,25 @@ async def test_wantRoutes_mcpScopeToken_returns403_loginTokenReaches200(
     for refused in (listed, created, edited, extended):
         assert refused.status_code == 403, refused.text
     assert allowed.status_code == 200, allowed.text
+
+
+async def test_wantSuggestions_guest_returns401_loginTokenReaches404ForAnUnknownWant(
+    client: AsyncClient,
+) -> None:
+    registered = await client.post(
+        "/api/auth/register",
+        json={"role": "GUEST", "email": "matrix.suggestions@example.com", "password": "secret123"},
+    )
+    assert registered.status_code == 201, registered.text
+    url = f"/api/wants/{uuid.uuid4()}/suggestions"
+
+    guest = await client.get(url)
+    logged_in = await client.get(
+        url, headers={"Authorization": f"Bearer {registered.json()['token']}"}
+    )
+
+    assert guest.status_code == 401, guest.text
+    assert logged_in.status_code == 404, logged_in.text
 
 
 def test_resolveRequirement_publicGroup_notRegressedByGroupsPatchRow() -> None:

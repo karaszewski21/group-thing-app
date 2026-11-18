@@ -29,6 +29,10 @@ export interface WantResponse {
   expires_at: string;
   closed_at: string | null;
   created_at: string;
+  /** The matcher has not yet answered the latest create, edit or resume:
+   * the matches may still change, so the views poll. */
+  matching: boolean;
+  /** Real matches only; suggestions are never counted. */
   match_count: number;
   /** Matches the caller has not seen on the match list yet. */
   new_match_count: number;
@@ -56,6 +60,19 @@ export interface WantMatchResponse {
   meta: ProductSearchResult["meta"];
   /** Not yet seen on the match list. */
   is_new: boolean;
+  reserved_by_me: boolean;
+  proposed_by_me: boolean;
+}
+
+/** An item missing exactly one word of the want's name ("Może Cię
+ * zainteresuje"): the match card without `is_new`, plus the missing words
+ * as written in the want. */
+export interface WantSuggestionResponse {
+  id: string;
+  title: string;
+  href: string;
+  meta: ProductSearchResult["meta"];
+  missing_words: string[];
   reserved_by_me: boolean;
   proposed_by_me: boolean;
 }
@@ -96,6 +113,11 @@ export function resumeWant(id: string): Promise<WantResponse> {
 /** Every match, unpaged: available first, then reserved. */
 export function getWantMatches(id: string): Promise<WantMatchResponse[]> {
   return api.get(`/wants/${encodeURIComponent(id)}/matches`);
+}
+
+/** At most 10 suggestions, best first. */
+export function getWantSuggestions(id: string): Promise<WantSuggestionResponse[]> {
+  return api.get(`/wants/${encodeURIComponent(id)}/suggestions`);
 }
 
 /** Resets `new_match_count`; an active want in its last 30 days is extended too. */
