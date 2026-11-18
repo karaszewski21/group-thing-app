@@ -312,6 +312,7 @@ async def test_contractFunctions_bodies_immutableAndPublicQualified(
         "locality_id",
         "lat",
         "lng",
+        "changed_at",
     ]
 
 

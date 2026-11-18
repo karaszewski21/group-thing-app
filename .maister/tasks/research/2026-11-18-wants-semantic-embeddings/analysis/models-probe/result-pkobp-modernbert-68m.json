@@ -1,0 +1,99 @@
+{
+ "onnx_fp32_mb": 273.0,
+ "onnx_int8_mb": 68.9,
+ "tokens_mean": 10.7,
+ "fp32_rss_delta_mb": 274.5,
+ "fp32_latency_ms_median_p95": [
+  25.46,
+  34.29
+ ],
+ "fp32_sts": {
+  "auc_hard": 0.679,
+  "auc_all": 0.958,
+  "best_f1": 0.6,
+  "f1_threshold": 0.896,
+  "p_at_1": 0.7,
+  "recall_at_3": 0.758,
+  "mrr": 0.821,
+  "pos_mean": 0.912,
+  "hardneg_mean": 0.881,
+  "easyneg_mean": 0.791,
+  "pairs": {
+   "Samochód zabawka | Zabawka - auto mercedes": 0.961,
+   "Samochód zabawka | Fotelik samochodowy": 0.882,
+   "Klocki | Klocki LEGO Duplo": 0.911,
+   "Klocki | Kloc drewniany do rąbania": 0.866,
+   "Narty | Buty narciarskie": 0.93,
+   "Laptop | Torba na laptopa": 0.923,
+   "Lalka | Laleczka szmaciana": 0.935
+  }
+ },
+ "fp32_query": {
+  "auc_hard": 0.726,
+  "auc_all": 0.98,
+  "best_f1": 0.652,
+  "f1_threshold": 0.546,
+  "p_at_1": 0.7,
+  "recall_at_3": 0.833,
+  "mrr": 0.85,
+  "pos_mean": 0.595,
+  "hardneg_mean": 0.492,
+  "easyneg_mean": 0.279,
+  "pairs": {
+   "Samochód zabawka | Zabawka - auto mercedes": 0.732,
+   "Samochód zabawka | Fotelik samochodowy": 0.541,
+   "Klocki | Klocki LEGO Duplo": 0.532,
+   "Klocki | Kloc drewniany do rąbania": 0.388,
+   "Narty | Buty narciarskie": 0.635,
+   "Laptop | Torba na laptopa": 0.572,
+   "Lalka | Laleczka szmaciana": 0.624
+  }
+ },
+ "int8_rss_delta_mb": 74.6,
+ "int8_latency_ms_median_p95": [
+  15.25,
+  26.01
+ ],
+ "int8_sts": {
+  "auc_hard": 0.671,
+  "auc_all": 0.957,
+  "best_f1": 0.581,
+  "f1_threshold": 0.894,
+  "p_at_1": 0.7,
+  "recall_at_3": 0.733,
+  "mrr": 0.818,
+  "pos_mean": 0.902,
+  "hardneg_mean": 0.871,
+  "easyneg_mean": 0.777,
+  "pairs": {
+   "Samochód zabawka | Zabawka - auto mercedes": 0.957,
+   "Samochód zabawka | Fotelik samochodowy": 0.875,
+   "Klocki | Klocki LEGO Duplo": 0.894,
+   "Klocki | Kloc drewniany do rąbania": 0.861,
+   "Narty | Buty narciarskie": 0.926,
+   "Laptop | Torba na laptopa": 0.915,
+   "Lalka | Laleczka szmaciana": 0.923
+  }
+ },
+ "int8_query": {
+  "auc_hard": 0.723,
+  "auc_all": 0.978,
+  "best_f1": 0.643,
+  "f1_threshold": 0.451,
+  "p_at_1": 0.8,
+  "recall_at_3": 0.808,
+  "mrr": 0.9,
+  "pos_mean": 0.479,
+  "hardneg_mean": 0.369,
+  "easyneg_mean": 0.145,
+  "pairs": {
+   "Samochód zabawka | Zabawka - auto mercedes": 0.634,
+   "Samochód zabawka | Fotelik samochodowy": 0.43,
+   "Klocki | Klocki LEGO Duplo": 0.435,
+   "Klocki | Kloc drewniany do rąbania": 0.268,
+   "Narty | Buty narciarskie": 0.549,
+   "Laptop | Torba na laptopa": 0.433,
+   "Lalka | Laleczka szmaciana": 0.522
+  }
+ }
+}

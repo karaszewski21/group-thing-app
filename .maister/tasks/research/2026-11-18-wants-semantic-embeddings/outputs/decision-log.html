@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Log — wants semantic embeddings</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+pre { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:12px 14px; overflow-x:auto; font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0 0; }
+.tldr h3 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); margin:14px 0 4px; }
+.ex { border-left:3px solid var(--accent); }
+.meta { color:var(--dim); font-size:12.5px; }
+
+.adr h2 { margin-top:6px; }
+.adrhead { display:flex; gap:10px; align-items:center; }
+.num { font-weight:700; color:var(--accent); font-size:13px; }
+.st { font-size:10.5px; font-weight:700; text-transform:uppercase; padding:1.5px 8px; border-radius:99px; }
+.st.ok { background:var(--ok-soft); color:var(--ok); }
+.st.warn { background:var(--warn-soft); color:var(--warn); }
+.adr details { margin:8px 0; }
+h4 { margin:8px 0 2px; font-size:13px; } h4.good { color:var(--ok); } h4.bad { color:var(--crit); }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="research-report.html">Report</a>
+  <a href="solution-exploration.html">Exploration</a>
+  <a href="high-level-design.html">Design</a>
+  <span class="here">Decision Log</span>
+  <a href="decision-log.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <span class="badge">Decision log (MADR)</span>
+  <h1>Decision Log — semantic „Szukam” tier</h1>
+  <div class="meta">Research task 2026-11-18-wants-semantic-embeddings · generated 2026-11-18 · <a href="decision-log.md" target="_blank" rel="noopener">markdown twin</a></div>
+</header>
+<div class="tiles">
+  <div class="tile"><b>9</b><span>ADRs</span></div>
+  <div class="tile"><b>9</b><span>accepted</span></div>
+  <div class="tile"><b>0</b><span>superseded</span></div>
+  <div class="tile"><b>1</b><span>may be superseded (ADR-007)</span></div>
+</div>
+<section class="tldr card">
+<h3>TL;DR</h3><ul>
+<li>9 ADRs, all <b>Accepted</b>. Six come from the user's convergence choices (ADR-001 to ADR-006). Two record research conclusions on the model and on storage/search (ADR-007, ADR-008). One records the module ownership chosen in design (ADR-009).</li>
+<li>The most consequential decisions are ADR-001 (sync writer + re-trigger, which decides correctness), ADR-002 (a separate bell-less tier, which keeps lexical behaviour unchanged) and ADR-004 (offline gate, then shadow by deploy order, which decides whether the tier ships at all).</li>
+<li>Alternatives refer to <code>solution-exploration.md</code> decision areas DA1–DA6 and to <code>research-report.md</code> sections.</li>
+</ul>
+<h3>Key Decisions</h3><ul>
+<li>Fail open on embedding errors; never fail a write the way moderation does (ADR-001).</li>
+<li>SIMILAR never rings a bell and never upgrades (ADR-002).</li>
+<li>The quality threshold is valid only for one pinned tuple: model, revision, int8, prefix and template (ADR-003, ADR-007).</li>
+<li>There is no feature switch: shadow mode comes from deploying the web image later (ADR-004).</li>
+</ul>
+<h3>Open Questions / Risks</h3><ul>
+<li>ADR-004 depends on deploying the <code>web</code> image on its own. If that fails, the read-side hold fallback needs a recorded gate exception.</li>
+<li>ADR-007's ranking (mmlw vs PKOBP) is decided by the labelled sample. This ADR may be superseded after step 0.</li>
+<li>ADR-002 accepts the in-place rename edge case. Revisit only if shadow mode shows it is frequent.</li>
+</ul>
+</section>
+<h2>Index</h2>
+<table><tr><th>ADR</th><th>Decision</th><th>Status</th></tr>
+<tr><td><a href="#adr-001">ADR-001</a></td><td>Synchronous best-effort vector writer with outbox retry and reconciliation sweep</td><td><span class="st ok">Accepted</span></td></tr><tr><td><a href="#adr-002">ADR-002</a></td><td>Separate SIMILAR tier, born seen, capped, never upgraded</td><td><span class="st ok">Accepted</span></td></tr><tr><td><a href="#adr-003">ADR-003</a></td><td>Embedding input is the name only, with the asymmetric query prefix</td><td><span class="st ok">Accepted</span></td></tr><tr><td><a href="#adr-004">ADR-004</a></td><td>Offline gate, then shadow by a later web deploy</td><td><span class="st ok">Accepted</span></td></tr><tr><td><a href="#adr-005">ADR-005</a></td><td>Revisions 0100_pgvector and 0101_want_similar on the trixie pgvector image</td><td><span class="st ok">Accepted</span></td></tr><tr><td><a href="#adr-006">ADR-006</a></td><td>New UI section „Powiązane rzeczy” and a /similar endpoint</td><td><span class="st ok">Accepted</span></td></tr><tr><td><a href="#adr-007">ADR-007</a></td><td>Model sdadas/mmlw-roberta-base int8 ONNX</td><td><span class="st ok">Accepted</span></td></tr><tr><td><a href="#adr-008">ADR-008</a></td><td>halfvec side tables and exact scan without a vector index</td><td><span class="st ok">Accepted</span></td></tr><tr><td><a href="#adr-009">ADR-009</a></td><td>Compute-only embeddings module; owning modules write their own vectors</td><td><span class="st ok">Accepted</span></td></tr>
+</table>
+<main>
+<section class="card adr" id="adr-001"><div class="adrhead"><span class="num">ADR-001</span><span class="st ok">Accepted</span></div><h2>Synchronous best-effort vector writer with outbox retry and reconciliation sweep</h2><details open><summary>Context</summary><p>The window compares a listing only while its <code>matchable_listings.changed_at</code> lies within the run's interval. Forward match runs once per <code>match_requested_at</code> flag. A vector that arrives after either has passed is missed silently. There is no separate worker: Bielik-Guard and the outbox poller (60 s) run in the API process. Matching is best-effort, so writes must not fail because of the model.</p></details>
+<details><summary>Decision Drivers</summary><ul>
+<li>Correctness of first-time matching (timing risk R4)</li>
+<li>Never block or fail a user write (R10)</li>
+<li>Reuse the established Bielik ONNX pattern (<code>to_thread</code>, one intra-op thread, protocol + fake)</li>
+<li>Backfill and model changes need re-embedding of every row anyway</li>
+</ul></details>
+<details><summary>Considered Options</summary><ol>
+<li>DA1-A: synchronous best-effort in the write path plus an outbox retry that re-triggers the matcher</li>
+<li>DA1-B: pure outbox async writer that re-triggers the matcher</li>
+<li>DA1-C: dedicated embedder process (a separate compose service)</li>
+<li>DA1-D: periodic reconciliation sweep alone</li>
+<li>(excluded) computing vectors in the matcher</li>
+</ol></details>
+<details open><summary>Decision Outcome</summary><p>Chosen option: <b>1, with 4 as a complement</b>. Embed after <code>check_text</code>/<code>_check_texts</code>, in the same transaction as the row (and, for wants, as <code>match_requested_at</code>), with a timeout of about 2 s. On error, commit without a vector and stage <code>embeddings.requested {subject, id}</code>. The handler upserts the vector and re-triggers the matcher: a want re-sets <code>match_requested_at</code>, and a product's <code>e.updated_at</code> feeds <code>changed_at</code>. A lifespan sweep embeds rows that are missing a vector or carry a stale <code>model_id</code>, in batches. Only this combination closes both timing holes without routing every new listing through the window twice.</p></details>
+<details open><summary>Consequences</summary><h4 class="good">Good</h4>
+<ul>
+<li>The vector normally exists before the matcher can read the listing or the flag.</li>
+<li>Embedder outages degrade to delayed SIMILAR rows, never to failed writes.</li>
+<li>One mechanism (the sweep) covers backfill, model switches and recovery from FAILED rows, with no one-off script.</li>
+</ul>
+<h4 class="bad">Bad</h4>
+<ul>
+<li>+25–50 ms (estimated) on product-creating and want-writing requests. Inference is held inside a DB transaction.</li>
+<li>Two writer paths plus a sweep loop to test.</li>
+<li>Late vectors make listings re-enter the window, which can store lexical MATCH pairs that an earlier cap left out (R12, mostly during backfill).</li>
+</ul></details>
+</section><section class="card adr" id="adr-002"><div class="adrhead"><span class="num">ADR-002</span><span class="st ok">Accepted</span></div><h2>Separate SIMILAR tier, born seen, capped, never upgraded</h2><details open><summary>Context</summary><p>Every small model scores accessories and neighbours close to true matches (hard-negative AUC 0.50–0.73). The lexical tiers, bells and MATCH-only counts must stay unchanged. <code>want_matches</code> has one row per (want, item), and SUGGESTION already shows the born-seen, capped, bell-less shape.</p></details>
+<details><summary>Decision Drivers</summary><ul>
+<li>Do not dilute MATCH or SUGGESTION</li>
+<li>Measurable in isolation during shadow mode</li>
+<li>Consistency with SUGGESTION semantics</li>
+<li>No change to lexical statements or the bell path</li>
+</ul></details>
+<details><summary>Considered Options</summary><ol>
+<li>DA2-A: separate <code>SIMILAR</code> tier, <code>ON CONFLICT DO NOTHING</code>, never upgraded</li>
+<li>DA2-B: <code>SIMILAR</code> upgradable to MATCH/SUGGESTION on a later lexical hit</li>
+<li>DA2-C: no new tier; semantic hits fill the SUGGESTION list</li>
+<li>DA2-D: hybrid gate that requires a lexical anchor</li>
+</ol></details>
+<details open><summary>Decision Outcome</summary><p>Chosen option: <b>1</b>. <code>FORWARD_SIMILAR</code>/<code>WINDOW_SIMILAR</code> run after MATCH and SUGGESTION. They use an absolute <code>SEMANTIC_SIMILARITY_MIN</code> and <code>SEMANTIC_CAP = 10</code>, counting only stored SIMILAR rows still in <code>matchable_listings</code>. They insert with <code>seen_at = now</code> and <code>ON CONFLICT DO NOTHING</code>. Both CHECKs are rewritten, with <code>missing_words IS NULL</code> for SIMILAR. Option 4 is scored on the sample only, not built.</p></details>
+<details open><summary>Consequences</summary><h4 class="good">Good</h4>
+<ul>
+<li>Lexical behaviour, bells and counts are unchanged. Lexical ranks first through run order and the unique key.</li>
+<li>Clean metrics: overlap with lexical should be 0, and the score histogram can be read per tier.</li>
+</ul>
+<h4 class="bad">Bad</h4>
+<ul>
+<li>A pair stored as SIMILAR stays SIMILAR after an in-place product rename that would make it lexical. It rings no bell, which is the same edge SUGGESTION accepts today.</li>
+<li>Two CHECK rewrites, a view recreate, a third API list and a third UI section.</li>
+</ul></details>
+</section><section class="card adr" id="adr-003"><div class="adrhead"><span class="num">ADR-003</span><span class="st ok">Accepted</span></div><h2>Embedding input is the name only, with the asymmetric query prefix</h2><details open><summary>Context</summary><p>The score bands are narrow (about 0.011–0.016 between the mean positive and the mean hard negative), so the input must be stable and the threshold tuple pinned. Industry query → product matching centres on titles. Descriptions change in place without moving <code>changed_at</code>. The subword models were trained with diacritics.</p></details>
+<details><summary>Decision Drivers</summary><ul>
+<li>Threshold stability (R2)</li>
+<li>Re-embed only when the meaning changes</li>
+<li>Alignment with the name-based lexical tiers</li>
+<li>The probe: asymmetric prefix AUC-all 0.939 vs 0.914 symmetric</li>
+</ul></details>
+<details><summary>Considered Options</summary><ol>
+<li>DA3-A: name only; <code>zapytanie: </code> + want name on the query side</li>
+<li>DA3-B: listing name + „ — ” + leaf category name</li>
+<li>DA3-C: B + first 200 characters of the description</li>
+<li>DA3-D: want name + note</li>
+</ol></details>
+<details open><summary>Decision Outcome</summary><p>Chosen option: <b>1</b>. The listing side is <code>products.name</code> as written (no <code>fold_pl</code>, sizes and numbers kept). The want side is <code>zapytanie: </code> + <code>wants.name</code>. Option 2 is scored as the challenger on the same sample and adopted only if it wins on held-out precision without dropping the recall gain below X. The prefix and template are pinned with a test shared by the writer and the scoring script.</p></details>
+<details open><summary>Consequences</summary><h4 class="good">Good</h4>
+<ul>
+<li>The vector changes only on a rename, so the re-embed triggers are exactly the name writes.</li>
+<li>One simple template to pin and score.</li>
+</ul>
+<h4 class="bad">Bad</h4>
+<ul>
+<li>Short ambiguous names („Zamek”, „Mysz”) get no disambiguating context unless the want has a category filter.</li>
+</ul></details>
+</section><section class="card adr" id="adr-004"><div class="adrhead"><span class="num">ADR-004</span><span class="st ok">Accepted</span></div><h2>Offline gate, then shadow by a later web deploy</h2><details open><summary>Context</summary><p>The 0099 release gate says "no feature switch" and requires a scored labelled sample (≥200 pairs) before deploying. 200 pairs cannot prove precision ≥ 0.80 after a tune/held-out split. Production effects such as junk volume, re-entry bells, timeouts and <code>capped=</code> share are not visible offline. <code>web</code> is a separate compose service behind nginx.</p></details>
+<details><summary>Decision Drivers</summary><ul>
+<li>Prove quality before users see the tier</li>
+<li>Keep the "no feature switch" wording</li>
+<li>Use one labelling effort for both the lexical and semantic gates</li>
+<li>Observe production-only signals</li>
+</ul></details>
+<details><summary>Considered Options</summary><ol>
+<li>DA4-A: shadow mode with a read-side hold (backend setting)</li>
+<li>DA4-B: offline-only evaluation, then direct release</li>
+<li>DA4-C: shadow by deploying the frontend later (no switch)</li>
+<li>DA4-D: staged opt-in exposure</li>
+</ol></details>
+<details open><summary>Decision Outcome</summary><p>Chosen option: <b>3, with 1 as the fallback</b>. Step 0 labels ≥300 pairs (≥120 positives, labels <code>match</code>/<code>related</code>/<code>no</code>, 2 labellers), shared with the lexical gate, which may ship on its ≥200 subset. Go requires a held-out Wilson LB ≥ 0.80, hard-negative FP ≤ 10% and recall gain ≥ X. Then backend and matcher deploy with the tier active and the <code>web</code> image held back for 2–4 weeks of SQL-reviewed metrics. If the web image cannot ship alone, apply option 1 and record it as an explicit gate exception.</p></details>
+<details open><summary>Consequences</summary><h4 class="good">Good</h4>
+<ul>
+<li>Real production evidence with no switch to add and remove later.</li>
+<li>SIMILAR rows are born seen and bell-less, so shadow mode changes nothing for users.</li>
+</ul>
+<h4 class="bad">Bad</h4>
+<ul>
+<li><code>/similar</code> is live but not linked in the UI during shadow (harmless, since it is party-only).</li>
+<li>Frontend releases in those weeks must omit the section. There is no instant hide after launch beyond a web rollback or freezing the tier.</li>
+</ul></details>
+</section><section class="card adr" id="adr-005"><div class="adrhead"><span class="num">ADR-005</span><span class="st ok">Accepted</span></div><h2>Revisions 0100_pgvector and 0101_want_similar on the trixie pgvector image</h2><details open><summary>Context</summary><p>0099 has already been amended once, and its runbook detects the old shape. A second amendment would create a third shape and tie the lexical release to an image switch. <code>CREATE EXTENSION vector</code> needs a superuser (the compose role is one). The bare <code>pg18</code> tag is bookworm (glibc 2.36), while the data directory was created on trixie (glibc 2.41). The 0086 pg_trgm revision is the precedent.</p></details>
+<details><summary>Decision Drivers</summary><ul>
+<li>Isolate the one-way infrastructure step</li>
+<li>No third 0099 shape</li>
+<li>Avoid a collation-version mismatch</li>
+<li>Small focused migrations with downgrade-then-upgrade tests (migrations standard)</li>
+</ul></details>
+<details><summary>Considered Options</summary><ol>
+<li>DA5-A: <code>0100_pgvector</code> (extension) + <code>0101_want_similar</code> (schema)</li>
+<li>DA5-B: one revision with extension and schema</li>
+<li>DA5-C: extension created outside Alembic</li>
+<li>(excluded) a second amendment of 0099</li>
+</ol></details>
+<details open><summary>Decision Outcome</summary><p>Chosen option: <b>1</b>. 0100 runs <code>CREATE EXTENSION IF NOT EXISTS vector</code>, with a <code>rolsuper</code> check in the runbook. 0101 runs with <code>SET LOCAL lock_timeout = '5s'</code>: it creates both side tables, rewrites both CHECKs, and recreates <code>matchable_listings</code> and its dependants with the vector columns and <code>e.updated_at</code> in <code>changed_at</code>. The image is pinned to <code>pgvector/pgvector:0.8.7-pg18-trixie</code> in compose and both testcontainers conftests. The matcher gate becomes <code>CONTRACT_REVISION = 101</code> plus <code>to_regclass</code> for both tables. The rollback order is 0101 → 0100 → image.</p></details>
+<details open><summary>Consequences</summary><h4 class="good">Good</h4>
+<ul>
+<li>The image swap + 0100 ships and is verified as its own deploy, while lexical wants keep running.</li>
+<li>Each revision has a plain, testable downgrade.</li>
+</ul>
+<h4 class="bad">Bad</h4>
+<ul>
+<li>Two revisions to runbook and test. There is no image-only rollback once the extension exists, and a dump restores only into a pgvector image.</li>
+<li>Old backend and matcher images at DB 0101 are inferred compatible, not tested.</li>
+</ul></details>
+</section><section class="card adr" id="adr-006"><div class="adrhead"><span class="num">ADR-006</span><span class="st ok">Accepted</span></div><h2>New UI section „Powiązane rzeczy” and a /similar endpoint</h2><details open><summary>Context</summary><p>The suggestions section already uses the subtitle „Podobne rzeczy — brakuje im jednego słowa z Twojego „Szukam”.”. The tier surfaces related things and accessories, not necessarily the same thing. <code>WantSuggestionResponse</code> requires <code>missing_words</code>.</p></details>
+<details><summary>Decision Drivers</summary><ul>
+<li>Copy that promises no more than the evidence supports</li>
+<li>No churn in shipped copy</li>
+<li>Per-tier open and take rates remain readable</li>
+<li>Fits ADR-002's separate tier</li>
+</ul></details>
+<details><summary>Considered Options</summary><ol>
+<li>DA6-A: new third section „Powiązane rzeczy”</li>
+<li>DA6-B: rename the existing subtitle and call the new section „Podobne rzeczy”</li>
+<li>DA6-C: merge into „Może Cię zainteresuje” with a badge</li>
+<li>DA6-D: show SIMILAR only when there is no MATCH</li>
+</ol></details>
+<details open><summary>Decision Outcome</summary><p>Chosen option: <b>1</b>. The section sits below „Może Cię zainteresuje”, with cards without the „brakuje:” footnote. It is fed by <code>GET /api/wants/{id}/similar</code> (<code>visible_matches</code>, <code>_cards_select(tier=SIMILAR)</code>, <code>LIMIT 10</code>, score desc, <code>WantSimilarResponse</code> without <code>missing_words</code> or vectors). The existing subtitle is unchanged. Final wording is confirmed with the product owner.</p></details>
+<details open><summary>Consequences</summary><h4 class="good">Good</h4>
+<ul>
+<li>An honest promise, no copy churn, and a clear separation for metrics.</li>
+</ul>
+<h4 class="bad">Bad</h4>
+<ul>
+<li>A third section on a mobile-first page, and the most new frontend code (fetch, view-state rows, typed fixtures).</li>
+</ul></details>
+</section><section class="card adr" id="adr-007"><div class="adrhead"><span class="num">ADR-007</span><span class="st ok">Accepted (the choice may be superseded by the step-0 scoring)</span></div><h2>Model sdadas/mmlw-roberta-base int8 ONNX</h2><details open><summary>Context</summary><p>No public benchmark covers 2–8-word Polish item names. mmlw-roberta-base leads PL-MTEB STS (85.20) and PC (88.16) among models ≤ 300M, and it is Bielik-Guard's base checkpoint. PKOBP-68m won the synthetic probe (AUC-all 0.98, hard 0.72, P@1 0.80). The model must run on CPU in the API process on VPS A, and granite-107m collapsed under naive int8.</p></details>
+<details><summary>Decision Drivers</summary><ul>
+<li>Polish short-text quality</li>
+<li>Operational familiarity (same export, tokenizer family and CPU profile as Bielik)</li>
+<li>RAM/CPU on VPS A (int8 about 126 MB RSS, about 17 ms per text on the dev laptop)</li>
+<li>Licence (Apache-2.0 / MIT only)</li>
+</ul></details>
+<details><summary>Considered Options</summary><ol>
+<li>sdadas/mmlw-roberta-base int8 (768-d)</li>
+<li>PKOBP/embed-modernbert-68m int8 (512-d)</li>
+<li>intfloat/multilingual-e5-small int8 (384-d)</li>
+<li>Heavy models (bge-m3, mmlw-roberta-large) on VPS B</li>
+<li>Others (mmlw-e5-small, MiniLM, granite, gated or NC-licensed models)</li>
+</ol></details>
+<details open><summary>Decision Outcome</summary><p>Chosen option: <b>1 as primary</b>, stored as <code>halfvec(768)</code>. PKOBP-68m is the challenger: switch if it beats mmlw on held-out average precision and on precision at the chosen threshold. e5-small is the fallback under resource pressure. A build-time parity gate (min cosine ≥ 0.99 against fp32) is mandatory. <code>model_id</code> (with revision) is stored on every vector row and pinned in the matcher's <code>rules.py</code> with a drift test against the backend's embedder config. Option 4 is the deferred escalation path.</p></details>
+<details open><summary>Consequences</summary><h4 class="good">Good</h4>
+<ul>
+<li>Lowest operational novelty. No <code>HF_TOKEN</code> is needed for a public model.</li>
+</ul>
+<h4 class="bad">Bad</h4>
+<ul>
+<li>It falls for some traps („Kloc drewniany” 0.862 vs „Klocki LEGO Duplo” 0.849). A model switch means re-embedding everything, re-scoring the sample and changing the <code>halfvec</code> dimension (a new revision).</li>
+</ul></details>
+</section><section class="card adr" id="adr-008"><div class="adrhead"><span class="num">ADR-008</span><span class="st ok">Accepted</span></div><h2>halfvec side tables and exact scan without a vector index</h2><details open><summary>Context</summary><p>A 768-d <code>vector</code> is 3,080 B and is TOASTed. That made the window join 22.5 s against 0.46 s for <code>halfvec(768)</code> (1,544 B inline). HNSW returned 0 of 20 rows under a 0.5% filter. Iterative scan fixed that at 240 ms, slower than exact (7–44 ms). Both matcher paths need every pair above a threshold inside SQL filters. Writing a vector onto <code>wants</code> through the ORM would bump the <code>updated_at</code> version column and cause 409s. The backend has no <code>pgvector</code> package.</p></details>
+<details><summary>Decision Drivers</summary><ul>
+<li>Correctness under the narrowing and visibility filters</li>
+<li>Window and forward latency at ≤ 50k listings and 10k wants</li>
+<li>No optimistic-lock interference</li>
+<li>No new backend dependency</li>
+</ul></details>
+<details><summary>Considered Options</summary><ol>
+<li><code>halfvec(n)</code> in side tables keyed by <code>products.id</code> and <code>wants.id</code>, exact scan</li>
+<li><code>vector(n)</code> columns (optionally <code>SET STORAGE PLAIN</code>)</li>
+<li>HNSW index (with iterative scan)</li>
+<li>Vectors keyed by item</li>
+</ol></details>
+<details open><summary>Decision Outcome</summary><p>Chosen option: <b>1</b>. <code>product_embeddings(product_id PK)</code> and <code>want_embeddings(want_id PK)</code> hold <code>model_id</code>, <code>embedding halfvec(768)</code> and <code>updated_at</code>, with ON DELETE CASCADE. Writes use Core or <code>sa.text</code> with <code>CAST(:v AS halfvec)</code>, never <code>::</code> inside <code>sa.text</code>. Vectors are L2-normalised, so cosine and inner product agree. There is no index. Revisit at about 500k listings or forward &gt; 200 ms, and only with iterative scan plus short-result tests.</p></details>
+<details open><summary>Consequences</summary><h4 class="good">Good</h4>
+<ul>
+<li>Exact and filter-correct, with measured window ~0.45–0.55 s and forward ~27–44 ms on the dev host. No index build, memory or vacuum tuning.</li>
+<li>Each shared product is embedded once. The Want and Product ORM stay free of a vector type.</li>
+</ul>
+<h4 class="bad">Bad</h4>
+<ul>
+<li>Linear cost in active wants × window listings. Halfvec rounding moves cosine by about 1e-3 or less (below the 0.005 sweep step).</li>
+</ul></details>
+</section><section class="card adr" id="adr-009"><div class="adrhead"><span class="num">ADR-009</span><span class="st ok">Accepted</span></div><h2>Compute-only embeddings module; owning modules write their own vectors</h2><details open><summary>Context</summary><p><code>app/wants</code> may reach other contexts only through <code>infrastructure/*_acl.py</code> (<code>test_module_boundaries.py</code>), and it reads the clock only through the guarded path. The outbox registry is generic: consumers register their own handlers against an agreed <code>event_type</code>, and several handlers per type are allowed. The want handler must re-set <code>match_requested_at</code>, a wants-owned column. The model must be loaded once in the API lifespan, next to Bielik.</p></details>
+<details><summary>Decision Drivers</summary><ul>
+<li>Module boundaries and the ACL guard</li>
+<li>One model instance per process</li>
+<li>Each table written only by its owning module</li>
+<li>No new process (settled: small models in the API process)</li>
+</ul></details>
+<details><summary>Considered Options</summary><ol>
+<li>A compute-only <code>app/embeddings</code> (model, prefixes, <code>model_id</code>, timeout). <code>app/product</code> and <code>app/wants</code> each own their side table, outbox handler (filtered by <code>subject</code>) and reconcile function. The lifespan wires both</li>
+<li>One <code>app/embeddings</code> module owning both side tables, the handler and the sweep, reaching into <code>wants</code> to re-flag</li>
+<li>Put the embedder inside <code>app/moderation</code></li>
+</ol></details>
+<details open><summary>Decision Outcome</summary><p>Chosen option: <b>1</b>. <code>app/wants</code> imports the embedder only through a new <code>infrastructure/embedding_acl.py</code>. One event type <code>embeddings.requested</code> carries <code>{subject: "product"|"want", id}</code>, and each owning module's handler ignores other subjects. The handlers re-read the current name before embedding. <code>app/main.py</code> loads the embedder, registers both handlers and starts the reconcile job that calls both modules.</p></details>
+<details open><summary>Consequences</summary><h4 class="good">Good</h4>
+<ul>
+<li>Boundary guards hold, and re-trigger logic stays with the data it touches.</li>
+<li>The embedder is reusable later, for example for semantic search, without moving tables.</li>
+</ul>
+<h4 class="bad">Bad</h4>
+<ul>
+<li>Two handlers and two reconcile functions with similar shapes. The lifespan wires one more job.</li>
+</ul></details>
+</section>
+</main>
+</body>
+</html>

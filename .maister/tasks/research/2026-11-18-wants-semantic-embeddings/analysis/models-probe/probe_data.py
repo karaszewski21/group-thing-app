@@ -1,0 +1,23 @@
+# (want, [positives], [hard negatives])
+WANTS = [
+ ("Samochód zabawka", ["Zabawka - auto mercedes", "Resorak Hot Wheels", "Autko na baterie dla dziecka"], ["Fotelik samochodowy", "Opony zimowe 16 cali"]),
+ ("Klocki", ["Klocki LEGO Duplo", "Drewniane klocki dla malucha"], ["Kloc drewniany do rąbania", "Pieniek kominkowy"]),
+ ("Wózek dziecięcy", ["Wózek spacerowy Baby Design", "Spacerówka parasolka"], ["Wózek sklepowy na zakupy", "Wózek widłowy model"]),
+ ("Rower dla dziecka", ["Rowerek biegowy", "Rower 16 cali dziecięcy"], ["Rower szosowy Shimano 28", "Kask rowerowy"]),
+ ("Kurtka zimowa", ["Kurtka puchowa damska M", "Płaszcz zimowy"], ["Kurtka przeciwdeszczowa letnia", "Czapka zimowa"]),
+ ("Buty sportowe 38", ["Adidasy rozmiar 38", "Trampki Nike 38"], ["Kozaki zimowe 38"]),
+ ("Laptop", ["Notebook Lenovo ThinkPad", "Komputer przenośny Dell"], ["Torba na laptopa", "Monitor 24 cale"]),
+ ("Telefon komórkowy", ["Smartfon Samsung Galaxy A52", "iPhone 11 64GB"], ["Etui na telefon", "Ładowarka USB-C"]),
+ ("Książki dla dzieci", ["Bajki dla najmłodszych", "Książeczki z obrazkami"], ["Regał na książki"]),
+ ("Lalka", ["Lalka Barbie", "Laleczka szmaciana"], ["Domek dla lalek", "Lampka nocna"]),
+ ("Fotelik samochodowy", ["Fotelik do auta 9-18 kg", "Nosidełko samochodowe Maxi-Cosi"], ["Samochodzik zdalnie sterowany", "Fotel biurowy"]),
+ ("Sukienka na wesele", ["Sukienka wieczorowa granatowa", "Elegancka suknia koktajlowa"], ["Suknia ślubna", "Garnitur męski"]),
+ ("Gra planszowa", ["Planszówka Catan", "Monopoly"], ["Gra na PS4 FIFA", "Puzzle 1000 elementów"]),
+ ("Ekspres do kawy", ["Ekspres ciśnieniowy DeLonghi", "Ekspres przelewowy Philips"], ["Kawa ziarnista 1kg", "Czajnik elektryczny"]),
+ ("Łóżeczko niemowlęce", ["Łóżeczko dziecięce drewniane 120x60", "Kojec turystyczny"], ["Łóżko piętrowe", "Materac 160x200"]),
+ ("Hulajnoga", ["Hulajnoga elektryczna Xiaomi", "Hulajnoga dla dzieci trzykołowa"], ["Deskorolka"]),
+ ("Spodnie jeansowe", ["Dżinsy Levis 32/32", "Jeansy damskie rurki"], ["Kurtka jeansowa"]),
+ ("Pluszak", ["Miś pluszowy", "Maskotka królik"], ["Koc polarowy"]),
+ ("Narty", ["Narty Rossignol 160 cm", "Komplet narciarski z wiązaniami"], ["Buty narciarskie", "Sanki"]),
+ ("Odkurzacz", ["Odkurzacz bezworkowy", "Robot sprzątający iRobot Roomba"], ["Worki do odkurzacza", "Mop parowy"]),
+]

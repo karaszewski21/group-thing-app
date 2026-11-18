@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>High-Level Design — wants semantic embeddings</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+pre { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:12px 14px; overflow-x:auto; font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0 0; }
+.tldr h3 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); margin:14px 0 4px; }
+.ex { border-left:3px solid var(--accent); }
+.meta { color:var(--dim); font-size:12.5px; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="research-report.html">Report</a>
+  <a href="solution-exploration.html">Exploration</a>
+  <span class="here">Design</span>
+  <a href="decision-log.html">Decision Log</a>
+  <a href="high-level-design.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">High-level design</span>
+  <h1>Semantic „Szukam” tier (SIMILAR) on pgvector</h1>
+  <div class="meta">Research task 2026-11-18-wants-semantic-embeddings · generated 2026-11-18 · <a href="high-level-design.md" target="_blank" rel="noopener">markdown twin</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>10</b><span>components</span></div>
+  <div class="tile"><b>9</b><span>decisions (ADRs)</span></div>
+  <div class="tile"><b>15</b><span>integration points</span></div>
+  <div class="tile"><b>4</b><span>examples</span></div>
+  <div class="tile"><b>DB contract</b><span>arch. style</span></div>
+</div>
+
+<section class="tldr card">
+  <h3>TL;DR</h3>
+  <ul>
+    <li>A <b>third, bell-less tier <code>SIMILAR</code></b> joins MATCH and SUGGESTION. It is fed by <code>sdadas/mmlw-roberta-base</code> int8 vectors that the <b>API process</b> computes in the write path, stores as <code>halfvec(768)</code> in two side tables, and the asyncpg-only <b>matcher compares by exact scan in SQL</b> after the lexical tiers.</li>
+    <li>Vectors are written <b>synchronously and best-effort</b> (timeout, fail open). A miss stages an outbox <code>embeddings.requested</code> retry that also <b>re-triggers the matcher</b>. A batched <b>reconciliation sweep</b> in the API lifespan does the backfill and model changes.</li>
+    <li>Schema arrives in <b><code>0100_pgvector</code> + <code>0101_want_similar</code></b> on <code>pgvector/pgvector:0.8.7-pg18-trixie</code>. The matcher gate rises to 101.</li>
+    <li>Release: an <b>offline gate on ≥300 labelled pairs</b>, then <b>shadow by deploying backend + matcher first</b> and the web image with „Powiązane rzeczy” 2–4 weeks later. There is no feature switch.</li>
+  </ul>
+  <h3>Key Decisions</h3>
+  <ul>
+    <li><b>Sync best-effort writer + outbox retry + reconciliation sweep.</b> This closes the window and forward-run timing holes (<a href="decision-log.html#adr-001">ADR-001</a>).</li>
+    <li><b>Separate <code>SIMILAR</code> tier</b>, born seen, cap 10 over still-matchable rows, run last, <code>ON CONFLICT DO NOTHING</code>, never upgraded (<a href="decision-log.html#adr-002">ADR-002</a>).</li>
+    <li><b>Name-only input</b>, no <code>fold_pl</code>. The want gets the <code>zapytanie: </code> prefix. Name + leaf category is only a scored challenger (<a href="decision-log.html#adr-003">ADR-003</a>).</li>
+    <li><b>Offline gate shared with lexical 0099, then shadow by a later web deploy.</b> A read-side hold is only the fallback (<a href="decision-log.html#adr-004">ADR-004</a>).</li>
+    <li><b>Two revisions: 0100 extension, 0101 schema.</b> The pinned trixie image, the gate at ≥101 plus both tables, and the rollback order 0101 → 0100 → image (<a href="decision-log.html#adr-005">ADR-005</a>).</li>
+    <li><b>New UI section „Powiązane rzeczy”</b> and <code>GET /api/wants/{id}/similar</code>. The existing „Podobne rzeczy — …” subtitle stays as it is (<a href="decision-log.html#adr-006">ADR-006</a>).</li>
+    <li><b>mmlw-roberta-base int8 primary.</b> PKOBP-68m is the challenger and e5-small the fallback (<a href="decision-log.html#adr-007">ADR-007</a>). Storage is <b><code>halfvec</code> side tables with exact scan and no HNSW</b> (<a href="decision-log.html#adr-008">ADR-008</a>). There is a <b>compute-only <code>app/embeddings</code> module</b>; the owning modules write their own vectors (<a href="decision-log.html#adr-009">ADR-009</a>).</li>
+  </ul>
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li><span class="sev critical">critical</span><b>Quality is unproven.</b> Hard-negative AUC is 0.50–0.73 on the probe. A held-out "no-go" drops the tier, not just the threshold. Recall gain X (15 points proposed) and the 0.80 Wilson lower bound still need user confirmation.</li>
+    <li><span class="sev warning">warning</span><b>VPS A capacity is unmeasured.</b> The figures are +~130 MB RSS and +25–50 ms per write. Measure with <code>probe.py</code> in the backend container before building. If it fails, the escalation is the e5-small fallback, or a dedicated embedder (deferred).</li>
+    <li><span class="sev warning">warning</span><b>A separate <code>web</code> deploy is assumed, not verified operationally.</b> If the web image cannot ship alone, use the read-side hold (ADR-004 fallback) and record it as a gate exception.</li>
+    <li><span class="sev warning">warning</span><b>Running old backend or matcher images against a DB at 0101 is inferred safe, not tested.</b> The runbook must test it before relying on an image-only rollback of those services.</li>
+    <li><span class="sev info">info</span><b>Backfill re-entry (R12).</b> It can store lexical MATCH pairs that an earlier <code>MATCH_TOP_N</code> cap left out, and those ring bells. Throttle the backfill and measure it in shadow mode.</li>
+    <li><span class="sev info">info</span><b>Rename edge case.</b> A SIMILAR pair that a later in-place product rename makes lexical stays SIMILAR and rings no bell. This is accepted, the same as SUGGESTION today.</li>
+    <li><span class="sev info">info</span>Whether <code>/api/wants/{id}/similar</code> falls under the existing matrix rows 66–67 or needs a new row has to be confirmed in the spec.</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents: <a href="#overview">Overview</a> · <a href="#context">System context</a> · <a href="#containers">Containers</a> · <a href="#componentview">Component view</a> · <a href="#components">Key components</a> · <a href="#flows">Data flow</a> · <a href="#integration">Integration points</a> · <a href="#decisions">Decisions</a> · <a href="#rollout">Rollout</a> · <a href="#risks">Risks</a> · <a href="#examples">Examples</a> · <a href="#scope">Out of scope</a> · <a href="#success">Success criteria</a></nav>
+
+<main>
+<h2 id="overview">Design Overview</h2>
+<div class="card">
+  <p><b>Business context.</b> The „Szukam” matcher only matches by words: the stem prefix and trigrams, per word. Seekers miss listings that say the same thing in other words („Samochód zabawka” ↔ „Zabawka - auto mercedes”, „wózek głęboki” ↔ „gondola”). The lexical matcher has just been built and measured, so the semantic tier can be added to a stable 0099 contract. Seekers benefit from more relevant finds, and listers benefit from more takers.</p>
+  <p><b>Chosen approach.</b> <b>Option A</b>: a <b>small embedding model in the API process</b> and <b>pgvector exact scan in the matcher's SQL</b>. The design keeps the established <b>DB-contract-instead-of-shared-code</b> style. The backend writes <b>vectors into side tables</b> and the view exposes them. The <b>asyncpg-only matcher</b> adds two statements, <code>FORWARD_SIMILAR</code> and <code>WINDOW_SIMILAR</code>, built from the existing narrowing and visibility fragments. Results are a <b>born-seen, capped, bell-less third tier</b> that is shown as "related", never as "the same thing". The rollout is <b>measurement-first</b>: one labelled sample decides go/no-go, and a shadow period validates on production before the UI ships.</p>
+  <p><b>Key decisions:</b></p>
+  <ul>
+    <li>The vector is written before the matcher can look for it (sync, same transaction). Any late vector re-triggers the matcher (ADR-001).</li>
+    <li>SIMILAR is its own tier so lexical behaviour, bells and counts stay unchanged (ADR-002).</li>
+    <li>Name-only input keeps the fragile threshold stable (ADR-003).</li>
+    <li>Shadow mode comes from deploy order, not from a switch, so the 0099 gate's "no feature switch" wording holds (ADR-004).</li>
+    <li>The extension and the schema ship in separate revisions, so the image swap is a standalone infrastructure deploy (ADR-005).</li>
+    <li><code>halfvec</code> + exact scan, because <code>vector(768)</code> is TOASTed (50× slower) and HNSW drops filtered rows (ADR-008).</li>
+  </ul>
+</div>
+
+<h2 id="context">System Context (C4 Level 1)</h2>
+<pre>
+ ┌──────────────┐  HTTPS (browser)   ┌──────────────────────────────────────────┐
+ │ Seeker       │ ─────────────────► │                                          │
+ │ (logged-in)  │ ◄── „Powiązane     │      aj platform — „Szukam” wants        │
+ └──────────────┘     rzeczy” cards  │                                          │
+                                     │  web (Next.js) · backend (FastAPI) ·     │
+ ┌──────────────┐  HTTPS (browser)   │  matcher (asyncpg) · PostgreSQL+pgvector │
+ │ Lister       │ ─────────────────► │                                          │
+ │ (item owner) │  item create/rename└──────────────────────────────────────────┘
+ └──────────────┘                          ▲                         ▲
+                                           │ build time only:        │ offline, dev machine:
+ ┌────────────────────────────┐            │ model download+export   │ labelled-sample scoring
+ │ Hugging Face Hub           │ ───────────┘ (no runtime calls)      │ (go/no-go, T_sem)
+ │ (sdadas/mmlw-roberta-base, │                         ┌────────────┴───────────┐
+ │  pinned revision)          │                         │ Product owner +        │
+ └────────────────────────────┘                         │ 2nd labeller (≥300     │
+                                                        │ pairs, 3 labels)       │
+                                                        └────────────────────────┘
+</pre>
+<ul>
+  <li>The model is pulled <b>only at image build time</b>. At runtime no text or vector leaves VPS A.</li>
+  <li>The labellers act outside the running system. Their output (<code>T_sem</code>, model tuple) becomes pinned constants.</li>
+  <li>There is no new external runtime dependency. VPS B / <code>group-thing-ai</code> is not involved (deferred escalation).</li>
+</ul>
+
+<h2 id="containers">Container Overview (C4 Level 2)</h2>
+<pre>
+                     nginx :5174
+                 ┌───────┴────────────────────────────┐
+                 ▼                                    ▼
+ ┌───────────────────────────────┐   /api   ┌────────────────────────────────────────────────┐
+ │ web  (Next.js standalone :3000)│ ───────► │ backend  (FastAPI, single uvicorn, VPS A)       │
+ │  /wanted/[id]:                 │  JSON    │                                                  │
+ │  MATCH · „Może Cię             │          │  app/embeddings  [NEW] OnnxEmbedder int8,        │
+ │  zainteresuje” · „Powiązane    │          │     protocol+fake, to_thread, timeout, model_id  │
+ │  rzeczy” [NEW, ships later]    │          │  app/product     + sync vector write on name     │
+ └───────────────────────────────┘          │  app/wants       + sync vector write, /similar   │
+                                            │  outbox poller   + embeddings.requested handlers │
+                                            │  lifespan job    + embedding reconcile sweep     │
+                                            │  (Bielik-Guard moderation unchanged)             │
+                                            └──────────────┬───────────────────────────────────┘
+                                                           │ SQLAlchemy async (asyncpg)
+                                                           │ writes vectors via CAST(:v AS halfvec)
+                                                           ▼
+ ┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+ │ postgres  pgvector/pgvector:0.8.7-pg18-trixie   [image swap]                                │
+ │  ext vector (0100) · product_embeddings, want_embeddings halfvec(768) (0101)                │
+ │  matchable_listings view (+embedding, model_id, e.updated_at in changed_at) (0101 recreate) │
+ │  want_matches.tier ∈ MATCH|SUGGESTION|SIMILAR (0101) · outbox_events · trg wants_changed    │
+ └───────────────────────────────▲─────────────────────────────────────────────────────────────┘
+                                 │ asyncpg (LISTEN wants_changed, 10 s poll, 60 s window)
+                                 │ reads vectors only inside SQL (&lt;=&gt; operator)
+ ┌───────────────────────────────┴───────────────────────────────┐
+ │ matcher  (python -m matcher, asyncpg-only, no model)          │
+ │  forward:  MATCH → SUGGESTION → SIMILAR [NEW]                  │
+ │  window:   MATCH → SUGGESTION → SIMILAR [NEW]                  │
+ │  gate: alembic ≥101 + matchable_listings + both vector tables  │
+ │  rules.py: SEMANTIC_SIMILARITY_MIN, SEMANTIC_CAP, model id     │
+ └───────────────────────────────────────────────────────────────┘
+</pre>
+<table>
+  <tr><th>Container</th><th>Responsibility (changes in bold)</th></tr>
+  <tr><td>web</td><td>Renders the want detail page. <b>Adds a third fetch and the „Powiązane rzeczy” section</b>, deployed 2–4 weeks after the backend.</td></tr>
+  <tr><td>backend</td><td>Owns all writes. <b>Embeds product names and want names in the API process, stores vectors, retries through the outbox, reconciles stale or missing vectors, serves <code>/similar</code>.</b></td></tr>
+  <tr><td>postgres</td><td>Holds the DB contract. <b>Gains the <code>vector</code> extension, two vector side tables, a recreated view and a third tier value.</b></td></tr>
+  <tr><td>matcher</td><td>Computes pairs. <b>Adds the SIMILAR statements, run last in both loops, and a raised startup gate.</b> It still never loads a model or decodes vectors in Python.</td></tr>
+</table>
+
+<h2 id="componentview">Component View (backend, logical only)</h2>
+<pre>
+ product/service.py ──check_text──► embed? ──► product vector store ──┐
+   create / get_or_create / rename      │ ok                          │ same txn
+                                        │ timeout/error ──► outbox_service.append("embeddings.requested",
+                                        ▼                                {subject:"product", id})
+                               app/embeddings (Embedder)               │
+                                        ▲                               ▼
+ wants/writes.py ──_check_texts──► embedding_acl ──► want vector store + match_requested_at (same txn)
+   create / name edit                   │ timeout/error ──► outbox ("embeddings.requested", {subject:"want", id})
+   (resume reuses stored vector)        │
+                                        │
+ outbox poller (60 s) ─► handlers per subject (product handler in app/product, want handler in app/wants)
+                         embed → upsert vector → product: e.updated_at moves changed_at
+                                                 want:    re-set match_requested_at (NOTIFY)
+ lifespan reconcile job ─► product.reconcile_embeddings(batch) · wants.reconcile_embeddings(batch)
+                           rows missing a vector or with model_id ≠ current, ≤N per tick
+ wants/reads.py ─► visible_matches ─► _cards_select(tier=SIMILAR) ─► GET /api/wants/{id}/similar
+</pre>
+
+<h2 id="components">Key Components</h2>
+<div class="card" style="overflow-x:auto">
+<table>
+  <tr><th>Component</th><th>Purpose</th><th>Responsibilities</th><th>Key interfaces</th><th>Dependencies</th></tr>
+  <tr><td><b>Embedder</b> (<code>app/embeddings</code>, new)</td><td>Turn a short Polish text into a normalised vector, inside the API process</td><td>Load the int8 ONNX model and tokenizer in the lifespan behind <code>EMBEDDINGS_ENABLED</code>. Use CLS pooling + L2 norm and apply the pinned prefixes (<code>zapytanie: </code> for queries). Run through <code>asyncio.to_thread</code>, 1 intra-op thread, with a timeout (~2 s proposed). Expose <code>model_id</code> (with revision). Provide a fake for tests</td><td><code>embed_listing(name)</code>, <code>embed_query(name)</code>, <code>current_model_id()</code>, <code>is_enabled()</code>, set/reset for the fake</td><td>onnxruntime, tokenizers, numpy (already present), model dir from the Docker <code>models</code> stage</td></tr>
+  <tr><td><b>Model build stage</b> (Dockerfile <code>models</code> stage)</td><td>Produce the deployable model reproducibly</td><td>Export with <code>optimum-cli</code> (<code>feature-extraction</code>) at a pinned revision. Run <code>quantize_dynamic</code> int8. <b>Parity gate</b>: fail the build unless min cosine ≥ 0.99 against fp32 on a fixed name list. Write <code>model_id.txt</code></td><td>Model dir <code>/models/embed</code> copied into the runtime image</td><td>Public model (no <code>HF_TOKEN</code> needed)</td></tr>
+  <tr><td><b>Product vector writer</b> (<code>app/product</code>)</td><td>Keep one vector per distinct product name</td><td>Embed after <code>check_text(PRODUCT_NAME)</code> on create and get-or-create (only when no current vector exists) and on an in-place rename. Upsert <code>product_embeddings</code> in the same transaction. On a miss, commit without a vector and stage the outbox retry. Run the subject-<code>product</code> outbox handler and <code>reconcile_embeddings(batch)</code></td><td>Service functions; outbox handler on <code>embeddings.requested</code>; reconcile entry point</td><td>Embedder, outbox service, Core/<code>sa.text</code> writes with <code>CAST(:v AS halfvec)</code></td></tr>
+  <tr><td><b>Want vector writer</b> (<code>app/wants</code>)</td><td>Make sure a want's vector exists before its forward run</td><td>Embed after <code>_check_texts</code> (unlocked) on create and on a name change. Upsert <code>want_embeddings</code> in the same transaction as <code>match_requested_at</code>; resume reuses the stored vector. On a miss, stage the retry. The handler upserts the vector and re-sets <code>match_requested_at</code> without bumping <code>wants.updated_at</code>. Provide <code>reconcile_embeddings(batch)</code> for active wants</td><td><code>infrastructure/embedding_acl.py</code> (sole import of <code>app.embeddings</code>); outbox handler; reconcile entry point</td><td>Embedder via ACL, <code>outbox_acl</code>, clock passed in (clock guard)</td></tr>
+  <tr><td><b>Reconciliation sweep</b> (API lifespan job)</td><td>Backfill and model switches without a one-off script</td><td>On a fixed interval (60 s proposed), call each module's reconcile with a batch cap (for example 300 products and 300 wants per tick). Select rows that are missing a vector or have <code>model_id ≠ current</code> with <code>SKIP LOCKED</code>. Re-embed in batches and re-trigger as the outbox handler does. Log one line per tick with counts</td><td>Scheduler task started next to the outbox poller</td><td>Product and want writers, Embedder</td></tr>
+  <tr><td><b>Vector storage + view</b> (0100/0101)</td><td>The DB contract the matcher reads</td><td><code>product_embeddings(product_id PK→products CASCADE, model_id, embedding halfvec(768), updated_at)</code> and <code>want_embeddings(want_id PK→wants CASCADE, …)</code>. <code>matchable_listings</code> recreated with <code>LEFT JOIN product_embeddings</code>, exposing <code>embedding</code> and <code>model_id</code> and adding <code>e.updated_at</code> to <code>greatest(…)</code> for <code>changed_at</code>; dependent views recreated too. Tier CHECK and missing_words CHECK rewritten for SIMILAR</td><td>Views and tables read by the matcher and by backend reads</td><td><code>vector</code> extension (superuser <code>CREATE EXTENSION</code>)</td></tr>
+  <tr><td><b>Matcher SIMILAR statements</b> (<code>src/matcher</code>)</td><td>Store related pairs in SQL with no model</td><td><code>FORWARD_SIMILAR</code> and <code>WINDOW_SIMILAR</code> reuse <code>_WANTS</code>, <code>_WINDOW_LISTINGS</code>, <code>_NARROWING</code>, the shared visibility fragment, the owner ≠ seeker check and <code>NOT EXISTS</code>. Condition: <code>embedding &lt;=&gt; embedding ≤ 1 − SEMANTIC_SIMILARITY_MIN</code>, both sides at the pinned model id. Rank by score; cap at <code>SEMANTIC_CAP</code> minus the stored SIMILAR rows still matchable; <code>seen_at = now</code>; <code>ON CONFLICT DO NOTHING</code>. Run last. Log <code>similar=</code> separately</td><td><code>match_forward</code>, <code>match_window</code>; window log line</td><td><code>rules.py</code> constants (bound <code>$n</code>), <code>clock.py</code></td></tr>
+  <tr><td><b>Startup gate</b> (matcher, backend lifespan)</td><td>Refuse to run against the wrong DB shape</td><td>Matcher: <code>CONTRACT_REVISION = 101</code> plus <code>to_regclass</code> for <code>matchable_listings</code>, <code>product_embeddings</code> and <code>want_embeddings</code>. Backend: when <code>EMBEDDINGS_ENABLED</code>, refuse to start without both tables (same style as the old-0099 refusal)</td><td>Process start</td><td><code>alembic_version</code>, <code>to_regclass</code></td></tr>
+  <tr><td><b>Similar read API</b> (<code>app/wants</code>)</td><td>Show SIMILAR pairs the seeker may still see</td><td><code>GET /api/wants/{id}/similar</code>: party-only on the seeker's own want, <code>visible_matches</code>, <code>_cards_select(tier=SIMILAR)</code>, <code>LIMIT 10</code>, ordered by score desc then item id. <code>WantSimilarResponse</code> has no <code>missing_words</code> and returns no vectors. Counts stay MATCH-only</td><td>REST JSON</td><td><code>reads.py</code> fragments, authorization matrix</td></tr>
+  <tr><td><b>„Powiązane rzeczy” section</b> (<code>features/wanted</code>)</td><td>Show the tier honestly as "related"</td><td>A third fetch in <code>useWantMatches</code>, a third array in <code>WantMatchesData</code>, new <code>resolveWantMatchesView</code> rows (table-tested), and a section below „Może Cię zainteresuje” with cards without the „brakuje:” footnote. Typed fixtures</td><td><code>getWantSimilar</code> in <code>src/api/wants.ts</code></td><td>Similar read API</td></tr>
+</table>
+</div>
+
+<h2 id="flows">Data Flow</h2>
+<details open><summary>F1 — Listing create (new product) and in-place rename</summary>
+<pre>
+UI item form ─► inventory create/rename ─► product/service.py resolve
+   ├─ existing product with a current vector ─► nothing to embed
+   └─ new product / rename ─► check_text(PRODUCT_NAME) ─► Embedder.embed_listing(name) [≤ timeout]
+          ├─ ok    ─► UPSERT product_embeddings(model_id, halfvec, updated_at=now)  ┐ one
+          └─ miss  ─► log once; outbox_service.append(embeddings.requested{product}) ┘ commit
+   later: listing ACTIVE ─► matchable_listings.changed_at = greatest(…, e.updated_at)
+          ─► matcher window (60 s, 2-min overlap) MATCH → SUGGESTION → SIMILAR
+</pre>
+<ul><li>A new product is created when an item is created. The listing becomes takeable later, so the vector normally predates <code>changed_at</code>.</li>
+<li>A UI rename re-points <code>item.product_id</code> to a resolved product, which already moves <code>changed_at</code>. An in-place <code>update_product</code> rename re-embeds and moves <code>e.updated_at</code>.</li></ul>
+</details>
+<details open><summary>F2 — Want create / name edit (forward run)</summary>
+<pre>
+POST/PATCH /api/wants ─► _check_texts (unlocked) ─► embedding_acl.embed_query("zapytanie: " + name)
+   ─► lock want, compare updated_at (409 rule unchanged) ─► write want (edit: delete all pairs)
+   ─► UPSERT want_embeddings + set match_requested_at                    (same commit)
+   ─► trg_wants_match_requested NOTIFY wants_changed
+matcher request loop ─► claim FOR NO KEY UPDATE SKIP LOCKED ─► forward:
+   MATCH (bells) → SUGGESTION (born seen) → SIMILAR (inner join want_embeddings, born seen, cap 10)
+   ─► compare-and-clear match_requested_at
+</pre>
+<ul><li>Resume reuses the stored vector. A want without a vector gets no SIMILAR rows, which is logged and is not an error.</li></ul>
+</details>
+<details open><summary>F3 — Window run (new listings against all active wants)</summary>
+<pre>
+every 60 s, advisory lock: sweep txn (unchanged) ─► match txn:
+  window_listings (≤300 after marker, MATERIALIZED) ─► MATCH ─► SUGGESTION ─► SIMILAR:
+     JOIN matchable_wants w JOIN want_embeddings we
+     WHERE l.embedding IS NOT NULL AND l.model_id = we.model_id = $model
+       AND narrowing AND visibility fragment AND owner ≠ seeker AND NOT EXISTS want_matches
+       AND (l.embedding &lt;=&gt; we.embedding) ≤ $dist
+     rank per want by score; cap $cap − still-matchable SIMILAR; seen_at=$now; DO NOTHING
+  ─► bells_due outbox rows (MATCH only, unchanged) ─► marker CAS ─► log … similar=N capped=…
+</pre>
+<ul><li>The added cost is estimated at about 1–1.7 s per capped run on VPS A, against about 13 s for the lexical part. This stays under the 30 s statement timeout.</li></ul>
+</details>
+<details open><summary>F4 — Failure path (embedder down, timeout, disabled)</summary>
+<pre>
+write path miss ─► row committed without a vector (write never fails, no 503)
+               ─► outbox embeddings.requested {subject, id}
+outbox poller (60 s) ─► subject handler ─► embed (to_thread + timeout) in a savepoint
+   ├─ ok   ─► upsert vector ─► want: match_requested_at = now (NOTIFY) │ product: e.updated_at → window
+   └─ fail ─► dispatcher retry ×5 ─► FAILED ("FAILED after" log) ─► reconcile sweep picks it up later
+EMBEDDINGS_ENABLED=false ─► no embedding, no outbox rows, sweep idle; the SIMILAR tier freezes (kill switch)
+</pre>
+<ul><li>The handler re-reads the current name, so a stale event never writes an old meaning. A deleted subject is a no-op.</li></ul>
+</details>
+<details open><summary>F5 — Backfill and model change (reconcile sweep)</summary>
+<pre>
+lifespan job, every 60 s:
+  products: SELECT id, name FROM products p LEFT JOIN product_embeddings e
+            WHERE e.product_id IS NULL OR e.model_id &lt;&gt; $current  LIMIT 300 FOR UPDATE SKIP LOCKED
+            ─► batch embed (≈10 ms/name batched) ─► upsert ─► listings re-enter the window via changed_at
+  wants:    ACTIVE wants missing/stale ─► batch embed ─► upsert + re-set match_requested_at
+</pre>
+<ul><li>The initial backfill of about 50k products takes about 15–40 minutes of CPU on one thread. Run it off-peak and watch <code>capped=</code>.</li>
+<li>A model change uses the same sweep. The matcher's pinned model id means pairs form only once both sides carry the new id <b>and</b> the matcher was deployed with the new <code>T_sem</code> from a re-scored sample.</li></ul>
+</details>
+<details open><summary>F6 — Read (seeker opens a want)</summary>
+<pre>
+web /wanted/[id] ─► useWantMatches: getWant + getWantMatches + getWantSuggestions + getWantSimilar
+backend /similar ─► visible_matches (PRIVATE rule re-applied) ─► cards, score desc ─► no vectors
+</pre>
+</details>
+
+<h2 id="integration">Integration Points</h2>
+<div class="card" style="overflow-x:auto">
+<table>
+  <tr><th>#</th><th>Integration</th><th>Direction</th><th>Existing anchor (file)</th><th>Change</th></tr>
+  <tr><td>I1</td><td>Product name writes</td><td>backend internal</td><td><code>src/backend/app/product/service.py</code> (<code>create_product</code>, <code>get_or_create_product_by_name</code>, <code>update_product</code>)</td><td>Embed after <code>check_text</code>, upsert vector, outbox fallback</td></tr>
+  <tr><td>I2</td><td>Want writes</td><td>backend internal</td><td><code>src/backend/app/wants/application/writes.py</code> (create, update, resume; flags)</td><td>Embed after <code>_check_texts</code>, upsert vector with the flag</td></tr>
+  <tr><td>I3</td><td>Wants → embeddings boundary</td><td>ACL</td><td><code>src/backend/app/wants/infrastructure/</code> (new <code>embedding_acl.py</code>, pattern of <code>moderation_acl.py</code>); guard <code>tests/test_module_boundaries.py</code></td><td>Only ACL imports <code>app.embeddings</code></td></tr>
+  <tr><td>I4</td><td>Model runtime</td><td>backend internal</td><td><code>src/backend/app/moderation/onnx_models.py</code>, <code>classifiers.py</code>, <code>text_guard.py</code> (pattern)</td><td>New <code>app/embeddings</code> with the same session options and the protocol + fake</td></tr>
+  <tr><td>I5</td><td>Lifespan wiring</td><td>backend</td><td><code>src/backend/app/main.py</code> (lifespan: model load, handler <code>register()</code>, poller task)</td><td>Load the embedder, register two handlers, start the reconcile job, table check</td></tr>
+  <tr><td>I6</td><td>Outbox</td><td>backend ↔ DB</td><td><code>src/backend/app/outbox/{service,registry,dispatcher,scheduler}.py</code></td><td>New event type <code>embeddings.requested</code>, subject-filtered handlers</td></tr>
+  <tr><td>I7</td><td>Model build</td><td>build</td><td><code>src/backend/Dockerfile</code> (<code>models</code> stage), <code>src/backend/pyproject.toml</code> (onnxruntime/tokenizers present)</td><td>Export + int8 + parity gate, <code>/models/embed</code></td></tr>
+  <tr><td>I8</td><td>Schema</td><td>DB</td><td><code>src/backend/alembic/versions/0099_wants.py</code> (view, CHECKs), <code>0086_pg_trgm.py</code> (extension pattern)</td><td>New <code>0100_pgvector.py</code>, <code>0101_want_similar.py</code>; ORM mirrors in <code>app/wants/models.py</code> (<code>WantMatchTier</code>, <code>__table_args__</code>)</td></tr>
+  <tr><td>I9</td><td>DB image</td><td>ops</td><td><code>docker-compose.yml</code> (<code>postgres</code> service), <code>src/backend/tests/conftest.py</code>, <code>src/matcher/tests/conftest.py</code></td><td><code>pgvector/pgvector:0.8.7-pg18-trixie</code> in all three</td></tr>
+  <tr><td>I10</td><td>Matcher statements</td><td>matcher ↔ DB</td><td><code>src/matcher/matcher/statements.py</code> (<code>_statement</code>, <code>_TIERS</code>, <code>_LIMITS</code>, visibility fragment), <code>window.py</code>, <code>requests.py</code></td><td><code>FORWARD_SIMILAR</code>/<code>WINDOW_SIMILAR</code> run last; shared visibility constant; <code>similar=</code> log</td></tr>
+  <tr><td>I11</td><td>Matcher constants and gate</td><td>matcher</td><td><code>src/matcher/matcher/rules.py</code>, <code>db.py</code> (<code>CONTRACT_REVISION</code>), <code>tests/test_constants_drift.py</code>, <code>tests/conftest.py</code> (<code>_TRUNCATED</code>)</td><td><code>SEMANTIC_SIMILARITY_MIN</code>, <code>SEMANTIC_CAP</code>, model id; gate 101; drift test extended to the backend's model id</td></tr>
+  <tr><td>I12</td><td>Visibility parity</td><td>backend tests</td><td><code>src/backend/tests/test_wants_visibility_parity.py</code>, <code>app/groups/infrastructure/visibility.py</code></td><td>No new rule; the SIMILAR statements use the same fragment</td></tr>
+  <tr><td>I13</td><td>Read API</td><td>web ↔ backend</td><td><code>src/backend/app/wants/application/reads.py</code> (<code>visible_matches</code>, <code>_cards_select</code>), <code>schemas.py</code>, <code>router/wants.py</code>, <code>app/core/authorization_matrix.py</code></td><td><code>GET /api/wants/{id}/similar</code>, <code>WantSimilarResponse</code></td></tr>
+  <tr><td>I14</td><td>Frontend</td><td>web</td><td><code>src/frontend/src/hooks/useWantMatches.ts</code>, <code>src/frontend/src/api/wants.ts</code>, <code>src/frontend/src/features/wanted/{WantMatchesView.tsx, wantMatchesViewState.ts, SuggestionCard.tsx}</code></td><td>Third fetch, view-state rows, „Powiązane rzeczy” section</td></tr>
+  <tr><td>I15</td><td>Docs</td><td>docs</td><td><code>.maister/docs/project/architecture.md</code> ("no revision 0100", <code>postgres:18</code>, Wants runbook), <code>tech-stack.md</code>, testing standard</td><td>Update when it ships</td></tr>
+</table>
+</div>
+
+<h2 id="decisions">Design Decisions</h2>
+<table>
+  <tr><th>ADR</th><th>Decision</th><th>Exploration ref</th></tr>
+  <tr><td><a href="decision-log.html#adr-001">ADR-001</a></td><td>Sync best-effort writer + outbox retry that re-triggers the matcher + reconcile sweep</td><td>DA1-A (+DA1-D)</td></tr>
+  <tr><td><a href="decision-log.html#adr-002">ADR-002</a></td><td>Separate <code>SIMILAR</code> tier, born seen, cap 10, run last, <code>DO NOTHING</code></td><td>DA2-A</td></tr>
+  <tr><td><a href="decision-log.html#adr-003">ADR-003</a></td><td>Name-only input with the <code>zapytanie: </code> query prefix; template B is the scored challenger</td><td>DA3-A (DA3-B)</td></tr>
+  <tr><td><a href="decision-log.html#adr-004">ADR-004</a></td><td>Offline ≥300-pair gate shared with lexical, then shadow by a later web deploy</td><td>DA4-C (DA4-A fallback)</td></tr>
+  <tr><td><a href="decision-log.html#adr-005">ADR-005</a></td><td><code>0100_pgvector</code> + <code>0101_want_similar</code>, trixie image, gate ≥101</td><td>DA5-A</td></tr>
+  <tr><td><a href="decision-log.html#adr-006">ADR-006</a></td><td>New section „Powiązane rzeczy” + <code>GET /api/wants/{id}/similar</code></td><td>DA6-A</td></tr>
+  <tr><td><a href="decision-log.html#adr-007">ADR-007</a></td><td>mmlw-roberta-base int8 ONNX; PKOBP-68m challenger; e5-small fallback</td><td>Report §5</td></tr>
+  <tr><td><a href="decision-log.html#adr-008">ADR-008</a></td><td><code>halfvec</code> side tables, exact scan, no HNSW</td><td>Report §7.2, synthesis C-3</td></tr>
+  <tr><td><a href="decision-log.html#adr-009">ADR-009</a></td><td>Compute-only <code>app/embeddings</code>; product and wants own their vectors, handlers and reconcile</td><td>Synthesis C-1, integration map C3</td></tr>
+</table>
+
+<h2 id="rollout">Rollout Sequence</h2>
+<table>
+  <tr><th>Step</th><th>What</th><th>Exit criterion</th></tr>
+  <tr><td>0</td><td><b>Offline gate.</b> Label ≥300 pairs (≥120 positives, 3 labels, 2 labellers, kappa on ≥50 overlap), stratified 40/30/20/10. Score the lexical rule plus mmlw / PKOBP / e5 × template A / B (and the anchor-gate variant) on the deployed int8 exports. Split tune/held-out 2:1 and sweep in 0.005 steps. The lexical 0099 release can go on the ≥200 subset</td><td>Held-out Wilson LB ≥ 0.80, hard-negative FP ≤ 10%, recall gain ≥ X. Otherwise drop the tier</td></tr>
+  <tr><td>0b</td><td><b>Measure VPS A</b>: <code>probe.py</code> int8 latency, RSS and free RAM in the backend container</td><td>Headroom for +~130 MB and p95 embed within the timeout</td></tr>
+  <tr><td>1</td><td><b>Infrastructure deploy</b>: <code>pg_dump</code>; image → <code>0.8.7-pg18-trixie</code>; verify glibc and collations; <code>rolsuper</code> check; <code>alembic upgrade 0100</code>; <code>\dx vector</code> = 0.8.7</td><td>Lexical wants keep running unchanged</td></tr>
+  <tr><td>2</td><td><b>Backend deploy</b>: 0101 + embedder + writers + handlers + sweep + <code>/similar</code>, <code>EMBEDDINGS_ENABLED=true</code>; throttled backfill</td><td>"Rows without a current vector" falls to ~0</td></tr>
+  <tr><td>3</td><td><b>Matcher deploy (shadow)</b>: gate 101, SIMILAR statements with the pinned <code>T_sem</code>. The <code>web</code> image stays at the version without the section</td><td>Pairs are stored, born seen, no bells</td></tr>
+  <tr><td>4</td><td><b>Shadow metrics, 2–4 weeks</b>: SIMILAR per want, score histogram, lexical overlap = 0, 100-pair spot check ≥ 0.80, window time and <code>capped=</code> share, forward p95, embed p95 and timeouts, API RSS, FAILED <code>embeddings.requested</code>, share of stale or missing vectors</td><td>All within targets</td></tr>
+  <tr><td>5</td><td><b>Web deploy</b> with „Powiązane rzeczy”; track open and take rates per score band</td><td>—</td></tr>
+</table>
+<div class="card"><b>Rollback.</b> <code>EMBEDDINGS_ENABLED=false</code> freezes the tier. A web rollback hides the section. A full revert goes <code>alembic downgrade 0100</code> (deletes SIMILAR rows, restores the CHECKs and view, drops the side tables), then <code>downgrade 0099</code> (<code>DROP EXTENSION vector</code>, superuser), and only then the image. There is no image-only DB rollback. A dump restores only into a pgvector image.</div>
+
+<h2 id="risks">Risks and Mitigations</h2>
+<table>
+  <tr><th>#</th><th>Risk</th><th>Severity</th><th>Mitigation in this design</th></tr>
+  <tr><td>R1</td><td>Accessories or neighbours shown as related matches</td><td><span class="sev critical">critical</span></td><td>Bell-less, capped tier; copy promises "related"; hard-negative stratum with FP ≤ 10%; shadow spot check</td></tr>
+  <tr><td>R2</td><td>Narrow score bands make <code>T_sem</code> fragile</td><td><span class="sev warning">warning</span></td><td>Pinned tuple (model, revision, int8, prefix, template); drift test; re-score on any change; matcher filters on the pinned model id</td></tr>
+  <tr><td>R3</td><td>int8 collapse or shift</td><td><span class="sev warning">warning</span></td><td>Build-time parity gate (min cosine ≥ 0.99); threshold scored on the deployed export</td></tr>
+  <tr><td>R4</td><td>Timing misses</td><td><span class="sev critical">critical</span></td><td>Sync write in the same transaction; retry re-triggers (flag / <code>e.updated_at</code>); sweep; shadow metric for missing vectors</td></tr>
+  <tr><td>R5</td><td>PRIVATE visibility leak</td><td><span class="sev critical">critical</span></td><td>One shared visibility fragment, parity test, <code>visible_matches</code> on read, no vectors in any response</td></tr>
+  <tr><td>R6</td><td>Collation mismatch from a wrong tag</td><td><span class="sev warning">warning</span></td><td>Pin the trixie tag in compose and both conftests; verify after the swap</td></tr>
+  <tr><td>R8</td><td>No image-only rollback</td><td><span class="sev warning">warning</span></td><td>Runbook order 0101 → 0100 → image; <code>pg_dump</code> first</td></tr>
+  <tr><td>R9</td><td>VPS A RAM or CPU</td><td><span class="sev warning">warning</span></td><td>Measure first (step 0b); int8 only; e5-small fallback; dedicated embedder deferred</td></tr>
+  <tr><td>R10/R11</td><td>Embedder blocks writes or the event loop</td><td><span class="sev warning">warning</span></td><td>Fail open; <code>to_thread</code> + timeout; 1 intra-op thread</td></tr>
+  <tr><td>R12</td><td>Backfill re-entry rings extra lexical bells</td><td><span class="sev info">info</span></td><td>Throttled sweep (≤300 per tick); measure in shadow; optionally backfill before step 3</td></tr>
+  <tr><td>R13</td><td>HNSW added later drops filtered rows</td><td><span class="sev warning">warning</span></td><td>ADR-008 records exact scan; any index needs iterative scan + short-result tests</td></tr>
+  <tr><td>R15</td><td>Stale vector after a rename</td><td><span class="sev info">info</span></td><td>Re-embed in <code>update_product</code>; name-only input; the sweep catches <code>model_id</code> drift</td></tr>
+</table>
+
+<h2 id="examples">Concrete Examples</h2>
+<div class="card ex"><b>Example 1 — the motivating synonym pair.</b><br>
+<i>Given</i> an active want „Samochód zabawka” (no category, PUBLIC scope) with a stored vector, and no lexical hit for the listing „Zabawka - auto mercedes”,
+<i>when</i> the listing becomes takeable and the next window run reads it,
+<i>then</i> MATCH and SUGGESTION store nothing, <code>WINDOW_SIMILAR</code> finds cosine ≥ <code>T_sem</code>, and a SIMILAR row is stored with <code>seen_at = now</code> and <code>score = cosine</code>. No bell row is staged, the want's MATCH count is unchanged, and the seeker sees the card under „Powiązane rzeczy” once the web image with the section is deployed.</div>
+<div class="card ex"><b>Example 2 — the embedder times out on a new want.</b><br>
+<i>Given</i> the ONNX call exceeds the timeout while a seeker creates „wózek głęboki”,
+<i>when</i> the request commits,
+<i>then</i> the want is saved with <code>match_requested_at</code> set and no vector. The forward run stores only lexical tiers, and <code>embeddings.requested {subject: want}</code> is staged. Within about 60 s the handler embeds the current name, upserts <code>want_embeddings</code> and re-sets <code>match_requested_at</code>. The second forward run adds SIMILAR rows (for example „Gondola do wózka”) without duplicating the lexical rows (<code>NOT EXISTS</code> / <code>DO NOTHING</code>), and no extra bell rings for pairs that already exist.</div>
+<div class="card ex"><b>Example 3 — a PRIVATE listing outside the seeker's groups.</b><br>
+<i>Given</i> a PRIVATE listing whose owner shares no live PRIVATE group with the seeker, and whose vector is close to the seeker's want,
+<i>when</i> forward or window runs,
+<i>then</i> the shared visibility fragment excludes the pair and no SIMILAR row is stored. If the pair was stored earlier and the seeker later left the group, <code>/similar</code> omits it through <code>visible_matches</code>, and it does not count toward the still-matchable cap.</div>
+<div class="card ex"><b>Example 4 — a model switch after re-scoring.</b><br>
+<i>Given</i> the re-scored sample picks PKOBP-68m with a new <code>T_sem</code>,
+<i>when</i> the backend deploys with the new model id,
+<i>then</i> the sweep re-embeds products and active wants in batches of ≤300 per tick. SIMILAR rows form only between vectors that carry the matcher's pinned model id, and the matcher is deployed with the new id and threshold once the sweep has drained. Existing SIMILAR rows remain, as for any stored pair.</div>
+
+<h2 id="scope">Out of Scope</h2>
+<div class="card"><ul>
+  <li>Semantic search on <code>GET /api/public/search</code> (it can later reuse <code>product_embeddings</code>).</li>
+  <li>LLM query expansion or per-pair LLM judging; GPU inference.</li>
+  <li>Heavy models (bge-m3, mmlw-roberta-large) on VPS B / <code>group-thing-ai</code>. This is only the escalation path.</li>
+  <li>A bell for SIMILAR. Possible only after a Wilson LB ≥ 0.90 on <code>match</code> labels alone.</li>
+  <li>A same-top-level-category guard and the lexical-anchor gate. Both are scored on the sample only, not built.</li>
+  <li>An HNSW index. Revisit at ~500k listings or forward &gt; 200 ms.</li>
+  <li>int8-quantising Bielik-Guard; a dedicated embedder process.</li>
+  <li>Embedding descriptions or want notes (templates C/D).</li>
+  <li>Upgrading SIMILAR → MATCH on a later lexical hit (D10).</li>
+  <li>Docs and memory corrections are part of shipping, not of this design. Left for the specification: exact timeout and batch sizes, the authorization matrix row, response field list, and the final Polish copy.</li>
+</ul></div>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card"><ol>
+  <li><b>Quality gate.</b> On held-out pairs, SIMILAR precision on <code>match ∪ related</code> has a Wilson 95% lower bound ≥ 0.80, the hard-negative FP rate is ≤ 10%, and the recall gain over the lexical tiers is ≥ X points.</li>
+  <li><b>Lexical behaviour unchanged.</b> The overlap between SIMILAR and lexical pairs is 0. Bells and MATCH counts are identical to a run with the SIMILAR statements disabled (shadow comparison).</li>
+  <li><b>Timing coverage.</b> At least 99% of takeable listings and active wants carry a vector with the current model id within 5 minutes of their write. FAILED <code>embeddings.requested</code> rows are drained by the sweep.</li>
+  <li><b>Write latency budget.</b> Embedding adds ≤ 50 ms p95 to product-creating and want-writing requests on VPS A, and no write fails because of the embedder.</li>
+  <li><b>Matcher budget.</b> SIMILAR adds ≤ 2 s to a capped window run and ≤ 150 ms to forward p95. Every statement stays under the 30 s timeout.</li>
+  <li><b>Visibility.</b> The parity test passes with the shared fragment, and no API response contains a vector.</li>
+</ol></div>
+</main>
+</body>
+</html>

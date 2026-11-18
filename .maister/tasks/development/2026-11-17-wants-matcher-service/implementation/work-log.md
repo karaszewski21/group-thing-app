@@ -239,3 +239,12 @@
 
 **Phase 13**: documentation/user-guide.md (Polish, 292 lines, 18 screenshots: 10 reused from E2E, 8 new). Throwaway account `docs-anna-…@example.com` (GUEST) with one active want „Kurtka na zimę” left in the dev DB. Noted: „Oddam” chip label reads from the lister's side; „Znalezione — zamknij” has no confirmation (undo via „Szukam znowu”).
 **Finalization**: all recorded artifacts present on disk. Nothing committed (user rule). Deploy still blocked by the 0099 release gate (≥200 labelled Polish pairs). Follow-ups: W7 bells batching, I3 restart bell, >~1000 listings/2 min burst limit.
+
+## 2026-11-18 - Follow-up: window re-reads changed listings + matcher console logs
+
+**Trigger**: user's „Klocki lego” want missed an item listed as „Klocki Cobi” and renamed 4 minutes later (listing `created_at` stayed before the marker).
+**Fix**: `matchable_listings.changed_at` = greatest(listing created/updated, item updated, balance updated, latest swap proposal updated) appended to the view in amended 0099, plus `ix_swap_proposals_listing_item_id (listing_item_id, updated_at)` (dropped IF EXISTS in the downgrade); matcher window and its 300-cap read `changed_at`; ranking keeps `created_at`. Place edits and in-place product renames stay unread (documented limit). Local DB updated with CREATE OR REPLACE VIEW + CREATE INDEX (no downgrade, no data loss).
+**Logging**: `python -m matcher --log-level DEBUG|INFO|WARNING|ERROR` (matcher logger only, default INFO), format with asctime; `npm run matcher` passes DEBUG.
+**Also this session**: root `package.json` scripts `matcher` and `dev:all` (= docker compose stop backend matcher + concurrently web/server/matcher).
+**Tests**: matcher 99 passed (+2 window: renamed item, available again; +2 logging cases), ruff/format/mypy strict clean; backend wants + migration tests 106 passed (view column list updated).
+**Docs**: architecture.md (view, window step, known limits, local run), INDEX.md, user-guide FAQ.

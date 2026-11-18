@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research Report — wants semantic embeddings</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+/* extensions */
+.conf { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; padding:1.5px 7px; border-radius:99px; }
+.conf.high { background:var(--ok-soft); color:var(--ok); }
+.conf.med  { background:var(--warn-soft); color:var(--warn); }
+.conf.low  { background:var(--crit-soft); color:var(--crit); }
+.tldr { border-left:4px solid var(--accent); }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+@media (max-width:760px){ .grid2,.grid3 { grid-template-columns:1fr; } }
+.pick { border:2px solid var(--accent); }
+.swot h3 { margin:0 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+pre { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px; overflow:auto; font-size:12px; }
+.toc { font-size:13px; color:var(--dim); }
+.small { font-size:12.5px; color:var(--dim); }
+.tablewrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Report</span>
+  <a href="research-report.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Research report · mixed</span>
+  <h1>Semantic „Szukam” matching: small embedding model + pgvector</h1>
+  <div class="small">Generated 2026-11-18 · research-synthesizer · <a href="research-report.md" target="_blank" rel="noopener">research-report.md</a> · <a href="../analysis/synthesis.md" target="_blank" rel="noopener">synthesis.md</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>20</b><span>findings</span></div>
+  <div class="tile"><b>~95</b><span>sources</span></div>
+  <div class="tile"><b>Medium</b><span>overall confidence</span></div>
+  <div class="tile"><b>16</b><span>risks</span></div>
+  <div class="tile"><b>12</b><span>open decisions</span></div>
+</div>
+
+<section class="card tldr">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul>
+    <li><b>It can be built, and it is cheap; whether it is good enough is not proven yet.</b> Run <code>sdadas/mmlw-roberta-base</code> as int8 ONNX in the API process. Store <code>halfvec</code> vectors in side tables keyed by product and want, and search them by exact scan with no vector index. Add a third tier with no bell and a cap of 10, run after MATCH and SUGGESTION.</li>
+    <li><b>Cost on VPS A (estimated):</b> about +126 MB RAM, 25–50 ms of CPU per new name, about +1–1.7 s per capped window run (the lexical part takes about 13 s today), about +60–130 ms per forward match, and a backfill of minutes.</li>
+    <li><b>Main risk:</b> quality. Every small model rates accessories and related items almost as high as true matches (hard-negative AUC 0.50–0.73). Embeddings therefore show related things and never ring a bell. Ship only after a labelled sample of at least 300 pairs and a shadow-mode period.</li>
+  </ul>
+  <h3>Key Decisions</h3>
+  <ul>
+    <li><b>Model:</b> mmlw-roberta-base, int8. PKOBP/embed-modernbert-68m is the challenger scored on the same sample, and multilingual-e5-small is the lighter fallback. Reason: it has the best Polish STS score among models up to 300M, and it is the same encoder family as Bielik-Guard, which already runs on VPS A.</li>
+    <li><b>Storage:</b> <code>halfvec(n)</code> with no HNSW index, compared by exact scan inside the existing SQL filters. Reason: 768-d <code>vector</code> was 50× slower because of TOAST, and HNSW returned 0 of 20 rows under a selective filter.</li>
+    <li><b>Writer:</b> the API process, synchronously and best-effort, with an outbox retry that wakes the matcher again. Reason: there is no separate worker, and a vector that arrives late is missed by the window and by the one-off forward match.</li>
+    <li><b>Image and migrations:</b> pin <code>pgvector/pgvector:0.8.7-pg18-trixie</code>. Add two new revisions, 0100 for the extension and 0101 for the schema, and do not amend 0099 again. Reason: the bare <code>pg18</code> tag is bookworm, so its glibc differs from the existing data directory, and a third amendment would create a third shape of 0099.</li>
+    <li><b>Release:</b> extend the release gate to at least 300 labelled pairs, scored for both the lexical rule and the semantic tier. Run 2–4 weeks in shadow mode before showing the tier.</li>
+  </ul>
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li>VPS A's CPU and RAM are not documented. Every VPS figure here is a laptop or dev-host measurement scaled by an assumed factor of 1.5–3×. Measure on VPS A first.</li>
+    <li>The tier name „Podobne rzeczy” clashes with the existing subtitle of the suggestions section („Podobne rzeczy — brakuje im jednego słowa…”).</li>
+    <li>Shadow mode needs a hold on the read side, which bends the release gate's "no feature switch" wording.</li>
+    <li>After the rollout, rolling back to the old Postgres image cannot be done by swapping images alone. It needs downgrades and a superuser <code>DROP EXTENSION</code>.</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents:
+  <a href="#findings">Findings</a> · <a href="#q1">1 Model</a> · <a href="#q2">2 Threshold &amp; input</a> ·
+  <a href="#q3">3 Architecture</a> · <a href="#q4">4 Cost &amp; risks</a> · <a href="#rollout">Rollout</a> ·
+  <a href="#insights">Insights</a> · <a href="#swot">SWOT</a> · <a href="#conclusions">Conclusions</a> · <a href="#decisions">Open decisions</a> · <a href="#sources">Sources</a>
+</nav>
+
+<main>
+<h2 id="findings">Findings</h2>
+<div class="card tablewrap">
+<table>
+<tr><th>#</th><th>Finding</th><th>Category</th><th>Confidence</th><th>Sources</th></tr>
+<tr><td>F1</td><td>No public benchmark covers 2–8-word Polish item names, and card scores differ from paper scores</td><td>models</td><td><span class="conf high">High</span></td><td>2</td></tr>
+<tr><td>F2</td><td>mmlw-roberta-base has the best Polish STS (85.20) and PC (88.16) among models ≤300M. It is Apache-2.0, 768-d, and Bielik's base</td><td>models</td><td><span class="conf high">High</span></td><td>2</td></tr>
+<tr><td>F3</td><td>Probe: PKOBP AUC-all 0.98 / hard 0.72 / P@1 0.80; mmlw 0.94 / 0.64 / 0.55; e5-small 0.89–0.91 / 0.59 / 0.75</td><td>models (measured)</td><td><span class="conf med">Medium</span></td><td>2</td></tr>
+<tr><td>F4</td><td>Every model's hard-negative AUC is 0.50–0.73. Accessories score close to true matches</td><td>models (measured)</td><td><span class="conf high">High</span></td><td>1</td></tr>
+<tr><td>F5</td><td>int8 halves latency and roughly quarters RAM. mmlw parity min cosine 0.9925; granite collapsed</td><td>models (measured)</td><td><span class="conf high">High</span></td><td>2</td></tr>
+<tr><td>F6</td><td><code>pg18</code> = bookworm (glibc 2.36); <code>postgres:18</code> = trixie (2.41); use <code>0.8.7-pg18-trixie</code></td><td>pgvector (measured)</td><td><span class="conf high">High</span></td><td>3</td></tr>
+<tr><td>F7</td><td><code>vector</code> is not a trusted extension, so <code>CREATE EXTENSION</code> needs a superuser. Compose role <code>aj</code> is one</td><td>pgvector</td><td><span class="conf high">High</span></td><td>3</td></tr>
+<tr><td>F8</td><td>Exact scan: window 300 × 10k in 0.45–0.55 s, forward 27–44 ms at 50k</td><td>pgvector (measured)</td><td><span class="conf high">High</span></td><td>1</td></tr>
+<tr><td>F9</td><td>HNSW with a 0.5% filter returned 0 of 20 rows. The iterative scan takes 240 ms, slower than exact</td><td>pgvector (measured)</td><td><span class="conf high">High</span></td><td>2</td></tr>
+<tr><td>F10</td><td><code>vector(768)</code> is TOASTed: window 22.5 s vs 0.46 s with <code>halfvec(768)</code></td><td>pgvector (measured)</td><td><span class="conf high">High</span></td><td>1</td></tr>
+<tr><td>F11</td><td>The window reads only <code>changed_at</code>; forward runs once per <code>match_requested_at</code></td><td>codebase</td><td><span class="conf high">High</span></td><td>3</td></tr>
+<tr><td>F12</td><td>There is no separate worker. Bielik and the outbox poller run in the API process</td><td>codebase</td><td><span class="conf high">High</span></td><td>4</td></tr>
+<tr><td>F13</td><td>Products are shared and resolved by name; a rename re-points the item</td><td>codebase</td><td><span class="conf high">High</span></td><td>2</td></tr>
+<tr><td>F14</td><td>0099 hard-codes two tiers; the view must be recreated; the gate checks ≥99 + view</td><td>codebase</td><td><span class="conf high">High</span></td><td>2</td></tr>
+<tr><td>F15</td><td>One SQL copy of the visibility rule (parity test) plus the read-side <code>visible_matches</code></td><td>codebase</td><td><span class="conf high">High</span></td><td>3</td></tr>
+<tr><td>F16</td><td>The UI subtitle „Podobne rzeczy — brakuje im jednego słowa…” already exists</td><td>codebase</td><td><span class="conf high">High</span></td><td>1</td></tr>
+<tr><td>F17</td><td>The threshold must be absolute, set precision-first on a tune split and confirmed on held-out data</td><td>evaluation</td><td><span class="conf high">High</span></td><td>3</td></tr>
+<tr><td>F18</td><td>200 pairs is too thin to prove precision ≥ 0.80. Plan ≥300 pairs with ≥120 positives</td><td>evaluation</td><td><span class="conf high">High</span></td><td>1</td></tr>
+<tr><td>F19</td><td>Name-only input by default; prefixes are part of the contract; RRF ranks but cannot decide tiers</td><td>evaluation</td><td><span class="conf med">Medium</span></td><td>4</td></tr>
+<tr><td>F20</td><td>Embeddings were deferred in 2026-11-14; the ONNX/int8/shadow-mode discipline comes from 2026-10-01</td><td>prior research</td><td><span class="conf high">High</span></td><td>2</td></tr>
+</table>
+<details><summary>Evidence locations</summary>
+<p class="small">F1–F5: <code>analysis/findings/models-candidates.md</code>, <code>models-local-probe.md</code>, <code>analysis/models-probe/result-*.json</code>, PL-MTEB https://arxiv.org/html/2405.10138. F6–F10: <code>pgvector-operations.md</code> §1–4, <code>pgvector-performance-and-options.md</code> §1–5. F11–F16: <code>codebase-matcher-contract.md</code>, <code>codebase-backend-writers.md</code>, <code>codebase-integration-map.md</code> (window.py:1-27, requests.py:66-94, 0099_wants.py:154-170/205-249/359-383, onnx_models.py:27-33, main.py:132-141, product/service.py:147-213, statements.py:161-169, reads.py:55-73, WantMatchesView.tsx:327-350). F17–F20: <code>evaluation-*.md</code>.</p>
+</details>
+</div>
+
+<h2 id="q1">Answer 1: Model recommendation <span class="conf med">Medium</span></h2>
+<div class="grid3">
+  <div class="card pick"><span class="badge">Primary</span><h3>sdadas/mmlw-roberta-base</h3>
+    <p>124M · 768-d → <code>halfvec(768)</code> · Apache-2.0 · int8 125 MB / RSS 126 MB · 17 ms per text (laptop)</p>
+    <p>PL-MTEB STS 85.20 / PC 88.16. Probe AUC-all 0.936, hard 0.64, P@1 0.55. Prefix <code>zapytanie: </code> on the want, none on the listing. Bielik-Guard's base checkpoint, so the export path is already proven.</p>
+    <p class="small">Weak spot: „Kloc drewniany” scores 0.862, beating the true match „Klocki LEGO Duplo” at 0.849.</p></div>
+  <div class="card"><span class="badge">Challenger</span><h3>PKOBP/embed-modernbert-68m</h3>
+    <p>68M · 512-d → <code>halfvec(512)</code> · Apache-2.0 (gate-form metadata) · int8 69 MB / RSS 75 MB · 15 ms</p>
+    <p>Won the probe: AUC-all 0.978, hard 0.72, P@1 0.80. Young (Aug 2026, about 50 downloads), with vendor-only benchmarks. Switch to it if it wins on the held-out sample.</p></div>
+  <div class="card"><span class="badge">Light fallback</span><h3>intfloat/multilingual-e5-small</h3>
+    <p>118M · 384-d · MIT · official int8 · RSS 128 MB · 6–7 ms</p>
+    <p>STS 78.41. Probe P@1 0.75. Scores are compressed into 0.7–1.0, which makes thresholds fragile.</p></div>
+</div>
+<details class="card"><summary>Full comparison matrix</summary>
+<div class="tablewrap"><table>
+<tr><th>Model</th><th>Params</th><th>Dim</th><th>Licence</th><th>int8 MB</th><th>ms/text</th><th>STS / PC</th><th>Probe AUC-all / hard / P@1</th><th>Verdict</th></tr>
+<tr><td>mmlw-roberta-base</td><td>124M</td><td>768</td><td>Apache-2.0</td><td>125</td><td>17</td><td>85.20 / 88.16</td><td>0.936 / 0.64 / 0.55</td><td>Primary</td></tr>
+<tr><td>PKOBP modernbert-68m</td><td>68M</td><td>512</td><td>Apache-2.0</td><td>69</td><td>15</td><td>n/a</td><td>0.978 / 0.72 / 0.80</td><td>Challenger</td></tr>
+<tr><td>multilingual-e5-small</td><td>118M</td><td>384</td><td>MIT</td><td>118</td><td>6–7</td><td>78.41 / 81.70</td><td>0.886 / 0.59 / 0.75</td><td>Fallback</td></tr>
+<tr><td>mmlw-e5-small</td><td>118M</td><td>384</td><td>Apache-2.0</td><td>118</td><td>6</td><td>82.05 / 86.67</td><td>0.896 / 0.59 / 0.35</td><td>No</td></tr>
+<tr><td>paraphrase-ml-MiniLM-L12-v2</td><td>118M</td><td>384</td><td>Apache-2.0</td><td>118</td><td>4–5</td><td>78.68 / 83.40</td><td>0.824 / 0.50 / 0.10</td><td>No</td></tr>
+<tr><td>granite-107m</td><td>107M</td><td>384</td><td>Apache-2.0</td><td>broken</td><td>3</td><td>n/a</td><td>0.838 / 0.50 / 0.45</td><td>No (int8 collapse)</td></tr>
+<tr><td>mmlw-roberta-large</td><td>435M</td><td>1024</td><td>Apache-2.0</td><td>~440 est.</td><td>~60 est.</td><td>85.23 / 89.15</td><td>n/a</td><td>VPS B escalation</td></tr>
+<tr><td>bge-m3</td><td>568M</td><td>1024</td><td>MIT</td><td>~570 est.</td><td>~60+ est.</td><td>n/a</td><td>n/a</td><td>VPS B escalation</td></tr>
+<tr><td>arctic-m-v2.0 / Qwen3-0.6B</td><td>305M / 596M</td><td>768 / ≤1024</td><td>Apache-2.0</td><td>311 / 613</td><td>est.</td><td>n/a / 78.45</td><td>n/a</td><td>No</td></tr>
+<tr><td>jina-v3 / silver-retriever / embeddinggemma</td><td>—</td><td>—</td><td>NC / SA / Gemma gated</td><td>—</td><td>—</td><td>—</td><td>—</td><td>Excluded</td></tr>
+</table></div>
+<p class="small">Latency is laptop-measured (Ryzen 7 7735HS, 1 thread, int8). Source: <code>models-candidates.md</code> §2, <code>models-local-probe.md</code> §2. Every int8 model must pass a parity gate (min cosine ≥ 0.99 against fp32).</p>
+</details>
+
+<h2 id="q2">Answer 2: Threshold procedure and embedding input <span class="conf high">High</span> method / <span class="conf med">Medium</span> numbers</h2>
+<div class="grid2">
+<div class="card"><h3 style="margin-top:0">Procedure</h3>
+<ol>
+<li>Corpus: <code>polish_names.py</code> plus real product names plus 30–50 hand-written synonym pairs.</li>
+<li>At least 300 pairs with at least 120 independent positives. Strata: 40% positives, 30% hard negatives, 20% same-category negatives, 10% lexical-only.</li>
+<li>Labels <code>match</code> / <code>related</code> / <code>no</code>; two labellers; kappa on an overlap of at least 50 pairs.</li>
+<li>Score offline with the <b>deployed int8 export</b>, prefix and template; tune/held-out split 2:1.</li>
+<li>Compare models by average precision. Sweep <code>T_sem</code> in 0.005 steps and take the lowest value with precision ≥ 0.85.</li>
+<li>Go if, on held-out data, the Wilson lower bound is ≥ 0.80, hard-negative FP ≤ 10%, and recall gain over lexical ≥ X.</li>
+<li>Pin the constants in <code>rules.py</code> and add a drift test. Then shadow mode, then open/take rates per score band.</li>
+</ol></div>
+<div class="card"><h3 style="margin-top:0">Wilson 95% intervals (why ≥300 and not 200)</h3>
+<table><tr><th>Predicted positives</th><th>Measured</th><th>95% interval</th></tr>
+<tr><td>30</td><td>0.90</td><td>0.74 – 0.97</td></tr>
+<tr><td>50</td><td>0.90</td><td>0.79 – 0.96</td></tr>
+<tr><td>100</td><td>0.90</td><td>0.83 – 0.95</td></tr>
+<tr><td>200</td><td>0.90</td><td>0.85 – 0.93</td></tr></table>
+<h3>Input</h3>
+<ul><li>Default: the <b>name only</b>. Alternatives to score: name + leaf category, and + the first 200 characters of the description.</li>
+<li>No <code>fold_pl()</code> before embedding; keep sizes and numbers in the text.</li>
+<li>Prefixes per model are part of the threshold tuple.</li>
+<li>No RRF or score fusion when deciding tiers.</li></ul></div>
+</div>
+
+<h2 id="q3">Answer 3: Architecture on the 0099 contract <span class="conf high">High</span> / writer <span class="conf med">Medium</span></h2>
+<pre>
+ item create/rename (UI)                      want create / name edit / resume
+        │ resolveProduct                                   │
+        ▼                                                  ▼
+ product/service.py  check_text ─► embed (API process, ONNX int8, to_thread)  ◄─ wants/writes.py _check_texts
+        │  same txn                     │ error/timeout → outbox embeddings.requested (retry, re-trigger)
+        ▼                               ▼
+ product_embeddings(product_id PK, model_id, halfvec(n), updated_at)    want_embeddings(want_id PK, …)
+        │                                                                     │ same txn as match_requested_at
+        ▼ LEFT JOIN on pr.id, e.updated_at in greatest(changed_at)            ▼ NOTIFY wants_changed
+ matchable_listings (view, recreated in 0101) ────────────────► matcher (asyncpg)
+                                                                 forward: MATCH → SUGGESTION → SIMILAR
+                                                                 window : MATCH → SUGGESTION → SIMILAR
+                                                                          (seen_at=$1, cap, no bell)
+                                                                        ▼
+                                          want_matches(tier ∈ MATCH|SUGGESTION|SIMILAR, score = cosine)
+                                                                        ▼
+                                     reads.visible_matches → GET /api/wants/{id}/similar → 3rd UI section
+</pre>
+<div class="tablewrap card"><table>
+<tr><th>Concern</th><th>Decision</th><th>Evidence</th></tr>
+<tr><td>Writer</td><td>The API process (no worker exists). Synchronous and best-effort after <code>check_text</code> / <code>_check_texts</code>, in the same transaction as the product or the <code>match_requested_at</code> flag. On failure: commit without a vector and stage <code>embeddings.requested</code>; the handler re-triggers the matcher</td><td>onnx_models.py:27-33; main.py:135; service.py:150,203; writes.py:159,177,223,247</td></tr>
+<tr><td>Timing risk</td><td>The window sees only <code>changed_at</code> and forward runs once per flag, so a late vector is missed silently. Add <code>e.updated_at</code> to <code>changed_at</code></td><td>window.py:1-27; requests.py:66-94</td></tr>
+<tr><td>Key</td><td><code>products.id</code> (shared, resolved by name) and <code>wants.id</code>, in side tables (no ORM version bump)</td><td>service.py:184-213; base_model.py:61-66</td></tr>
+<tr><td>Image</td><td><code>pgvector/pgvector:0.8.7-pg18-trixie</code>, not <code>pg18</code> (bookworm, glibc 2.36)</td><td>pgvector-operations.md §1</td></tr>
+<tr><td>Type / index</td><td><code>halfvec(n)</code>; exact scan; <b>no HNSW</b> (0 of 20 rows under a filter; TOAST made <code>vector(768)</code> 50× slower)</td><td>pgvector-performance §1, §3</td></tr>
+<tr><td>Matcher</td><td><code>FORWARD_SIMILAR</code> / <code>WINDOW_SIMILAR</code> reuse <code>_NARROWING</code>, the visibility WHERE (shared constant) and <code>NOT EXISTS</code>. Cosine ≥ <code>$k</code>, same <code>model_id</code>, cap 10 counting still-matchable rows, <code>seen_at = $1</code>, run <b>last</b></td><td>statements.py:45-76,131-173,220-247</td></tr>
+<tr><td>Constraint</td><td>Drop and re-add <code>ck_want_matches_tier</code> and <code>ck_want_matches_missing_words</code> with <code>SIMILAR</code> (missing_words NULL); mirror in the ORM</td><td>0099_wants.py:375-380; models.py:163-186</td></tr>
+<tr><td>Migration</td><td>New <code>0100_pgvector</code> (extension, superuser check) and <code>0101_want_similar</code> (tables, view, CHECKs), not a third shape of 0099</td><td>architecture.md:687,695-704; 0086 pattern</td></tr>
+<tr><td>Startup gate</td><td><code>CONTRACT_REVISION</code> → 101 plus <code>to_regclass</code> for both side tables</td><td>db.py:20-57</td></tr>
+<tr><td>Rollback</td><td>Not image-only. Downgrade 0101, then 0100 (<code>DROP EXTENSION</code> as superuser), then the image. Lossy only for recomputable vectors and SIMILAR pairs. Old backend and matcher images on 0101: inferred to work, untested</td><td>pgvector-operations.md §4</td></tr>
+<tr><td>UI naming</td><td>„Podobne rzeczy” is already the suggestions subtitle. Pick another tier name (e.g. „Powiązane rzeczy”) or rename the subtitle</td><td>WantMatchesView.tsx:327-350</td></tr>
+</table></div>
+
+<h2 id="q4">Answer 4: Cost on VPS A and risk register <span class="conf med">Medium</span></h2>
+<div class="card tablewrap"><table>
+<tr><th>Item</th><th>Measured (dev)</th><th>VPS A estimate</th></tr>
+<tr><td>RAM (mmlw int8)</td><td>+126 MB RSS (fp32 +497)</td><td>+~130 MB on top of ~756 MB</td></tr>
+<tr><td>CPU per name</td><td>17 ms (batched 10.5)</td><td>25–50 ms</td></tr>
+<tr><td>Window semantic, 300 × 10k</td><td>0.45–0.55 s</td><td>~1–1.7 s (lexical ~13 s)</td></tr>
+<tr><td>Window, 300 × 30k</td><td>~1.7 s (extrapolated)</td><td>~3–5 s, under the 30 s timeout</td></tr>
+<tr><td>Forward, 1 × 50k</td><td>27–44 ms</td><td>~60–130 ms</td></tr>
+<tr><td>Storage, halfvec(768)</td><td>1,544 B/row</td><td>50k products ≈ 77 MB; 10k wants ≈ 15 MB</td></tr>
+<tr><td>Backfill embeddings</td><td>10k in 2–8 min CPU</td><td>4–15 min; 50k ≈ 15–40 min (throttled)</td></tr>
+<tr><td>HNSW (avoided)</td><td>56–195 MB / 50k, 39–297 s build</td><td>0</td></tr>
+</table></div>
+<div class="card tablewrap"><table>
+<tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr>
+<tr><td>R1 Related items shown as matches (AUC-hard 0.50–0.73)</td><td><span class="sev critical">critical</span></td><td>No bell, cap 10, "related" copy, hard-negative stratum FP ≤ 10%, PKOBP challenger</td></tr>
+<tr><td>R2 Narrow score bands (0.011–0.016 gap)</td><td><span class="sev warning">warning</span></td><td>0.005 sweep, pinned threshold tuple, drift test</td></tr>
+<tr><td>R3 Quantisation shift or collapse</td><td><span class="sev warning">warning</span></td><td>Parity gate min cosine ≥ 0.99; threshold from the int8 export</td></tr>
+<tr><td>R4 Timing misses (window / forward)</td><td><span class="sev critical">critical</span></td><td>Sync write in the same transaction; outbox re-trigger; <code>e.updated_at</code> in <code>changed_at</code></td></tr>
+<tr><td>R5 PRIVATE visibility leak</td><td><span class="sev critical">critical</span></td><td>One shared visibility fragment; parity test; <code>visible_matches</code>; no vectors in the API</td></tr>
+<tr><td>R6 Collation mismatch (wrong tag)</td><td><span class="sev warning">warning</span></td><td>Pin trixie; verify glibc and collation versions</td></tr>
+<tr><td>R7 Superuser needed for the extension</td><td><span class="sev info">info</span></td><td><code>rolsuper</code> check or DBA pre-create</td></tr>
+<tr><td>R8 No image-only rollback</td><td><span class="sev warning">warning</span></td><td>Runbook order 0101 → 0100 → image; <code>pg_dump</code></td></tr>
+<tr><td>R9 VPS A RAM unknown</td><td><span class="sev warning">warning</span></td><td>Measure; int8; e5 fallback; int8 Bielik</td></tr>
+<tr><td>R10 Embedder outage blocks writes</td><td><span class="sev warning">warning</span></td><td>Fail open plus outbox retry</td></tr>
+<tr><td>R11 Event loop blocked by ONNX</td><td><span class="sev warning">warning</span></td><td><code>to_thread</code> plus a timeout; 1 intra-op thread</td></tr>
+<tr><td>R12 Backfill re-entry rings capped-out bells</td><td><span class="sev info">info</span></td><td>Throttle; measure in shadow mode</td></tr>
+<tr><td>R13 HNSW added later drops rows</td><td><span class="sev warning">warning</span></td><td>Documented no-index decision; iterative scan and tests if ever added</td></tr>
+<tr><td>R14 PKOBP maturity or access</td><td><span class="sev info">info</span></td><td>Pin the revision, bake into the image</td></tr>
+<tr><td>R15 Stale vector after a rename</td><td><span class="sev info">info</span></td><td>Re-embed in <code>update_product</code>; name-only input</td></tr>
+<tr><td>R16 Sample quality</td><td><span class="sev warning">warning</span></td><td>Two labellers, independent positives, held-out split</td></tr>
+</table></div>
+
+<h2 id="rollout">Recommended rollout</h2>
+<div class="card"><ol start="0">
+<li><b>Offline gate:</b> labelled sample, model and template, <code>T_sem</code>, go/no-go. Measure <code>probe.py</code> on VPS A.</li>
+<li><b>Infrastructure:</b> <code>pg_dump</code>, image swap to <code>0.8.7-pg18-trixie</code>, verify glibc and collations, upgrade to 0100, check <code>\dx vector</code>.</li>
+<li><b>Writers:</b> 0101 plus the embedder (<code>EMBEDDINGS_ENABLED</code>), then a throttled backfill.</li>
+<li><b>Matcher in shadow:</b> SIMILAR pairs stored born seen, API and UI held back for 2–4 weeks.</li>
+<li><b>Shadow metrics:</b> pairs per want, score histogram, overlap with lexical (should be 0), 100-pair spot check (≥ 0.80), window time and <code>capped=</code>, forward p95, embed p95 and timeouts, RSS, FAILED outbox rows, listings and wants without a vector.</li>
+<li><b>Show the tier;</b> track open and take rates per score band.</li>
+<li><b>Optional bell</b> only if precision on <code>match</code> has a Wilson lower bound ≥ 0.90.</li>
+</ol></div>
+
+<h2 id="insights">Key insights</h2>
+<div class="grid3">
+<div class="card"><span class="conf high">High</span><h3>“Related”, not “same”</h3><p>„Fotelik samochodowy” scores 0.872 against a true match at 0.922 (mmlw). This is why the tier has no bell and MATCH stays lexical.</p></div>
+<div class="card"><span class="conf high">High</span><h3>Thresholds outweigh model size</h3><p>Positive and hard-negative means are about 0.016 apart. The prefix mode moves AUC more than int8 does.</p></div>
+<div class="card"><span class="conf high">High</span><h3>Timing is the risk, not compute</h3><p>Vector search adds about 0.5 s per capped run. A late vector is missed silently.</p></div>
+<div class="card"><span class="conf high">High</span><h3>Visibility comes free</h3><p>Reuse the one SQL fragment plus <code>visible_matches</code>; vectors never leave the DB.</p></div>
+<div class="card"><span class="conf med">Medium-high</span><h3>Bielik's base minimises novelty</h3><p>Same export, tokenizer family and CPU profile as the model already running.</p></div>
+<div class="card"><span class="conf high">High</span><h3>Parity gate is mandatory</h3><p>granite collapsed under int8 (every cosine 0.999); mmlw keeps a min cosine of 0.9925.</p></div>
+</div>
+
+<h2 id="swot">SWOT</h2>
+<div class="grid2 swot">
+<div class="card"><h3>Strengths</h3><p>Fits the existing contract, the ONNX path and the visibility rule; exact and filter-correct; small RAM and CPU cost; no new matcher dependency.</p></div>
+<div class="card"><h3>Weaknesses</h3><p>Hard negatives poorly separated; narrow score bands; no real-name benchmark; synchronous writes add request latency.</p></div>
+<div class="card"><h3>Opportunities</h3><p>The same sample tunes the lexical gate; int8 Bielik frees RAM; a path to search-page semantic search; VPS B escalation for bigger models.</p></div>
+<div class="card"><h3>Threats</h3><p>Unknown VPS A capacity; tier name confusion; a one-way image switch; a future HNSW added carelessly.</p></div>
+</div>
+
+<h2 id="conclusions">Conclusions</h2>
+<div class="card tablewrap"><table>
+<tr><th>Conclusion</th><th>Confidence</th></tr>
+<tr><td>Exact scan on <code>halfvec</code>, no HNSW, trixie image, new revisions 0100/0101</td><td><span class="conf high">High</span></td></tr>
+<tr><td>Third tier shape: run last, born seen, cap 10, shared visibility fragment</td><td><span class="conf high">High</span></td></tr>
+<tr><td>Sync best-effort writer plus outbox re-trigger</td><td><span class="conf med">Medium</span></td></tr>
+<tr><td>mmlw-roberta-base primary, PKOBP challenger, e5-small fallback</td><td><span class="conf med">Medium</span></td></tr>
+<tr><td>Cost estimates on VPS A</td><td><span class="conf med">Medium</span></td></tr>
+<tr><td>The tier reaches precision ≥ 0.80 with useful recall</td><td><span class="conf low">Low</span></td></tr>
+</table>
+<p><b>Overall confidence: medium.</b></p></div>
+
+<h2 id="decisions">Open decisions for the user</h2>
+<div class="card tablewrap"><table>
+<tr><th>#</th><th>Decision</th><th>Recommendation</th></tr>
+<tr><td>D1</td><td>Final model</td><td>Decide on the sample; mmlw unless PKOBP wins on held-out data</td></tr>
+<tr><td>D2</td><td>Tier name vs the „Podobne rzeczy” subtitle</td><td>Give the new tier another name (e.g. „Powiązane rzeczy”)</td></tr>
+<tr><td>D3</td><td>Release gate sample size</td><td>Extend to ≥300 pairs, ≥120 positives, 3 labels, 2 labellers</td></tr>
+<tr><td>D4</td><td>Writer: sync + fallback vs pure async</td><td>Sync + fallback</td></tr>
+<tr><td>D5</td><td>Embedding input</td><td>Name only unless B or C wins</td></tr>
+<tr><td>D6</td><td>One vs two revisions</td><td>0100 extension + 0101 schema</td></tr>
+<tr><td>D7</td><td>Shadow mode vs "no feature switch"</td><td>Read-side hold for 2–4 weeks, recorded as an exception</td></tr>
+<tr><td>D8</td><td>Precision target and recall gain X</td><td>Lower bound 0.80, X = 15 points (confirm)</td></tr>
+<tr><td>D9</td><td>Measure on VPS A first</td><td>Yes</td></tr>
+<tr><td>D10</td><td>Upgrade SIMILAR → MATCH</td><td>Keep <code>DO NOTHING</code></td></tr>
+<tr><td>D11</td><td>Tier code</td><td><code>SIMILAR</code></td></tr>
+<tr><td>D12</td><td>int8 Bielik too</td><td>A separate task</td></tr>
+</table></div>
+
+<h2 id="sources">Sources and gaps</h2>
+<details class="card"><summary>Sources</summary>
+<p class="small">Finding files (10): models-candidates, models-local-probe, pgvector-operations, pgvector-performance-and-options, codebase-matcher-contract, codebase-backend-writers, codebase-integration-map, evaluation-threshold-procedure, evaluation-embedding-input-and-hybrid, evaluation-prior-research. Measured: <code>analysis/models-probe/</code>. External: PL-MTEB https://arxiv.org/html/2405.10138; PIRB https://arxiv.org/abs/2402.13350; HF model cards; https://github.com/pgvector/pgvector; Docker Hub tag API; Katz halfvec post; Neon halfvec; scikit-learn threshold doc; sbert evaluators; Agresti &amp; Coull 1998; Cormack et al. 2009 RRF; Allegro NLI retrieval https://arxiv.org/abs/2308.03103; PostgreSQL 18 docs; asyncpg docs. Full list: <a href="research-report.md" target="_blank" rel="noopener">research-report.md</a> §13.</p>
+</details>
+<details class="card"><summary>Gaps and uncertainties</summary>
+<ul class="small">
+<li>VPS A hardware is undocumented, and nothing was measured on it.</li>
+<li>No real-name quality data; the probe has 41 positives (AUC SE about ±0.03–0.05).</li>
+<li>pgvector timings use random vectors (valid for timing; HNSW recall is not representative).</li>
+<li>The semantic SQL has not been run on the real 0099 schema.</li>
+<li>Old-image compatibility after 0101 is inferred.</li>
+<li>No source gives a description vs name ablation for short queries.</li>
+<li>The backfill re-entry side effect is inferred.</li>
+</ul>
+</details>
+</main>
+</body>
+</html>

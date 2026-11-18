@@ -268,8 +268,8 @@ Sprawdź, czy:
 
 Pamiętaj też, że **podpowiedzi z „Może Cię zainteresuje” nie wysyłają powiadomień**.
 
-**Rzecz była wystawiona wcześniej, ale stała się dostępna dopiero później. Czemu jej nie widzę?**
-Nowe rzeczy sprawdzamy w chwili, gdy pojawiają się w serwisie. Jeśli rzecz była na początku niedostępna (np. zarezerwowana) i zwolniła się później, możemy ją przegapić. Wpisz jej nazwę w wyszukiwarkę albo zmień i zapisz swoje poszukiwanie. Wtedy przejrzymy wszystkie ogłoszenia od nowa.
+**Ktoś zmienił nazwę rzeczy albo rzecz znów jest dostępna. Czy ją zobaczę?**
+Tak. Sprawdzamy rzecz ponownie, gdy właściciel ją edytuje (np. zmieni nazwę) albo gdy znów jest dostępna, np. po odwołanej rezerwacji. Powiadomienie przyjdzie tak jak przy nowej rzeczy, w ciągu około 2 minut. Jeśli rzecz zmieniła tylko miejsce odbioru, wpisz jej nazwę w wyszukiwarkę albo zapisz ponownie swoje poszukiwanie.
 
 **Dostałem powiadomienie o rzeczy, którą już widzę na liście.**
 Zdarza się to rzadko, po krótkiej przerwie w działaniu wyszukiwania. Powiadomienie jest prawdziwe i prowadzi do właściwej rzeczy, możesz je po prostu odczytać.
