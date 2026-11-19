@@ -634,7 +634,7 @@ class MyInventoryItemResponse(BaseModel):
 
     id: uuid.UUID
     inventory_id: uuid.UUID
-    home_inventory_id: uuid.UUID | None
+    owner_inventory_id: uuid.UUID
     product_id: uuid.UUID
     product_name: str
     condition: ItemCondition

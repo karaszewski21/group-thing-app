@@ -206,7 +206,7 @@ async def list_items_for_inventory_with_product_name(
 
 
 def inventory_items_with_product_select(inventory_id: uuid.UUID) -> Select[Any]:
-    """`(id, inventory_id, home_inventory_id, product_id, product_name,
+    """`(id, inventory_id, owner_inventory_id, product_id, product_name,
     condition, added_at, created_at, updated_at, listing_status, location_id,
     balance_status, reservation_id)` of every live item in `inventory_id`.
     `balance_status` is `None` for an item without a balance row;
@@ -232,7 +232,7 @@ def inventory_items_with_product_select(inventory_id: uuid.UUID) -> Select[Any]:
         select(
             InventoryItem.id.label("id"),
             InventoryItem.inventory_id.label("inventory_id"),
-            InventoryItem.home_inventory_id.label("home_inventory_id"),
+            InventoryItem.owner_inventory_id.label("owner_inventory_id"),
             InventoryItem.product_id.label("product_id"),
             Product.name.label("product_name"),
             InventoryItem.condition.label("condition"),

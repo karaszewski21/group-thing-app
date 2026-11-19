@@ -51,6 +51,7 @@ async def _create_available_item(db: AsyncSession, owner_user_id: uuid.UUID) -> 
     inventory = await inventory_service.get_or_create_personal_inventory(db, owner_user_id)
     item = InventoryItem(
         inventory_id=_id(inventory),
+        owner_inventory_id=_id(inventory),
         product_id=_id(product),
         condition=ItemCondition.GOOD,
         added_at=datetime.utcnow(),

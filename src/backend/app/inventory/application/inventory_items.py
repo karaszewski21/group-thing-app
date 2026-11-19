@@ -68,6 +68,7 @@ async def register_item(
 
     item = InventoryItem(
         inventory_id=inventory_id,
+        owner_inventory_id=inventory_id,
         product_id=product_id,
         condition=ItemCondition(condition),
         listing_status=(
@@ -190,7 +191,7 @@ async def get_active_reservation_id_for_item(
     `InventoryBalanceResponse.reservation_id` (bug #4c) — `None` without
     querying unless `status` is `RESERVED`/`IN_TRANSIT` (the only statuses
     where a `PENDING`/`CONFIRMED` reservation can exist for the item), so
-    the common `AVAILABLE`/`LENT`/`RETURNED` case costs nothing extra.
+    the common `AVAILABLE`/`LENT` case costs nothing extra.
     Reuses `repository.list_active_reservations_for_item`'s query shape
     (same as `list_active_reservations_for_taker`, scoped by item) — no new
     query pattern. At most one active reservation exists per item at a time
@@ -204,14 +205,11 @@ async def get_active_reservation_id_for_item(
 
 
 async def resolve_owning_inventory(db: AsyncSession, item: InventoryItem) -> Inventory:
-    """The item's *permanent* owning inventory — `home_inventory_id` when
-    set (the item is currently lent out and `inventory_id` points at the
-    borrower's VIRTUAL inventory instead), else `inventory_id` itself. Use
-    this for ownership/permission decisions (edit/delete, listing
-    preferences) — never the raw `inventory_id`, which reflects current
-    *physical* location, not legal ownership, during a loan."""
-    permanent_id = item.home_inventory_id if item.home_inventory_id is not None else item.inventory_id
-    return await get_inventory(db, permanent_id)
+    """The item's owning inventory (`owner_inventory_id`). Use this for
+    ownership/permission decisions (edit/delete, listing preferences) —
+    never the raw `inventory_id`, which is where the item is now and points
+    at the borrower's inventory during a loan."""
+    return await get_inventory(db, item.owner_inventory_id)
 
 
 # Ad-hoc Core reference to `app.groups`' `item_listing_preferences` table —

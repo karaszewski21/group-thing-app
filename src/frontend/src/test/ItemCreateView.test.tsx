@@ -118,7 +118,7 @@ function myItem(id: string, location_id: string | null, created_at: string): MyI
   return {
     id,
     inventory_id: INVENTORY_ID,
-    home_inventory_id: null,
+    owner_inventory_id: INVENTORY_ID,
     product_id: PRODUCT_ID,
     product_name: "Rowerek",
     condition: "GOOD",

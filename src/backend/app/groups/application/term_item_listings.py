@@ -245,7 +245,7 @@ async def _my_inventory_item_responses(
         MyInventoryItemResponse(
             id=row.id,
             inventory_id=row.inventory_id,
-            home_inventory_id=row.home_inventory_id,
+            owner_inventory_id=row.owner_inventory_id,
             product_id=row.product_id,
             product_name=row.product_name,
             condition=row.condition,

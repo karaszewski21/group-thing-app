@@ -105,7 +105,7 @@ function mockApiGetRouter(fixtures: { reservations?: Record<string, ReservationD
 const item: MyInventoryItemResponse = {
   id: "10",
   inventory_id: "1",
-  home_inventory_id: null,
+  owner_inventory_id: "1",
   product_id: "100",
   product_name: "Rowerek",
   condition: "GOOD",

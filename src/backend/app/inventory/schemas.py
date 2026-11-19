@@ -61,12 +61,10 @@ class InventoryBalanceResponse(BaseModel):
     item_id: uuid.UUID
     status: BalanceStatus
     reserved_at: datetime | None
-    lent_at: datetime | None
-    returned_at: datetime | None
     due_date: datetime | None
     # The item's in-flight `Reservation.id` — populated (via
     # `get_active_reservation_id_for_item`) only for `RESERVED`/`IN_TRANSIT`
-    # `status`, `None` otherwise (`AVAILABLE`/`LENT`/`RETURNED` have no
+    # `status`, `None` otherwise (`AVAILABLE`/`LENT` have no
     # active reservation to point at). Not an `InventoryBalance` column —
     # resolved alongside the balance at the router, same active-reservation
     # query shape as `list_active_reservations_for_taker`. See bug #4c.
@@ -78,7 +76,7 @@ class InventoryItemResponse(BaseModel):
 
     id: uuid.UUID
     inventory_id: uuid.UUID
-    home_inventory_id: uuid.UUID | None
+    owner_inventory_id: uuid.UUID
     product_id: uuid.UUID
     product_name: str
     condition: ItemCondition

@@ -294,9 +294,9 @@ async def item(
     now = listed_at or clock.utcnow()
     item_id: uuid.UUID = await db.fetchval(
         """
-        INSERT INTO inventory_items (inventory_id, product_id, condition, added_at,
-            listing_status, location_id, created_at, updated_at)
-        VALUES ($1, $2, 'GOOD', $3, 'ACTIVE', $4, $3, $3) RETURNING id
+        INSERT INTO inventory_items (inventory_id, owner_inventory_id, product_id, condition,
+            added_at, listing_status, location_id, created_at, updated_at)
+        VALUES ($1, $1, $2, 'GOOD', $3, 'ACTIVE', $4, $3, $3) RETURNING id
         """,
         owner.inventory_id,
         product_id,

@@ -64,7 +64,7 @@ async def get_item_details(
     home_owner = (await resolve_owning_inventory(db, item)).owner_user_id
     holder = (
         home_owner
-        if item.home_inventory_id is None
+        if item.inventory_id == item.owner_inventory_id
         else (await get_inventory(db, item.inventory_id)).owner_user_id
     )
     balance = await repository.find_item_balance(db, item_id)

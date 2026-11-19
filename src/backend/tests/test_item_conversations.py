@@ -160,7 +160,6 @@ async def test_openItemConversation_lentOutItem_resolvesPermanentOwner(
     await _update_item(
         db_session,
         item_id,
-        home_inventory_id=owner_inventory,
         inventory_id=await _create_inventory(client, borrower_token),
     )
 
@@ -205,8 +204,12 @@ async def test_openItemConversation_ownershipChange_opensNewThreadAndOldStaysRea
         client, first_owner_token, await _create_inventory(client, first_owner_token), "Ic flet"
     )
     _, old_thread = await _open(client, asker_token, item_id)
+    new_owner_inventory = await _create_inventory(client, new_owner_token)
     await _update_item(
-        db_session, item_id, inventory_id=await _create_inventory(client, new_owner_token)
+        db_session,
+        item_id,
+        inventory_id=new_owner_inventory,
+        owner_inventory_id=new_owner_inventory,
     )
 
     new_status, new_thread = await _open(client, asker_token, item_id)

@@ -22,7 +22,7 @@ from app.core.base_model import BaseEntity
 from app.core.errors import BusinessConflictException
 from app.inventory import service as inventory_service
 from app.inventory.application import inventory as personal_inventories
-from app.inventory.infrastructure.ledger import MovementLeg, post_movement
+from app.inventory.infrastructure.ledger import MOVEMENT_RULES, MovementLeg, post_movement
 from app.inventory.models import (
     Account,
     AccountType,
@@ -157,6 +157,7 @@ async def _create_item(
 ) -> InventoryItem:
     item = InventoryItem(
         inventory_id=inventory_id,
+        owner_inventory_id=inventory_id,
         product_id=product_id,
         condition=ItemCondition.GOOD,
         added_at=datetime.utcnow(),
@@ -173,9 +174,9 @@ async def _personal_inventories(db: AsyncSession, count: int) -> list[Inventory]
     ]
 
 
-async def _virtual_inventory(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory:
+async def _pickup_point_inventory(db: AsyncSession, owner_user_id: uuid.UUID) -> Inventory:
     inventory = Inventory(
-        owner_user_id=owner_user_id, inventory_type=InventoryType.VIRTUAL, location=None
+        owner_user_id=owner_user_id, inventory_type=InventoryType.PICKUP_POINT, location=None
     )
     db.add(inventory)
     await db.flush()
@@ -244,7 +245,7 @@ async def test_postMovement_fromNotMatchingProjection_raisesConflictWithoutEntri
 
     assert await _ledger_row_counts(db_session) == counts_before
     assert item.inventory_id == _id(owner)
-    assert item.home_inventory_id is None
+    assert item.owner_inventory_id == _id(owner)
 
 
 async def test_postMovement_swapNonCrossingLegs_raisesConflict(db_session: AsyncSession) -> None:
@@ -287,10 +288,12 @@ async def test_postMovement_swapSameItemInBothLegs_raisesConflict(
     assert await _ledger_row_counts(db_session) == counts_before
 
 
-async def test_postMovement_swapWithVirtualSide_raisesConflict(db_session: AsyncSession) -> None:
+async def test_postMovement_swapWithPickupPointSide_raisesConflict(
+    db_session: AsyncSession,
+) -> None:
     product_id = await _create_product(db_session)
     (a,) = await _personal_inventories(db_session, 1)
-    b_virtual = await _virtual_inventory(db_session, await _create_user(db_session))
+    b_virtual = await _pickup_point_inventory(db_session, await _create_user(db_session))
     x = await _create_item(db_session, product_id, _id(a))
     y = await _create_item(db_session, product_id, _id(b_virtual))
     counts_before = await _ledger_row_counts(db_session)
@@ -309,6 +312,95 @@ async def test_postMovement_swapWithVirtualSide_raisesConflict(db_session: Async
 
     assert await _ledger_row_counts(db_session) == counts_before
     assert (x.inventory_id, y.inventory_id) == (_id(a), _id(b_virtual))
+
+
+def test_movementRules_everyMovementType_hasRule() -> None:
+    assert set(MOVEMENT_RULES) == set(MovementType)
+
+
+async def test_postMovement_giftThenLendThenReturn_movesHolderAndOwnerPerRule(
+    db_session: AsyncSession,
+) -> None:
+    product_id = await _create_product(db_session)
+    owner, recipient, borrower = await _personal_inventories(db_session, 3)
+    item = await _create_item(db_session, product_id, _id(owner))
+
+    await post_movement(
+        db_session,
+        movement_type=MovementType.GIFT,
+        legs=[MovementLeg(item, _id(owner), _id(recipient), None)],
+        description="GIFT",
+        occurred_at=datetime.utcnow(),
+    )
+    assert (item.inventory_id, item.owner_inventory_id) == (_id(recipient), _id(recipient))
+
+    await post_movement(
+        db_session,
+        movement_type=MovementType.LEND,
+        legs=[MovementLeg(item, _id(recipient), _id(borrower), None)],
+        description="LEND",
+        occurred_at=datetime.utcnow(),
+    )
+    assert (item.inventory_id, item.owner_inventory_id) == (_id(borrower), _id(recipient))
+
+    await post_movement(
+        db_session,
+        movement_type=MovementType.RETURN,
+        legs=[MovementLeg(item, _id(borrower), _id(recipient), None)],
+        description="RETURN",
+        occurred_at=datetime.utcnow(),
+    )
+    assert (item.inventory_id, item.owner_inventory_id) == (_id(recipient), _id(recipient))
+
+
+async def test_postMovement_giftOfLentItem_raisesConflictWithoutEntries(
+    db_session: AsyncSession,
+) -> None:
+    product_id = await _create_product(db_session)
+    owner, borrower, other = await _personal_inventories(db_session, 3)
+    item = await _create_item(db_session, product_id, _id(owner))
+    await post_movement(
+        db_session,
+        movement_type=MovementType.LEND,
+        legs=[MovementLeg(item, _id(owner), _id(borrower), None)],
+        description="LEND",
+        occurred_at=datetime.utcnow(),
+    )
+    counts_before = await _ledger_row_counts(db_session)
+
+    with pytest.raises(BusinessConflictException, match="wypożyczona"):
+        await post_movement(
+            db_session,
+            movement_type=MovementType.GIFT,
+            legs=[MovementLeg(item, _id(borrower), _id(other), None)],
+            description="GIFT",
+            occurred_at=datetime.utcnow(),
+        )
+
+    assert await _ledger_row_counts(db_session) == counts_before
+    assert (item.inventory_id, item.owner_inventory_id) == (_id(borrower), _id(owner))
+
+
+async def test_postMovement_returnToNonOwner_raisesConflict(db_session: AsyncSession) -> None:
+    product_id = await _create_product(db_session)
+    owner, borrower, other = await _personal_inventories(db_session, 3)
+    item = await _create_item(db_session, product_id, _id(owner))
+    await post_movement(
+        db_session,
+        movement_type=MovementType.LEND,
+        legs=[MovementLeg(item, _id(owner), _id(borrower), None)],
+        description="LEND",
+        occurred_at=datetime.utcnow(),
+    )
+
+    with pytest.raises(BusinessConflictException, match="właściciela"):
+        await post_movement(
+            db_session,
+            movement_type=MovementType.RETURN,
+            legs=[MovementLeg(item, _id(borrower), _id(other), None)],
+            description="RETURN",
+            occurred_at=datetime.utcnow(),
+        )
 
 
 async def test_postMovement_validPersonalSwap_postsFourEntriesAndMatchesProjection(

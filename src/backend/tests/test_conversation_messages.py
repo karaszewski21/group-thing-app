@@ -403,7 +403,9 @@ async def test_sendMessage_deletedItemAndOwnershipChange_itemThreadStaysWritable
     new_owner_token, _ = await _register(client, "cm.item.new@example.com")
     item = await db_session.get(InventoryItem, item_id)
     assert item is not None
-    item.inventory_id = await _create_inventory(client, new_owner_token)
+    new_owner_inventory = await _create_inventory(client, new_owner_token)
+    item.inventory_id = new_owner_inventory
+    item.owner_inventory_id = new_owner_inventory
     await db_session.commit()
 
     after_transfer_owner = await _send(client, owner_token, conversation_id, "Już nie moja")

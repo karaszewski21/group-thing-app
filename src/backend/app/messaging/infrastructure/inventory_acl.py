@@ -26,7 +26,7 @@ __all__ = [
 
 
 async def get_owner_party_id(db: AsyncSession, item: InventoryItem) -> uuid.UUID:
-    """The party of the item's *permanent* owner (`home_inventory_id` while
-    lent out), soft-deleted items included."""
+    """The party of the item's owner (`owner_inventory_id`, also while lent
+    out), soft-deleted items included."""
     inventory = await resolve_owning_inventory(db, item)
     return await users_acl.get_party_id_by_account_user_id(db, inventory.owner_user_id)

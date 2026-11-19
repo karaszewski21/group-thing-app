@@ -1831,7 +1831,7 @@ describe("AppPage — inventory item edit/delete", () => {
   const invItem: inventoriesApi.MyInventoryItemResponse = {
     id: "21",
     inventory_id: "1",
-    home_inventory_id: null,
+    owner_inventory_id: "1",
     product_id: "7",
     product_name: "Rowerek",
     condition: "GOOD" as const,
@@ -1895,7 +1895,7 @@ describe("AppPage — mode toggle errors and photo-moderation poll", () => {
   const modItem: inventoriesApi.MyInventoryItemResponse = {
     id: "70",
     inventory_id: "1",
-    home_inventory_id: null,
+    owner_inventory_id: "1",
     product_id: "11",
     product_name: "Namiot",
     condition: "GOOD" as const,
@@ -1918,8 +1918,6 @@ describe("AppPage — mode toggle errors and photo-moderation poll", () => {
       item_id: modItem.id,
       status: "AVAILABLE",
       reserved_at: null,
-      lent_at: null,
-      returned_at: null,
       due_date: null,
       reservation_id: null,
     });
@@ -2393,7 +2391,7 @@ describe("AppPage — MyItemsView post-term-end fallback buttons (Bug #4c, full 
   const lockedItem: inventoriesApi.MyInventoryItemResponse = {
     id: "30",
     inventory_id: "1",
-    home_inventory_id: null,
+    owner_inventory_id: "1",
     product_id: "8",
     product_name: "Wiertarka",
     condition: "GOOD" as const,
@@ -2459,7 +2457,7 @@ describe("AppPage — MyItemsView swap accept success sheet", () => {
   const swapItem: inventoriesApi.MyInventoryItemResponse = {
     id: "40",
     inventory_id: "1",
-    home_inventory_id: null,
+    owner_inventory_id: "1",
     product_id: "9",
     product_name: "Kask",
     condition: "GOOD" as const,

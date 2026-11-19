@@ -80,6 +80,7 @@ async def _seed_item(db: AsyncSession) -> tuple[list[BaseEntity], uuid.UUID, uui
     await db.flush()
     item = InventoryItem(
         inventory_id=_id(inventory),
+        owner_inventory_id=_id(inventory),
         product_id=_id(product),
         condition=ItemCondition.GOOD,
         added_at=datetime.utcnow(),

@@ -14,7 +14,7 @@ function myItem(id: string): MyInventoryItemResponse {
   return {
     id,
     inventory_id: "inv-1",
-    home_inventory_id: null,
+    owner_inventory_id: "inv-1",
     product_id: `prod-${id}`,
     product_name: `Rzecz ${id}`,
     condition: "GOOD",

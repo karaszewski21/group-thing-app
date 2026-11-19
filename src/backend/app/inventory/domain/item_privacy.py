@@ -142,7 +142,7 @@ def derive_status(
     `home_owner_user_id` its permanent one."""
     if deleted:
         return ItemStatus(ItemStatusCode.DELETED)
-    if balance_status in (None, BalanceStatus.AVAILABLE, BalanceStatus.RETURNED):
+    if balance_status in (None, BalanceStatus.AVAILABLE):
         return ItemStatus(ItemStatusCode.AVAILABLE)
     if balance_status == BalanceStatus.LENT:
         return ItemStatus(

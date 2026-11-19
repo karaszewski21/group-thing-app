@@ -44,7 +44,7 @@ vi.mock("../api/termItemListings", async (importOriginal) => {
 const item: MyInventoryItemResponse = {
   id: "item-1",
   inventory_id: "inv-1",
-  home_inventory_id: null,
+  owner_inventory_id: "inv-1",
   product_id: "prod-1",
   product_name: "Rowerek",
   condition: "GOOD",

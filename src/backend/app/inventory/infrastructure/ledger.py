@@ -3,10 +3,23 @@
 Every change of an item's location is one balanced `InventoryTransaction`
 (-1 on the source inventory's account, +1 on the target's, the EXTERNAL
 account standing in for the outside world), posted in the same commit as
-the `InventoryItem.inventory_id` / `home_inventory_id` / `deleted_at`
-projection it explains. `post_movement` is the only code path that changes
-those columns. It only flushes; the calling use case in `application/`
-commits.
+the `InventoryItem.inventory_id` / `owner_inventory_id` / `deleted_at` /
+`location_id` projection it explains.
+
+Contract of the ledger:
+
+- `post_movement` is the only code path that writes `inventory_transactions`
+  and `inventory_entries` or changes the projection columns above. It only
+  flushes; the calling use case in `application/` commits.
+- What a movement type may do is declared once, in `MOVEMENT_RULES`: how
+  many legs, from where to where, whether it hands ownership over and
+  whether it clears the item's pickup place. A new movement type is a new
+  `MovementType` value plus its rule here.
+- `inventory_id` is where the item is now, `owner_inventory_id` whose it is;
+  they differ only while the item is away from its owner (a LEND until its
+  RETURN). Ownership decisions read `owner_inventory_id`.
+- Other modules never read `accounts` / `inventory_entries` directly; they
+  go through `app.inventory`'s service or an ACL.
 
 Concurrency: the projection update runs under `BaseEntity`'s
 `version_id_col`, so a concurrent movement of the same item updates 0 rows,
@@ -16,6 +29,7 @@ raises `StaleDataError` and surfaces as 409 through the shared handler. The
 
 from __future__ import annotations
 
+import enum
 import uuid
 from collections import Counter
 from collections.abc import Sequence
@@ -38,12 +52,74 @@ from app.inventory.models import (
     MovementType,
 )
 
-_LEGS_WITHOUT_HOME = (
-    MovementType.LEND,
-    MovementType.GIFT,
-    MovementType.SWAP,
-    MovementType.REMOVE,
-)
+
+class Side(enum.Enum):
+    """Where a leg may start or end: the outside world (the EXTERNAL
+    account), any inventory, or the item's owning inventory."""
+
+    EXTERNAL = enum.auto()
+    INVENTORY = enum.auto()
+    OWNER = enum.auto()
+
+
+@dataclass(frozen=True)
+class MovementRule:
+    legs: int
+    source: Side
+    target: Side
+    transfers_ownership: bool
+    requires_item_at_owner: bool
+    clears_location: bool = False
+    crossing_swap: bool = False
+
+
+MOVEMENT_RULES: dict[MovementType, MovementRule] = {
+    MovementType.REGISTER: MovementRule(
+        legs=1,
+        source=Side.EXTERNAL,
+        target=Side.INVENTORY,
+        transfers_ownership=True,
+        requires_item_at_owner=False,
+    ),
+    MovementType.REMOVE: MovementRule(
+        legs=1,
+        source=Side.INVENTORY,
+        target=Side.EXTERNAL,
+        transfers_ownership=False,
+        requires_item_at_owner=True,
+    ),
+    MovementType.GIFT: MovementRule(
+        legs=1,
+        source=Side.INVENTORY,
+        target=Side.INVENTORY,
+        transfers_ownership=True,
+        requires_item_at_owner=True,
+        clears_location=True,
+    ),
+    MovementType.SWAP: MovementRule(
+        legs=2,
+        source=Side.INVENTORY,
+        target=Side.INVENTORY,
+        transfers_ownership=True,
+        requires_item_at_owner=True,
+        clears_location=True,
+        crossing_swap=True,
+    ),
+    MovementType.LEND: MovementRule(
+        legs=1,
+        source=Side.INVENTORY,
+        target=Side.INVENTORY,
+        transfers_ownership=False,
+        requires_item_at_owner=True,
+    ),
+    MovementType.RETURN: MovementRule(
+        legs=1,
+        source=Side.INVENTORY,
+        target=Side.OWNER,
+        transfers_ownership=False,
+        requires_item_at_owner=False,
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -70,9 +146,10 @@ async def post_movement(
     leg and updates each item's projection, all flushed and not committed.
     Rule violations raise `BusinessConflictException` before anything is
     written; an unbalanced entry set raises `ValueError`."""
-    _validate_legs(movement_type, legs)
+    rule = MOVEMENT_RULES[movement_type]
+    _validate_legs(movement_type, rule, legs)
     accounts = await _resolve_accounts(db, legs)
-    if movement_type == MovementType.SWAP:
+    if rule.crossing_swap:
         _require_personal_swap_crossing(legs, accounts)
 
     entry_lines = [
@@ -106,39 +183,40 @@ async def post_movement(
     )
 
     for leg in legs:
-        _apply_projection(movement_type, leg, occurred_at)
+        _apply_projection(rule, leg, occurred_at)
     await db.flush()
     return transaction
 
 
-def _validate_legs(movement_type: MovementType, legs: Sequence[MovementLeg]) -> None:
-    if movement_type == MovementType.SWAP:
+def _validate_legs(
+    movement_type: MovementType, rule: MovementRule, legs: Sequence[MovementLeg]
+) -> None:
+    if rule.legs == 2:
         if len(legs) != 2 or legs[0].item.id == legs[1].item.id:
             raise BusinessConflictException("Zamiana wymaga dwóch nóg z różnymi rzeczami")
-    elif len(legs) != 1:
+    elif len(legs) != rule.legs:
         raise BusinessConflictException(f"Ruch {movement_type} wymaga dokładnie jednej nogi")
 
     for leg in legs:
-        _require_leg_shape(movement_type, leg)
+        _require_leg_shape(movement_type, rule, leg)
         item = leg.item
         if item.deleted_at is not None:
             raise BusinessConflictException("Rzecz została usunięta")
         if leg.from_inventory_id is not None and item.inventory_id != leg.from_inventory_id:
             raise BusinessConflictException("Rzecz nie znajduje się w inwentarzu źródłowym")
-        if movement_type == MovementType.RETURN and item.home_inventory_id != leg.to_inventory_id:
-            raise BusinessConflictException("Zwrot musi trafić do inwentarza domowego rzeczy")
-        if movement_type in _LEGS_WITHOUT_HOME and item.home_inventory_id is not None:
+        if rule.target == Side.OWNER and item.owner_inventory_id != leg.to_inventory_id:
+            raise BusinessConflictException("Zwrot musi trafić do inwentarza właściciela rzeczy")
+        if rule.requires_item_at_owner and item.inventory_id != item.owner_inventory_id:
             raise BusinessConflictException("Rzecz jest wypożyczona i najpierw musi wrócić")
 
 
-def _require_leg_shape(movement_type: MovementType, leg: MovementLeg) -> None:
+def _require_leg_shape(movement_type: MovementType, rule: MovementRule, leg: MovementLeg) -> None:
     source, target = leg.from_inventory_id, leg.to_inventory_id
-    if movement_type == MovementType.REGISTER:
-        valid = source is None and target is not None
-    elif movement_type == MovementType.REMOVE:
-        valid = source is not None and target is None
-    else:
-        valid = source is not None and target is not None and source != target
+    valid = (source is None) == (rule.source == Side.EXTERNAL) and (target is None) == (
+        rule.target == Side.EXTERNAL
+    )
+    if source is not None and target is not None and source == target:
+        valid = False
     if not valid:
         raise BusinessConflictException(f"Nieprawidłowy kształt nogi ruchu {movement_type}")
 
@@ -186,15 +264,13 @@ def _require_personal_swap_crossing(
         raise BusinessConflictException("Zamiana wymaga dwóch różnych właścicieli")
 
 
-def _apply_projection(movement_type: MovementType, leg: MovementLeg, occurred_at: datetime) -> None:
+def _apply_projection(rule: MovementRule, leg: MovementLeg, occurred_at: datetime) -> None:
     item = leg.item
-    if leg.to_inventory_id is not None:
-        item.inventory_id = leg.to_inventory_id
-    else:
+    if leg.to_inventory_id is None:
         item.deleted_at = occurred_at
-    if movement_type in (MovementType.GIFT, MovementType.SWAP):
+        return
+    item.inventory_id = leg.to_inventory_id
+    if rule.transfers_ownership:
+        item.owner_inventory_id = leg.to_inventory_id
+    if rule.clears_location:
         item.location_id = None
-    if movement_type == MovementType.LEND:
-        item.home_inventory_id = leg.from_inventory_id
-    elif movement_type == MovementType.RETURN:
-        item.home_inventory_id = None

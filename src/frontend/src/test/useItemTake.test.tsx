@@ -46,7 +46,7 @@ const proposal: SwapProposalResponse = {
 const mySwapItem: MyInventoryItemResponse = {
   id: "m1",
   inventory_id: "inv",
-  home_inventory_id: null,
+  owner_inventory_id: "inv",
   product_id: "pr1",
   product_name: "Blender",
   condition: "GOOD",
@@ -67,8 +67,6 @@ const available: InventoryBalanceResponse = {
   item_id: "m1",
   status: "AVAILABLE",
   reserved_at: null,
-  lent_at: null,
-  returned_at: null,
   due_date: null,
   reservation_id: null,
 };

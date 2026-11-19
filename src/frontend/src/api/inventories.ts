@@ -4,9 +4,9 @@ import type { ItemVisibility, ListingMode } from "./itemListingPreferences";
 import type { ProductResponse } from "./products";
 import type { ReservationType } from "./reservations";
 
-export type InventoryType = "PERSONAL" | "PICKUP_POINT" | "VIRTUAL";
+export type InventoryType = "PERSONAL" | "PICKUP_POINT";
 export type ItemCondition = "NEW" | "LIKE_NEW" | "GOOD" | "FAIR" | "POOR";
-export type BalanceStatus = "AVAILABLE" | "RESERVED" | "IN_TRANSIT" | "LENT" | "RETURNED";
+export type BalanceStatus = "AVAILABLE" | "RESERVED" | "IN_TRANSIT" | "LENT";
 /** `DRAFT` until the item is first offered (or after its mode is cleared). */
 export type ListingStatus = "DRAFT" | "ACTIVE";
 
@@ -27,7 +27,7 @@ export interface CreateInventoryRequest {
 export interface InventoryItemResponse {
   id: string;
   inventory_id: string;
-  home_inventory_id: string | null;
+  owner_inventory_id: string;
   product_id: string;
   product_name: string;
   condition: ItemCondition;
@@ -72,8 +72,6 @@ export interface InventoryBalanceResponse {
   item_id: string;
   status: BalanceStatus;
   reserved_at: string | null;
-  lent_at: string | null;
-  returned_at: string | null;
   due_date: string | null;
   // The item's in-flight Reservation id — set only for RESERVED/IN_TRANSIT
   // `status`, `null` otherwise. Backs MyItemsView's "Odebrał"/"Anuluj

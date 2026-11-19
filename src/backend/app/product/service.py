@@ -60,7 +60,7 @@ _inventory_items = table(
     "inventory_items",
     column("product_id", postgresql.UUID(as_uuid=True)),
     column("inventory_id", postgresql.UUID(as_uuid=True)),
-    column("home_inventory_id", postgresql.UUID(as_uuid=True)),
+    column("owner_inventory_id", postgresql.UUID(as_uuid=True)),
     column("deleted_at", DateTime),
 )
 _inventories = table(
@@ -268,22 +268,19 @@ async def _find_item_owner(
     db: AsyncSession, product_id: uuid.UUID, principal: Principal
 ) -> uuid.UUID | None:
     """The caller's user id when they own a non-deleted item of the
-    product, else `None`. Ownership is the home inventory's owner, so an
+    product, else `None`. Ownership is the owning inventory's owner, so an
     owner keeps the right while the item is lent out."""
     user_id = (
         await db.execute(select(User.id).where(User.username == principal.username))
     ).scalar_one_or_none()
     if user_id is None:
         return None
-    owning_inventory_id = func.coalesce(
-        _inventory_items.c.home_inventory_id, _inventory_items.c.inventory_id
-    )
     owns_item = await db.scalar(
         select(
             exists().where(
                 _inventory_items.c.product_id == product_id,
                 _inventory_items.c.deleted_at.is_(None),
-                _inventories.c.id == owning_inventory_id,
+                _inventories.c.id == _inventory_items.c.owner_inventory_id,
                 _inventories.c.owner_user_id == user_id,
             )
         )

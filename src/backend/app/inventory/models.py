@@ -6,8 +6,9 @@ where items are and who is about to receive them. `Account` /
 item movements between inventories: every inventory has exactly one
 INVENTORY account, the single EXTERNAL account stands for the world outside
 the system, and each movement is one balanced transaction of -1/+1 entries
-per item. `InventoryItem.inventory_id` / `home_inventory_id` are the
-projection of that ledger (see `docs/system-wypozyczalni-inventory-accounting.md`).
+per item. `InventoryItem.inventory_id` (where the item is) /
+`owner_inventory_id` (whose it is) are the projection of that ledger (see
+`docs/system-wypozyczalni-inventory-accounting.md`).
 `InventoryItem.product_id` points at `app.product.models.Product`, the
 shared product catalog.
 
@@ -74,7 +75,6 @@ class MovementType(enum.StrEnum):
 class InventoryType(enum.StrEnum):
     PERSONAL = "PERSONAL"
     PICKUP_POINT = "PICKUP_POINT"
-    VIRTUAL = "VIRTUAL"
 
 
 class ItemCondition(enum.StrEnum):
@@ -86,14 +86,13 @@ class ItemCondition(enum.StrEnum):
 
 
 class BalanceStatus(enum.StrEnum):
-    """`LENT`/`RETURNED` are no longer set but stay loadable for existing
-    rows."""
+    """`LENT` is the state of an item away from its owner on a loan; no
+    flow sets it at the moment."""
 
     AVAILABLE = "AVAILABLE"
     RESERVED = "RESERVED"
     IN_TRANSIT = "IN_TRANSIT"
     LENT = "LENT"
-    RETURNED = "RETURNED"
 
 
 class ReservationType(enum.StrEnum):
@@ -195,6 +194,7 @@ class InventoryItem(BaseEntity):
             "location_id",
             postgresql_where=text("location_id IS NOT NULL"),
         ),
+        Index("ix_inventory_items_owner_inventory_id", "owner_inventory_id"),
     )
 
     inventory_id: Mapped[uuid.UUID] = mapped_column(
@@ -218,14 +218,13 @@ class InventoryItem(BaseEntity):
     )
     added_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
-    # Set only while the item is temporarily away from its permanent
-    # inventory (`inventory_id` then points at another user's VIRTUAL
-    # inventory); maintained by the ledger's projection in
-    # `infrastructure/ledger.py`.
-    home_inventory_id: Mapped[uuid.UUID | None] = mapped_column(
+    # Whose the item is: equal to `inventory_id` except while the item is
+    # away from its owner (a LEND until its RETURN). Maintained by the
+    # ledger's projection in `infrastructure/ledger.py`.
+    owner_inventory_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),
-        ForeignKey("inventories.id", name="fk_inventory_items_home_inventory_id_inventories"),
-        nullable=True,
+        ForeignKey("inventories.id", name="fk_inventory_items_owner_inventory_id_inventories"),
+        nullable=False,
     )
     # The item's pickup place, a `Location` of the `locations` module. Set on
     # create and by PATCH, cleared by a GIFT/SWAP transfer. No `ON DELETE`:
@@ -251,8 +250,6 @@ class InventoryBalance(BaseEntity):
     )
     status: Mapped[BalanceStatus] = mapped_column(_enum_column(BalanceStatus, 20), nullable=False)
     reserved_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
-    lent_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
-    returned_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
     due_date: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
 

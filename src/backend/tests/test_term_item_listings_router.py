@@ -238,7 +238,7 @@ async def test_listMyInventoryItems_returnsOnlyCallersOwnWithModeAndReflectsClea
     assert set(untagged.json()) == {
         "id",
         "inventory_id",
-        "home_inventory_id",
+        "owner_inventory_id",
         "product_id",
         "product_name",
         "condition",
@@ -267,7 +267,7 @@ async def test_listMyInventoryItems_returnsOnlyCallersOwnWithModeAndReflectsClea
             {
                 "id",
                 "inventory_id",
-                "home_inventory_id",
+                "owner_inventory_id",
                 "product_id",
                 "product_name",
                 "condition",

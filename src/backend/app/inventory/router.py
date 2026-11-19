@@ -64,7 +64,7 @@ def _item_response(item: InventoryItem, product_name: str) -> InventoryItemRespo
     return InventoryItemResponse(
         id=item.id,
         inventory_id=item.inventory_id,
-        home_inventory_id=item.home_inventory_id,
+        owner_inventory_id=item.owner_inventory_id,
         product_id=item.product_id,
         product_name=product_name,
         condition=item.condition,
@@ -224,8 +224,6 @@ async def get_item_balance(
         item_id=balance.item_id,
         status=balance.status,
         reserved_at=balance.reserved_at,
-        lent_at=balance.lent_at,
-        returned_at=balance.returned_at,
         due_date=balance.due_date,
         reservation_id=reservation_id,
     )

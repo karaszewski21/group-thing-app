@@ -121,7 +121,7 @@ function savedItem(): InventoryItemResponse {
   return {
     id: ITEM_ID,
     inventory_id: "inv-1",
-    home_inventory_id: null,
+    owner_inventory_id: "inv-1",
     product_id: PRODUCT_ID,
     product_name: "Wózek spacerowy",
     condition: "GOOD",
