@@ -1,14 +1,21 @@
 import { describe, expect, it } from "vitest";
-import type { Category } from "../api/categories";
+import type { Category, SizeClass } from "../api/categories";
 import {
   buildCategoryIndex,
   categoryPathNames,
   formatCategoryPath,
   isLeaf,
+  resolveSizeClass,
   searchCategories,
 } from "../utils/categoryTree";
 
-function category(id: string, name: string, parent_id: string | null, sort_order: number): Category {
+function category(
+  id: string,
+  name: string,
+  parent_id: string | null,
+  sort_order: number,
+  size_class: SizeClass | null = null,
+): Category {
   return {
     id,
     name,
@@ -16,6 +23,7 @@ function category(id: string, name: string, parent_id: string | null, sort_order
     parent_id,
     sort_order,
     product_count: 0,
+    size_class,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   };
@@ -23,9 +31,9 @@ function category(id: string, name: string, parent_id: string | null, sort_order
 
 // Deliberately unsorted input: the index must order children by sort_order.
 const categories: Category[] = [
-  category("dzieci", "Dzieci", null, 1),
+  category("dzieci", "Dzieci", null, 1, "LARGE"),
   category("kobiety", "Kobiety", null, 0),
-  category("ubrania", "Ubrania", "kobiety", 1),
+  category("ubrania", "Ubrania", "kobiety", 1, "SMALL"),
   category("buty", "Buty", "kobiety", 0),
   category("sukienki", "Sukienki", "ubrania", 0),
   category("midi", "Sukienki midi", "sukienki", 0),
@@ -84,5 +92,20 @@ describe("categoryTree", () => {
     ],
   ])("%s", (_name, check) => {
     check();
+  });
+});
+
+describe("resolveSizeClass", () => {
+  it.each<[string, string, SizeClass, boolean]>([
+    ["own class on a root", "dzieci", "LARGE", false],
+    ["own class on an inner node", "ubrania", "SMALL", false],
+    ["inherited from the parent", "sukienki", "SMALL", true],
+    ["inherited from the nearest ancestor past an unset parent", "midi", "SMALL", true],
+    ["inherited from a root", "lozka", "LARGE", true],
+    ["root without a class defaults to MEDIUM", "kobiety", "MEDIUM", true],
+    ["child of a root without a class defaults to MEDIUM", "buty", "MEDIUM", true],
+    ["unknown id defaults to MEDIUM", "missing", "MEDIUM", true],
+  ])("%s", (_name, id, value, inherited) => {
+    expect(resolveSizeClass(index, id)).toEqual({ value, inherited });
   });
 });

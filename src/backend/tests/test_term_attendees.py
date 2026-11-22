@@ -110,7 +110,11 @@ async def test_listAttendees_familyWithChildren_returnsChildBirthYearsOnly(
         "family_id",
         "family_name",
         "children",
+        "present",
+        "is_organizer",
     }
+    assert attendee["present"] is False
+    assert attendee["is_organizer"] is False
 
 
 async def test_listAttendees_attendeeWithoutFamilyOrChildren_returnsEmptyChildren(

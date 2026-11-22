@@ -99,6 +99,14 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # through to the weaker rules below.
     (_methods("GET"), r"^/api/groups/moderation$", ("ADMIN",)),
     (_methods("POST"), r"^/api/groups/[^/]+/restore$", ("ADMIN",)),
+    # 70: the organizer's presence tick (app.groups `attendance_points`).
+    # Rows 26-27 cover only GET/POST, so without it the PUT would fall to
+    # the AUTHENTICATED catch-all; the organizer check lives in the service.
+    (
+        _methods("PUT"),
+        r"^/api/groups/[^/]+/terms/[^/]+/attendees/[^/]+/presence$",
+        ("EDIT", "mcp:edit"),
+    ),  # 70
     # 26-47: app.party / app.inventory — added beyond spec.md's original 25
     # rows for the Organizer/Circle/Family + Wypożyczalnia domain. Ownership
     # checks the matrix itself can't express (active organizer, own-family
@@ -246,6 +254,11 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # `app.wants.application`.
     (_methods("GET"), r"^/api/wants(/.*)?$", ("READ",)),  # 66
     (_methods("POST", "PATCH"), r"^/api/wants(/.*)?$", ("EDIT",)),  # 67
+    # 68-69: app.points. The tunable config is ADMIN-only; every other read
+    # (attendance rules, the owner's balance and history) is for logged-in
+    # users only, so, as for wants, the OAuth `mcp:*` scopes are not accepted.
+    (_methods("GET", "PUT"), r"^/api/points/config$", ("ADMIN",)),  # 68
+    (_methods("GET"), r"^/api/points(/.*)?$", ("READ",)),  # 69
     (None, r"^.*$", "AUTHENTICATED"),  # 25 - catch-all
 )
 

@@ -90,6 +90,22 @@ describe("Sidebar ADMIN gating", () => {
     neither.unmount();
   });
 
+  it("shows the Points nav item linking to /admin/points only for ADMIN principals", () => {
+    mockAuth(["ADMIN"]);
+    const admin = renderSidebar();
+    expect(screen.getByText("Points").closest("a")).toHaveAttribute("href", "/admin/points");
+    admin.unmount();
+
+    mockAuth(["PLUGIN_MANAGEMENT"]);
+    const pluginOnly = renderSidebar();
+    expect(screen.queryByText("Points")).not.toBeInTheDocument();
+    pluginOnly.unmount();
+
+    mockAuth([]);
+    renderSidebar();
+    expect(screen.queryByText("Points")).not.toBeInTheDocument();
+  });
+
   it("shows Plugins NavItem and PluginMenuItems sub-items for PLUGIN_MANAGEMENT-only principal", () => {
     mockAuth(["PLUGIN_MANAGEMENT"]);
     mockPlugins(PLUGIN_MENU_ITEMS);

@@ -22,6 +22,7 @@ const mockCategories: Category[] = [
     parent_id: null,
     sort_order: 0,
     product_count: 3,
+    size_class: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   },
@@ -32,6 +33,7 @@ const mockCategories: Category[] = [
     parent_id: null,
     sort_order: 1,
     product_count: 1,
+    size_class: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   },
@@ -84,8 +86,8 @@ describe("useCategories", () => {
     expect(categoriesApi.createCategory).toHaveBeenCalledWith({ name: "Dom", parent_id: null });
     expect(categoriesApi.getCategories).toHaveBeenCalledTimes(2);
 
-    await result.current.update("2", { name: "Komiksy" });
-    expect(categoriesApi.updateCategory).toHaveBeenCalledWith("2", { name: "Komiksy" });
+    await result.current.update("2", { name: "Komiksy", size_class: null });
+    expect(categoriesApi.updateCategory).toHaveBeenCalledWith("2", { name: "Komiksy", size_class: null });
     expect(categoriesApi.getCategories).toHaveBeenCalledTimes(3);
   });
 

@@ -19,6 +19,8 @@ import uuid
 from datetime import date, datetime
 
 from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
     Computed,
     Date,
     DateTime,
@@ -235,6 +237,18 @@ class Term(BaseEntity):
     __table_args__ = (
         Index("ix_terms_circle_group_id_occurs_on", "circle_group_id", "occurs_on"),
         Index("ix_terms_search_vector", "search_vector", postgresql_using="gin"),
+        # Candidates of the attendance auto-close job (migration 0104).
+        Index(
+            "ix_terms_occurs_on_attendance_open",
+            "occurs_on",
+            postgresql_where=text("attendance_closed_at IS NULL"),
+        ),
+        CheckConstraint("attendance_points >= 0", name="ck_terms_attendance_points_nonnegative"),
+        CheckConstraint(
+            "num_nonnulls(attendance_closed_at, attendance_min_present, "
+            "attendance_present_count, attendance_rewarded) IN (0, 4)",
+            name="ck_terms_attendance_closed",
+        ),
     )
 
     circle_group_id: Mapped[uuid.UUID] = mapped_column(
@@ -266,6 +280,16 @@ class Term(BaseEntity):
         deferred=True,
         deferred_raiseload=True,
     )
+    # The points level an attendee earns for being present (migration 0104).
+    attendance_points: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+    # Naive UTC. Set once when the attendance list closes, together with the
+    # frozen close result below: all four are NULL or all are set.
+    attendance_closed_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    attendance_min_present: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    attendance_present_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    attendance_rewarded: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
 
 class NeededItem(BaseEntity):
@@ -334,6 +358,8 @@ class TermAttendance(BaseEntity):
     # `NULL` = active RSVP; non-null = the guardian withdrew. Nullable-
     # timestamp shape follows `NeededItem.deleted_at`.
     withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    # Naive UTC; non-NULL = the organizer marked the party present.
+    present_marked_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
 
 class ItemListingPreference(BaseEntity):

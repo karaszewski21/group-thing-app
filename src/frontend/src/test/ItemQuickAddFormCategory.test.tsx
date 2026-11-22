@@ -18,6 +18,7 @@ const mockCategories: Category[] = [
     parent_id: null,
     sort_order: 0,
     product_count: 1,
+    size_class: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   },

@@ -1,5 +1,8 @@
 import { api } from "./client";
 
+/** The points valuation size of a category; `null` on a category means it inherits. */
+export type SizeClass = "SMALL" | "MEDIUM" | "LARGE";
+
 /** Matches the backend's snake_case `CategoryResponse`; `parent_id` is null for a root. */
 export interface Category {
   id: string;
@@ -8,6 +11,7 @@ export interface Category {
   parent_id: string | null;
   sort_order: number;
   product_count: number;
+  size_class: SizeClass | null;
   created_at: string;
   updated_at: string;
 }
@@ -16,11 +20,14 @@ export interface CreateCategoryRequest {
   name: string;
   description?: string;
   parent_id?: string | null;
+  size_class?: SizeClass | null;
 }
 
+/** A full replace: an omitted `size_class` resets the category to inherit. */
 export interface UpdateCategoryRequest {
   name: string;
   description?: string;
+  size_class: SizeClass | null;
 }
 
 export type MoveCategoryDirection = "up" | "down";

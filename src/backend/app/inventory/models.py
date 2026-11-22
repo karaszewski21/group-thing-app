@@ -31,6 +31,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    SmallInteger,
     String,
     UniqueConstraint,
     text,
@@ -234,6 +235,10 @@ class InventoryItem(BaseEntity):
         ForeignKey("locations.id", name="fk_inventory_items_location_id_locations"),
         nullable=True,
     )
+    # 20, 40 or 60 points from the category's size class and the condition,
+    # set on create and when the condition or product changes (migration
+    # 0104). Never exposed in a response.
+    points_value: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
 
 
 class InventoryBalance(BaseEntity):

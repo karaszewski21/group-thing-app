@@ -35,6 +35,7 @@ from app.db import TRANSACTION_CONFLICTS, async_session_factory
 from app.embeddings import service as embeddings_service
 from app.events.router import router as events_router
 from app.families.router import router as families_router
+from app.groups.application.attendance_points import close_due_attendance
 from app.groups.application.term_end_scan import scan_for_term_ended
 from app.groups.router import router as groups_router
 from app.inventory.router import router as inventory_router
@@ -51,6 +52,7 @@ from app.organizations.router import router as organizations_router
 from app.outbox import scheduler as outbox_scheduler
 from app.pages.router import router as pages_router
 from app.plugin.router import router as plugin_router
+from app.points.router import router as points_router
 from app.product import embeddings as product_embeddings
 from app.product.router import router as product_router
 from app.search.router import router as search_router
@@ -78,6 +80,7 @@ _term_end_scheduler: AsyncIOScheduler | None = None
 # `standards/global/minimal-implementation.md`.
 _TERM_END_SCAN_INTERVAL_MINUTES = 1
 _MEDIA_SWEEP_INTERVAL_MINUTES = 15
+_ATTENDANCE_CLOSE_INTERVAL_MINUTES = 15
 _EMBEDDING_RECONCILE_INTERVAL_MINUTES = 1
 _EMBEDDING_RECONCILE_LIMIT = 300
 
@@ -85,6 +88,16 @@ _EMBEDDING_RECONCILE_LIMIT = 300
 async def _run_term_end_scan() -> None:
     async with async_session_factory() as db:
         await scan_for_term_ended(db)
+
+
+async def _run_attendance_close() -> None:
+    """Per-term failures are handled inside the job; this catches the
+    candidate read, logged once and never re-raised."""
+    try:
+        async with async_session_factory() as db:
+            await close_due_attendance(db)
+    except Exception:
+        logger.exception("attendance close run failed")
 
 
 async def _run_media_sweep() -> None:
@@ -237,6 +250,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     )
     _term_end_scheduler.add_job(_run_media_sweep, "interval", minutes=_MEDIA_SWEEP_INTERVAL_MINUTES)
     _term_end_scheduler.add_job(
+        _run_attendance_close, "interval", minutes=_ATTENDANCE_CLOSE_INTERVAL_MINUTES
+    )
+    _term_end_scheduler.add_job(
         _run_embedding_reconcile, "interval", minutes=_EMBEDDING_RECONCILE_INTERVAL_MINUTES
     )
     _term_end_scheduler.start()
@@ -287,4 +303,5 @@ app.include_router(messaging_router)
 app.include_router(moderation_router)
 app.include_router(search_router)
 app.include_router(wants_router)
+app.include_router(points_router)
 app.include_router(system_router)

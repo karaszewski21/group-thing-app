@@ -2,9 +2,11 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
-import type { Category } from "../api/categories";
+import type { Category, SizeClass } from "../api/categories";
 import * as categoriesApi from "../api/categories";
 import { ApiError } from "../api/client";
+import type { PointsConfig } from "../api/points";
+import * as pointsApi from "../api/points";
 import { CategoryFormPage } from "../features/admin/CategoryFormPage";
 import { createQueryWrapper } from "./queryClient";
 import { renderWithRoute } from "./renderWithRoute";
@@ -16,7 +18,38 @@ vi.mock("../api/categories", () => ({
   updateCategory: vi.fn(),
 }));
 
-function category(id: string, name: string, parentId: string | null, sortOrder: number): Category {
+vi.mock("../api/points", () => ({
+  getPointsConfig: vi.fn(),
+}));
+
+const POINTS_CONFIG: PointsConfig = {
+  base_small: 20,
+  base_medium: 40,
+  base_large: 60,
+  multiplier_new: 1.5,
+  multiplier_like_new: 1.25,
+  multiplier_good: 1,
+  multiplier_fair: 0.75,
+  multiplier_poor: 0.5,
+  swap_award: 10,
+  wants_bonus: 10,
+  attendance_levels: [0, 10, 20],
+  attendance_monthly_cap: 40,
+  attendance_min_present: 3,
+  attendance_auto_close_days: 7,
+  pair_reward_limit: 3,
+  pair_window_days: 30,
+  max_points_offers: 5,
+  updated_at: "2026-11-19T10:00:00",
+};
+
+function category(
+  id: string,
+  name: string,
+  parentId: string | null,
+  sortOrder: number,
+  sizeClass: SizeClass | null = null,
+): Category {
   return {
     id,
     name,
@@ -24,6 +57,7 @@ function category(id: string, name: string, parentId: string | null, sortOrder: 
     parent_id: parentId,
     sort_order: sortOrder,
     product_count: 0,
+    size_class: sizeClass,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   };
@@ -31,7 +65,7 @@ function category(id: string, name: string, parentId: string | null, sortOrder: 
 
 const mockCategories: Category[] = [
   category("r1", "Kobiety", null, 0),
-  category("c1", "Ubrania", "r1", 0),
+  category("c1", "Ubrania", "r1", 0, "LARGE"),
   category("l1", "Sukienki", "c1", 0),
 ];
 
@@ -55,6 +89,7 @@ function renderAt(initialRoute: string) {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
+  vi.mocked(pointsApi.getPointsConfig).mockResolvedValue(POINTS_CONFIG);
 });
 
 describe("CategoryFormPage", () => {
@@ -65,11 +100,13 @@ describe("CategoryFormPage", () => {
     expect(await screen.findByRole("heading", { name: "Nowa podkategoria" })).toBeInTheDocument();
     const trigger = await screen.findByRole("button", { name: /^Kategoria nadrzędna Kobiety › Ubrania/ });
     expect(trigger).toHaveAccessibleDescription("Puste = kategoria główna. Nie można zmienić po utworzeniu.");
-    // Field order: parent, name, description.
+    // Field order: parent, name, size class, description.
     const name = screen.getByLabelText("Nazwa");
+    const sizeClass = screen.getByLabelText("Klasa wielkości (wycena punktowa)");
     const description = screen.getByLabelText("Opis (opcjonalnie)");
     expect(trigger.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(name.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(name.compareDocumentPosition(sizeClass) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(sizeClass.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     fireEvent.change(name, { target: { value: "Sukienki koktajlowe" } });
     await act(async () => {
@@ -81,6 +118,7 @@ describe("CategoryFormPage", () => {
         name: "Sukienki koktajlowe",
         description: undefined,
         parent_id: "c1",
+        size_class: null,
       }),
     );
     expect(await screen.findByText("Lista kategorii")).toBeInTheDocument();
@@ -106,7 +144,7 @@ describe("CategoryFormPage", () => {
     });
 
     await waitFor(() =>
-      expect(categoriesApi.createCategory).toHaveBeenCalledWith({ name: "Dom", description: undefined, parent_id: null }),
+      expect(categoriesApi.createCategory).toHaveBeenCalledWith({ name: "Dom", description: undefined, parent_id: null, size_class: null }),
     );
   });
 
@@ -126,7 +164,11 @@ describe("CategoryFormPage", () => {
       fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
     });
 
-    expect(categoriesApi.updateCategory).toHaveBeenCalledWith("l1", { name: "Sukienki", description: "Midi" });
+    expect(categoriesApi.updateCategory).toHaveBeenCalledWith("l1", {
+      name: "Sukienki",
+      description: "Midi",
+      size_class: null,
+    });
     expect(await screen.findByRole("alert")).toHaveTextContent(message);
     expect(screen.queryByText("Lista kategorii")).not.toBeInTheDocument();
   });
@@ -141,6 +183,80 @@ describe("CategoryFormPage", () => {
     });
 
     expect(categoriesApi.createCategory).not.toHaveBeenCalled();
+  });
+});
+
+describe("CategoryFormPage — size class", () => {
+  function optionLabels(select: HTMLElement): string[] {
+    return within(select)
+      .getAllByRole("option")
+      .map((option) => option.textContent ?? "");
+  }
+
+  it("names the inherited parent value and sends the chosen class", async () => {
+    vi.mocked(categoriesApi.getCategory).mockResolvedValue(mockCategories[2]!);
+    vi.mocked(categoriesApi.updateCategory).mockResolvedValue({ ...mockCategories[2]!, size_class: "SMALL" });
+    renderAt("/admin/categories/l1/edit");
+
+    await screen.findByDisplayValue("Sukienki");
+    const select = screen.getByLabelText("Klasa wielkości (wycena punktowa)");
+    await waitFor(() =>
+      expect(optionLabels(select)).toEqual([
+        "Dziedzicz z kategorii nadrzędnej (obecnie: Duża)",
+        "Mała – baza 20 pkt",
+        "Średnia – baza 40 pkt",
+        "Duża – baza 60 pkt",
+      ]),
+    );
+    expect(select).toHaveValue("");
+    expect(select).toHaveAccessibleDescription(
+      "Podkategorie bez ustawionej klasy dziedziczą tę wartość. Zmiana nie wpływa na ceny już wystawionych rzeczy.",
+    );
+
+    fireEvent.change(select, { target: { value: "SMALL" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+    });
+
+    await waitFor(() =>
+      expect(categoriesApi.updateCategory).toHaveBeenCalledWith("l1", {
+        name: "Sukienki",
+        description: undefined,
+        size_class: "SMALL",
+      }),
+    );
+  });
+
+  it("loads the own class and sends size_class null for Dziedzicz", async () => {
+    vi.mocked(categoriesApi.getCategory).mockResolvedValue(mockCategories[1]!);
+    vi.mocked(categoriesApi.updateCategory).mockResolvedValue({ ...mockCategories[1]!, size_class: null });
+    renderAt("/admin/categories/c1/edit");
+
+    await screen.findByDisplayValue("Ubrania");
+    const select = screen.getByLabelText("Klasa wielkości (wycena punktowa)");
+    expect(select).toHaveValue("LARGE");
+    // The parent is a root without a class, so the inherited value is the default.
+    expect(optionLabels(select)[0]).toBe("Dziedzicz z kategorii nadrzędnej (obecnie: Średnia)");
+
+    fireEvent.change(select, { target: { value: "" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+    });
+
+    await waitFor(() =>
+      expect(categoriesApi.updateCategory).toHaveBeenCalledWith("c1", {
+        name: "Ubrania",
+        description: undefined,
+        size_class: null,
+      }),
+    );
+  });
+
+  it("offers the root default for a new root category", async () => {
+    renderAt("/admin/categories/new");
+
+    const select = await screen.findByLabelText("Klasa wielkości (wycena punktowa)");
+    expect(optionLabels(select)[0]).toBe("Dziedzicz (domyślnie: Średnia)");
   });
 });
 

@@ -19,6 +19,7 @@ CATEGORY_KEYS = {
     "description",
     "sort_order",
     "product_count",
+    "size_class",
     "created_at",
     "updated_at",
 }

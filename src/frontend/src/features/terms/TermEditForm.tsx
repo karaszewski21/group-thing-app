@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createNeededItem,
   deleteNeededItem,
@@ -13,6 +14,8 @@ import { serverMessageOr } from "../../api/problem";
 import { CapacityField, Field, INPUT_CLASS } from "../../components/shared/appComponents";
 import { parseCapacity } from "../../utils/appHelpers";
 import { LocationPicker } from "../../components/shared/LocationPicker";
+import { TERM_ATTENDANCE_KEY, useTermAttendance } from "../../hooks/useTermAttendance";
+import { AttendancePointsPicker } from "./components/AttendancePointsPicker";
 import { toLocalInput, type TermDraft } from "./termDraft";
 
 /** The "Edytuj termin" form shown on `/terms/:termId/edit` (`TermEditView`).
@@ -85,6 +88,9 @@ export function TermEditForm({ term, draft, onDraftChange, neededItems, onChange
   const { occursOn, description, locationId } = draft;
   const capacity = parseCapacity(draft.capacity);
   const set = (patch: Partial<TermDraft>) => onDraftChange({ ...draft, ...patch });
+  const queryClient = useQueryClient();
+  const { attendance } = useTermAttendance(term.group_id, term.id);
+  const attendancePoints = draft.attendancePoints ?? attendance?.attendance_points ?? null;
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -100,6 +106,9 @@ export function TermEditForm({ term, draft, onDraftChange, neededItems, onChange
     if (description !== (term.description ?? "")) patch.description = description;
     if (locationId !== (term.location?.id ?? null)) patch.location_id = locationId;
     if (capacity !== (term.capacity ?? null)) patch.capacity = capacity;
+    if (attendance && attendancePoints !== null && attendancePoints !== attendance.attendance_points) {
+      patch.attendance_points = attendancePoints;
+    }
     if (Object.keys(patch).length === 0) {
       onDone(false);
       return;
@@ -112,6 +121,9 @@ export function TermEditForm({ term, draft, onDraftChange, neededItems, onChange
       setFormError(serverMessageOr(err, "Nie udało się zapisać zmian terminu — spróbuj ponownie"));
       setBusy(false);
       return;
+    }
+    if (patch.attendance_points !== undefined) {
+      await queryClient.invalidateQueries({ queryKey: [TERM_ATTENDANCE_KEY] });
     }
     onChanged();
     onDone(true);
@@ -220,6 +232,16 @@ export function TermEditForm({ term, draft, onDraftChange, neededItems, onChange
           onChange={(text) => set({ capacity: text })}
           inputClassName={`${inputClass} w-28`}
         />
+        {attendance && (
+          <AttendancePointsPicker
+            allowedLevels={attendance.allowed_levels}
+            currentLevel={attendance.attendance_points}
+            value={attendancePoints}
+            onChange={(level) => set({ attendancePoints: level })}
+            minPresent={attendance.min_present}
+            closed={attendance.state === "CLOSED"}
+          />
+        )}
       </div>
       {formError && (
         <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">

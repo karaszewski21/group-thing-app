@@ -23,6 +23,7 @@ from app.core.errors import EntityNotFoundException
 from app.core.pagination import Page, Pagination
 from app.db import get_db
 from app.groups import service
+from app.groups.application import attendance_points
 from app.groups.models import Group
 from app.groups.schemas import (
     CreateCircleRequest,
@@ -37,8 +38,10 @@ from app.groups.schemas import (
     MembershipResponse,
     ModerationGroupResponse,
     MyAttendanceResponse,
+    PresenceRequest,
     PublicCircleResponse,
     RsvpResponse,
+    TermAttendanceResponse,
     TermAttendeeResponse,
     UpdateGroupRequest,
     WithdrawAttendanceResponse,
@@ -187,6 +190,47 @@ async def list_term_attendees(
     `GET ^/api/groups(/.*)?$` READ/EDIT rows, no new matrix row needed.
     Organizer-only check happens inside `service.list_term_attendees`."""
     return await service.list_term_attendees(db, principal, group_id, term_id)
+
+
+@router.get(
+    "/api/groups/{group_id}/terms/{term_id}/attendance",
+    response_model=TermAttendanceResponse,
+)
+async def get_term_attendance(
+    group_id: uuid.UUID, term_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
+) -> TermAttendanceResponse:
+    """The organizer's attendance state and level for a term — covered by
+    row 26. Organizer-only, checked inside `attendance_points`."""
+    return await attendance_points.get_attendance(db, principal, group_id, term_id)
+
+
+@router.post(
+    "/api/groups/{group_id}/terms/{term_id}/attendance/close",
+    response_model=TermAttendanceResponse,
+)
+async def close_term_attendance(
+    group_id: uuid.UUID, term_id: uuid.UUID, db: DbSession, principal: EditPrincipal
+) -> TermAttendanceResponse:
+    """„Zatwierdź obecność” — covered by row 27. Organizer-only, 403 before
+    the 409 of a list that is not open; returns the attendance read."""
+    return await attendance_points.close_term_attendance(db, principal, group_id, term_id)
+
+
+@router.put(
+    "/api/groups/{group_id}/terms/{term_id}/attendees/{party_id}/presence",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def set_attendee_presence(
+    group_id: uuid.UUID,
+    term_id: uuid.UUID,
+    party_id: uuid.UUID,
+    body: PresenceRequest,
+    db: DbSession,
+    principal: EditPrincipal,
+) -> None:
+    """Ticks or unticks an RSVP'd party as present (matrix row 70).
+    Organizer-only, 403 before the 409 of a list that is not open."""
+    await attendance_points.set_presence(db, principal, group_id, term_id, party_id, body.present)
 
 
 @router.get("/api/groups/{group_id}/members", response_model=list[GroupMemberResponse])

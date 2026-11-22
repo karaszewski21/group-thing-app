@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .models import SizeClass
+
 if TYPE_CHECKING:
     from .models import Category
 
@@ -29,6 +31,8 @@ class CategoryResponse(BaseModel):
     description: str | None
     sort_order: int
     product_count: int
+    # Own value only; NULL inherits the nearest ancestor's (MEDIUM at the root).
+    size_class: SizeClass | None
     created_at: datetime
     updated_at: datetime
 
@@ -41,6 +45,7 @@ def category_response_from(category: Category, product_count: int) -> CategoryRe
         description=category.description,
         sort_order=category.sort_order,
         product_count=product_count,
+        size_class=category.size_class,
         created_at=category.created_at,
         updated_at=category.updated_at,
     )
@@ -56,13 +61,17 @@ class CreateCategoryRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     description: str | None = Field(default=None, max_length=500)
     parent_id: uuid.UUID | None = None
+    size_class: SizeClass | None = None
 
 
 class UpdateCategoryRequest(BaseModel):
+    """A full replace: an omitted `size_class` resets it to inherit."""
+
     model_config = ConfigDict(str_strip_whitespace=True)
 
     name: str = Field(min_length=1, max_length=100)
     description: str | None = Field(default=None, max_length=500)
+    size_class: SizeClass | None = None
 
 
 class MoveCategoryRequest(BaseModel):

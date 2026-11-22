@@ -109,6 +109,7 @@ function category(id: string, name: string, parent_id: string | null, sort_order
     parent_id,
     sort_order,
     product_count: 0,
+    size_class: null,
     created_at: "",
     updated_at: "",
   };

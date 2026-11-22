@@ -1,6 +1,7 @@
 import type { WantResponse } from "../../api/wants";
 import { Link } from "../../routing/navigation";
 import { useMyOrganization } from "../../hooks/useMyOrganization";
+import { useMyPoints } from "../../hooks/useMyPoints";
 import { useMyReservations } from "../../hooks/useMyReservations";
 import { useWants } from "../../hooks/useWants";
 import { pluralPl } from "../../utils/plural";
@@ -8,6 +9,7 @@ import { ListCard } from "../../components/shared/appComponents";
 import { BuildingIcon, LogoutIcon } from "../../components/shared/appIcons";
 import { appearancePath, viewPath } from "../../routing/paths";
 import { useAppData } from "../panel/appDataStore";
+import { PointsTiles } from "../points/PointsTiles";
 
 /** "N rzeczy · M nowe dopasowania" over the active wants; "brak" without any.
  * The row shows no meta while loading or when loading failed. */
@@ -27,17 +29,25 @@ export function AccountView() {
   const { data: organization } = useMyOrganization();
   const { data: reservations, loading: reservationsLoading } = useMyReservations();
   const { data: wants, loading: wantsLoading, error: wantsError } = useWants();
+  const { data: points } = useMyPoints();
 
   return (
     <>
+      <Link
+        to={viewPath("points")}
+        aria-label={`Moje punkty: ${points?.balance ?? "–"} punktów, ${points?.reputation ?? "–"} reputacji`}
+        className="mb-4 block rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+      >
+        <PointsTiles balance={points?.balance} reputation={points?.reputation} />
+      </Link>
+
       <ListCard
         rows={[
           { label: "Mój profil", to: profile ? `/${profile.party_id}` : viewPath("profile") },
           { label: "Moje lokalizacje", to: viewPath("places") },
           { label: "Mój dom", to: viewPath("family") },
           { label: "Moje grupy", meta: myGroups.length > 0 ? String(myGroups.length) : "brak", to: viewPath("groups") },
-          { label: "Moje terminy", to: viewPath("meetings") },
-        ]}
+          { label: "Moje terminy", to: viewPath("meetings") },        ]}
       />
 
       <section aria-labelledby="konto-rzeczy" className="mt-6">

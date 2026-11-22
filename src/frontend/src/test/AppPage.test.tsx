@@ -253,11 +253,11 @@ const mockInventory: inventoriesApi.InventoryResponse = {
 
 // Seeded category ids/names (migration 0025_category_reintroduction.py).
 const mockCategories: categoriesApi.Category[] = [
-  { id: "1", name: "Zabawka", description: null, parent_id: null, sort_order: 1, product_count: 0, created_at: "", updated_at: "" },
-  { id: "2", name: "Książka", description: null, parent_id: null, sort_order: 2, product_count: 0, created_at: "", updated_at: "" },
-  { id: "3", name: "Gra", description: null, parent_id: null, sort_order: 3, product_count: 0, created_at: "", updated_at: "" },
-  { id: "4", name: "Ubranie", description: null, parent_id: null, sort_order: 4, product_count: 0, created_at: "", updated_at: "" },
-  { id: "5", name: "Inne", description: null, parent_id: null, sort_order: 5, product_count: 0, created_at: "", updated_at: "" },
+  { id: "1", name: "Zabawka", description: null, parent_id: null, sort_order: 1, product_count: 0, size_class: null, created_at: "", updated_at: "" },
+  { id: "2", name: "Książka", description: null, parent_id: null, sort_order: 2, product_count: 0, size_class: null, created_at: "", updated_at: "" },
+  { id: "3", name: "Gra", description: null, parent_id: null, sort_order: 3, product_count: 0, size_class: null, created_at: "", updated_at: "" },
+  { id: "4", name: "Ubranie", description: null, parent_id: null, sort_order: 4, product_count: 0, size_class: null, created_at: "", updated_at: "" },
+  { id: "5", name: "Inne", description: null, parent_id: null, sort_order: 5, product_count: 0, size_class: null, created_at: "", updated_at: "" },
 ];
 
 // Term/Group ids are UUID strings end to end (spec R29) — never coerced.

@@ -1,4 +1,4 @@
-import type { Category } from "../api/categories";
+import type { Category, SizeClass } from "../api/categories";
 
 export const CATEGORY_PATH_SEPARATOR = " › ";
 
@@ -53,6 +53,29 @@ export function categoryPathNames(index: CategoryIndex, id: string): string[] {
     current = current.parent_id === null ? undefined : index.byId.get(current.parent_id);
   }
   return names;
+}
+
+/** What a category without a class anywhere up to its root counts as (as the backend resolves it). */
+export const DEFAULT_SIZE_CLASS: SizeClass = "MEDIUM";
+
+export const SIZE_CLASS_LABELS: Record<SizeClass, string> = { SMALL: "Mała", MEDIUM: "Średnia", LARGE: "Duża" };
+
+export interface ResolvedSizeClass {
+  value: SizeClass;
+  /** True when the value comes from an ancestor or the default, not the category itself. */
+  inherited: boolean;
+}
+
+/** The nearest non-null `size_class` from `id` up to its root, else the default. */
+export function resolveSizeClass(index: CategoryIndex, id: string): ResolvedSizeClass {
+  let current = index.byId.get(id);
+  let inherited = false;
+  while (current) {
+    if (current.size_class !== null) return { value: current.size_class, inherited };
+    inherited = true;
+    current = current.parent_id === null ? undefined : index.byId.get(current.parent_id);
+  }
+  return { value: DEFAULT_SIZE_CLASS, inherited: true };
 }
 
 export function formatCategoryPath(index: CategoryIndex, id: string): string {

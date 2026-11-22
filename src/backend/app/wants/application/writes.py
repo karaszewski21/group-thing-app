@@ -8,19 +8,16 @@ write back and is answered with the shared "try again" 409."""
 from __future__ import annotations
 
 import uuid
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import cast
 
 from sqlalchemy import bindparam, delete, exists, func, select, update
-from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.types import Text
 
 from app.core.auth_deps import Principal
-from app.db import TRANSACTION_CONFLICTS
+from app.db import mapped_transaction_conflicts
 
 from ..domain import messages
 from ..domain.lifecycle import WantAction, auto_extension_due, new_expiry, refusal
@@ -51,21 +48,6 @@ async def _check_texts(name: str, note: str | None, *, stored: Want | None = Non
     )
     await moderation_acl.check_text(moderation_acl.TextField.WANT_NAME, name, current_name)
     await moderation_acl.check_text(moderation_acl.TextField.WANT_NOTE, note, current_note)
-
-
-@asynccontextmanager
-async def _mapped_database_errors(db: AsyncSession) -> AsyncIterator[None]:
-    """A deadlock or serialization failure in the block rolls the
-    transaction back and becomes the shared `StaleDataError` 409 ("try
-    again"). Any other database error propagates unchanged."""
-    try:
-        yield
-    except DBAPIError as exc:
-        sqlstate = getattr(exc.orig, "sqlstate", None)
-        if sqlstate in TRANSACTION_CONFLICTS:
-            await db.rollback()
-            raise StaleDataError(f"want write lost to a concurrent one ({sqlstate})") from exc
-        raise
 
 
 async def _ensure_name_has_word(db: AsyncSession, name: str) -> None:
@@ -158,7 +140,7 @@ async def create_want(
     await _check_texts(name, note)
     vectors = await embeddings_acl.embed_queries([name])
     caller = await users_acl.get_caller_profile(db, principal)
-    async with _mapped_database_errors(db):
+    async with mapped_transaction_conflicts(db):
         await _ensure_name_has_word(db, name)
         await _ensure_below_cap(db, caller.party_id)
         await _ensure_category_exists(db, data.category_id)
@@ -208,7 +190,7 @@ async def update_want(
     miss the deletion of the old one, is written under the lock. Other edits
     keep the vector."""
     caller = await users_acl.get_caller_profile(db, principal)
-    async with _mapped_database_errors(db):
+    async with mapped_transaction_conflicts(db):
         want = await _own_want(db, caller.party_id, want_id)
         _ensure_allowed(WantAction.EDIT, want)
         read_version = want.updated_at
@@ -275,7 +257,7 @@ async def extend_want(
     want = await _own_want(db, caller.party_id, want_id)
     _ensure_allowed(WantAction.EXTEND, want)
     _start_new_period(want, now)
-    async with _mapped_database_errors(db):
+    async with mapped_transaction_conflicts(db):
         response = await reads.load_want(db, caller.party_id, want_id)
         await db.commit()
     return response
@@ -296,7 +278,7 @@ async def close_want(
     _ensure_allowed(WantAction.CLOSE, want)
     want.status = outcome
     want.closed_at = now
-    async with _mapped_database_errors(db):
+    async with mapped_transaction_conflicts(db):
         if outcome == WantStatus.WITHDRAWN:
             await _drop_unread_match_row(db, want)
         response = await reads.load_want(db, caller.party_id, want_id, include_withdrawn=True)
@@ -312,7 +294,7 @@ async def resume_want(
     caller = await users_acl.get_caller_profile(db, principal)
     want = await _own_want(db, caller.party_id, want_id)
     _ensure_allowed(WantAction.RESUME, want)
-    async with _mapped_database_errors(db):
+    async with mapped_transaction_conflicts(db):
         await _ensure_below_cap(db, caller.party_id)
         want.status = WantStatus.ACTIVE
         want.closed_at = None
@@ -331,7 +313,7 @@ async def mark_matches_seen(
     close to its end also starts a new validity period."""
     caller = await users_acl.get_caller_profile(db, principal)
     want = await _own_want(db, caller.party_id, want_id)
-    async with _mapped_database_errors(db):
+    async with mapped_transaction_conflicts(db):
         await db.execute(
             update(WantMatch)
             .where(WantMatch.want_id == want_id, WantMatch.seen_at.is_(None))

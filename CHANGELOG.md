@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- punkty i reputacja za oddawanie, wymiany i obecność: przedmiot oddany za darmo daje punkty i reputację równe jego wartości (20/40/60), wymiana daje punkty obu stronom, a oddanie rzeczy z listy „Szukam” odbiorcy daje premię; obowiązuje limit nagród na parę osób, a w obrębie rodziny punkty nie są przyznawane
+- strona `/points` z saldem, reputacją i historią punktów, widoczna tylko dla właściciela (dwa kafelki „punktów” i „reputacji” nad menu strony konta prowadzą do niej)
+- klasa wielkości kategorii (mała, średnia, duża, domyślnie dziedziczona z kategorii nadrzędnej), z której wynika wartość punktowa przedmiotu
+- konfiguracja punktów w panelu admina (`/admin/points`): wartości bazowe, mnożniki stanu, nagrody, poziomy punktów za obecność, limit miesięczny i ochrona przed nabijaniem
+- potwierdzanie obecności przez organizatora z automatycznym zamknięciem listy: organizator wybiera poziom punktów za obecność, zaznacza obecnych i zatwierdza listę, a po kilku dniach (domyślnie 7) lista zamyka się sama; organizatorzy nie dostają punktów za własny termin
 - organizator może deklarować przedmioty na terminy swojej grupy
 - globalna wyszukiwarka `/search` (przedmioty oraz spotkania, grupy i organizacje), dostępna także dla gości; API `GET /api/public/search`
 - opis grupy (do 500 znaków, moderowany)

@@ -41,6 +41,8 @@ export interface CreateTermRequest {
   description?: string;
   location_id?: string | null;
   capacity?: number | null;
+  /** One of the allowed attendance levels; omitted -> the lowest one. */
+  attendance_points?: number;
 }
 
 export interface NeededItemResponse {
@@ -107,6 +109,8 @@ export interface UpdateTermRequest {
   description?: string;
   location_id?: string | null;
   capacity?: number | null;
+  /** Sent only when changed; a different level after the close is a 409. */
+  attendance_points?: number;
 }
 
 export function updateTerm(id: string, request: UpdateTermRequest): Promise<TermResponse> {

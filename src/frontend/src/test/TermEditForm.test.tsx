@@ -6,6 +6,8 @@ import { ApiError } from "../api/client";
 import * as locationsApi from "../api/locations";
 import type { LocationRefResponse, LocationResponse } from "../api/locations";
 import * as termsApi from "../api/terms";
+import * as groupsApi from "../api/groups";
+import type { TermAttendanceResponse } from "../api/groups";
 import { TermEditForm } from "../features/terms/TermEditForm";
 import { TermEditView } from "../features/terms/TermEditView";
 import { termEditDraftFrom } from "../features/terms/termDraft";
@@ -18,6 +20,11 @@ vi.mock("../api/terms", () => ({
   updateNeededItem: vi.fn(),
   updateTerm: vi.fn(),
   getTerm: vi.fn(),
+}));
+vi.mock("../api/groups", () => ({
+  getTermAttendance: vi.fn(),
+  setPresence: vi.fn(),
+  closeAttendance: vi.fn(),
 }));
 vi.mock("../api/locations", () => ({
   getMyLocations: vi.fn(),
@@ -114,9 +121,25 @@ function renderForm(shownTerm: termsApi.TermResponse = term, onChanged = vi.fn()
   );
 }
 
+function attendanceRead(overrides: Partial<TermAttendanceResponse> = {}): TermAttendanceResponse {
+  return {
+    state: "NOT_STARTED",
+    attendance_points: 10,
+    allowed_levels: [0, 10, 20],
+    attendee_count: 0,
+    present_count: 0,
+    min_present: 3,
+    auto_close_on: "2026-10-21T17:00:00",
+    closed_at: null,
+    rewarded: null,
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([salaNr2, groupDefault]);
+  vi.mocked(groupsApi.getTermAttendance).mockResolvedValue(attendanceRead());
 });
 
 describe("TermEditForm — server error surfacing", () => {
@@ -345,5 +368,55 @@ describe("TermEditView — draft in the panel", () => {
     await waitFor(() => expect(getTestLocation().pathname).toBe("/meetings"));
     expect(termsApi.updateTerm).not.toHaveBeenCalled();
     expect(panel.get().termEdit).toBeNull();
+  });
+});
+
+describe("TermEditForm — points for attendance", () => {
+  it("picker_showsAllowedLevelsPlusARetiredCurrentLevel_withAriaPressed", async () => {
+    vi.mocked(groupsApi.getTermAttendance).mockResolvedValue(attendanceRead({ attendance_points: 15 }));
+    renderForm();
+
+    const group = await screen.findByRole("group", { name: "Punkty za obecność" });
+    const buttons = within(group).getAllByRole("button");
+    expect(buttons.map((b) => b.textContent)).toEqual(["0", "10", "15", "20"]);
+    expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "false", "true", "false"]);
+    expect(group).toHaveAccessibleDescription(
+      "Każda obecna osoba dostanie tyle punktów, jeśli przyjdą co najmniej 3 osoby. Możesz zmienić wybór do zatwierdzenia obecności.",
+    );
+    expect(groupsApi.getTermAttendance).toHaveBeenCalledWith("g1", "t1");
+
+    fireEvent.click(within(group).getByRole("button", { name: "20" }));
+    expect(within(group).getByRole("button", { name: "20" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(group).getByRole("button", { name: "15" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("picker_closedAttendance_isDisabled", async () => {
+    vi.mocked(groupsApi.getTermAttendance).mockResolvedValue(
+      attendanceRead({ state: "CLOSED", closed_at: "2026-10-14T19:00:00", auto_close_on: null, rewarded: false }),
+    );
+    renderForm();
+
+    const group = await screen.findByRole("group", { name: "Punkty za obecność" });
+    within(group).getAllByRole("button").forEach((b) => expect(b).toBeDisabled());
+  });
+
+  it("saveTermFields_sendsAttendancePointsOnlyWhenChanged", async () => {
+    vi.mocked(termsApi.updateTerm).mockResolvedValue(term);
+    const onDone = vi.fn();
+    const { unmount } = renderForm(term, vi.fn(), onDone);
+
+    await screen.findByRole("group", { name: "Punkty za obecność" });
+    fireEvent.change(screen.getByLabelText("Opis"), { target: { value: "Nowy opis" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[0]);
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(true));
+    expect(termsApi.updateTerm).toHaveBeenLastCalledWith("t1", { description: "Nowy opis" });
+    unmount();
+
+    renderForm(term, vi.fn(), onDone);
+    const group = await screen.findByRole("group", { name: "Punkty za obecność" });
+    fireEvent.click(within(group).getByRole("button", { name: "20" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[0]);
+    await waitFor(() => expect(termsApi.updateTerm).toHaveBeenCalledTimes(2));
+    expect(termsApi.updateTerm).toHaveBeenLastCalledWith("t1", { attendance_points: 20 });
   });
 });

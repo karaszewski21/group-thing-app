@@ -247,17 +247,21 @@ class CreateTermRequest(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     location_id: uuid.UUID | None = None
     capacity: int | None = Field(default=None, ge=1, le=10000)
+    # One of the config's `attendance_levels`; omitted -> the lowest one.
+    attendance_points: int | None = None
 
 
 class UpdateTermRequest(BaseModel):
-    """`occurs_on`/`description` apply only when non-null; `location_id`/
-    `capacity` apply when present in `model_fields_set` (`null` clears the
-    capacity; a `null` place is rejected)."""
+    """`occurs_on`/`description`/`attendance_points` apply only when
+    non-null; `location_id`/`capacity` apply when present in
+    `model_fields_set` (`null` clears the capacity; a `null` place is
+    rejected)."""
 
     occurs_on: datetime | None = None
     description: str | None = Field(default=None, max_length=2000)
     location_id: uuid.UUID | None = None
     capacity: int | None = Field(default=None, ge=1, le=10000)
+    attendance_points: int | None = None
 
 
 class NeededItemResponse(BaseModel):
@@ -507,6 +511,43 @@ class TermAttendeeResponse(BaseModel):
     family_id: uuid.UUID | None
     family_name: str | None
     children: list[TermAttendeeChildResponse] = Field(default_factory=list)
+    # The organizer marked the party present (`present_marked_at` set).
+    present: bool
+    # Holds the group's leadership: never paid nor counted at close.
+    is_organizer: bool
+
+
+class TermAttendanceState(enum.StrEnum):
+    """Derived from `clock.local_now()`: before `occurs_on`, from it until
+    the list is closed, after the close."""
+
+    NOT_STARTED = "NOT_STARTED"
+    OPEN = "OPEN"
+    CLOSED = "CLOSED"
+
+
+class TermAttendanceResponse(BaseModel):
+    """`GET /api/groups/{id}/terms/{id}/attendance`, organizer-only.
+    `present_count`/`min_present` are live while open and frozen at close;
+    `auto_close_on` is null once closed, `rewarded` null until then."""
+
+    state: TermAttendanceState
+    attendance_points: int
+    allowed_levels: list[int]
+    attendee_count: int
+    present_count: int
+    min_present: int
+    # Naive Warsaw wall clock, like `TermResponse.occurs_on`.
+    auto_close_on: datetime | None
+    # Naive UTC audit timestamp.
+    closed_at: datetime | None
+    rewarded: bool | None
+
+
+class PresenceRequest(BaseModel):
+    """`PUT /api/groups/{id}/terms/{id}/attendees/{party_id}/presence`."""
+
+    present: bool
 
 
 # --- A Group's standing member list (`GET /api/groups/{id}/members`) ----------

@@ -88,13 +88,16 @@ def group_ids_for(
     return query
 
 
-def holds_active_leadership(party_id: uuid.UUID, group_id: uuid.UUID) -> ColumnElement[bool]:
-    """`party_id` holds the current Leadership of `group_id`, soft-deleted or
-    not. Sole caller: `circles.is_active_group_organizer`, which backs
-    `remove_leadership` and the term-organizer reads
-    (`attendance._is_term_organizer`): both must keep working on a deleted
-    circle without widening `group_ids_for(include_deleted=True)` beyond
-    messaging."""
+def holds_active_leadership(
+    party_id: uuid.UUID | SQLColumnExpression[uuid.UUID], group_id: uuid.UUID
+) -> ColumnElement[bool]:
+    """`party_id` (a value or a correlated column) holds the current
+    Leadership of `group_id`, soft-deleted or not. Callers:
+    `circles.is_active_group_organizer`, which backs `remove_leadership` and
+    the term-organizer reads (`attendance._is_term_organizer`), and the
+    attendance close's organizer exclusion (`attendance_points`): all must
+    keep working on a deleted circle without widening
+    `group_ids_for(include_deleted=True)` beyond messaging."""
     return exists().where(
         active_leadership_clause(),
         Leadership.to_group_id == group_id,

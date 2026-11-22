@@ -13,14 +13,24 @@ per `standards/backend/models.md`.
 
 from __future__ import annotations
 
+import enum
 import uuid
 from typing import Any
 
-from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
+from sqlalchemy import Enum, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import BaseEntity
+
+
+class SizeClass(enum.StrEnum):
+    """The size class behind an item's points value. A NULL `size_class`
+    inherits the nearest ancestor's; a tree without one resolves to MEDIUM."""
+
+    SMALL = "SMALL"
+    MEDIUM = "MEDIUM"
+    LARGE = "LARGE"
 
 
 class Category(BaseEntity):
@@ -58,6 +68,16 @@ class Category(BaseEntity):
     # (migrations 0091–0092). Written only in SQL by `service.py`, so it
     # equals the 0092 backfill byte for byte.
     path_text: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    # NULL = inherit from the parent (migration 0104).
+    size_class: Mapped[SizeClass | None] = mapped_column(
+        Enum(
+            SizeClass,
+            native_enum=False,
+            length=10,
+            values_callable=lambda cls: [member.value for member in cls],
+        ),
+        nullable=True,
+    )
 
     def __eq__(self, other: Any) -> bool:
         """Business-key equality on `(parent_id, name)` (never entity `id`) —

@@ -30,6 +30,7 @@ function category(id: string, name: string, parentId: string | null, sortOrder: 
     parent_id: parentId,
     sort_order: sortOrder,
     product_count: 0,
+    size_class: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   };

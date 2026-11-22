@@ -1,11 +1,11 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TermAttendeesPage } from "../features/meetings/TermAttendeesPage";
 import * as termsApi from "../api/terms";
 import * as groupsApi from "../api/groups";
 import { ApiError } from "../api/client";
 import type { TermResponse } from "../api/terms";
-import type { GroupResponse, TermAttendeeResponse } from "../api/groups";
+import type { GroupResponse, TermAttendanceResponse, TermAttendeeResponse } from "../api/groups";
 import dayjs from "../utils/dayjs";
 import { createQueryWrapper } from "./queryClient";
 import { renderWithRoute } from "./renderWithRoute";
@@ -17,6 +17,9 @@ vi.mock("../api/terms", () => ({
 vi.mock("../api/groups", () => ({
   getGroup: vi.fn(),
   getTermAttendees: vi.fn(),
+  getTermAttendance: vi.fn(),
+  setPresence: vi.fn(),
+  closeAttendance: vi.fn(),
 }));
 
 const conversationHook = vi.hoisted(() => ({ openConversation: vi.fn() }));
@@ -42,8 +45,8 @@ const group: GroupResponse = {
   name: "Krąg Maluchy",
   description: null,
   organizer_slug: "maluchy",
-  layout_mode: "ITEMS_FIRST" as GroupResponse["layout_mode"],
-  visibility: "PUBLIC" as GroupResponse["visibility"],
+  layout_mode: "CIRCLE",
+  visibility: "PUBLIC",
   created_at: "2026-09-01T10:00:00",
   updated_at: "2026-09-01T10:00:00",
 };
@@ -58,6 +61,23 @@ function attendee(overrides: Partial<TermAttendeeResponse>): TermAttendeeRespons
     family_id: null,
     family_name: null,
     children: [],
+    present: false,
+    is_organizer: false,
+    ...overrides,
+  };
+}
+
+function attendanceRead(overrides: Partial<TermAttendanceResponse> = {}): TermAttendanceResponse {
+  return {
+    state: "OPEN",
+    attendance_points: 20,
+    allowed_levels: [0, 10, 20],
+    attendee_count: 3,
+    present_count: 1,
+    min_present: 3,
+    auto_close_on: "2026-10-19T17:00:00",
+    closed_at: null,
+    rewarded: null,
     ...overrides,
   };
 }
@@ -100,6 +120,7 @@ describe("TermAttendeesPage", () => {
     vi.mocked(termsApi.getTerm).mockResolvedValue(term);
     vi.mocked(groupsApi.getGroup).mockResolvedValue(group);
     vi.mocked(groupsApi.getTermAttendees).mockResolvedValue(attendees);
+    vi.mocked(groupsApi.getTermAttendance).mockResolvedValue(attendanceRead());
   });
 
   it("rows render name, family, pill wording and ages", async () => {
@@ -224,5 +245,151 @@ describe("TermAttendeesPage", () => {
     fireEvent.click(button);
     expect(await screen.findByText("Wątek rozmowy")).toBeInTheDocument();
     expect(conversationHook.openConversation).toHaveBeenCalledWith({ kind: "TERM", id: TERM_ID });
+  });
+});
+
+describe("TermAttendeesPage — attendance", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-12T18:00:00"));
+    vi.mocked(termsApi.getTerm).mockResolvedValue(term);
+    vi.mocked(groupsApi.getGroup).mockResolvedValue(group);
+    vi.mocked(groupsApi.getTermAttendees).mockResolvedValue(attendees);
+    vi.mocked(groupsApi.getTermAttendance).mockResolvedValue(attendanceRead());
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("open_tickingABox_putsPresentAndDisablesTheBoxWhilePending", async () => {
+    let finish: () => void = () => {};
+    vi.mocked(groupsApi.setPresence).mockImplementation(
+      () => new Promise<void>((resolve) => (finish = resolve)),
+    );
+    renderPage();
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Zapisani na termin" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Ten termin daje 20 pkt za obecność. Punkty naliczą się, gdy obecne będą min. 3 osoby. Teraz: 1 z 3.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Bez zatwierdzenia lista zamknie się automatycznie 19 października."),
+    ).toBeInTheDocument();
+
+    const box = screen.getByRole("checkbox", { name: "Marek Wiśniewski" });
+    expect(box).not.toBeChecked();
+    expect(box).toBeEnabled();
+    fireEvent.click(box);
+
+    await waitFor(() => expect(box).toBeDisabled());
+    expect(groupsApi.setPresence).toHaveBeenCalledWith(
+      GROUP_ID,
+      TERM_ID,
+      "22222222-2222-4222-8222-222222222222",
+      true,
+    );
+    finish();
+    await waitFor(() => expect(box).toBeEnabled());
+  });
+
+  it("close_confirmDialog_postsTheClose", async () => {
+    vi.mocked(groupsApi.closeAttendance).mockResolvedValue(
+      attendanceRead({ state: "CLOSED", closed_at: "2026-10-12T19:00:00", auto_close_on: null, rewarded: false }),
+    );
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Zatwierdź obecność" }));
+    const dialog = screen.getByRole("alertdialog");
+    expect(
+      within(dialog).getByText(
+        "Obecnych: 1. Za mało obecnych (1 z min. 3) — punkty nie zostaną naliczone. Po zatwierdzeniu nie zmienisz już listy obecnych ani punktów za obecność.",
+      ),
+    ).toBeInTheDocument();
+    expect(groupsApi.closeAttendance).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zatwierdź" }));
+
+    await waitFor(() => expect(groupsApi.closeAttendance).toHaveBeenCalledWith(GROUP_ID, TERM_ID));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+  });
+
+  it("open_organizerRow_isLabelledAndLeftOutOfTheCount", async () => {
+    vi.mocked(groupsApi.getTermAttendees).mockResolvedValue(
+      attendees.map((a, i) => ({ ...a, is_organizer: i === 0 })),
+    );
+    vi.mocked(groupsApi.getTermAttendance).mockResolvedValue(
+      attendanceRead({ present_count: 1, min_present: 1 }),
+    );
+    renderPage();
+
+    expect(
+      await screen.findByText("organizator — nie dostaje punktów i nie liczy się do minimum"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        `Ten termin daje 20 pkt za obecność. Punkty naliczą się, gdy obecne będą min. 1 osoba. Teraz: 1 z ${attendees.length - 1}.`,
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Zatwierdź obecność" }));
+    expect(
+      within(screen.getByRole("alertdialog")).getByText(
+        "Obecnych: 1. Po zatwierdzeniu nie zmienisz już listy obecnych ani punktów za obecność.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("notStarted_showsDisabledBoxesAndNoCloseButton", async () => {
+    vi.mocked(groupsApi.getTermAttendance).mockResolvedValue(attendanceRead({ state: "NOT_STARTED" }));
+    renderPage();
+
+    expect(await screen.findByRole("checkbox", { name: "Anna Nowak" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Zatwierdź obecność" })).not.toBeInTheDocument();
+  });
+
+  it("closed_rendersTheRewardedAndBelowMinimumBanners", async () => {
+    const frozen = attendees.map((a, i) => ({ ...a, present: i < 2 }));
+    vi.mocked(groupsApi.getTermAttendees).mockResolvedValue(frozen);
+    vi.mocked(groupsApi.getTermAttendance).mockResolvedValue(
+      attendanceRead({
+        state: "CLOSED",
+        present_count: 3,
+        closed_at: "2026-10-12T19:00:00",
+        auto_close_on: null,
+        rewarded: true,
+      }),
+    );
+    const { unmount } = renderPage();
+
+    expect(
+      await screen.findByText(
+        "Obecność zatwierdzona 12 października. Obecnych: 3. Każda z tych osób otrzymała do 20 pkt (w granicach miesięcznego limitu).",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Anna Nowak" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Anna Nowak" })).toBeDisabled();
+    expect(screen.getAllByText("obecny")).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "Zatwierdź obecność" })).not.toBeInTheDocument();
+    unmount();
+
+    vi.mocked(groupsApi.getTermAttendance).mockResolvedValue(
+      attendanceRead({
+        state: "CLOSED",
+        present_count: 2,
+        closed_at: "2026-10-12T19:00:00",
+        auto_close_on: null,
+        rewarded: false,
+      }),
+    );
+    renderPage();
+
+    expect(
+      await screen.findByText(
+        "Obecność zatwierdzona. Za mało obecnych osób (2 z min. 3), punkty nie zostały naliczone.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Ola Zielińska" })).not.toBeChecked();
   });
 });

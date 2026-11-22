@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import AccountPage from "../app/(site)/(panel)/account/page";
+import AccountPointsPage from "../app/(site)/(panel)/points/page";
 import AddPage from "../app/(site)/(panel)/add/page";
 import AddEventPage from "../app/(site)/(panel)/add/event/page";
 import AddProductPage from "../app/(site)/(panel)/add/product/page";
@@ -39,6 +40,7 @@ import WantedIdEditPage from "../app/(site)/(panel)/wanted/[id]/edit/page";
 export const PANEL_PAGES: Record<string, ComponentType> = {
   "/": HomePage,
   "/account": AccountPage,
+  "/points": AccountPointsPage,
   "/add": AddPage,
   "/add/event": AddEventPage,
   "/add/product": AddProductPage,

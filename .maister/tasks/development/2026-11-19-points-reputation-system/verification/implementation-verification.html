@@ -1,0 +1,60 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Implementation verification</title><style>:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+</style></head><body>
+<div class="crumbs"><span class="here">Implementation verification</span><a class="md" href="implementation-verification.md">markdown twin</a></div>
+<h1>✅ Passed: points &amp; reputation (stage 1)</h1>
+<div class="tiles"><div class="tile"><b>0</b><span>critical</span></div><div class="tile"><b>0</b><span>warnings left</span></div><div class="tile"><b>8</b><span>fixed</span></div><div class="tile"><b>110/110</b><span>plan steps</span></div><div class="tile"><b>0</b><span>regressions</span></div><div class="tile"><b>GO</b><span>production</span></div></div>
+<div class="card">One fix cycle closed W1–W7 and W9 (W8 kept by user decision). Code review re-check is clean, reality check is ready (~98%), and the full suite re-run is at baseline (1675 backend, 125 matcher, 1948 vitest passing).</div>
+<h2>Risks</h2><div class="card"><ul><li><code>downgrade 0105</code> is refused once any award exists, so take a <code>pg_dump</code> before deploying 0103–0105 and follow the runbook.</li><li>Not yet runtime-verified in a browser (Phase 12 E2E is next) and 0105 not run on production-sized data; running <code>npm run build</code> once before release is recommended.</li><li>Accepted limit: a want resumed (WITHDRAWN/EXPIRED → ACTIVE) after the reservation still earns the „Szukam” bonus, because no status history is kept. It is bounded by the creation-time check and the pair limit.</li><li>Accepted limit: on a closed list, <code>is_organizer</code> shows current leadership, while the frozen count used leadership at close. This affects display only.</li><li>8 standards suggestions from the work-log have not yet been raised with the user; that happens at finalization.</li></ul></div>
+<h2>Checks</h2><div class="card"><table><tr><th>Review</th><th>Initial</th><th>After fixes</th></tr>
+<tr><td>Code review</td><td>0/4/9</td><td class="pass">clean (0/0/3)</td></tr>
+<tr><td>Pragmatic</td><td>0/1/8</td><td>W8 kept; not re-run</td></tr>
+<tr><td>Production</td><td class="pass">GO 95%</td><td>not re-run</td></tr>
+<tr><td>Reality check</td><td>0/4/5</td><td class="pass">ready ~98%</td></tr>
+<tr><td>Completeness</td><td>0/1/5</td><td class="pass">doc warnings fixed</td></tr>
+<tr><td>Test suite</td><td class="pass">0 regressions</td><td class="pass">0 regressions</td></tr></table></div>
+<h2>Fix &amp; re-verification history</h2><div class="card"><table><tr><th>Issue</th><th>Fix</th><th>Outcome</th></tr><tr><td>W1 „Szukam” bonus ignored reservation-time state</td><td><code>wants_acl.wanted_at_reservation</code> (one EXISTS per leg) requires <code>wants.created_at &lt;= reservation.created_at</code>; test case <code>createdAfterTake</code></td><td>resolved (code review, reality check)</td></tr><tr><td>W2 monthly cap bypass via past-dated terms</td><td><code>attendance_cap_month(clock.local_now())</code>, so the cap is per month of the close; <code>occurs_on</code> parameter removed; test with two terms 40 days apart</td><td>resolved; end-to-end check found no other code assuming the term month</td></tr><tr><td>W3 ledger invariant → 400 with internal text</td><td><code>LedgerInvariantError(RuntimeError)</code> → catch-all 500, generic body; ledger tests updated</td><td>resolved</td></tr><tr><td>W4 per-attendee source-key queries</td><td><code>ledger.existing_source_ids</code> (one IN query)</td><td>resolved</td></tr><tr><td>W5 config save did not refresh attendance levels</td><td><code>invalidateQueries({queryKey: [POINTS_KEY]})</code>; <code>usePointsConfig.test.tsx</code></td><td>resolved</td></tr><tr><td>W6 organizer ticks silently excluded</td><td><code>TermAttendeeResponse.is_organizer</code> (same <code>holds_active_leadership</code> rule); UI label; „Teraz: X z Y” counts non-organizers; backend key set + vitest</td><td>resolved</td></tr><tr><td>W7 no below-minimum warning in close dialog</td><td><code>closeDialogBody</code> adds „Za mało obecnych (N z min. M) — punkty nie zostaną naliczone.”; exact-text vitest</td><td>resolved</td></tr><tr><td>W8 dead PARTY-debit check</td><td>kept as a safeguard (user decision)</td><td>n/a</td></tr><tr><td>W9 architecture.md:270 caller list</td><td>caller list names the close exclusion and <code>is_organizer</code></td><td>resolved</td></tr><tr><td>Re-check N1 (completeness) architecture.md said <code>ValueError</code></td><td>now names <code>LedgerInvariantError</code> (500)</td><td>fixed after the re-check</td></tr><tr><td>Re-check N2 (completeness) spec.md missing W1/W6</td><td>spec amended (R2.5 bonus rule, attendee response, key set)</td><td>fixed after the re-check</td></tr><tr><td>Re-check info: <code>domain/awards.py</code> docstring said term month</td><td>docstring now says month of the close</td><td>fixed after the re-check</td></tr><tr><td>Re-check info: organizer note not announced with checkbox</td><td><code>aria-describedby</code> linking the checkbox to the note; TermAttendeesPage tests 14/14, typecheck 0</td><td>fixed after the re-check</td></tr></table></div>
+<h2>Remaining info (accepted)</h2><div class="card"><ul><li><span class='sev info'>info</span>Code review: no CHECK on <code>size_class</code>/<code>points_value</code>; 0105 single UPDATE on <code>inventory_items</code> (off-peak per runbook); category PUT without <code>size_class</code> resets it; PARTY accounts created even when nothing is posted; withdraw/close race window; history date has no year; two functions over 50 lines.</li><li><span class='sev info'>info</span>Pragmatic: duplicated config-to-rules mapping; duplicate except branches in the job; <code>skip_locked</code> doubles as a job flag; enum mirror constants; near-duplicate eligibility queries; <code>max_points_offers</code> stage-2 stub.</li><li><span class='sev info'>info</span>Production: no alerting on the job (health = <code>attendance close:</code> log line); 0105 without <code>lock_timeout</code>; <code>next build</code> not run; the runbook does not name the retry command; no project-wide Sentry, metrics or rate limiting.</li><li><span class='sev info'>info</span>Reality: duplicate-skip uses a pair slot (race only); level-0 terms closed; giver = holding inventory; offset paging; resumed-want and closed-list <code>is_organizer</code> limits (above).</li></ul></div>
+</body></html>

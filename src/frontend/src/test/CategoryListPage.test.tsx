@@ -3,7 +3,7 @@ import { renderWithRoute } from "./renderWithRoute";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChakraProvider } from "@chakra-ui/react";
 import { system } from "../theme/system";
-import type { Category } from "../api/categories";
+import type { Category, SizeClass } from "../api/categories";
 import * as categoriesApi from "../api/categories";
 import { ApiError } from "../api/client";
 import { CategoryListPage } from "../features/admin/CategoryListPage";
@@ -25,7 +25,14 @@ vi.mock("../api/categories", () => ({
 import { useAuth } from "../auth/AuthContext";
 import { createQueryWrapper } from "./queryClient";
 
-function category(id: string, name: string, parentId: string | null, sortOrder: number, productCount = 0): Category {
+function category(
+  id: string,
+  name: string,
+  parentId: string | null,
+  sortOrder: number,
+  productCount = 0,
+  sizeClass: SizeClass | null = null,
+): Category {
   return {
     id,
     name,
@@ -33,17 +40,18 @@ function category(id: string, name: string, parentId: string | null, sortOrder: 
     parent_id: parentId,
     sort_order: sortOrder,
     product_count: productCount,
+    size_class: sizeClass,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   };
 }
 
 const mockCategories: Category[] = [
-  category("r1", "Kobiety", null, 0),
+  category("r1", "Kobiety", null, 0, 0, "SMALL"),
   category("c1", "Ubrania", "r1", 0),
   category("l1", "Sukienki", "c1", 0),
   category("l2", "Inne ubrania", "c1", 1, 3),
-  category("c2", "Buty", "r1", 1),
+  category("c2", "Buty", "r1", 1, 0, "LARGE"),
   category("l3", "Kozaki", "c2", 0),
   category("c3", "Torebki", "r1", 2),
   category("c4", "Biżuteria", "r1", 3),
@@ -111,6 +119,19 @@ describe("CategoryListPage", () => {
       "href",
       "/admin/categories/new?parent=c1",
     );
+  });
+
+  it("shows the own size class and the inherited one with „· dziedziczona”", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Kobiety" }));
+
+    expect(within(rowOf("Kobiety")).getByText("Mała")).toBeInTheDocument();
+    expect(within(rowOf("Buty")).getByText("Duża")).toBeInTheDocument();
+    expect(within(rowOf("Ubrania")).getByText("Mała · dziedziczona")).toBeInTheDocument();
+    // A root without a class inherits the default.
+    expect(within(rowOf("Mężczyźni")).getByText("Średnia · dziedziczona")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Buty" }));
+    expect(within(rowOf("Kozaki")).getByText("Duża · dziedziczona")).toBeInTheDocument();
   });
 
   it("moves a category within its siblings with the arrow buttons", async () => {

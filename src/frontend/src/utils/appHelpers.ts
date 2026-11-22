@@ -18,6 +18,7 @@ export const ACCOUNT_SUBVIEWS: readonly View[] = [
   "meetings",
   "items/reserved",
   "wanted",
+  "points",
   "organization",
 ];
 

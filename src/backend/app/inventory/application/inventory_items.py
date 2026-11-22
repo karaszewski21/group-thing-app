@@ -19,7 +19,7 @@ from app.core.errors import (
 )
 from app.inventory.application.identity import get_user_id_by_principal
 from app.inventory.application.inventory import get_inventory
-from app.inventory.infrastructure import locations_acl, repository
+from app.inventory.infrastructure import locations_acl, points_acl, repository
 from app.inventory.infrastructure.ledger import MovementLeg, post_movement
 from app.inventory.infrastructure.repository import AvailableItemView
 from app.inventory.models import (
@@ -65,17 +65,19 @@ async def register_item(
         raise AccessDeniedException
     await _require_owned_location(db, inventory.owner_user_id, location_id)
     product = await product_service.get_product(db, product_id)
+    item_condition = ItemCondition(condition)
 
     item = InventoryItem(
         inventory_id=inventory_id,
         owner_inventory_id=inventory_id,
         product_id=product_id,
-        condition=ItemCondition(condition),
+        condition=item_condition,
         listing_status=(
             ItemListingStatus.DRAFT if listing_mode is None else ItemListingStatus.ACTIVE
         ),
         added_at=datetime.utcnow(),
         location_id=location_id,
+        points_value=await points_acl.item_points_value(db, product_id, item_condition),
     )
     db.add(item)
     await db.flush()
@@ -268,11 +270,16 @@ async def update_item(
     status — a reserved item can still be corrected, and an open personal
     pickup follows the item's current place without a notification."""
     item = await _require_item_owner(db, item_id, principal)
+    revalue = False
     if data.product_id is not None and data.product_id != item.product_id:
         await product_service.get_product(db, data.product_id)
         item.product_id = data.product_id
-    if data.condition is not None:
+        revalue = True
+    if data.condition is not None and data.condition != item.condition:
         item.condition = data.condition
+        revalue = True
+    if revalue:
+        item.points_value = await points_acl.item_points_value(db, item.product_id, item.condition)
     if data.location_id is not None:
         acting_user_id = await get_user_id_by_principal(db, principal)
         await _require_owned_location(db, acting_user_id, data.location_id)

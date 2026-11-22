@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from typing import cast
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
@@ -17,7 +17,7 @@ from app.users.models import UserProfile
 from app.users.service import get_profile_by_principal
 
 from ..infrastructure import repository
-from ..models import GroupRoleType, Membership
+from ..models import GroupRoleType, Membership, Term, TermAttendance
 from ..schemas import GroupMemberResponse, TermAttendeeChildResponse, TermAttendeeResponse
 from .circles import _group_role_party_id, _require_active_organizer, get_group
 from .exchange_summary import _require_group_member_or_leader
@@ -108,12 +108,13 @@ async def _resolve_family_child_birth_years(
     return result
 
 
-async def _require_term_in_group(db: AsyncSession, group_id: uuid.UUID, term_id: uuid.UUID) -> None:
+async def _require_term_in_group(db: AsyncSession, group_id: uuid.UUID, term_id: uuid.UUID) -> Term:
     """404 unless `term_id` exists and belongs to `group_id` — keeps an
     organizer of one group from reading another group's attendees."""
     term = await repository.get_term(db, term_id)
     if term is None or term.circle_group_id != group_id:
         raise EntityNotFoundException("Term", term_id)
+    return term
 
 
 async def list_term_attendees(
@@ -121,12 +122,17 @@ async def list_term_attendees(
 ) -> list[TermAttendeeResponse]:
     """The organizer's attendee list for a term — active (non-withdrawn)
     RSVPs on `term_id`, annotated with the attendee's resolved family (if
-    any). Organizer-only."""
+    any). Once the attendance list is closed, the rows active at close with
+    the presence they had, so a later withdrawal removes no one.
+    Organizer-only."""
     profile = await get_profile_by_principal(db, principal)
     await _require_active_organizer(db, group_id, profile.party_id)
-    await _require_term_in_group(db, group_id, term_id)
+    term = await _require_term_in_group(db, group_id, term_id)
 
-    attendances = await repository.list_active_attendances_for_term(db, term_id)
+    if term.attendance_closed_at is None:
+        attendances = await repository.list_active_attendances_for_term(db, term_id)
+    else:
+        attendances = await _attendances_active_at(db, term_id, term.attendance_closed_at)
     party_ids = [a.party_id for a in attendances]
     families = await _resolve_party_families(db, party_ids)
     child_birth_years = await _resolve_family_child_birth_years(
@@ -141,6 +147,16 @@ async def list_term_attendees(
     }
     profile_rows = await repository.list_profile_names_by_party_ids(db, party_ids)
     names = {row.party_id: row.display_name for row in profile_rows}
+    organizers = set(
+        (
+            await db.scalars(
+                select(TermAttendance.party_id).where(
+                    TermAttendance.term_id == term_id,
+                    repository.holds_active_leadership(TermAttendance.party_id, group_id),
+                )
+            )
+        ).all()
+    )
 
     return [
         TermAttendeeResponse(
@@ -150,9 +166,25 @@ async def list_term_attendees(
             family_id=families.get(attendance.party_id, (None, None))[0],
             family_name=families.get(attendance.party_id, (None, None))[1],
             children=children_by_party.get(attendance.party_id, []),
+            present=attendance.present_marked_at is not None,
+            is_organizer=attendance.party_id in organizers,
         )
         for attendance in attendances
     ]
+
+
+async def _attendances_active_at(
+    db: AsyncSession, term_id: uuid.UUID, closed_at: datetime
+) -> list[TermAttendance]:
+    result = await db.execute(
+        select(TermAttendance)
+        .where(
+            TermAttendance.term_id == term_id,
+            or_(TermAttendance.withdrawn_at.is_(None), TermAttendance.withdrawn_at > closed_at),
+        )
+        .order_by(TermAttendance.created_at)
+    )
+    return list(result.scalars().all())
 
 
 async def list_group_members(

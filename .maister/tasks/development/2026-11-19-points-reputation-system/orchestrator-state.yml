@@ -1,0 +1,188 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-12, phase-13, phase-14]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    sequential: false
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: "2026-11-19T11:19:46Z"
+  updated: "2026-11-22T18:21:51Z"
+  task_path: .maister/tasks/development/2026-11-19-points-reputation-system
+  task_ids: {}
+task:
+  title: System punktów i reputacji
+  description: "Punkty za oddawanie, wymiany i udział w spotkaniach, wydawane tylko na przedmioty za punkty; osobny licznik reputacji; wycena z size_class kategorii i stanu (20/40/60); księga append-only; points_config w panelu admina. Pełny opis: analysis/task-description.md. Pytania do użytkownika po polsku."
+  status: completed
+  tags: [points, reputation, ledger, categories, admin]
+  priority: null
+task_context:
+  risk_level: high
+  clarifications_resolved: true
+  scope_expanded: false
+  architecture_decision: "app/points module + groups/inventory consumer ACLs, flush-only posting before fulfill_exchange commit; balance = SUM(entries)"
+  tech_clarified: true
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: phase-4-mockup-studio
+    product_design_path: null
+    mockup_count: 7
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  design_resources:
+    ran: true
+    found_any: true
+  project_context:
+    project_doc_paths:
+      - .maister/docs/project/tech-stack.md
+      - .maister/docs/project/architecture.md
+  phase_summaries:
+    codebase_analysis:
+      summary: "Points ledger can mirror the inventory ledger (point_ prefix) and post flush-only in groups.confirm_transaction before fulfill_exchange commits; two-sided swap confirm, gift objection/7-day auto-confirm, attendance confirmation and the POINTS spend flow do not exist yet."
+      key_files:
+        - src/backend/app/groups/application/term_item_listings.py
+        - src/backend/app/inventory/infrastructure/ledger.py
+        - src/backend/app/inventory/application/reservation_transitions.py
+        - src/backend/app/category/models.py
+        - src/backend/app/core/authorization_matrix.py
+      primary_language: python+typescript
+      decisions: []
+      risks:
+        - "Spec earning triggers (two-sided swap confirm, gift objection + 7-day auto, attendance) missing in domain"
+        - "POINTS spend flow undefined in spec"
+        - "Reservations keyed by user ids, points by party"
+      artifacts:
+        - {path: analysis/codebase-analysis.md, label: Codebase analysis, html: null}
+    clarifications:
+      - "GIFT award at existing recipient confirm (objection/7-day auto -> backlog)"
+      - "SWAP +10 each side at existing single confirm"
+      - "Attendance +10: organizer confirms attendance (new feature)"
+      - "POINTS spend: hold at reservation, settle at confirm, release on cancel/reject"
+      - "points_config single-row table with all thresholds + admin page; future events only"
+    gap_analysis:
+      summary: "No points code exists; every piece has a proven pattern to copy. Two-stage split chosen: this task = ledger, valuation, config, GIFT/SWAP/wants awards, organizer attendance; POINTS spend in stage 2."
+      integration_points:
+        - groups.application.term_item_listings.confirm_transaction (flush-only awards before fulfill_exchange)
+        - category model + admin CategoryFormPage (size_class)
+        - inventory_items register_item/update_item (points_value)
+        - TermAttendeesPage + TermAttendance (attendance confirm, term points level)
+        - profile-public blocks (owner-only balance/history)
+      decisions: []
+      risks:
+        - "confirm_transaction single commit path; lock order point accounts then items"
+        - "New scheduler job for attendance auto-close"
+      artifacts:
+        - {path: analysis/gap-analysis.md, label: Gap analysis, html: null}
+    scope_clarifications:
+      summary: "Two stages; START_BONUS dropped; attendance = admin-bounded levels chosen per term by organizer, booked once at list close with min-present and monthly cap; POINTS spend model A (burn + SALE emission) recorded for stage 2."
+      scope_expanded: false
+      decisions:
+        - {decision: "Two-stage split, POINTS mode in stage 2", rationale: "user choice"}
+        - {decision: "START_BONUS removed", rationale: "user change"}
+        - {decision: "Attendance levels/cap/min-present in points_config; organizer picks level per term", rationale: "user change"}
+        - {decision: "Reputation v1 = sum of GIVE_FREE entries", rationale: "user decision"}
+        - {decision: "Stage 2: burn + SALE emission from points_price", rationale: "points in circulation unchanged per POINTS tx"}
+      risks: []
+      artifacts:
+        - {path: analysis/scope-clarifications.md, label: Scope clarifications, html: null}
+    ui_mockups:
+      summary: "7 HTML mockups (format html): admin category size class list/edit, points_config page, term form points level, attendance list open/closed, owner-only profile points block. Gallery http://localhost:3847."
+      components_designed: [points-level-segmented, attendance-checkbox-row, points-history-row]
+      decisions: []
+      risks: []
+      artifacts:
+        - {path: analysis/design-context/INDEX.md, label: Design context index, html: null}
+        - {path: analysis/design-context/design-resources.md, label: Design resources, html: null}
+    implementation_planning:
+      summary: "14 task groups, 96 steps, ~75-85 tests; visual coverage 10/10; awards split into rules (G4) and commit-path safety (G5); attendance split into level/presence (G6) and close/auto-close (G7)."
+      decisions:
+        - {decision: "Exchange awards split into G4 rules and G5 commit-path safety", rationale: "isolates riskiest change"}
+        - {decision: "load_config built in G2; G8 adds validation + endpoints", rationale: "config read before API group"}
+        - {decision: "Matrix row 70 in G6, rows 68-69 in G8", rationale: "rows ship with their feature"}
+      risks:
+        - "confirm_transaction single commit path; G5 smoke-runs confirm suites, G14 full regression"
+        - "Shared files serialize several groups"
+        - "Parallel-confirm test cleanup mandatory"
+      artifacts:
+        - {path: implementation/implementation-plan.md, label: Implementation plan, html: implementation/implementation-plan.html}
+        - {path: implementation/visual-coverage.md, label: Visual coverage, html: null}
+    design:
+      summary: "Stage-1 points UI mockups bound to globals.css Tailwind tokens (panel) and Chakra slate admin style."
+      screen_count: 7
+      component_count: 3
+      index_path: analysis/design-context/INDEX.md
+      decisions: []
+      risks: []
+      artifacts: []
+    specification:
+      summary: "Stage-1 spec: 9 requirements (ledger, awards, valuation, points_config, size_class, term attendance, /account/points page, visibility, matrix rows 68-70); 13 test groups estimated."
+      decisions:
+        - {decision: "New app/points module, reached only through groups and inventory ACLs", rationale: "same-commit awards, no import cycle"}
+        - {decision: "One SYSTEM EMISSION account; stage 1 never debits a person", rationale: "never below 0 by construction"}
+        - {decision: "Unique (transaction_type, source_type, source_id); zero awards post nothing", rationale: "idempotent awards"}
+        - {decision: "Lock order term -> point accounts by party id -> items", rationale: "deadlock-free"}
+        - {decision: "Migrations split per migrations.md: 0103 tables, 0104 columns, 0105 data (closes already-started terms)", rationale: "user decision at Phase 5 gate"}
+        - {decision: "Admin config GET/PUT /api/points/config; matrix rows 68-70", rationale: "ADMIN only, updated_at compare -> 409"}
+      risks:
+        - "resolved: 0103 combined tables and columns; split into 0103/0104/0105"
+        - "confirm_transaction single commit path; award bug blocks all exchanges"
+        - "Image-only rollback leaves points_value NULL on new items; runbook backfill"
+        - "Auto-close job must be idempotent"
+      artifacts:
+        - {path: implementation/spec.md, label: Specification, html: implementation/spec.html}
+        - {path: verification/spec-audit.md, label: Spec audit, html: null}
+        - {path: analysis/requirements.md, label: Requirements, html: null}
+        - {path: analysis/technical-clarifications.md, label: Technical clarifications, html: null}
+verification_context:
+  last_status: passed
+  issues_found:
+    - "W1 wants bonus ignores reservation-time want state"
+    - "W2 monthly cap bypass via past-dated terms"
+    - "W3 ledger invariant ValueError surfaces as 400"
+    - "W4 award_attendance per-attendee source-key queries"
+    - "W5 config save does not invalidate points prefix"
+    - "W6 organizer ticks silently excluded from count"
+    - "W7 close dialog lacks below-minimum warning"
+    - "W8 dead PARTY-debit check (kept by user decision)"
+    - "W9 architecture.md caller list"
+    - "E2E C3 live attendee_count after close"
+    - "E2E C2 missing pkt unit"
+    - "E2E C1/C4 pre-existing admin styling and English Access denied (not fixed)"
+  fixes_applied:
+    - "W1 created_at <= reservation in wants_acl.wanted_at_reservation"
+    - "W2 cap month = Warsaw month of the close"
+    - "W3 LedgerInvariantError(RuntimeError)"
+    - "W4 existing_source_ids batched query"
+    - "W5 invalidate [POINTS_KEY]"
+    - "W6 is_organizer on attendees + UI label and count"
+    - "W7 below-minimum warning in close dialog"
+    - "W9 docs updated"
+    - "E2E C3 closed attendance attendee_count counts rows active at close"
+    - "E2E C2 Moje punkty row shows pkt unit"
+  decisions_made:
+    - "Spec audit Q1: wants bonus counts want ACTIVE at reservation time (ACTIVE or FULFILLED after reservation)"
+    - "Spec audit Q2: freeze present count and rewarded on term at close"
+    - "Spec audit Q3: organizers get no attendance points for own term"
+    - "Spec audit Q4: same level after close OK, change = 409"
+    - "Phase 8 gate: soft-deleted group -> option (b), organizer exclusion via holds_active_leadership; guests still paid"
+    - "Phase 11: W2 cap month = month of close; W8 kept as safeguard"
+  reverify_count: 1

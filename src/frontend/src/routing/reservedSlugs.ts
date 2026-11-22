@@ -14,6 +14,7 @@ export const RESERVED_SLUGS: readonly string[] = [
   "account",
   "search",
   "wanted",
+  "points",
   "add",
   "events",
   "terms",

@@ -158,6 +158,23 @@ def test_resolveRequirement_wantRoutes_resolveToReadOrEditWithoutMcpScopes(
     assert resolve_requirement(method, path) == expected
 
 
+@pytest.mark.parametrize(
+    ("method", "path", "expected"),
+    [
+        ("GET", "/api/points/config", ("ADMIN",)),
+        ("PUT", "/api/points/config", ("ADMIN",)),
+        ("GET", "/api/points/attendance-rules", ("READ",)),
+        ("GET", "/api/points/me", ("READ",)),
+        ("GET", "/api/points/me/history", ("READ",)),
+        ("POST", "/api/points/config", "AUTHENTICATED"),
+    ],
+)
+def test_resolveRequirement_pointsRoutes_configAdminOtherwiseReadWithoutMcpScopes(
+    method: str, path: str, expected: tuple[str, ...] | str
+) -> None:
+    assert resolve_requirement(method, path) == expected
+
+
 async def test_wantRoutes_mcpScopeToken_returns403_loginTokenReaches200(
     client: AsyncClient,
 ) -> None:
@@ -493,3 +510,15 @@ def test_resolveRequirement_postItemsPageReadRoutes_areNotPublic() -> None:
     assert resolve_requirement("POST", "/api/public/organizers/x/items") != "PUBLIC"
     assert resolve_requirement("POST", "/api/public/items/i1/details") != "PUBLIC"
     assert resolve_requirement("POST", "/api/public/items/i1/actions") != "PUBLIC"
+
+
+def test_resolveRequirement_termPresencePut_resolvesToRow70EditAheadOfRows26And27() -> None:
+    """Row 70: the organizer's presence PUT needs EDIT/mcp:edit. Rows 26-27
+    cover only GET/POST, so without it the PUT would fall to the
+    AUTHENTICATED catch-all; it is declared ahead of them."""
+    path = "/api/groups/g1/terms/t1/attendees/p1/presence"
+    assert resolve_requirement("PUT", path) == EDIT
+    assert resolve_requirement("GET", "/api/groups/g1/terms/t1/attendance") == READ
+    patterns = [entry.pattern.pattern for entry in AUTHORIZATION_MATRIX]
+    row_70 = patterns.index(r"^/api/groups/[^/]+/terms/[^/]+/attendees/[^/]+/presence$")
+    assert row_70 < patterns.index(r"^/api/groups(/.*)?$")

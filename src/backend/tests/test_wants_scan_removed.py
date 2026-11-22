@@ -92,6 +92,7 @@ async def test_lifespan_schedulesNoWantScanJob_andRegistersTheHandlers(
     assert _RecordingScheduler.jobs == [
         main._run_term_end_scan,
         main._run_media_sweep,
+        main._run_attendance_close,
         main._run_embedding_reconcile,
     ]
     assert not hasattr(main, "_run_want_scan")

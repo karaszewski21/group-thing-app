@@ -213,6 +213,7 @@ async def create_category(db: AsyncSession, data: CreateCategoryRequest) -> Cate
         parent_id=data.parent_id,
         name=data.name,
         description=data.description,
+        size_class=data.size_class,
         sort_order=0 if max_sort_order is None else max_sort_order + 1,
         path_text=_path_text_of_new(data.parent_id, data.name),
     )
@@ -230,6 +231,7 @@ async def update_category(
     renamed = category.name != data.name
     category.name = data.name
     category.description = data.description
+    category.size_class = data.size_class
     if renamed:
         await db.flush()
         await db.execute(_REFRESH_SUBTREE_PATH_TEXT, {"category_id": category_id})

@@ -264,7 +264,7 @@ function mockDefaults() {
 }
 
 function category(id: string, name: string, parent_id: string | null, sort_order: number): Category {
-  return { id, name, description: null, parent_id, sort_order, product_count: 1, created_at: "", updated_at: "" };
+  return { id, name, description: null, parent_id, sort_order, product_count: 1, size_class: null, created_at: "", updated_at: "" };
 }
 
 const categories: Category[] = [

@@ -8,11 +8,20 @@ import { EmptyState } from "../../components/shared/EmptyState";
 import { PrimaryButton } from "../../components/shared/PrimaryButton";
 import { useAuth } from "../../auth/AuthContext";
 import { extractProblemMessage } from "../../api/problem";
-import { buildCategoryIndex, foldCategoryText, searchCategories, type CategoryIndex } from "../../utils/categoryTree";
+import {
+  buildCategoryIndex,
+  foldCategoryText,
+  resolveSizeClass,
+  searchCategories,
+  SIZE_CLASS_LABELS,
+  type CategoryIndex,
+  type ResolvedSizeClass,
+} from "../../utils/categoryTree";
 
 const HAS_PRODUCTS_TITLE = "Kategoria ma przypisane rzeczy";
 const NEW_ROOT_LABEL = "+ Nowa kategoria główna";
 const INDENT_PX = 28;
+const SIZE_CLASS_COLUMN_W = "160px";
 
 const pluralRules = new Intl.PluralRules("pl");
 const SUBCATEGORY_FORMS: Partial<Record<Intl.LDMLPluralRule, string>> = {
@@ -135,6 +144,7 @@ export function CategoryListPage() {
             <li key={category.id}>
               <CategoryRow
                 category={category}
+                sizeClass={resolveSizeClass(index, category.id)}
                 depth={depth}
                 childCount={childCount}
                 isOpen={isOpen}
@@ -207,7 +217,30 @@ export function CategoryListPage() {
                 Brak kategorii pasujących do „{filter.trim()}”.
               </Text>
             ) : (
-              renderLevel(null, 0, false)
+              <>
+                <Flex
+                  aria-hidden="true"
+                  display={{ base: "none", md: "flex" }}
+                  gap="10px"
+                  px="12px"
+                  py="8px"
+                  borderBottom="1px solid"
+                  borderColor="#E2E8F0"
+                  fontSize="12px"
+                  fontWeight="600"
+                  color="#64748B"
+                  textTransform="uppercase"
+                  letterSpacing="0.03em"
+                >
+                  <Box flex="1" minW="160px" pl="22px">
+                    Kategoria
+                  </Box>
+                  <Box w={SIZE_CLASS_COLUMN_W}>Klasa wielkości</Box>
+                  <Box minW="120px" />
+                  {isAdmin && <Box minW="320px" />}
+                </Flex>
+                {renderLevel(null, 0, false)}
+              </>
             )}
           </Box>
         </>
@@ -226,8 +259,30 @@ export function CategoryListPage() {
   );
 }
 
+function SizeClassTag({ sizeClass }: { sizeClass: ResolvedSizeClass }) {
+  const label = SIZE_CLASS_LABELS[sizeClass.value];
+  return (
+    <Box w={SIZE_CLASS_COLUMN_W}>
+      <Box
+        as="span"
+        fontSize="12px"
+        fontWeight="700"
+        borderRadius="6px"
+        px="8px"
+        py="2px"
+        bg={sizeClass.inherited ? "#F1F5F9" : "#DCF5EC"}
+        color={sizeClass.inherited ? "#64748B" : "#117B63"}
+      >
+        <span className="sr-only">Klasa wielkości:</span>{" "}
+        {sizeClass.inherited ? `${label} · dziedziczona` : label}
+      </Box>
+    </Box>
+  );
+}
+
 function CategoryRow({
   category,
+  sizeClass,
   depth,
   childCount,
   isOpen,
@@ -239,6 +294,7 @@ function CategoryRow({
   onDelete,
 }: {
   category: Category;
+  sizeClass: ResolvedSizeClass;
   depth: number;
   childCount: number;
   isOpen: boolean;
@@ -285,6 +341,7 @@ function CategoryRow({
           </Text>
         )}
       </Box>
+      <SizeClassTag sizeClass={sizeClass} />
       <Text as="span" fontSize="12px" color="#64748B" minW="120px">
         {metaLabel(childCount, category.product_count)}
       </Text>

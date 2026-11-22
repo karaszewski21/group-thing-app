@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Fidelity — points-reputation-system</title>
+<style>
+:root{--bg:#f6f7f9;--surface:#fff;--border:#e2e5ea;--text:#1a1d23;--dim:#6b7280;--accent:#4f46e5;--accent-soft:#eef2ff;--ok:#16a34a;--ok-soft:#ecfdf3;--warn:#d97706;--warn-soft:#fffbeb;--crit:#dc2626;--crit-soft:#fef2f2;--info:#2563eb;--info-soft:#eff6ff;--radius:10px}
+@media (prefers-color-scheme:dark){:root{--bg:#111418;--surface:#1a1f26;--border:#2e3640;--text:#e6e9ee;--dim:#9aa4b2;--accent:#818cf8;--accent-soft:#26294a;--ok:#4ade80;--ok-soft:#11291a;--warn:#fbbf24;--warn-soft:#2e2410;--crit:#f87171;--crit-soft:#321616;--info:#60a5fa;--info-soft:#15233a}}
+*{box-sizing:border-box}
+body{margin:0 auto;max-width:1100px;padding:24px 20px 64px;background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+h1{font-size:22px;letter-spacing:-.01em}h2{font-size:16px;margin-top:28px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin:14px 0}
+.badge{display:inline-block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+.sev{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;padding:1.5px 7px;border-radius:99px;margin-right:6px}
+.sev.warning{background:var(--warn-soft);color:var(--warn)}.sev.info{background:var(--info-soft);color:var(--info)}
+.pass{color:var(--ok);font-weight:600}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:var(--accent-soft);padding:1px 5px;border-radius:4px}
+img.shot{max-width:100%;border:1px solid var(--border);border-radius:var(--radius)}
+.crumbs{display:flex;gap:14px;font-size:13px;margin-bottom:18px;flex-wrap:wrap}.crumbs a.md{margin-left:auto;color:var(--dim)}.crumbs .here{font-weight:650;color:var(--text)}
+.tiles{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;text-align:center;min-width:90px}
+.tile b{display:block;font-size:20px}.tile span{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:700px){.pair{grid-template-columns:1fr}}
+figure{margin:0}figcaption{font-size:12px;color:var(--dim)}
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a>
+  <a href="implementation-verification.html">Verification</a>
+  <a href="e2e-verification-report.html">E2E</a>
+  <span class="here">Visual fidelity</span>
+  <a href="visual-fidelity.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <span class="badge">Visual fidelity · report-only</span>
+  <h1>Visual Fidelity Report — points &amp; reputation, stage 1</h1>
+  <div style="color:var(--dim);font-size:13px">LLM-judged structural match (not pixel diff) · source <code>analysis/design-context/INDEX.md</code></div>
+</header>
+<div class="tiles">
+  <div class="tile"><b>7</b><span>screens</span></div>
+  <div class="tile"><b class="pass">4</b><span>✓ match</span></div>
+  <div class="tile"><b style="color:var(--warn)">3</b><span>⚠ minor deviation</span></div>
+  <div class="tile"><b>0</b><span>✗ drift</span></div>
+</div>
+<section class="card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul><li>7 screens compared: 4 ✓, 3 ⚠, 0 ✗. Layout, field order, primary actions, copy and state coverage follow the mockups.</li>
+  <li>Deviations: unstyled admin inputs and buttons (admin-wide, pre-existing), one help-text wording change, and the points block on the full-width <code>/account/points</code> page (spec remap).</li></ul>
+  <h3>Key Decisions</h3>
+  <ul><li>Mockups were rendered with a local HTTP server and captured as <code>mock-*.png</code>.</li><li><code>screen:profile-points</code> is compared with <code>/account/points</code>, as the spec remapped it.</li></ul>
+  <h3>Open Questions / Risks</h3>
+  <ul><li>Admin input and button styling is worth a separate admin-theme fix (E2E C1).</li></ul>
+</section>
+<main>
+<h2>Per-screen comparison</h2>
+
+<div class="card"><h3>screen:admin-category-list <span class="pass">✓ Match</span></h3>
+<div class="pair"><figure><img class="shot" src="screenshots/mock-admin-category-list.png" alt="Mockup category list"><figcaption>Mockup</figcaption></figure><figure><img class="shot" src="screenshots/05-admin-category-list.png" alt="Implementation category list"><figcaption>Implementation (05)</figcaption></figure></div>
+<p>Columns „KATEGORIA” and „KLASA WIELKOŚCI”, nested disclosure rows, set vs „· dziedziczona” pills. The existing extra controls (↑/↓, + Podkategoria, Usuń) are kept.</p></div>
+
+<div class="card"><h3>screen:admin-category-edit <span class="sev warning">⚠ Minor deviation</span></h3>
+<div class="pair"><figure><img class="shot" src="screenshots/mock-admin-category-edit.png" alt="Mockup category edit"><figcaption>Mockup</figcaption></figure><figure><img class="shot" src="screenshots/06-admin-category-edit.png" alt="Implementation category edit"><figcaption>Implementation (06)</figcaption></figure></div>
+<p>Same fields and order. The help text ends „…ceny już wystawionych rzeczy.”, where the mockup says „…ofert „za punkty””. Inputs and buttons are unstyled (pre-existing admin styling).</p></div>
+
+<div class="card"><h3>screen:admin-points-config <span class="sev warning">⚠ Minor deviation</span></h3>
+<div class="pair"><figure><img class="shot" src="screenshots/mock-admin-points-config.png" alt="Mockup points config"><figcaption>Mockup</figcaption></figure><figure><img class="shot" src="screenshots/01-admin-points-config.png" alt="Implementation points config"><figcaption>Implementation (01)</figcaption></figure></div>
+<p>Six fieldsets in mockup order, the level chips, and the inline Polish errors (see 04) all match. Inputs are borderless and the save button is not filled (admin-wide). 1.0 is shown as „1”.</p></div>
+
+<div class="card"><h3>screen:term-form-points-level <span class="pass">✓ Match</span></h3>
+<div class="pair"><figure><img class="shot" src="screenshots/mock-term-form.png" alt="Mockup term form"><figcaption>Mockup</figcaption></figure><figure><img class="shot" src="screenshots/08-add-term-points-level.png" alt="Implementation add term"><figcaption>Implementation (08; edit form: 10)</figcaption></figure></div>
+<p>The three-button segmented picker, with the selected level filled green, and the help text with the minimum present. Implemented in both the add and edit forms.</p></div>
+
+<div class="card"><h3>screen:attendees-open <span class="pass">✓ Match</span></h3>
+<div class="pair"><figure><img class="shot" src="screenshots/mock-attendees-open.png" alt="Mockup attendees open"><figcaption>Mockup</figcaption></figure><figure><img class="shot" src="screenshots/11-attendees-open-1-of-3.png" alt="Implementation attendees open"><figcaption>Implementation (11; dialog: 12)</figcaption></figure></div>
+<p>Info banner with „Teraz: X z Y”, checkbox rows with „obecny”, „Zatwierdź obecność” and the auto-close line. Extra: the organizer label (spec W6). In this full-page capture the sticky header overlaps the banner.</p></div>
+
+<div class="card"><h3>screen:attendees-closed <span class="pass">✓ Match</span></h3>
+<div class="pair"><figure><img class="shot" src="screenshots/mock-attendees-closed.png" alt="Mockup attendees closed"><figcaption>Mockup</figcaption></figure><figure><img class="shot" src="screenshots/15-attendees-closed-rewarded.png" alt="Implementation attendees closed"><figcaption>Implementation (15; below-minimum: 16)</figcaption></figure></div>
+<p>Read-only rows, and both result variants with the mockup's copy.</p></div>
+
+<div class="card"><h3>screen:profile-points <span class="sev warning">⚠ Minor deviation</span></h3>
+<div class="pair"><figure><img class="shot" src="screenshots/mock-profile-points.png" alt="Mockup profile points"><figcaption>Mockup</figcaption></figure><figure><img class="shot" src="screenshots/22-giver-points-give-free.png" alt="Implementation account points"><figcaption>Implementation (22; also 18, 19)</figcaption></figure></div>
+<p>Tiles, the „wkrótce” note, history rows with icon, the reputation pill and amount, and the footer all match. The page is a full-width <code>/account/points</code> (spec remap). History titles and subtitles follow the spec table. „Pokaż starsze” is not visible because there are fewer than one page of entries.</p></div>
+</main>
+</body>
+</html>

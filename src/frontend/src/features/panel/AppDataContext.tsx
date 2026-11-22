@@ -193,6 +193,9 @@ function useAppDataValue() {
   const [termLocationId, setTermLocationId] = useState<string | null>(null);
   // Raw input text; `parseCapacity` turns it into the request value.
   const [termCapacity, setTermCapacity] = useState("");
+  // The picked attendance level; `null` until `AddTermView` preselects the
+  // lowest one (and then omitted, so the server applies that default).
+  const [termAttendancePoints, setTermAttendancePoints] = useState<number | null>(null);
   const [neededDraft, setNeededDraft] = useState<NeededItemQuickAddValue[]>([]);
   const [draftNeededItem, setDraftNeededItem] = useState<NeededItemQuickAddValue>(
     createEmptyNeededItemQuickAddValue(),
@@ -420,6 +423,7 @@ function useAppDataValue() {
           description: termDescription || undefined,
           location_id: termLocationId,
           capacity,
+          ...(termAttendancePoints !== null && { attendance_points: termAttendancePoints }),
         });
       } catch (err) {
         setAddTermError(serverMessageOr(err, "Nie udało się dodać terminu"));
@@ -445,6 +449,7 @@ function useAppDataValue() {
       selectTermGroup(null);
       setTermDate("");
       setTermDescription("");
+      setTermAttendancePoints(null);
       setNeededDraft([]);
       await queryClient.invalidateQueries({ queryKey: [NEEDED_ITEMS_KEY] });
       navigate(viewPath("meetings"));
@@ -714,6 +719,7 @@ function useAppDataValue() {
     termDescription,
     termLocationId,
     termCapacity,
+    termAttendancePoints,
     neededDraft,
     draftNeededItem,
     items,
@@ -739,6 +745,7 @@ function useAppDataValue() {
     setTermDescription,
     setTermLocationId,
     setTermCapacity,
+    setTermAttendancePoints,
     setDraftNeededItem,
     setEditGroupForm,
     // --- derived ---

@@ -36,6 +36,7 @@ from app.core.errors import (
     EntityNotFoundException,
 )
 from app.core.pagination import PageParams
+from app.db import mapped_transaction_conflicts
 from app.storage.service import ObjectStorage
 from app.users.models import UserProfile
 from app.users.service import (
@@ -45,7 +46,13 @@ from app.users.service import (
 )
 
 from ..domain import confirm_race_rules
-from ..infrastructure import inventory_bridge, notifications_bridge, product_bridge, repository
+from ..infrastructure import (
+    inventory_bridge,
+    notifications_bridge,
+    points_acl,
+    product_bridge,
+    repository,
+)
 from ..infrastructure.notifications_bridge import NotificationKind
 from ..models import (
     GroupVisibility,
@@ -1155,23 +1162,30 @@ async def confirm_transaction(
     if not _may_confirm(reservations[0], acting_user_id):
         raise AccessDeniedException
 
-    # A GIFT/SWAP permanently hands the item to someone else, so the giver's
-    # standing listing mode no longer applies — deleted here so the item
-    # isn't re-offered on the giver's behalf at their next Term, and the item
-    # arrives at its new owner as a draft. The new owner sets their own mode
-    # from `Moje rzeczy` if they want to pass it on.
-    for r in reservations:
-        preference = await repository.get_item_listing_preference(db, r.item_id)
-        if preference is not None:
-            await db.delete(preference)
-            await inventory_bridge.set_item_listing_status(
-                db, r.item_id, inventory_bridge.ItemListingStatus.DRAFT
-            )
-    await db.flush()
+    # A deadlock or serialization failure in these writes is a 409. A
+    # concurrent confirm that posted first leaves its source keys behind, so
+    # the awards skip them; its fulfilment makes this one's stale (409).
+    async with mapped_transaction_conflicts(db):
+        # Awards lock the point accounts before the item rows below are touched.
+        await points_acl.award_exchange(db, reservations)
 
-    fulfilled = await inventory_bridge.fulfill_exchange(
-        db, [cast(uuid.UUID, r.id) for r in reservations], acting_user_id
-    )
+        # A GIFT/SWAP permanently hands the item to someone else, so the giver's
+        # standing listing mode no longer applies — deleted here so the item
+        # isn't re-offered on the giver's behalf at their next Term, and the item
+        # arrives at its new owner as a draft. The new owner sets their own mode
+        # from `Moje rzeczy` if they want to pass it on.
+        for r in reservations:
+            preference = await repository.get_item_listing_preference(db, r.item_id)
+            if preference is not None:
+                await db.delete(preference)
+                await inventory_bridge.set_item_listing_status(
+                    db, r.item_id, inventory_bridge.ItemListingStatus.DRAFT
+                )
+        await db.flush()
+
+        fulfilled = await inventory_bridge.fulfill_exchange(
+            db, [cast(uuid.UUID, r.id) for r in reservations], acting_user_id
+        )
     return next(r for r in fulfilled if r.id == reservation_id)
 
 

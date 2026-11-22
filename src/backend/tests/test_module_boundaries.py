@@ -1,9 +1,11 @@
 """Import boundary of the read-only page modules `app.pages` and
 `app.search` and of `app.wants`: only `app/main.py` imports them, their code outside
 `infrastructure/` reaches no other context (`domain/` only itself), and their
-ACLs never import their own schemas. The compute-only `app.embeddings` imports
-only `app.config` and `app.core`. Imports are read from the AST, so
-docstrings and comments that mention a module do not count."""
+ACLs never import their own schemas. `app.points` is imported only by
+`app/main.py` and the two consumer ACLs, under the same inner rules. The
+compute-only `app.embeddings` imports only `app.config` and `app.core`.
+Imports are read from the AST, so docstrings and comments that mention a
+module do not count."""
 
 from __future__ import annotations
 
@@ -94,6 +96,45 @@ def test_moduleAcls_importingOwnSchemas_none(name: str) -> None:
         for module in _app_imports(path)
         if _matches(module, f"app.{name}.schemas")
     )
+
+    assert offenders == []
+
+
+_POINTS_IMPORTERS = {
+    "main.py",
+    "groups/infrastructure/points_acl.py",
+    "inventory/infrastructure/points_acl.py",
+}
+
+
+def test_pointsModule_importingModule_exactlyMainAndConsumerAcls() -> None:
+    root = _APP_ROOT / "points"
+    importers = {
+        str(path.relative_to(_APP_ROOT).as_posix())
+        for path in _APP_ROOT.rglob("*.py")
+        if not path.is_relative_to(root)
+        and any(_matches(module, "app.points") for module in _app_imports(path))
+    }
+
+    assert importers == _POINTS_IMPORTERS
+
+
+def test_pointsCode_outsideInfrastructure_importsOnlyAllowedPackages() -> None:
+    root = _APP_ROOT / "points"
+    offenders = []
+    for path in sorted(root.rglob("*.py")):
+        if path.is_relative_to(root / "infrastructure"):
+            continue
+        allowed = (
+            ("app.points.domain",)
+            if path.is_relative_to(root / "domain")
+            else ("app.core", "app.db", "app.points")
+        )
+        offenders.extend(
+            f"{path.relative_to(_APP_ROOT).as_posix()}: {module}"
+            for module in sorted(_app_imports(path))
+            if not any(_matches(module, package) for package in allowed)
+        )
 
     assert offenders == []
 

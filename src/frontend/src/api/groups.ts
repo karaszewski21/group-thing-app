@@ -310,6 +310,10 @@ export interface TermAttendeeResponse {
   family_id: string | null;
   family_name: string | null;
   children: { birth_year: number | null }[];
+  /** Marked present by the organizer; frozen once the attendance is closed. */
+  present: boolean;
+  /** Leads the group: never earns attendance points nor counts toward the minimum. */
+  is_organizer: boolean;
 }
 
 export function getTermAttendees(
@@ -317,6 +321,43 @@ export function getTermAttendees(
   termId: string,
 ): Promise<TermAttendeeResponse[]> {
   return api.get(`/groups/${groupId}/terms/${termId}/attendees`);
+}
+
+export type TermAttendanceState = "NOT_STARTED" | "OPEN" | "CLOSED";
+
+/** The organizer's attendance read of one term. `present_count` and
+ * `min_present` are live while open and frozen at close; `auto_close_on`
+ * (naive Warsaw) is null once closed, `rewarded` and `closed_at` (naive UTC)
+ * null until then. */
+export interface TermAttendanceResponse {
+  state: TermAttendanceState;
+  attendance_points: number;
+  allowed_levels: number[];
+  attendee_count: number;
+  present_count: number;
+  min_present: number;
+  auto_close_on: string | null;
+  closed_at: string | null;
+  rewarded: boolean | null;
+}
+
+export function getTermAttendance(groupId: string, termId: string): Promise<TermAttendanceResponse> {
+  return api.get(`/groups/${groupId}/terms/${termId}/attendance`);
+}
+
+/** 409 before the term starts and after the close. */
+export function setPresence(
+  groupId: string,
+  termId: string,
+  partyId: string,
+  present: boolean,
+): Promise<void> {
+  return api.put(`/groups/${groupId}/terms/${termId}/attendees/${partyId}/presence`, { present });
+}
+
+/** 409 unless the attendance is open. */
+export function closeAttendance(groupId: string, termId: string): Promise<TermAttendanceResponse> {
+  return api.post(`/groups/${groupId}/terms/${termId}/attendance/close`, undefined);
 }
 
 /** One person who RSVP'd to at least one term of a group

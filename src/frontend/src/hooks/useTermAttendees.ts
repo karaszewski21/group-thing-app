@@ -11,26 +11,23 @@ import { getTerm, type TermResponse } from "../api/terms";
 import { TERM_KEY } from "./useTerm";
 
 const GROUP_KEY = "group";
-const TERM_ATTENDEES_KEY = "termAttendees";
-
-const NO_ATTENDEES: TermAttendeeResponse[] = [];
+/** Query-key prefix of a term's attendee list. */
+export const TERM_ATTENDEES_KEY = "termAttendees";
 
 interface UseTermAttendeesResult {
   term: TermResponse | null;
   group: GroupResponse | null;
-  attendees: TermAttendeeResponse[];
+  /** `null` until loaded. */
+  attendees: TermAttendeeResponse[] | null;
   denied: boolean;
   notFound: boolean;
   error: string | null;
-  loading: boolean;
   refetch: () => Promise<void>;
 }
 
 /** The organizer attendees page's data: the term, then (once the term is
  * known, since the route carries only `termId`) its group and the attendee
- * list, both keyed by `term.group_id`. A disabled dependent query
- * stays `isPending` forever in TanStack v5, so `loading` counts the
- * dependents only after the term query has succeeded. */
+ * list, both keyed by `term.group_id`. */
 export function useTermAttendees(termId: string): UseTermAttendeesResult {
   const termQ = useQuery({
     queryKey: [TERM_KEY, termId],
@@ -76,11 +73,10 @@ export function useTermAttendees(termId: string): UseTermAttendeesResult {
   return {
     term: termQ.data ?? null,
     group: groupQ.data ?? null,
-    attendees: attendeesQ.data ?? NO_ATTENDEES,
+    attendees: attendeesQ.data ?? null,
     denied,
     notFound,
     error: otherError ? extractProblemMessage(otherError) : null,
-    loading: termQ.isPending || (termQ.isSuccess && (groupQ.isPending || attendeesQ.isPending)),
     refetch,
   };
 }

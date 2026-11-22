@@ -94,7 +94,7 @@ const POZNAN = makeLocationResponse({
 });
 
 function category(id: string, name: string, parent_id: string | null): Category {
-  return { id, name, description: null, parent_id, sort_order: 0, product_count: 0, created_at: "", updated_at: "" };
+  return { id, name, description: null, parent_id, sort_order: 0, product_count: 0, size_class: null, created_at: "", updated_at: "" };
 }
 
 function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsResponse {

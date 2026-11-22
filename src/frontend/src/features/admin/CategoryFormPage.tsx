@@ -1,12 +1,19 @@
 import { Box, Button, Flex, Heading, Input, Text, Textarea } from "@chakra-ui/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useAppNavigate, useAppParams, useAppSearchParams } from "../../routing/navigation";
-import { getCategory } from "../../api/categories";
+import { getCategory, type SizeClass } from "../../api/categories";
 import { extractProblemMessage } from "../../api/problem";
 import { CategoryTreePicker } from "../../components/shared/CategoryTreePicker";
 import { PrimaryButton } from "../../components/shared/PrimaryButton";
 import { useCategories } from "../../hooks/useCategories";
-import { buildCategoryIndex, formatCategoryPath } from "../../utils/categoryTree";
+import { usePointsConfig } from "../../hooks/usePointsConfig";
+import {
+  buildCategoryIndex,
+  DEFAULT_SIZE_CLASS,
+  formatCategoryPath,
+  resolveSizeClass,
+  SIZE_CLASS_LABELS,
+} from "../../utils/categoryTree";
 
 const labelStyle: React.CSSProperties = {
   fontSize: "14px",
@@ -19,6 +26,18 @@ const labelStyle: React.CSSProperties = {
 const PARENT_LABEL_ID = "category-parent-label";
 const PARENT_HINT_ID = "category-parent-hint";
 const ROOT_TEXT = "Brak (kategoria główna)";
+const SIZE_CLASS_HINT_ID = "category-size-class-hint";
+const SIZE_CLASSES: readonly SizeClass[] = ["SMALL", "MEDIUM", "LARGE"];
+
+const selectStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "8px 12px",
+  border: "1px solid #E2E8F0",
+  borderRadius: "8px",
+  fontSize: "14px",
+  background: "white",
+  color: "#334155",
+};
 
 /**
  * Shared between `/admin/categories/new[?parent=<id>]` and `/admin/categories/:id/edit`.
@@ -33,11 +52,21 @@ export function CategoryFormPage() {
   const [parentId, setParentId] = useState<string | null>(() => (id ? null : searchParams.get("parent")));
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [sizeClass, setSizeClass] = useState<SizeClass | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { data: categories, create, update } = useCategories();
   const index = useMemo(() => buildCategoryIndex(categories), [categories]);
+  const { data: pointsConfig } = usePointsConfig();
+  const bases: Record<SizeClass, number> | null = pointsConfig && {
+    SMALL: pointsConfig.base_small,
+    MEDIUM: pointsConfig.base_medium,
+    LARGE: pointsConfig.base_large,
+  };
+  const inheritLabel = parentId
+    ? `Dziedzicz z kategorii nadrzędnej (obecnie: ${SIZE_CLASS_LABELS[resolveSizeClass(index, parentId).value]})`
+    : `Dziedzicz (domyślnie: ${SIZE_CLASS_LABELS[DEFAULT_SIZE_CLASS]})`;
 
   const loadData = useCallback(async () => {
     setLoadingData(true);
@@ -46,6 +75,7 @@ export function CategoryFormPage() {
         const category = await getCategory(id);
         setName(category.name);
         setDescription(category.description ?? "");
+        setSizeClass(category.size_class);
         setParentId(category.parent_id);
       }
     } catch (err) {
@@ -65,9 +95,9 @@ export function CategoryFormPage() {
     setError(null);
     try {
       if (isEdit && id) {
-        await update(id, { name, description: description || undefined });
+        await update(id, { name, description: description || undefined, size_class: sizeClass });
       } else {
-        await create({ name, description: description || undefined, parent_id: parentId });
+        await create({ name, description: description || undefined, parent_id: parentId, size_class: sizeClass });
       }
       navigate("/admin/categories");
     } catch (err) {
@@ -131,6 +161,30 @@ export function CategoryFormPage() {
               Nazwa
             </label>
             <Input id="category-name" value={name} onChange={(e) => setName(e.target.value)} required />
+          </Box>
+
+          <Box>
+            <label htmlFor="category-size-class" style={labelStyle}>
+              Klasa wielkości (wycena punktowa)
+            </label>
+            <select
+              id="category-size-class"
+              aria-describedby={SIZE_CLASS_HINT_ID}
+              value={sizeClass ?? ""}
+              onChange={(e) => setSizeClass(e.target.value === "" ? null : (e.target.value as SizeClass))}
+              style={selectStyle}
+            >
+              <option value="">{inheritLabel}</option>
+              {SIZE_CLASSES.map((value) => (
+                <option key={value} value={value}>
+                  {bases ? `${SIZE_CLASS_LABELS[value]} – baza ${bases[value]} pkt` : SIZE_CLASS_LABELS[value]}
+                </option>
+              ))}
+            </select>
+            <Text id={SIZE_CLASS_HINT_ID} fontSize="12px" color="#64748B" mt="6px">
+              Podkategorie bez ustawionej klasy dziedziczą tę wartość. Zmiana nie wpływa na ceny już wystawionych
+              rzeczy.
+            </Text>
           </Box>
 
           <Box>

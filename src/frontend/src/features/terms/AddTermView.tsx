@@ -4,6 +4,8 @@ import { NeededItemQuickAddForm } from "../../components/shared/NeededItemQuickA
 import { LocationPicker } from "../../components/shared/LocationPicker";
 import { CapacityField, Field, INPUT_CLASS } from "../../components/shared/appComponents";
 import { useAppData } from "../panel/appDataStore";
+import { useAttendanceRules } from "../../hooks/useAttendanceRules";
+import { AttendancePointsPicker } from "./components/AttendancePointsPicker";
 import { parseCapacity } from "../../utils/appHelpers";
 import { viewPath } from "../../routing/paths";
 
@@ -20,6 +22,7 @@ export function AddTermView() {
     termDescription,
     termLocationId,
     termCapacity,
+    termAttendancePoints,
     neededDraft,
     draftNeededItem,
     busy,
@@ -28,6 +31,7 @@ export function AddTermView() {
     setTermDescription,
     setTermLocationId,
     setTermCapacity,
+    setTermAttendancePoints,
     setDraftNeededItem,
     handleAddTerm,
     addDraftNeededItem,
@@ -38,11 +42,18 @@ export function AddTermView() {
   // the organizer actually wants to add one (same pattern as TermEditForm).
   const [addingNeeded, setAddingNeeded] = useState(false);
   const termGroup = myGroups.find((g) => g.id === termGroupId) ?? null;
+  const { data: attendanceRules } = useAttendanceRules();
+  const lowestLevel = attendanceRules?.levels[0] ?? null;
 
   // Entered by URL (not from a "Dodaj termin" button): start on the first group.
   useEffect(() => {
     if (!termGroupId && myGroups.length > 0) selectTermGroup(myGroups[0].id);
   }, [termGroupId, myGroups, selectTermGroup]);
+
+  // Preselect the lowest allowed level once the rules are known.
+  useEffect(() => {
+    if (termAttendancePoints === null && lowestLevel !== null) setTermAttendancePoints(lowestLevel);
+  }, [termAttendancePoints, lowestLevel, setTermAttendancePoints]);
 
   return (
     <section aria-label={TITLE}>
@@ -101,6 +112,14 @@ export function AddTermView() {
               />
             </Field>
             <CapacityField label="Ile miejsc" value={termCapacity} onChange={setTermCapacity} />
+            {attendanceRules && (
+              <AttendancePointsPicker
+                allowedLevels={attendanceRules.levels}
+                value={termAttendancePoints}
+                onChange={setTermAttendancePoints}
+                minPresent={attendanceRules.min_present}
+              />
+            )}
             <Field label="Potrzebne rzeczy (opcjonalnie)">
               {neededDraft.map((item, index) => (
                 <div key={index} className="mb-1.5 flex items-center gap-2 text-[13px]">

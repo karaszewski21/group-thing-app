@@ -48,9 +48,9 @@ vi.mock("../api/categories", () => ({
 }));
 
 const mockCategories: categoriesApi.Category[] = [
-  { id: "9", name: "Dzieci", description: null, parent_id: null, sort_order: 0, product_count: 0, created_at: "", updated_at: "" },
-  { id: "1", name: "Zabawka", description: null, parent_id: "9", sort_order: 0, product_count: 1, created_at: "", updated_at: "" },
-  { id: "4", name: "Ubranie", description: null, parent_id: null, sort_order: 1, product_count: 1, created_at: "", updated_at: "" },
+  { id: "9", name: "Dzieci", description: null, parent_id: null, sort_order: 0, product_count: 0, size_class: null, created_at: "", updated_at: "" },
+  { id: "1", name: "Zabawka", description: null, parent_id: "9", sort_order: 0, product_count: 1, size_class: null, created_at: "", updated_at: "" },
+  { id: "4", name: "Ubranie", description: null, parent_id: null, sort_order: 1, product_count: 1, size_class: null, created_at: "", updated_at: "" },
 ];
 
 const mockProducts: ProductResponse[] = [
