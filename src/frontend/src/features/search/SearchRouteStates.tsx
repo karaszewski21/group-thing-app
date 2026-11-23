@@ -17,7 +17,7 @@ export function SearchPageError({ reset }: { reset: () => void }) {
     reset();
   };
   return (
-    <p role="alert" className="text-[13px] text-ink-soft">
+    <p role="alert" className="mx-auto w-full max-w-300 px-4 pt-6 text-[13px] text-ink-soft md:px-6">
       {SEARCH_LOAD_ERROR}{" "}
       <button type="button" onClick={() => void retry()} className={RETRY_BUTTON}>
         Spróbuj ponownie

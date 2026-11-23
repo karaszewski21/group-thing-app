@@ -6,7 +6,6 @@ import type { Category } from "../api/categories";
 import * as localitiesApi from "../api/localities";
 import * as searchApi from "../api/search";
 import type { SearchPage, SearchQuery, SearchResult } from "../api/search";
-import BackPageLayout from "../app/(public)/layout";
 import SearchRoutePage from "../app/(public)/search/page";
 import { SearchPageError } from "../features/search/SearchRouteStates";
 import { SearchView } from "../features/search/SearchView";
@@ -337,6 +336,41 @@ describe("SearchView", () => {
     expect(organization).toHaveTextContent("/dzieciecy-swiat");
   });
 
+  it("a product is an item tile with its condition and offer, not a meeting tile", async () => {
+    vi.mocked(searchApi.searchPublic).mockResolvedValue(page([product("a", "Wózek spacerowy")]));
+    renderSearch("/search?q=wózek");
+
+    const tile = (await screen.findByRole("link", { name: "Wózek spacerowy" })).closest("article");
+    expect(tile).not.toBeNull();
+    expect(tile).toHaveTextContent("Stan: Dobry");
+    expect(tile).toHaveTextContent("Oddam");
+    expect(tile).not.toHaveTextContent("Termin");
+  });
+
+  it("an event is a meeting tile that reads out its date, without the group or points pills", async () => {
+    vi.mocked(searchApi.searchPublic).mockResolvedValue(
+      page([
+        {
+          kind: "event",
+          id: "e1",
+          title: "Giełda wózków",
+          subtitle: "Pracownia Ciekawości",
+          href: "/pracownia/event/e1",
+          meta: { starts_at: "2026-11-23T11:00:00", place: "ul. Puławska 12" },
+        },
+      ]),
+    );
+    renderSearch("/search?q=wózek&mode=events");
+
+    const tile = await screen.findByRole("link", { name: /Giełda wózków/ });
+    expect(tile.closest("article")).toBeNull();
+    expect(tile).toHaveTextContent("Wydarzenie");
+    expect(tile).toHaveTextContent("poniedziałek 23 listopada");
+    expect(tile).toHaveTextContent("Pracownia Ciekawości · 11:00 · ul. Puławska 12");
+    expect(tile).not.toHaveTextContent("moja grupa");
+    expect(tile).not.toHaveTextContent("pkt");
+  });
+
   it("shows a group's description clamped to two lines and no description line without one", async () => {
     vi.mocked(searchApi.searchPublic).mockResolvedValue(
       page([
@@ -490,28 +524,13 @@ describe("SearchPage", () => {
   });
 
   function renderPage(url: string) {
-    return renderWithRoute(
-      <BackPageLayout>
-        <SearchRoutePage />
-      </BackPageLayout>,
-      {
-        url,
-        pattern: "/search",
-        routes: { "/": <h1>Start</h1>, "/zielony-krag/product/:id": <h1>Strona rzeczy</h1> },
-        wrapper: createQueryWrapper(createTestQueryClient()),
-      },
-    );
+    return renderWithRoute(<SearchRoutePage />, {
+      url,
+      pattern: "/search",
+      routes: { "/": <h1>Start</h1>, "/zielony-krag/product/:id": <h1>Strona rzeczy</h1> },
+      wrapper: createQueryWrapper(createTestQueryClient()),
+    });
   }
-
-  it("„Wróć” leads to Start; a member gets no „Zaloguj się”", async () => {
-    renderPage("/search?q=klocki");
-
-    expect(await screen.findByRole("searchbox")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Zaloguj się" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: "Wróć" }));
-
-    expect(getTestLocation()).toEqual({ pathname: "/", search: "" });
-  });
 
   it("going back from a result keeps the loaded pages and the scroll position", async () => {
     const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});

@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
-import TermRouteError from "../app/(site)/[slug]/group/[groupId]/term/[termId]/error";
-import TermRouteNotFound from "../app/(site)/[slug]/group/[groupId]/term/[termId]/not-found";
-import TermRoutePage from "../app/(site)/[slug]/group/[groupId]/term/[termId]/page";
+import TermRouteError from "../app/(public)/[slug]/group/[groupId]/term/[termId]/error";
+import TermRouteNotFound from "../app/(public)/[slug]/group/[groupId]/term/[termId]/not-found";
+import TermRoutePage from "../app/(public)/[slug]/group/[groupId]/term/[termId]/page";
 import { RouteBoundary } from "./routeBoundary";
 
 /** `/:slug/group/:groupId/term/:termId` as Next renders it, like

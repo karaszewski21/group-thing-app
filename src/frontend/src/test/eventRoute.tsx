@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
-import EventRouteError from "../app/(site)/[slug]/event/[eventId]/error";
-import EventRouteNotFound from "../app/(site)/[slug]/event/[eventId]/not-found";
-import EventRoutePage from "../app/(site)/[slug]/event/[eventId]/page";
+import EventRouteError from "../app/(public)/[slug]/event/[eventId]/error";
+import EventRouteNotFound from "../app/(public)/[slug]/event/[eventId]/not-found";
+import EventRoutePage from "../app/(public)/[slug]/event/[eventId]/page";
 import { RouteBoundary } from "./routeBoundary";
 
 /** `/:slug/event/:eventId` as Next renders it, like `itemRouteElement`. The

@@ -21,7 +21,7 @@ beforeEach(() => {
 
 /** `url` as the App Router serves it: a panel page, so the panel layout's gate. */
 function renderAt(url: string) {
-  expect(pageFor(url)?.dir).toBe(`(site)/(panel)${url}`);
+  expect(pageFor(url)?.dir).toBe(`(public)/(panel)${url}`);
   renderWithRoute(<PanelGate>{null}</PanelGate>, { url, routes: { "/login": <p>Logowanie</p> } });
 }
 

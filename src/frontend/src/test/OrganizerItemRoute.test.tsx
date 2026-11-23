@@ -6,7 +6,7 @@ import type { ItemActionsResponse } from "../api/itemActions";
 import { ApiError } from "../api/client";
 import * as serverApi from "../api/server";
 import type { ItemDetailsResponse } from "../api/items";
-import OwnerLayout from "../app/(site)/[slug]/layout";
+import OwnerLayout from "../app/(public)/[slug]/layout";
 import { itemRouteElement } from "./itemRoute";
 import { Navigate, useAppParams } from "../routing/navigation";
 import { createQueryWrapper } from "./queryClient";

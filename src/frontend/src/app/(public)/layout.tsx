@@ -1,8 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { PublicPageLayout } from "../../components/layout/PublicPageLayout";
+import { PublicLayout } from "../../components/layout/PublicLayout";
 
-export default function Layout({ children }: { children: ReactNode }) {
-  return <PublicPageLayout>{children}</PublicPageLayout>;
+export default function SiteLayout({ children }: { children: ReactNode }) {
+  return <PublicLayout>{children}</PublicLayout>;
 }

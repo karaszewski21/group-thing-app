@@ -19,7 +19,7 @@ import { AppModals } from "./AppModals";
 /*  (znikają po odświeżeniu, tak jak w prototypie).                      */
 /*                                                                       */
 /*  Struktura: stan/efekty/handlery → ./AppDataContext (useAppData);     */
-/*  ramka = strona sekcji (children z app/(site)/(panel)) + <AppModals/> */
+/*  ramka = strona sekcji (children z app/(public)/(panel)) + <AppModals/> */
 /*  (dolne menu → globalny PublicLayout). Typy/helpery →                 */
 /*  utils/appHelpers, ikony → components/shared/appIcons,                */
 /*  ToggleRow/HintCard/Field/ModalSheet → components/shared/appComponents.*/

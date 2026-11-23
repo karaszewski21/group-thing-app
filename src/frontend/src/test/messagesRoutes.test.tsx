@@ -1,11 +1,11 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import GroupDetailsRoute from "../app/(site)/(panel)/groups/[groupId]/page";
-import InboxRoute from "../app/(site)/(panel)/messages/page";
-import OrganizationRoute from "../app/(site)/(panel)/organization/page";
-import TermAttendeesRoute from "../app/(site)/(panel)/terms/[termId]/attendees/page";
-import ThreadRoute from "../app/(site)/(panel)/messages/[conversationId]/page";
+import GroupDetailsRoute from "../app/(public)/(panel)/groups/[groupId]/page";
+import InboxRoute from "../app/(public)/(panel)/messages/page";
+import OrganizationRoute from "../app/(public)/(panel)/organization/page";
+import TermAttendeesRoute from "../app/(public)/(panel)/terms/[termId]/attendees/page";
+import ThreadRoute from "../app/(public)/(panel)/messages/[conversationId]/page";
 import { PanelGate } from "../features/panel/PanelGate";
 import { pageFor } from "./appRoutes";
 import { getTestLocation, renderWithRoute } from "./renderWithRoute";
@@ -23,10 +23,10 @@ vi.mock("../features/organization-public/OrganizationFoundPage", () => ({ Organi
 
 describe("panel section pages", () => {
   it.each([
-    ["/messages", "(site)/(panel)/messages", InboxRoute, "Skrzynka"],
-    ["/groups/g7", "(site)/(panel)/groups/[groupId]", GroupDetailsRoute, "Grupa"],
-    ["/terms/t9/attendees", "(site)/(panel)/terms/[termId]/attendees", TermAttendeesRoute, "Zapisani"],
-    ["/organization", "(site)/(panel)/organization", OrganizationRoute, "Organizacja"],
+    ["/messages", "(public)/(panel)/messages", InboxRoute, "Skrzynka"],
+    ["/groups/g7", "(public)/(panel)/groups/[groupId]", GroupDetailsRoute, "Grupa"],
+    ["/terms/t9/attendees", "(public)/(panel)/terms/[termId]/attendees", TermAttendeesRoute, "Zapisani"],
+    ["/organization", "(public)/(panel)/organization", OrganizationRoute, "Organizacja"],
   ])("%s is a panel page that renders its own view", (url, dir, Route, heading) => {
     expect(pageFor(url)?.dir).toBe(dir);
     render(<Route />);
@@ -34,7 +34,7 @@ describe("panel section pages", () => {
   });
 
   it("the chat thread is a panel page too", () => {
-    expect(pageFor("/messages/c42")?.dir).toBe("(site)/(panel)/messages/[conversationId]");
+    expect(pageFor("/messages/c42")?.dir).toBe("(public)/(panel)/messages/[conversationId]");
     render(<ThreadRoute />);
     expect(screen.getByRole("heading", { name: "Rozmowa" })).toBeInTheDocument();
   });

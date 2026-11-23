@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import ProfileRouteError from "../app/(site)/(panel)/profile/error";
-import ProfileRouteLoading from "../app/(site)/(panel)/profile/loading";
-import ProfileRouteNotFound from "../app/(site)/(panel)/profile/not-found";
+import ProfileRouteError from "../app/(public)/(panel)/profile/error";
+import ProfileRouteLoading from "../app/(public)/(panel)/profile/loading";
+import ProfileRouteNotFound from "../app/(public)/(panel)/profile/not-found";
 import { createTestQueryClient, withQueryClient } from "./queryClient";
 import { renderWithRoute } from "./renderWithRoute";
 

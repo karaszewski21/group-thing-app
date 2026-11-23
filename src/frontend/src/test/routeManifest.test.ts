@@ -109,7 +109,7 @@ describe("App Router route manifest", () => {
 
   it("renders every panel section through the panel layout", () => {
     const panelPatterns = appPages()
-      .filter((page) => page.dir.startsWith("(site)/(panel)/"))
+      .filter((page) => page.dir.startsWith("(public)/(panel)/"))
       .map((page) => page.pattern);
     expect(panelPatterns.sort()).toEqual([...PANEL].sort());
   });
@@ -166,12 +166,12 @@ describe("App Router route manifest", () => {
   });
 
   it("serves the wants pages and no longer /add/hunting, not even as a redirect", () => {
-    expect(pageFor("/wanted")?.dir).toBe("(site)/(panel)/wanted");
-    expect(pageFor(wantPath("w-1"))?.dir).toBe("(site)/(panel)/wanted/[id]");
-    expect(pageFor(wantEditPath("w-1"))?.dir).toBe("(site)/(panel)/wanted/[id]/edit");
-    expect(pageFor("/add/wanted")?.dir).toBe("(site)/(panel)/add/wanted");
+    expect(pageFor("/wanted")?.dir).toBe("(public)/(panel)/wanted");
+    expect(pageFor(wantPath("w-1"))?.dir).toBe("(public)/(panel)/wanted/[id]");
+    expect(pageFor(wantEditPath("w-1"))?.dir).toBe("(public)/(panel)/wanted/[id]/edit");
+    expect(pageFor("/add/wanted")?.dir).toBe("(public)/(panel)/add/wanted");
     expect(appPages().map((page) => page.pattern)).not.toContain("/add/hunting");
-    expect(existsSync(resolve(APP_DIR, "(site)/(panel)/add/hunting"))).toBe(false);
+    expect(existsSync(resolve(APP_DIR, "(public)/(panel)/add/hunting"))).toBe(false);
   });
 
   it("opens only /add and /search of the panel to guests, each with its own PanelGate branch", () => {

@@ -11,7 +11,7 @@ const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus
  * configured numbers, since the admin can change every one of them. */
 export function AboutPointsView() {
   return (
-    <article className="flex flex-col gap-3.5">
+    <article className="mx-auto flex w-full max-w-130 flex-col gap-3.5 px-4.5 pt-4 pb-8 font-sans text-ink">
       <header className="px-1">
         <h1 className="m-0 font-serif text-[28px] font-extrabold text-ink">Punkty i reputacja</h1>
         <p className="mt-1 text-[14px] text-ink-soft">

@@ -11,7 +11,7 @@ import { pluralPl } from "../../utils/plural";
 import { OtherModeLine, SEARCH_MODE_NOUNS } from "./OtherModeLine";
 import { FiltersButton, SearchFilters } from "./SearchFilters";
 import { SearchResultCard } from "./SearchResultCard";
-import { SearchResultsSkeleton } from "./SearchSkeleton";
+import { ITEM_GRID_CLASS, MEETING_LIST_CLASS, SEARCH_PAGE_CLASS, SearchResultsSkeleton } from "./SearchSkeleton";
 import { resolveSearchView } from "./searchViewState";
 import { SEGMENT_CLASS, segmentTone } from "./segmentStyles";
 import { useRefinementCount } from "./useRefinementCount";
@@ -28,7 +28,7 @@ const PANEL_ID = "szukaj-wyniki";
 const tabId = (mode: SearchMode) => `szukaj-tab-${mode}`;
 
 const EMPTY_CARD_CLASS =
-  "flex flex-col items-center gap-2.5 rounded-[28px] border-[1.5px] border-dashed border-line-strong bg-paper px-5 py-7 text-center";
+  "mx-auto flex w-full max-w-140 flex-col items-center gap-2.5 rounded-[28px] border-[1.5px] border-dashed border-line-strong bg-paper px-5 py-7 text-center";
 
 const BROWSE_LABEL: Record<SearchMode, string> = {
   items: "Ostatnio dodane przedmioty",
@@ -145,12 +145,17 @@ export function SearchView() {
   }
 
   return (
-    <>
-      <div className="mb-3 flex items-center gap-2">
-        <SearchInput mode={mode} value={q} onChange={setQ} />
-        <FiltersButton count={refinementCount} onOpen={() => setFiltersOpen(true)} />
+    <div className={SEARCH_PAGE_CLASS}>
+      <h1 className="sr-only md:not-sr-only md:mb-4 md:block md:font-serif md:text-[34px] md:leading-tight md:font-extrabold md:tracking-tight md:text-ink">
+        Szukaj
+      </h1>
+      <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <SearchInput mode={mode} value={q} onChange={setQ} />
+          <FiltersButton count={refinementCount} onOpen={() => setFiltersOpen(true)} />
+        </div>
+        <ModeTabs mode={mode} onSelect={setMode} />
       </div>
-      <ModeTabs mode={mode} onSelect={setMode} />
       <SearchFilters
         mode={mode}
         filters={filters}
@@ -167,13 +172,13 @@ export function SearchView() {
         </p>
         {body}
       </div>
-    </>
+    </div>
   );
 }
 
 function SearchInput({ mode, value, onChange }: { mode: SearchMode; value: string; onChange: (q: string) => void }) {
   return (
-    <div className="flex min-h-12.5 min-w-0 flex-1 items-center gap-2 rounded-full border-2 border-primary bg-paper pr-1.5 pl-4">
+    <div className="flex min-h-12.5 min-w-0 flex-1 items-center gap-2 rounded-full border-2 border-primary bg-paper pr-1.5 pl-4 md:min-h-14 md:pl-5">
       <SearchIcon />
       <label htmlFor="panel-search" className="sr-only">
         {mode === "items" ? "Szukaj przedmiotów" : "Szukaj spotkań"}
@@ -215,7 +220,7 @@ function ModeTabs({ mode, onSelect }: { mode: SearchMode; onSelect: (mode: Searc
   }
 
   return (
-    <div role="tablist" aria-label="Czego szukasz" className="mb-2 grid grid-cols-2 gap-1 rounded-full bg-line p-1">
+    <div role="tablist" aria-label="Czego szukasz" className="grid grid-cols-2 gap-1 rounded-full bg-line p-1 md:w-90 md:flex-none">
       {MODES.map((m) => {
         const on = m.id === mode;
         return (
@@ -246,7 +251,7 @@ function ResultList({ mode, items, stale }: { mode: SearchMode; items: SearchRes
   return (
     <ul
       aria-busy={stale}
-      className={`${mode === "items" ? "grid grid-cols-2 gap-3" : "flex flex-col gap-2.5"} ${stale ? "opacity-60" : ""}`}
+      className={`${mode === "items" ? ITEM_GRID_CLASS : MEETING_LIST_CLASS} ${stale ? "opacity-60" : ""}`}
     >
       {items.map((result) => (
         <li key={`${result.kind}-${result.id}`}>

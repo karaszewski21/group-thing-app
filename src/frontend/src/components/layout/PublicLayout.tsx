@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import { Link, useAppPathname, useAppSearch } from "../../routing/navigation";
 import { useAuth } from "../../auth/AuthContext";
 import { HEADER_BUTTON } from "../shared/headerButton";
@@ -6,38 +7,56 @@ import { NotificationBell } from "../shared/NotificationBell";
 import { PendingActionsHost } from "./pending/PendingActionsHost";
 import { BellIcon, CalendarIcon, SearchIcon } from "../shared/appIcons";
 import { viewPath } from "../../routing/paths";
+import { INBOX_PATH } from "../../routing/messagesPaths";
 import { authPath } from "../../auth/authPaths";
 import { BottomNav } from "./BottomNav";
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
-/** The app-wide layout route (everything but the OAuth2 consent page and
- * /admin and /search, which is a page of its own): a sticky top bar and the bottom tab bar on
- * every page, for anonymous visitors too. The top bar carries the Krąg grupy
- * mark (home), Spotkania and the notification bell — for anonymous visitors
- * a bell that leads to /login — and the search field below them. Messages
- * and the account live in the bottom tab bar (Czat, Konto). A chat
- * thread gets a one-row bar and a viewport-tall body, so its messages
- * scroll between the thread header and the composer above the tab bar. Logged in, the app-wide pending-actions
+/** The `(public)` route group's layout (every page but the OAuth2 consent
+ * page and /admin): a sticky top bar and the bottom tab bar on every page,
+ * for anonymous visitors too. The top bar carries the Gooo mark (Start), the
+ * search field, Terminy and the notification bell — for anonymous visitors a
+ * bell that leads to /login. /search itself and a chat thread drop the
+ * search field. Messages and the account live in the
+ * bottom tab bar (Czat, Konto). Logged in, the app-wide pending-actions
  * prompt is mounted too. */
 export function PublicLayout({ children }: { children: ReactNode }) {
   const { token } = useAuth();
+  const pathname = useAppPathname();
+  const showSearchField = pathname !== viewPath("search") && !pathname.startsWith(`${INBOX_PATH}/`);
 
   return (
-    <div className={`flex flex-col bg-cream min-h-dvh`}>
-      <header className="sticky top-0 z-20 flex flex-none flex-col gap-3 border-b border-line bg-cream px-4 py-3">
-        <nav aria-label="Menu konta" className="flex items-center gap-2">
-          <Link
-            to={viewPath("search")}
-            className={`flex flex-1 min-h-12 items-center gap-2.5 rounded-full border-[1.5px] border-line bg-paper px-4.5 text-[15px] text-ink-soft transition-colors hover:border-line-strong ${FOCUS_RING}`}
-          >
-            <SearchIcon c="currentColor" />
-            Szukaj rzeczy i spotkań
+    <div className="flex min-h-dvh flex-col bg-cream">
+      <header className="sticky top-0 z-20 flex-none border-b border-line bg-paper">
+        <nav aria-label="Menu konta" className="mx-auto flex w-full max-w-300 items-center gap-2 px-4 py-3 md:gap-3 md:px-6">
+          <Link to="/" aria-label="Gooo — Start" className={`flex flex-none items-center gap-2.5 rounded-full ${FOCUS_RING}`}>
+            <Image src="/assets/logo-gooo-96.webp" alt="" width={40} height={40} priority className="h-10 w-10" />
+            <span className="hidden font-serif text-[22px] font-extrabold tracking-tight text-ink md:inline">Gooo</span>
           </Link>
-          <Link to={viewPath("meetings")} aria-label="Spotkania" className={HEADER_BUTTON}>
-            <CalendarIcon c="currentColor" />
-          </Link>
-          {token ? <NotificationBell /> : <LoginBell />}
+          {showSearchField && (
+            <Link
+              to={viewPath("search")}
+              className={`flex min-h-12 min-w-0 flex-1 items-center gap-2.5 rounded-full border-[1.5px] border-line bg-cream px-4.5 text-[15px] text-ink-soft transition-colors hover:border-line-strong md:ml-3 md:max-w-140 ${FOCUS_RING}`}
+            >
+              <span className="flex-none">
+                <SearchIcon c="currentColor" />
+              </span>
+              <span className="truncate">Szukaj rzeczy i spotkań</span>
+            </Link>
+          )}
+          <div className="ml-auto flex flex-none items-center gap-2">
+            <Link
+              to={viewPath("meetings")}
+              className={`${HEADER_BUTTON} md:w-auto md:gap-2 md:px-4 md:text-[15px] md:font-extrabold`}
+            >
+              <span className="text-primary-fg">
+                <CalendarIcon c="currentColor" />
+              </span>
+              <span className="sr-only md:not-sr-only">Terminy</span>
+            </Link>
+            {token ? <NotificationBell /> : <LoginBell />}
+          </div>
         </nav>
       </header>
       <main tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">

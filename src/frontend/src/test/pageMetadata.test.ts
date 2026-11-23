@@ -4,10 +4,10 @@ import type { EventDetailResponse } from "../api/events";
 import type { PublicCircleResponse } from "../api/groups";
 import type { ItemDetailsResponse } from "../api/items";
 import type { PublicOrganizationResponse } from "../api/organizations";
-import { generateMetadata as itemPageMetadata } from "../app/(site)/[slug]/product/[id]/page";
-import { generateMetadata as eventPageMetadata } from "../app/(site)/[slug]/event/[eventId]/page";
-import { generateMetadata as termPageMetadata } from "../app/(site)/[slug]/group/[groupId]/term/[termId]/page";
-import { generateMetadata as ownerPageMetadata } from "../app/(site)/[slug]/page";
+import { generateMetadata as itemPageMetadata } from "../app/(public)/[slug]/product/[id]/page";
+import { generateMetadata as eventPageMetadata } from "../app/(public)/[slug]/event/[eventId]/page";
+import { generateMetadata as termPageMetadata } from "../app/(public)/[slug]/group/[groupId]/term/[termId]/page";
+import { generateMetadata as ownerPageMetadata } from "../app/(public)/[slug]/page";
 import { eventMetadata, itemMetadata, organizationMetadata, termMetadata } from "../lib/publicMetadata";
 
 vi.mock("server-only", () => ({}));

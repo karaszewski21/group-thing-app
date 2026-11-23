@@ -11,7 +11,7 @@ import type { ItemActionsResponse } from "../api/itemActions";
 import type { ItemDetailsResponse } from "../api/items";
 import type { PartyProfileResponse } from "../api/ownerItems";
 import type { UserProfileResponse } from "../api/people";
-import BackPageLayout from "../app/(public)/layout";
+import PublicRouteLayout from "../app/(public)/layout";
 import SearchPage from "../app/(public)/search/page";
 import { AuthProvider } from "../auth/AuthContext";
 import { PublicLayout } from "../components/layout/PublicLayout";
@@ -238,17 +238,16 @@ describe("SSR safety", () => {
   it.each([
     { session: "anonymous", token: null },
     { session: "cookie", token: SESSION },
-  ])("renders the $session /search page with the field and tabs, without the global bars", ({ token }) => {
+  ])("renders the $session /search page with the field and tabs inside the global bars", ({ token }) => {
     const html = renderOnServer(
       "/search?q=klocki",
       "/search",
-      <BackPageLayout>
+      <PublicRouteLayout>
         <SearchPage />
-      </BackPageLayout>,
+      </PublicRouteLayout>,
       createTestQueryClient(),
       token,
     );
-    expect(html).toContain("Wróć");
     expect(html).toContain('type="search"');
     expect(html).toContain('value="klocki"');
     expect(html).toContain('role="tablist"');
@@ -256,9 +255,9 @@ describe("SSR safety", () => {
     expect(html).toContain('aria-label="Kategoria"');
     // The scope control sits in the closed „Filtry” sheet.
     expect(html).not.toContain('role="radiogroup"');
-    expect(html.includes("Zaloguj się")).toBe(token === null);
-    expect(html).not.toContain('aria-label="Menu konta"');
-    expect(html).not.toContain('aria-label="Nawigacja główna"');
+    expect(html).toContain('aria-label="Menu konta"');
+    expect(html).toContain('aria-label="Nawigacja główna"');
+    expect(html).not.toContain("Szukaj rzeczy i spotkań");
   });
 
   it.each([

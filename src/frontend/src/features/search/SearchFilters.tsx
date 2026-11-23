@@ -64,7 +64,7 @@ export function FiltersButton({ count, onOpen }: { count: number; onOpen: () => 
       type="button"
       aria-haspopup="dialog"
       onClick={onOpen}
-      className={`relative flex h-12.5 w-12.5 flex-none items-center justify-center rounded-full border-2 ${chipTone(count > 0)} ${FOCUS_CLASS}`}
+      className={`relative flex h-12.5 w-12.5 flex-none items-center justify-center rounded-full border-2 md:h-14 md:w-14 ${chipTone(count > 0)} ${FOCUS_CLASS}`}
     >
       <FilterIcon />
       <span className="sr-only">Filtry</span>

@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthGuard } from "../auth/AuthGuard";
 import * as conversationsApi from "../api/conversations";
 import * as notificationsApi from "../api/notifications";
-import BackPageLayout from "../app/(public)/layout";
 import SearchPage from "../app/(public)/search/page";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { createQueryWrapper } from "./queryClient";
@@ -39,11 +38,7 @@ function renderPublicPage(initialEntry = "/skrzaty") {
       ),
       "/profile": inLayout(<h1>Profil</h1>),
       "/messages/:conversationId": inLayout(<h1>Wątek</h1>),
-      "/search": (
-        <BackPageLayout>
-          <SearchPage />
-        </BackPageLayout>
-      ),
+      "/search": inLayout(<SearchPage />),
       "/login": <h1>Logowanie</h1>,
     },
     wrapper: createQueryWrapper(),
@@ -69,7 +64,7 @@ describe("PublicLayout", () => {
       "href",
       "/login?returnTo=%2Fskrzaty",
     );
-    expect(within(bar).getByRole("link", { name: "Spotkania" })).toHaveAttribute("href", "/meetings");
+    expect(within(bar).getByRole("link", { name: "Terminy" })).toHaveAttribute("href", "/meetings");
     expect(within(bar).queryByRole("link", { name: "Zaloguj się" })).not.toBeInTheDocument();
     expect(notificationsApi.getMyNotifications).not.toHaveBeenCalled();
   });
@@ -137,28 +132,27 @@ describe("PublicLayout", () => {
     expect(screen.getByRole("link", { name: "Szukaj rzeczy i spotkań" })).toHaveAttribute("href", "/search");
   });
 
-  it("anonymous: the search field opens /search on its own page with „Wróć” and „Zaloguj się”, no global bars", () => {
+  it("anonymous: the search field opens /search inside both global bars, whose top bar drops the field", () => {
     renderPublicPage();
 
     fireEvent.click(screen.getByRole("link", { name: "Szukaj rzeczy i spotkań" }));
 
     expect(getTestLocation()).toEqual({ pathname: "/search", search: "" });
     expect(screen.getByRole("searchbox")).toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "Menu konta" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "Nawigacja główna" })).not.toBeInTheDocument();
-
-    expect(screen.getByRole("link", { name: "Wróć" })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: "Zaloguj się" })).toHaveAttribute("href", "/login?returnTo=%2Fsearch");
-    expect(screen.queryByRole("heading", { name: "Logowanie" })).not.toBeInTheDocument();
+    const bar = screen.getByRole("navigation", { name: "Menu konta" });
+    expect(within(bar).queryByRole("link", { name: "Szukaj rzeczy i spotkań" })).not.toBeInTheDocument();
+    expect(within(bar).getByRole("link", { name: "Gooo — Start" })).toHaveAttribute("href", "/");
+    expect(within(bar).getByRole("link", { name: "Powiadomienia" })).toHaveAttribute("href", "/login?returnTo=%2Fsearch");
+    expect(screen.getByRole("navigation", { name: "Nawigacja główna" })).toBeInTheDocument();
   });
 
-  it("logged in: the top bar holds only the brand, Spotkania and the notification bell", async () => {
+  it("logged in: the top bar holds the brand, the search field, Terminy and the notification bell", async () => {
     mockAuth = { token: "tok", username: "ania" };
     renderPublicPage();
 
     const bar = screen.getByRole("navigation", { name: "Menu konta" });
     expect(await within(bar).findByRole("button", { name: "Powiadomienia" })).toBeInTheDocument();
-    expect(within(bar).getAllByRole("link").map((l) => l.getAttribute("href"))).toEqual(["/", "/meetings"]);
+    expect(within(bar).getAllByRole("link").map((l) => l.getAttribute("href"))).toEqual(["/", "/search", "/meetings"]);
     expect(within(bar).getAllByRole("button")).toHaveLength(1);
     expect(notificationsApi.getMyNotifications).toHaveBeenCalled();
   });
@@ -167,7 +161,7 @@ describe("PublicLayout", () => {
     renderPublicPage();
 
     const bar = screen.getByRole("navigation", { name: "Menu konta" });
-    expect(within(bar).getByRole("link", { name: "Krąg grupy — Start" })).toHaveAttribute("href", "/");
+    expect(within(bar).getByRole("link", { name: "Gooo — Start" })).toHaveAttribute("href", "/");
   });
 
   it("logged in: mounts the pending-actions host once, over the page", async () => {
