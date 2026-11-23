@@ -31,6 +31,9 @@ export function viewPath(view: View): string {
   return view === "home" ? "/" : `/${view}`;
 }
 
+/** The public page that explains points and reputation. */
+export const ABOUT_POINTS_PATH = "/about/points";
+
 /** "Wygląd strony" of a public page (`/<slug>` or `/<party-id>`), optionally on one tab. */
 export function appearancePath(slug: string, tab?: "photos" | "layout" | "name"): string {
   const path = `/${slug}/appearance`;

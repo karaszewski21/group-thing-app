@@ -458,6 +458,7 @@ def _row(
     terms_page: Any = None,
     organization_name: Any = None,
     organization_slug: Any = None,
+    attendance_points: Any = None,
 ) -> list[ColumnElement[Any]]:
     """The union's columns, in one order and type for every kind."""
 
@@ -480,6 +481,7 @@ def _row(
         column(terms_page if terms_page is not None else false(), Boolean, "terms_page"),
         column(organization_name, String, "organization_name"),
         column(organization_slug, String, "organization_slug"),
+        column(attendance_points, Integer, "attendance_points"),
     ]
 
 
@@ -569,6 +571,7 @@ def _terms_branch(
                 location_id=term.location_id,
                 organization_name=organization.c.name,
                 organization_slug=organization.c.slug,
+                attendance_points=term.attendance_points,
             )
         )
         .select_from(term)
@@ -783,6 +786,7 @@ async def _meeting_results(db: AsyncSession, rows: list[Row[Any]]) -> list[Searc
                         starts_at=row.sort_at,
                         place=_place(locations, row.location_id),
                         in_my_groups=row.in_my_groups,
+                        attendance_points=row.attendance_points,
                     ),
                 )
             )

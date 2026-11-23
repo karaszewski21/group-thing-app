@@ -203,6 +203,8 @@ export interface PublicTermResponse {
   capacity?: number | null;
   /** Non-withdrawn signups. */
   attendee_count?: number;
+  /** Points for attendance, 0 when the term gives none. */
+  attendance_points?: number;
 }
 
 export interface PublicGuardianResponse {

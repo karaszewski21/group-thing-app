@@ -1,3 +1,5 @@
+import { Link } from "../../../routing/navigation";
+import { ABOUT_POINTS_PATH } from "../../../routing/paths";
 import dayjs from "../../../utils/dayjs";
 
 const EYEBROW = "text-xs font-extrabold tracking-[.12em] text-ink-soft uppercase";
@@ -6,12 +8,14 @@ interface TermCardProps {
   date: string;
   capacity: number | null;
   attendeeCount?: number;
+  /** Points for attendance; the badge shows only above 0. */
+  attendancePoints?: number;
 }
 
 /** "Termin zajęć" card: a date badge with the Term's full date and time and a
  * notice once no places remain, or an empty-state message when the Circle has
  * no Term yet. Capacity is informational only: signing up is never blocked. */
-export function TermCard({ date, capacity, attendeeCount }: TermCardProps) {
+export function TermCard({ date, capacity, attendeeCount, attendancePoints = 0 }: TermCardProps) {
   return (
     <section aria-label="Termin zajęć" className="mx-5 mt-6 rounded-3xl border border-line bg-paper p-4">
       {date ? (
@@ -36,6 +40,19 @@ export function TermCard({ date, capacity, attendeeCount }: TermCardProps) {
               <p className="text-sm text-ink-soft">godz. {dayjs(date).format("HH:mm")}</p>
             </div>
           </div>
+          {attendancePoints > 0 && (
+            <p className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+              <span className="rounded-full bg-lime-soft px-2.5 py-1 text-[12.5px] font-extrabold text-accent-fg">
+                +{attendancePoints} pkt za obecność
+              </span>{" "}
+              <Link
+                to={ABOUT_POINTS_PATH}
+                className="rounded-sm font-bold text-primary-fg underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                Co to są punkty?
+              </Link>
+            </p>
+          )}
           {capacity != null && attendeeCount != null && attendeeCount >= capacity && (
             <p role="status" className="mt-3 rounded-2xl bg-accent-soft px-3 py-2 text-sm font-bold text-accent-fg">
               <span aria-hidden="true">ⓘ </span>Brak wolnych miejsc

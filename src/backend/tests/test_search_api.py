@@ -23,7 +23,7 @@ PAGE_KEYS = {"items", "total", "page", "size", "other_mode_count"}
 RESULT_KEYS = {"kind", "id", "title", "subtitle", "href", "meta"}
 META_KEYS = {
     "product": {"mode", "condition", "thumb_url", "reserved", "reserved_until"},
-    "term": {"starts_at", "place", "in_my_groups"},
+    "term": {"starts_at", "place", "in_my_groups", "attendance_points"},
     "event": {"starts_at", "place"},
     "group": {"description", "next_starts_at", "in_my_groups"},
     "organization": {"slug"},
@@ -91,6 +91,7 @@ async def test_search_meetingsAsGuest_eachKindShapeAndHref(
     assert term["subtitle"] == "Fundacja Zebrafon"
     assert term["href"] == f"/{slug}/group/{group_id}/term/{term_id}"
     assert term["meta"]["in_my_groups"] is False
+    assert term["meta"]["attendance_points"] == 0
     assert term["meta"]["place"]
     event = by_kind["event"]
     assert event["href"] == f"/{slug}/event/{event_id}"

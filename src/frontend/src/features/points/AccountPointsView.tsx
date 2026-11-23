@@ -1,4 +1,6 @@
 import { useMyPoints, useMyPointsHistory } from "../../hooks/useMyPoints";
+import { Link } from "../../routing/navigation";
+import { ABOUT_POINTS_PATH } from "../../routing/paths";
 import { PointsHistoryRow } from "./PointsHistoryRow";
 import { PointsTiles } from "./PointsTiles";
 
@@ -77,7 +79,10 @@ export function AccountPointsView() {
       <History />
       <p className="mt-3.5 text-[12.5px] text-ink-soft">
         Jak zdobywać punkty: oddawaj rzeczy za darmo, wymieniaj się i przychodź na spotkania. Przekazania w rodzinie i
-        częste przekazania tej samej osobie nie dają punktów.
+        częste przekazania tej samej osobie nie dają punktów.{" "}
+        <Link to={ABOUT_POINTS_PATH} className={`rounded-sm font-bold text-primary-fg underline ${FOCUS_RING}`}>
+          Więcej o punktach
+        </Link>
       </p>
     </section>
   );

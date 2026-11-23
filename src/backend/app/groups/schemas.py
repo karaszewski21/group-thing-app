@@ -365,6 +365,8 @@ class PublicTermResponse(BaseModel):
     capacity: int | None
     # Active (non-withdrawn) signups, compared against `capacity`.
     attendee_count: int
+    # Points for attendance (0 = none): public information about the term.
+    attendance_points: int
 
 
 class PublicGuardianResponse(BaseModel):

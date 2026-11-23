@@ -193,7 +193,28 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
         "location",
         "capacity",
         "attendee_count",
+        "attendance_points",
     }
+
+
+async def test_getPublicCircle_termWithAttendancePoints_returnsLevel(client: AsyncClient) -> None:
+    token = await _register_organizer(client, "pt.points.owner@example.com")
+    group_id = await _create_circle(client, token, "Krąg z punktami")
+    created = await client.post(
+        "/api/terms",
+        json={
+            "location_id": await create_location(client, _auth_headers(token)),
+            "group_id": group_id,
+            "occurs_on": (clock.local_now().date() + timedelta(days=3)).isoformat(),
+            "attendance_points": 10,
+        },
+        headers=_auth_headers(token),
+    )
+    assert created.status_code == 201, created.text
+
+    response = await client.get(f"/api/public/groups/{group_id}?term_id={created.json()['id']}")
+
+    assert response.json()["term"]["attendance_points"] == 10
 
 
 async def test_getPublicCircle_neededItems_orderedByName(client: AsyncClient) -> None:
@@ -246,6 +267,7 @@ async def test_getPublicCircle_afterLoggedInRsvp_stillExposesOnlyGuardianDisplay
         "location",
         "capacity",
         "attendee_count",
+        "attendance_points",
     }
     assert "child_count" not in body
     assert "children" not in body

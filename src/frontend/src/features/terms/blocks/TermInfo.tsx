@@ -11,6 +11,7 @@ export function TermInfo() {
       date={term?.occurs_on ?? ""}
       capacity={term?.capacity ?? null}
       attendeeCount={term?.attendee_count}
+      attendancePoints={term?.attendance_points ?? 0}
     />
   );
 }

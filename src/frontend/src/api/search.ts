@@ -52,7 +52,8 @@ export interface ProductSearchResult extends SearchResultBase {
 
 export interface TermSearchResult extends SearchResultBase {
   kind: "term";
-  meta: { starts_at: string; place: string | null; in_my_groups: boolean };
+  /** `attendance_points`: the term's points for attendance, 0 when none. */
+  meta: { starts_at: string; place: string | null; in_my_groups: boolean; attendance_points: number };
 }
 
 export interface EventSearchResult extends SearchResultBase {

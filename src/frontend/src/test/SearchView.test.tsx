@@ -302,7 +302,7 @@ describe("SearchView", () => {
           title: "Wymianka ubranek",
           subtitle: "Fundacja Dobre Ręce",
           href: "/fundacja/term/t1",
-          meta: { starts_at: "2026-11-19T17:00:00", place: "Kraków, Podgórze", in_my_groups: true },
+          meta: { starts_at: "2026-11-19T17:00:00", place: "Kraków, Podgórze", in_my_groups: true, attendance_points: 20 },
         },
         {
           kind: "organization",
@@ -330,6 +330,7 @@ describe("SearchView", () => {
     expect(term).toHaveAttribute("href", "/fundacja/term/t1");
     expect(term).toHaveTextContent("Termin");
     expect(term).toHaveTextContent("moja grupa");
+    expect(term).toHaveTextContent("+20 pkt za obecność");
     expect(term).toHaveTextContent("Fundacja Dobre Ręce · 17:00 · Kraków, Podgórze");
     const organization = screen.getByRole("link", { name: /Dziecięcy Świat/ });
     expect(organization).toHaveTextContent("Organizacja");

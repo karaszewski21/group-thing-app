@@ -22,4 +22,5 @@ export const RESERVED_SLUGS: readonly string[] = [
   "organization",
   "oauth2",
   "admin",
+  "about",
 ];

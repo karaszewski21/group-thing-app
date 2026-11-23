@@ -41,6 +41,8 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "search",
         "wanted",
         "points",
+        # The public `/about/...` pages (`/about/points`).
+        "about",
         "add",
         "messages",
         "groups",

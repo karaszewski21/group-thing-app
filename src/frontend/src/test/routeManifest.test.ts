@@ -83,6 +83,7 @@ const ADMIN = [
 const INVENTORY = [
   "/",
   "/login",
+  "/about/points",
   ...PANEL,
   "/:slug",
   "/:slug/items",

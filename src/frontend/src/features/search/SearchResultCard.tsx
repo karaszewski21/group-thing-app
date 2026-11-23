@@ -44,6 +44,7 @@ export function SearchResultCard({ result }: { result: SearchResult }) {
           aside={<DateTile occursOn={result.meta.starts_at} />}
           label={result.kind === "term" ? "Termin" : "Wydarzenie"}
           mine={result.kind === "term" && result.meta.in_my_groups}
+          points={result.kind === "term" ? result.meta.attendance_points : 0}
           title={result.title}
         >
           <span className="block text-[12.5px] text-ink-soft">
@@ -100,6 +101,7 @@ function ResultRow({
   aside,
   label,
   mine,
+  points = 0,
   title,
   children,
 }: {
@@ -107,6 +109,8 @@ function ResultRow({
   aside: ReactNode;
   label: string;
   mine: boolean;
+  /** A term's points for attendance; the badge shows only above 0. */
+  points?: number;
   title: string;
   children: ReactNode;
 }) {
@@ -120,6 +124,12 @@ function ResultRow({
           {mine && (
             <span className="rounded-full bg-primary-soft px-2 py-0.5 text-[10.5px] normal-case tracking-normal text-primary-fg">
               moja grupa
+            </span>
+          )}
+          {points > 0 && " "}
+          {points > 0 && (
+            <span className="rounded-full bg-lime-soft px-2 py-0.5 text-[10.5px] normal-case tracking-normal text-accent-fg">
+              +{points} pkt<span className="sr-only"> za obecność</span>
             </span>
           )}
         </span>{" "}

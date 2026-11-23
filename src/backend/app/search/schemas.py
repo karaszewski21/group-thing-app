@@ -42,6 +42,9 @@ class TermMeta(BaseModel):
     starts_at: datetime
     place: str | None
     in_my_groups: bool
+    # The term's points-for-attendance level (0 = none): public, unlike any
+    # balance, reputation or attendance state.
+    attendance_points: int
 
 
 class TermResult(_Result):

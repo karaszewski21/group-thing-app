@@ -311,6 +311,7 @@ async def get_public_circle_view(
             location=locations_acl.public_location_response(location),
             capacity=term.capacity,
             attendee_count=counts.get(cast(uuid.UUID, term.id), (0, 0))[0],
+            attendance_points=term.attendance_points,
         )
 
         attendances = await list_attendances_for_term(db, cast(uuid.UUID, term.id))
