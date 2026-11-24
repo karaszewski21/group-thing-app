@@ -42,7 +42,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
               <span className="flex-none">
                 <SearchIcon c="currentColor" />
               </span>
-              <span className="truncate">Szukaj rzeczy i spotkań</span>
+              <span className="truncate">Szukaj</span>
             </Link>
           )}
           <div className="ml-auto flex flex-none items-center gap-2">

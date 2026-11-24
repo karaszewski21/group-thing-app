@@ -146,9 +146,6 @@ export function SearchView() {
 
   return (
     <div className={SEARCH_PAGE_CLASS}>
-      <h1 className="sr-only md:not-sr-only md:mb-4 md:block md:font-serif md:text-[34px] md:leading-tight md:font-extrabold md:tracking-tight md:text-ink">
-        Szukaj
-      </h1>
       <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <SearchInput mode={mode} value={q} onChange={setQ} />
