@@ -1,0 +1,215 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-3, phase-4, phase-5, phase-6, phase-7, phase-8, phase-9, phase-10, phase-11, phase-12, phase-13, phase-14]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    sequential: null
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: "2026-11-24T08:24:28Z"
+  updated: "2026-11-24T18:02:21Z"
+  task_path: .maister/tasks/development/2026-11-24-paid-terms-payment-link
+  task_ids: {}
+  tdd_red_passed: true
+  tdd_green_passed: true
+
+task:
+  title: Płatne zajęcia z linkiem do płatności
+  description: >-
+    Płatne zajęcia (Term w kręgu). Organizator ustawia cenę (kwota w groszach, waluta PLN)
+    i link do zewnętrznej strony płatności. Domyślne wartości na kręgu (Group), z nadpisaniem
+    na terminie (Term), tak samo jak default_capacity -> capacity. Zapis na zajęcia
+    (TermAttendance) dostaje status płatności (nieopłacone/opłacone), a organizator ręcznie
+    oznacza „opłacone” na liście obecności. Uczestnik widzi cenę i przycisk „Zapłać”, który
+    prowadzi do zewnętrznego linku. Docelowo płatności mają iść przez własny system (bramka
+    płatności i webhook ustawiający status). Model danych ma to umożliwić bez przebudowy:
+    metoda płatności jako enum (EXTERNAL_LINK teraz, PLATFORM później), a status płatności
+    nie jest powiązany z linkiem.
+  status: completed
+  tags: [payments, terms, groups]
+  priority: null
+
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: true
+  architecture_decision: "Columns on groups/terms/term_attendances (migration 0106); Numeric(10,2) money as JSON string; payment PUT in new term_payments.py; shared listed_attendance_condition predicate"
+  tech_clarified: true
+  project_doc_paths:
+    - .maister/docs/project/architecture.md
+    - .maister/docs/project/tech-stack.md
+  task_characteristics:
+    has_reproducible_defect: true
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: phase-4-mockup-studio
+    product_design_path: null
+    mockup_count: 5
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  design_resources:
+    ran: true
+    found_any: true
+    standards: [standards/frontend/components.md, standards/frontend/accessibility.md, standards/frontend/css.md, standards/frontend/responsive.md, standards/global/validation.md]
+    design_system: [src/frontend/src/app/globals.css, TermCard.tsx, SignUpFooter.tsx, appComponents.tsx, TermAttendeesPage.tsx]
+    skill_hints: []
+  phase_summaries:
+    clarifications:
+      summary: "Pre-workflow decisions: price on circle with term override; payment status tracked with manual organizer marking; full workflow."
+      decisions:
+        - decision: "Cena i link na kręgu (domyślne) z nadpisaniem na terminie"
+          rationale: "Mirrors default_capacity -> capacity"
+        - decision: "Status płatności na zapisie, ręcznie oznaczany przez organizatora"
+          rationale: "Same status will be set by own payment gateway later"
+      risks: []
+      artifacts:
+        - {path: analysis/clarifications.md, label: Clarifications, html: null}
+    codebase_analysis:
+      summary: "Price/URL/method copy from Group defaults like default_capacity; payment toggle mirrors set_presence; no existing money/URL helpers; re-RSVP bug found."
+      key_files: [src/backend/app/groups/models.py, src/backend/app/groups/application/terms.py, src/backend/app/groups/application/attendance_points.py, src/backend/app/groups/application/public_view.py, src/frontend/src/features/meetings/TermAttendeesPage.tsx]
+      primary_language: python/typescript
+      decisions: []
+      risks:
+        - "Re-RSVP after withdraw never resets withdrawn_at"
+        - "Standards conflict: Numeric money vs integer grosze"
+        - "javascript: URL XSS unless server enforces https"
+      artifacts:
+        - {path: analysis/codebase-analysis.md, label: Codebase analysis, html: null}
+    gap_analysis:
+      summary: "Re-RSVP bug wider than thought (withdrawn rows count as attending and listed publicly); 4 critical + 10 important decisions resolved; scope expanded to full re-RSVP fix."
+      integration_points: [create_rsvp, list_attendances_for_term, list_term_attendees, set_presence pattern, authorization_matrix]
+      decisions:
+        - {decision: "Full re-RSVP fix incl. is_attending and public list", rationale: "only way fix is reachable from UI"}
+        - {decision: "Clear present_marked_at on reactivation, keep payment", rationale: "no points without reconfirmation"}
+        - {decision: "Withdrawn PAID rows on organizer list with flag", rationale: "refund case"}
+        - {decision: "Payment status as columns on TermAttendance", rationale: "minimal, mirrors present_marked_at"}
+        - {decision: "Price as Numeric(10,2) zloty", rationale: "user choice per models.md standard"}
+        - {decision: "Method derived from URL; URL requires price; NULL price = free", rationale: "defaults accepted"}
+      risks:
+        - "Decimal JSON representation must be fixed in spec"
+      artifacts:
+        - {path: analysis/gap-analysis.md, label: Gap analysis, html: null}
+        - {path: analysis/scope-clarifications.md, label: Scope clarifications, html: null}
+    tdd_red:
+      summary: "2 red tests in tests/test_rsvp_reactivation.py fail on assertions; old test_group_access withdrawn test must be updated."
+      decisions: []
+      risks: ["test_getGroupAccess_withdrawnAttendee_isAttendingButNotActiveAttendee asserts old behaviour"]
+      artifacts:
+        - {path: implementation/tdd-red-gate.md, label: TDD red gate, html: null}
+    ui_mockups:
+      summary: "5 HTML screens: circle form, term form with errors, public term price + RSVP dialog, attendee Zapłać/Do zapłaty/Opłacone, organizer attendance list with payment switch."
+      components_designed: [price-field, payment-url-field, price-badge, payment-switch]
+      format_used: html
+      decisions: []
+      risks: []
+      artifacts:
+        - {path: analysis/design-context/INDEX.md, label: Design index, html: null}
+        - {path: analysis/design-context/design-resources.md, label: Design resources, html: null}
+    design:
+      summary: "Mockups bound to globals.css tokens and existing TermCard/SignUpFooter/CapacityField/TermAttendeeRow; index in analysis/design-context/INDEX.md."
+      screen_count: 5
+      component_count: 4
+      index_path: analysis/design-context/INDEX.md
+    specification:
+      summary: "15 requirements; migration 0106 with 7 named CHECKs; payment PUT row 71; re-RSVP reactivation; PriceField/PaymentUrlField in 4 forms; SignUpFooter payment variant."
+      decisions:
+        - {decision: "Money Numeric(10,2) as JSON string; NULL = free; >0 and <=100000", rationale: "user choice"}
+        - {decision: "Payment status columns on term_attendances", rationale: "minimal"}
+        - {decision: "List and PUT share listed_attendance_condition predicate", rationale: "consistency"}
+        - {decision: "No Wypisz sie button on term page", rationale: "mockup context only"}
+      risks:
+        - "is_attending meaning changes; old test rewritten"
+        - "Wide change across typed fixtures"
+        - "Downgrade to 0105 loses prices, links, payment marks"
+      artifacts:
+        - {path: analysis/requirements.md, label: Requirements, html: null}
+        - {path: implementation/spec.md, label: Specification, html: implementation/spec.html}
+    spec_audit:
+      summary: "pass-with-concerns: 0 critical, 0 high, 3 medium, 10 low; all fixed in spec rev 2 per user decisions (M1 clear presence only before close, M2 count active only, M3 explicit null price = free)."
+      decisions:
+        - {decision: "M1 clear presence on reactivation only before close", rationale: "keep closed list consistent with points"}
+        - {decision: "M2 counts active rows only", rationale: "deviation D1 from mockup"}
+        - {decision: "M3 explicit null price makes term free, no URL inherited", rationale: "avoid surprising 400"}
+      risks:
+        - "Withdrew before close + re-RSVP after close keeps old presence mark (accepted)"
+        - "No unique (term_id, party_id) on term_attendances (pre-existing, accepted)"
+      artifacts:
+        - {path: verification/spec-audit.md, label: Spec audit, html: null}
+    planning:
+      summary: "11 task groups, 68 steps, ~47 tests; waves W1 {1,2,6} W2 {3,7,8,9} W3 {4} W4 {5} W5 {10} W6 {11}; 9/9 visual items covered."
+      decisions:
+        - {decision: "RSVP fix (group 5) after payments (group 4)", rationale: "tests use PUT; shared public_view.py"}
+        - {decision: "Typed-fixture sweep in group 6", rationale: "lets 7, 8, 9 run in parallel"}
+      risks:
+        - "Backend chain 3->4->5 is serial"
+        - "Group 6 touches ~17 test files later edited again by 7-9"
+      artifacts:
+        - {path: implementation/implementation-plan.md, label: Implementation plan, html: implementation/implementation-plan.html}
+        - {path: implementation/visual-coverage.md, label: Visual coverage, html: null}
+    implementation:
+      summary: "11 groups/68 steps; feature tests green (backend 129, frontend 138); SignUpFooter theme-token regression fixed; full-suite failures all pre-existing (backend 2, vitest 32, lint/mypy/ruff on untouched lines)."
+      decisions: []
+      risks:
+        - "2 backend full-suite failures judged pre-existing by inspection only"
+      artifacts:
+        - {path: implementation/work-log.md, label: Work log, html: null}
+    e2e:
+      summary: "14/14 scenarios pass at 400px; withdraw button added after E2E found it missing (pre-existing); remaining minors: sticky footer under bottom nav (pre-existing), duplicate aria-label on Wypisz sie for same circle."
+      decisions:
+        - {decision: "Add Wypisz sie in Moje zajecia now", rationale: "user choice; refund row and re-RSVP unreachable otherwise"}
+      risks:
+        - "Sticky footer hidden behind bottom nav at 400px (pre-existing)"
+        - "POST /api/terms 500 on occurs_on with timezone offset (pre-existing)"
+      artifacts:
+        - {path: verification/e2e-verification-report.md, label: E2E report, html: verification/e2e-verification-report.html}
+        - {path: verification/visual-fidelity.md, label: Visual fidelity, html: verification/visual-fidelity.html}
+    user_docs:
+      summary: "Polish user guide (organizer, attendee, FAQ) with 19 screenshots (16 reused from E2E, 3 new)."
+      decisions: []
+      risks:
+        - "Reused E2E screenshots show the Next dev-tools Insight badge"
+      artifacts:
+        - {path: documentation/user-guide.md, label: User guide, html: null}
+    scope_clarifications:
+      scope_expanded: true
+      summary: "See analysis/scope-clarifications.md"
+
+verification_context:
+  last_status: passed_with_issues
+  issues_found: []
+  fixes_applied:
+    - "#1 https CHECKs (ILIKE) in 0106 + client href re-check via parsePaymentUrl"
+    - '#2 client parsePaymentUrl matches server (https:// prefix, unicode control/format chars, host)'
+    - "#3 != null checks (no NaN zl on old backend)"
+    - "#4 runbook: backend running + alembic current = 0106"
+    - "#5 INFO log on payment status change"
+    - "#8 unified Oplacone style bg-primary-soft text-primary-fg (4.54:1)"
+    - "#9 prefill hint under title, only with circle defaults"
+    - "#10 work-log standards reading log filled"
+    - "#11 userinfo URLs rejected (server + client)"
+    - "#13 shared Switch component"
+    - "#14 MAX_PAYMENT_URL_LENGTH reused"
+    - "#15 set_payment_status moved to attendance_points (no local imports)"
+    - "#19 private no-store on attendee list and /mine/attendances"
+    - "extra: uppercase HTTPS:// accepted (CHECK ILIKE) - found during fixes"
+    - "cycle 2: R1-R4 docs drift, R7 URL parity, R8 enum !=, R10 docstring, R12 missing-field tests"
+  decisions_made:
+    - "Zaplac stays visible after the term ends"
+  reverify_count: 2

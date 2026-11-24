@@ -21,7 +21,7 @@ from app.db import TRANSACTION_CONFLICTS, mapped_transaction_conflicts
 from app.users.service import get_profile_by_principal
 
 from ..infrastructure import points_acl, repository
-from ..models import Term, TermAttendance
+from ..models import PaymentStatus, Term, TermAttendance
 from ..schemas import TermAttendanceResponse, TermAttendanceState
 from .circles import _require_active_organizer
 from .memberships import _require_term_in_group
@@ -144,6 +144,52 @@ async def set_presence(
         elif not present and attendance.present_marked_at is not None:
             attendance.present_marked_at = None
         await db.commit()
+
+
+async def set_payment_status(
+    db: AsyncSession,
+    principal: Principal,
+    group_id: uuid.UUID,
+    term_id: uuid.UUID,
+    party_id: uuid.UUID,
+    paid: bool,
+) -> None:
+    """Marks or unmarks `party_id`'s row as paid in any attendance state;
+    idempotent. 403 for anyone but the group's active organizer, then 404 for
+    a term of another group, then 404 for a row the organizer list does not
+    show (`repository.listed_attendance_condition`)."""
+    profile = await get_profile_by_principal(db, principal)
+    await _require_active_organizer(db, group_id, profile.party_id)
+    term = await _require_term_in_group(db, group_id, term_id)
+    async with mapped_transaction_conflicts(db):
+        attendance = (
+            await db.execute(
+                select(TermAttendance)
+                .where(
+                    TermAttendance.party_id == party_id,
+                    repository.listed_attendance_condition(term_id, term.attendance_closed_at),
+                )
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
+        if attendance is None:
+            await db.rollback()
+            raise EntityNotFoundException("TermAttendance", party_id)
+        new_status = PaymentStatus.PAID if paid else PaymentStatus.UNPAID
+        changed = attendance.payment_status != new_status
+        if changed:
+            attendance.payment_status = new_status
+            attendance.paid_marked_at = datetime.utcnow() if paid else None
+        await db.commit()
+    if changed:
+        logger.info(
+            "Term payment status set term_id=%s party_id=%s status=%s organizer_party_id=%s",
+            term_id,
+            party_id,
+            new_status.value,
+            profile.party_id,
+        )
 
 
 @dataclass(frozen=True)

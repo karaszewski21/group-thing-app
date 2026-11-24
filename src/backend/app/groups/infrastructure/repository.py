@@ -43,6 +43,7 @@ from ..models import (
     Leadership,
     Membership,
     NeededItem,
+    PaymentStatus,
     Pledge,
     PledgeStatus,
     SwapProposal,
@@ -604,15 +605,6 @@ async def list_my_pledges_joined(
 # --- Public circle-view -------------------------------------------------------
 
 
-async def list_attendances_for_term(db: AsyncSession, term_id: uuid.UUID) -> list[TermAttendance]:
-    result = await db.execute(
-        select(TermAttendance)
-        .where(TermAttendance.term_id == term_id)
-        .order_by(TermAttendance.created_at)
-    )
-    return list(result.scalars().all())
-
-
 async def aggregate_active_attendances_for_group(
     db: AsyncSession, circle_group_id: uuid.UUID
 ) -> list[Row[tuple[uuid.UUID, int, datetime]]]:
@@ -634,13 +626,54 @@ async def aggregate_active_attendances_for_group(
 async def list_active_attendances_for_term(
     db: AsyncSession, term_id: uuid.UUID
 ) -> list[TermAttendance]:
-    """Unlike `list_attendances_for_term` (public-view attendee list, keeps
-    withdrawn rows), excludes withdrawn RSVPs — used to find who's currently
-    eligible to browse/offer exchange-mechanism listings for this Term."""
+    """Non-withdrawn RSVPs of a Term, oldest first — the public guardians
+    list and who's currently eligible to browse/offer exchange-mechanism
+    listings for this Term."""
     result = await db.execute(
         select(TermAttendance)
         .where(TermAttendance.term_id == term_id, TermAttendance.withdrawn_at.is_(None))
         .order_by(TermAttendance.created_at)
+    )
+    return list(result.scalars().all())
+
+
+def _counted_attendance(closed_at: datetime | None) -> ColumnElement[bool]:
+    """Part of the attendance record: active while the list is open, active
+    at the close once it is closed."""
+    if closed_at is None:
+        return TermAttendance.withdrawn_at.is_(None)
+    return or_(TermAttendance.withdrawn_at.is_(None), TermAttendance.withdrawn_at > closed_at)
+
+
+def is_counted(attendance: TermAttendance, closed_at: datetime | None) -> bool:
+    """`_counted_attendance` in Python, for the attendee list's `counted` flag."""
+    withdrawn_at = attendance.withdrawn_at
+    return withdrawn_at is None or (closed_at is not None and withdrawn_at > closed_at)
+
+
+def listed_attendance_condition(
+    term_id: uuid.UUID, closed_at: datetime | None
+) -> ColumnElement[bool]:
+    """The rows the organizer's attendee list shows and the payment PUT
+    accepts: counted rows plus PAID ones (a withdrawn PAID row is a refund
+    case). `closed_at` is the term's `attendance_closed_at`."""
+    return and_(
+        TermAttendance.term_id == term_id,
+        or_(
+            _counted_attendance(closed_at),
+            TermAttendance.payment_status == PaymentStatus.PAID,
+        ),
+    )
+
+
+async def list_listed_attendances(
+    db: AsyncSession, term_id: uuid.UUID, closed_at: datetime | None
+) -> list[TermAttendance]:
+    """`listed_attendance_condition` rows, counted ones first, then by RSVP time."""
+    result = await db.execute(
+        select(TermAttendance)
+        .where(listed_attendance_condition(term_id, closed_at))
+        .order_by(~_counted_attendance(closed_at), TermAttendance.created_at)
     )
     return list(result.scalars().all())
 

@@ -19,6 +19,7 @@ vi.mock("../api/groups", () => ({
   getTermAttendees: vi.fn(),
   getTermAttendance: vi.fn(),
   setPresence: vi.fn(),
+  setPaymentStatus: vi.fn(),
   closeAttendance: vi.fn(),
 }));
 
@@ -37,6 +38,9 @@ const term: TermResponse = {
   updated_at: "2026-09-01T10:00:00",
   attendee_count: 3,
   child_count: 3,
+  price: null,
+  payment_url: null,
+  payment_method: null,
 };
 
 const group: GroupResponse = {
@@ -49,6 +53,9 @@ const group: GroupResponse = {
   visibility: "PUBLIC",
   created_at: "2026-09-01T10:00:00",
   updated_at: "2026-09-01T10:00:00",
+  default_price: null,
+  default_payment_url: null,
+  default_payment_method: null,
 };
 
 const thisYear = dayjs().year();
@@ -63,6 +70,9 @@ function attendee(overrides: Partial<TermAttendeeResponse>): TermAttendeeRespons
     children: [],
     present: false,
     is_organizer: false,
+    payment_status: "UNPAID",
+    withdrawn: false,
+    counted: true,
     ...overrides,
   };
 }
@@ -391,5 +401,154 @@ describe("TermAttendeesPage — attendance", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Ola Zielińska" })).not.toBeChecked();
+  });
+});
+
+describe("TermAttendeesPage — payment", () => {
+  const pricedTerm: TermResponse = { ...term, price: "25.50" };
+  const REFUND_NOTE = "Wypisany po opłaceniu. Odznacz „opłacone” po zwrocie pieniędzy.";
+  // The mockup's data: Ola paid and withdrew, so only Anna and Marek are counted.
+  const mockupRows: TermAttendeeResponse[] = [
+    { ...attendees[0], payment_status: "PAID" },
+    attendees[1],
+    { ...attendees[2], payment_status: "PAID", withdrawn: true, counted: false },
+  ];
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-12T18:00:00"));
+    vi.mocked(termsApi.getTerm).mockResolvedValue(pricedTerm);
+    vi.mocked(groupsApi.getGroup).mockResolvedValue(group);
+    vi.mocked(groupsApi.getTermAttendees).mockResolvedValue(attendees);
+    vi.mocked(groupsApi.getTermAttendance).mockResolvedValue(attendanceRead());
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("freeTerm_hidesTheSwitch_unlessTheRowIsPaid", async () => {
+    vi.mocked(termsApi.getTerm).mockResolvedValue(term);
+    vi.mocked(groupsApi.getTermAttendees).mockResolvedValue([
+      attendees[0],
+      { ...attendees[1], payment_status: "PAID" },
+    ]);
+    const { unmount } = renderPage();
+
+    expect(await screen.findByText("Anna Nowak")).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "opłacone — Anna Nowak" })).not.toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "opłacone — Marek Wiśniewski" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByText("2 zapisy · 3 dzieci")).toBeInTheDocument();
+    unmount();
+
+    vi.mocked(termsApi.getTerm).mockResolvedValue(pricedTerm);
+    renderPage();
+    expect(await screen.findByRole("switch", { name: "opłacone — Anna Nowak" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    expect(screen.getAllByRole("switch")).toHaveLength(2);
+  });
+
+  it("toggle_putsPaidAndDisablesTheSwitchWhilePending", async () => {
+    let finish: () => void = () => {};
+    vi.mocked(groupsApi.setPaymentStatus).mockImplementation(
+      () => new Promise<void>((resolve) => (finish = resolve)),
+    );
+    renderPage();
+
+    const toggle = await screen.findByRole("switch", { name: "opłacone — Marek Wiśniewski" });
+    expect(toggle).toBeEnabled();
+    fireEvent.click(toggle);
+
+    await waitFor(() => expect(toggle).toBeDisabled());
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+    expect(groupsApi.setPaymentStatus).toHaveBeenCalledWith(
+      GROUP_ID,
+      TERM_ID,
+      "22222222-2222-4222-8222-222222222222",
+      true,
+    );
+    finish();
+    await waitFor(() => expect(toggle).toBeEnabled());
+    expect(groupsApi.getTermAttendees).toHaveBeenCalledTimes(2);
+  });
+
+  it("open_withdrawnPaidRow_showsThePillTheNoteAndADisabledPresenceBox", async () => {
+    vi.mocked(groupsApi.getTermAttendees).mockResolvedValue(mockupRows);
+    renderPage();
+
+    const row = (await screen.findByText("Ola Zielińska")).closest("li") as HTMLElement;
+    expect(within(row).getByText("wypisany — do zwrotu")).toBeInTheDocument();
+    expect(within(row).queryByText("przychodzi bez dzieci")).not.toBeInTheDocument();
+    expect(within(row).getByText(REFUND_NOTE)).toBeInTheDocument();
+    expect(within(row).getByRole("checkbox", { name: "Ola Zielińska" })).toBeDisabled();
+    expect(within(row).getByRole("switch", { name: "opłacone — Ola Zielińska" })).toBeEnabled();
+    expect(screen.getByRole("checkbox", { name: "Anna Nowak" })).toBeEnabled();
+  });
+
+  it("closed_withdrawnCountedPaidRow_showsThePillAndTheNote", async () => {
+    vi.mocked(groupsApi.getTermAttendees).mockResolvedValue([
+      attendees[0],
+      { ...attendees[2], payment_status: "PAID", withdrawn: true, counted: true },
+    ]);
+    vi.mocked(groupsApi.getTermAttendance).mockResolvedValue(
+      attendanceRead({ state: "CLOSED", closed_at: "2026-10-12T19:00:00", auto_close_on: null, rewarded: false }),
+    );
+    renderPage();
+
+    const row = (await screen.findByText("Ola Zielińska")).closest("li") as HTMLElement;
+    expect(within(row).getByText("wypisany — do zwrotu")).toBeInTheDocument();
+    expect(within(row).getByText(REFUND_NOTE)).toBeInTheDocument();
+    expect(within(row).getByRole("checkbox", { name: "Ola Zielińska" })).toBeDisabled();
+    expect(within(row).getByRole("switch", { name: "opłacone — Ola Zielińska" })).toBeEnabled();
+  });
+
+  it("closed_withdrawnCountedUnpaidRow_keepsTheChildPillWithoutRefundHint", async () => {
+    vi.mocked(groupsApi.getTermAttendees).mockResolvedValue([
+      attendees[0],
+      { ...attendees[2], withdrawn: true, counted: true },
+    ]);
+    vi.mocked(groupsApi.getTermAttendance).mockResolvedValue(
+      attendanceRead({ state: "CLOSED", closed_at: "2026-10-12T19:00:00", auto_close_on: null, rewarded: false }),
+    );
+    renderPage();
+
+    const row = (await screen.findByText("Ola Zielińska")).closest("li") as HTMLElement;
+    expect(within(row).getByText("przychodzi bez dzieci")).toBeInTheDocument();
+    expect(within(row).queryByText("wypisany — do zwrotu")).not.toBeInTheDocument();
+    expect(within(row).queryByText(REFUND_NOTE)).not.toBeInTheDocument();
+    expect(within(row).getByRole("checkbox", { name: "Ola Zielińska" })).toBeDisabled();
+    expect(screen.getByText("2 zapisy · 2 dzieci · opłaceni: 0")).toBeInTheDocument();
+  });
+
+  it("counts_useCountedRowsOnly_andTheSubtitleShowsThePrice", async () => {
+    vi.mocked(groupsApi.getTermAttendees).mockResolvedValue(mockupRows);
+    const { unmount } = renderPage();
+
+    expect(await screen.findByText("2 zapisy · 3 dzieci · opłaceni: 1")).toBeInTheDocument();
+    expect(screen.getByText(/godz\. 17:00 · Krąg Maluchy · 25,50\szł$/)).toBeInTheDocument();
+    unmount();
+
+    vi.mocked(groupsApi.getTermAttendees).mockResolvedValue([mockupRows[2]]);
+    renderPage();
+    expect(await screen.findByText("Brak zapisów")).toBeInTheDocument();
+    expect(screen.getByText("Ola Zielińska")).toBeInTheDocument();
+  });
+
+  it("failedPut_showsThePaymentAlert", async () => {
+    vi.mocked(groupsApi.setPaymentStatus)
+      .mockRejectedValueOnce(
+        new ApiError(409, "Conflict", { title: "Conflict", status: 409, detail: "Termin został usunięty" }),
+      );
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("switch", { name: "opłacone — Anna Nowak" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Termin został usunięty");
+    expect(screen.queryByText("Nie udało się zapisać obecności")).not.toBeInTheDocument();
   });
 });

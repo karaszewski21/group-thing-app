@@ -144,6 +144,10 @@ When cross-module data actually needs to be loaded for a read (e.g. nested `cate
 
 Store geographic coordinates as `Numeric(9, 6)` (`Location.lat`/`lng`, typed `Mapped[Decimal | None]`), never `Float`. Pydantic response models declare them `float | None` so JSON carries numbers, not decimal strings; request models bound them with `Field(ge=-90, le=90)` / `Field(ge=-180, le=180)`. Reference: `app/locations/models.py`, `app/locations/schemas.py`.
 
+### Money as Numeric(10,2), Decimal String on the Wire
+
+Store amounts of money as `Numeric(10, 2)` (`Term.price`, `Group.default_price`, typed `Mapped[Decimal | None]`), never `Float`. Unlike coordinates, money stays a `Decimal` end to end: Pydantic models declare it `Decimal | None`, which serializes as a JSON string such as `"25.50"`, requests accept the same string (or a number), and the frontend types it `string` and parses or formats it without ever turning it into a JS `number` for storage or comparison (`parsePrice`/`formatPrice` in `utils/appHelpers.ts`), so no float rounding creeps in. Validate in a `mode="before"` validator that rejects `bool`, non-finite values and more than 2 decimals and returns the value quantized to cents; keep one representation for "none" (NULL, with a `> 0` CHECK, not `0.00`). Reference: `app/groups/models.py`, `app/groups/schemas.py::_validate_price`, migration `0106_paid_terms.py`.
+
 ### Cross-Context Access Through an ACL Module
 
 When one bounded context needs another (e.g. `app.groups` → `app.locations`), a single `app/<bc>/infrastructure/<other>_acl.py` is the only module of the consuming BC that imports the other BC, and the other BC imports nothing back. The ACL must not import its own BC's `..schemas`: the schemas import the response types the ACL re-exports, so importing back is a cycle.
@@ -241,4 +245,6 @@ The listing-visibility section was added with the product-page reservations task
 
 The locality-dictionary PK carve-out and the loader-backed `Location.locality` section were added with the item-location task (`0078`–`0080`).
 
-*Last Updated*: 2026-11-03
+The money section was added with the paid-terms task (`0106`).
+
+*Last Updated*: 2026-11-24

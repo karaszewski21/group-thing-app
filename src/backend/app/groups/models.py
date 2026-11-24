@@ -17,6 +17,7 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
@@ -28,6 +29,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     func,
@@ -110,10 +112,40 @@ class ItemVisibility(enum.StrEnum):
     PRIVATE = "PRIVATE"
 
 
+class PaymentMethod(enum.StrEnum):
+    """How a price is paid, derived by the server from the payment link.
+    `PLATFORM` is reserved for an own payment gateway; nothing writes it yet."""
+
+    EXTERNAL_LINK = "EXTERNAL_LINK"
+    PLATFORM = "PLATFORM"
+
+
+class PaymentStatus(enum.StrEnum):
+    """An attendee's payment for a Term, marked by hand by the organizer."""
+
+    UNPAID = "UNPAID"
+    PAID = "PAID"
+
+
 class Group(BaseEntity):
     """A class/activity Circle."""
 
     __tablename__ = "groups"
+    __table_args__ = (
+        CheckConstraint("default_price > 0", name="ck_groups_default_price_positive"),
+        CheckConstraint(
+            "default_payment_url IS NULL OR default_price IS NOT NULL",
+            name="ck_groups_default_payment_url_requires_price",
+        ),
+        CheckConstraint(
+            "num_nonnulls(default_payment_url, default_payment_method) IN (0, 2)",
+            name="ck_groups_default_payment_method_url",
+        ),
+        CheckConstraint(
+            "default_payment_url IS NULL OR default_payment_url ILIKE 'https://%'",
+            name="ck_groups_default_payment_url_https",
+        ),
+    )
 
     party_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),
@@ -146,6 +178,12 @@ class Group(BaseEntity):
         nullable=True,
     )
     default_capacity: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Złoty; copied by value into each new Term like the defaults above (migration 0106).
+    default_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    default_payment_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    default_payment_method: Mapped[PaymentMethod | None] = mapped_column(
+        _enum_column(PaymentMethod, 20), nullable=True
+    )
     join_code: Mapped[str | None] = mapped_column(String(6), nullable=True)
 
 
@@ -249,6 +287,19 @@ class Term(BaseEntity):
             "attendance_present_count, attendance_rewarded) IN (0, 4)",
             name="ck_terms_attendance_closed",
         ),
+        CheckConstraint("price > 0", name="ck_terms_price_positive"),
+        CheckConstraint(
+            "payment_url IS NULL OR price IS NOT NULL",
+            name="ck_terms_payment_url_requires_price",
+        ),
+        CheckConstraint(
+            "num_nonnulls(payment_url, payment_method) IN (0, 2)",
+            name="ck_terms_payment_method_url",
+        ),
+        CheckConstraint(
+            "payment_url IS NULL OR payment_url ILIKE 'https://%'",
+            name="ck_terms_payment_url_https",
+        ),
     )
 
     circle_group_id: Mapped[uuid.UUID] = mapped_column(
@@ -290,6 +341,12 @@ class Term(BaseEntity):
     attendance_min_present: Mapped[int | None] = mapped_column(Integer, nullable=True)
     attendance_present_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     attendance_rewarded: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Złoty; NULL = free (migration 0106).
+    price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    payment_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    payment_method: Mapped[PaymentMethod | None] = mapped_column(
+        _enum_column(PaymentMethod, 20), nullable=True
+    )
 
 
 class NeededItem(BaseEntity):
@@ -343,6 +400,12 @@ class TermAttendance(BaseEntity):
     shape."""
 
     __tablename__ = "term_attendances"
+    __table_args__ = (
+        CheckConstraint(
+            "(payment_status = 'PAID') = (paid_marked_at IS NOT NULL)",
+            name="ck_term_attendances_paid_marked",
+        ),
+    )
 
     term_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True),
@@ -360,6 +423,14 @@ class TermAttendance(BaseEntity):
     withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
     # Naive UTC; non-NULL = the organizer marked the party present.
     present_marked_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    payment_status: Mapped[PaymentStatus] = mapped_column(
+        _enum_column(PaymentStatus, 10),
+        nullable=False,
+        default=PaymentStatus.UNPAID,
+        server_default="UNPAID",
+    )
+    # Naive UTC; set exactly while `payment_status` is PAID.
+    paid_marked_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
 
 
 class ItemListingPreference(BaseEntity):

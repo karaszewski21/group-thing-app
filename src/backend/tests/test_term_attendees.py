@@ -73,6 +73,8 @@ async def _get_attendees(
 ) -> list[dict[str, object]]:
     r = await client.get(f"/api/groups/{group_id}/terms/{term_id}/attendees", headers=_auth(token))
     assert r.status_code == 200
+    assert r.headers["cache-control"] == "private, no-store"
+    assert r.headers["vary"] == "Authorization, Cookie"
     return r.json()
 
 
@@ -112,9 +114,15 @@ async def test_listAttendees_familyWithChildren_returnsChildBirthYearsOnly(
         "children",
         "present",
         "is_organizer",
+        "payment_status",
+        "withdrawn",
+        "counted",
     }
     assert attendee["present"] is False
     assert attendee["is_organizer"] is False
+    assert attendee["payment_status"] == "UNPAID"
+    assert attendee["withdrawn"] is False
+    assert attendee["counted"] is True
 
 
 async def test_listAttendees_attendeeWithoutFamilyOrChildren_returnsEmptyChildren(

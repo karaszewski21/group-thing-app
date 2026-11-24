@@ -45,6 +45,9 @@ const group: GroupResponse = {
     formatted_address: "ul. Długa 1, Warszawa",
   }),
   default_capacity: 12,
+  default_price: null,
+  default_payment_url: null,
+  default_payment_method: null,
 };
 
 const members: GroupMemberResponse[] = [
@@ -209,6 +212,9 @@ describe("GroupDetailsPage", () => {
         updated_at: "",
         attendee_count: null,
         child_count: null,
+        price: null,
+        payment_url: null,
+        payment_method: null,
       };
     }
 

@@ -131,6 +131,10 @@ async def test_getMyAttendances_returnsOnlyCallersAttendancesWithTermAndCircleAn
         "location",
         "capacity",
         "attendee_count",
+        "price",
+        "payment_url",
+        "payment_method",
+        "payment_status",
     }
 
     assert by_term[term_b1]["attendance_id"] == att_b1["id"]
@@ -145,6 +149,8 @@ async def test_getMyAttendances_noAttendances_returnsEmptyList(client: AsyncClie
 
     assert response.status_code == 200
     assert response.json() == []
+    assert response.headers["cache-control"] == "private, no-store"
+    assert response.headers["vary"] == "Authorization, Cookie"
 
 
 async def test_getMyAttendances_orderedByTermDateAscendingInSql(client: AsyncClient) -> None:

@@ -1,11 +1,13 @@
+import { useState } from "react";
 import { Link } from "../../routing/navigation";
 import type { EventResponse } from "../../api/events";
 import type { MyPledgeResponse } from "../../api/pledges";
 import type { MyTermResponse, NeededItemResponse } from "../../api/terms";
 import { useAppData } from "../panel/appDataStore";
+import { ConfirmDeleteDialog } from "../../components/shared/ConfirmDeleteDialog";
 import { TermPlaceLine } from "../../components/shared/TermPlaceLine";
 import { CopyIcon, FamilyIcon, PencilIcon } from "../../components/shared/appIcons";
-import { circleTermPath, dayMonth, termTime, type GuestTermCard } from "../../utils/appHelpers";
+import { circleTermPath, dayMonth, formatPrice, termTime, type GuestTermCard } from "../../utils/appHelpers";
 import { eventEditPath, eventPath, termAttendeesPath, termEditPath } from "../../routing/paths";
 import { pluralPl } from "../../utils/plural";
 
@@ -204,14 +206,43 @@ interface SavedTermCardProps {
   /** The caller's not-withdrawn pledges for this term. */
   pledges: MyPledgeResponse[];
   onWithdrawPledge: (pledgeId: string) => void;
+  /** Withdraws the caller's RSVP; without it (or for a membership-only
+   * card) the card offers no "Wypisz się". */
+  onWithdrawAttendance?: (attendanceId: string) => Promise<void>;
+}
+
+const WITHDRAW_BODY = "Znikniesz z listy zapisanych na ten termin.";
+const PAID_REFUND_NOTE = "Płatność jest oznaczona jako opłacona — zwrot ustalasz z organizatorem.";
+
+const PAYMENT_BADGE = "mt-2 inline-block rounded-full px-2.5 py-1 text-[12.5px] font-extrabold";
+
+/** The caller's own payment of an RSVP card; nothing for a free unpaid term
+ * or a membership-only card (no status). The pay link stays on the term
+ * page: this badge sits inside the card's link. */
+function PaymentBadge({ card }: { card: GuestTermCard }) {
+  if (card.paymentStatus === "PAID") {
+    return (
+      <span className={`${PAYMENT_BADGE} bg-primary-soft text-primary-fg`}>
+        <span aria-hidden="true">✓</span> Opłacone
+      </span>
+    );
+  }
+  if (card.paymentStatus === "UNPAID" && card.price != null) {
+    return <span className={`${PAYMENT_BADGE} bg-accent-soft text-accent-fg`}>Do zapłaty {formatPrice(card.price)}</span>;
+  }
+  return null;
 }
 
 /** A "Biorę udział" card (an RSVP, a family circle's term or a term the
  * caller pledged something for). The term part links to the public term
  * page, so its place line carries no Maps link of its own (no nested
  * anchors); the pledges sit under it, outside the link, with their own
- * "Rezygnuję" buttons. */
-export function SavedTermCard({ card, neededItems, pledges, onWithdrawPledge }: SavedTermCardProps) {
+ * "Rezygnuję" buttons. An RSVP card ends with "Wypisz się", confirmed in a
+ * dialog (with a refund note once the attendance is paid). */
+export function SavedTermCard({ card, neededItems, pledges, onWithdrawPledge, onWithdrawAttendance }: SavedTermCardProps) {
+  const [confirmingWithdraw, setConfirmingWithdraw] = useState(false);
+  const { attendanceId } = card;
+
   return (
     <div className="rounded-[22px] border border-line bg-paper transition-colors hover:border-line-strong">
       <Link to={card.href} className="flex items-start gap-3 rounded-[22px] p-3.5">
@@ -228,6 +259,7 @@ export function SavedTermCard({ card, neededItems, pledges, onWithdrawPledge }: 
             withMapLink={false}
             className="mt-1.5"
           />
+          <PaymentBadge card={card} />
           {neededItems.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {neededItems.map((ni) => (
@@ -264,6 +296,33 @@ export function SavedTermCard({ card, neededItems, pledges, onWithdrawPledge }: 
             ))}
           </ul>
         </div>
+      )}
+      {attendanceId && onWithdrawAttendance && (
+        <div className="flex justify-end border-t border-line px-3.5 py-2.5">
+          <button
+            type="button"
+            onClick={() => setConfirmingWithdraw(true)}
+            aria-label={`Wypisz się z terminu: ${card.groupName}`}
+            className="min-h-9 rounded-full border-[1.5px] border-line px-3 text-xs font-bold text-danger hover:bg-cream"
+          >
+            Wypisz się
+          </button>
+        </div>
+      )}
+      {confirmingWithdraw && attendanceId && onWithdrawAttendance && (
+        <ConfirmDeleteDialog
+          title="Wypisać się z terminu?"
+          body={card.paymentStatus === "PAID" ? `${WITHDRAW_BODY} ${PAID_REFUND_NOTE}` : WITHDRAW_BODY}
+          confirmLabel="Wypisz się"
+          tone="primary"
+          busyLabel="Wypisywanie…"
+          fallbackError="Nie udało się wypisać. Spróbuj ponownie."
+          onConfirm={async () => {
+            await onWithdrawAttendance(attendanceId);
+            setConfirmingWithdraw(false);
+          }}
+          onClose={() => setConfirmingWithdraw(false)}
+        />
       )}
     </div>
   );

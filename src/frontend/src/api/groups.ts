@@ -16,6 +16,14 @@ export type GroupLayoutMode = "CIRCLE" | "PITCH" | "TABLE";
  * access code, which creates standing membership). */
 export type GroupVisibility = "PUBLIC" | "PRIVATE";
 
+/** Mirrors `app.groups.models.PaymentMethod` — derived by the server from the
+ * payment URL (`EXTERNAL_LINK` when there is one); `PLATFORM` is reserved for
+ * an own gateway and nothing sets it yet. Never sent by the client. */
+export type PaymentMethod = "EXTERNAL_LINK" | "PLATFORM";
+
+/** Mirrors `app.groups.models.PaymentStatus` — one attendance's payment, marked by the organizer. */
+export type PaymentStatus = "UNPAID" | "PAID";
+
 export interface GroupResponse {
   id: string;
   party_id: string;
@@ -29,6 +37,11 @@ export interface GroupResponse {
   updated_at: string;
   default_location?: LocationRefResponse | null;
   default_capacity?: number | null;
+  /** Money is a decimal string (`"25.50"` zł); `null` means new terms are free. */
+  default_price: string | null;
+  /** An https link; requires `default_price`. */
+  default_payment_url: string | null;
+  default_payment_method: PaymentMethod | null;
   /** Every term of the circle; set only by `GET /groups/{id}`. */
   term_count?: number | null;
 }
@@ -44,6 +57,9 @@ export interface CreateCircleRequest {
 export interface CreateAdditionalCircleRequest extends CreateCircleRequest {
   default_location_id?: string | null;
   default_capacity?: number | null;
+  /** Canonical decimal string (`"25.50"`); see `parsePrice`. */
+  default_price?: string | null;
+  default_payment_url?: string | null;
 }
 
 /** `PATCH /groups/{id}`: `name` is required; omitted `layout_mode`/`visibility`
@@ -55,6 +71,9 @@ export interface UpdateGroupRequest {
   visibility?: GroupVisibility;
   default_location_id?: string | null;
   default_capacity?: number | null;
+  /** Canonical decimal string (`"25.50"`); a URL without a price is a 400. */
+  default_price?: string | null;
+  default_payment_url?: string | null;
 }
 
 /** `GET /api/groups/moderation` (ADMIN-only) row — every Circle with its
@@ -205,6 +224,10 @@ export interface PublicTermResponse {
   attendee_count?: number;
   /** Points for attendance, 0 when the term gives none. */
   attendance_points?: number;
+  /** Decimal string (`"25.50"`) zł; `null` for a free term. */
+  price: string | null;
+  payment_url: string | null;
+  payment_method: PaymentMethod | null;
 }
 
 export interface PublicGuardianResponse {
@@ -273,10 +296,12 @@ export interface GroupAccessDetails {
   is_member: boolean;
   is_organizer: boolean;
   can_view_content: boolean;
-  /** The caller has a `TermAttendance` on `group.term`. */
+  /** The caller has an active (non-withdrawn) `TermAttendance` on `group.term`. */
   is_attending: boolean;
-  /** Like `is_attending`, but ignores withdrawn attendances (gates "Czat terminu"). */
+  /** Also ignores withdrawn attendances (gates "Czat terminu"). */
   is_active_attendee: boolean;
+  /** The caller's own payment on `group.term`; `null` without an active attendance. */
+  payment_status: PaymentStatus | null;
 }
 
 /** Mirrors `app.groups.schemas.GroupAccessResponse` — `GET
@@ -316,6 +341,12 @@ export interface TermAttendeeResponse {
   present: boolean;
   /** Leads the group: never earns attendance points nor counts toward the minimum. */
   is_organizer: boolean;
+  payment_status: PaymentStatus;
+  /** The row was withdrawn (before or after the close); a PAID one is a refund case. */
+  withdrawn: boolean;
+  /** Part of the attendance record (active while open, active at close once
+   * closed) — drives the counts. A listed non-counted row is a withdrawn PAID one. */
+  counted: boolean;
 }
 
 export function getTermAttendees(
@@ -355,6 +386,16 @@ export function setPresence(
   present: boolean,
 ): Promise<void> {
   return api.put(`/groups/${groupId}/terms/${termId}/attendees/${partyId}/presence`, { present });
+}
+
+/** Organizer-only, in any attendance state; 404 for a party with no listed row. */
+export function setPaymentStatus(
+  groupId: string,
+  termId: string,
+  partyId: string,
+  paid: boolean,
+): Promise<void> {
+  return api.put(`/groups/${groupId}/terms/${termId}/attendees/${partyId}/payment`, { paid });
 }
 
 /** 409 unless the attendance is open. */
@@ -430,6 +471,11 @@ export interface MyAttendanceResponse {
   capacity: number | null;
   /** Non-withdrawn signups for the term, the caller's own included. */
   attendee_count: number;
+  /** Decimal string (`"25.50"`) zł; `null` for a free term. */
+  price: string | null;
+  payment_url: string | null;
+  payment_method: PaymentMethod | null;
+  payment_status: PaymentStatus;
 }
 
 export function getMyAttendances(): Promise<MyAttendanceResponse[]> {

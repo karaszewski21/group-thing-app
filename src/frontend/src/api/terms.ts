@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { PaymentMethod } from "./groups";
 import type { LocationRefResponse, PublicLocationResponse } from "./locations";
 import { pageParams, type Page } from "./pagination";
 
@@ -16,6 +17,11 @@ export interface TermResponse {
   child_count: number | null;
   location?: LocationRefResponse | null;
   capacity?: number | null;
+  /** Decimal string (`"25.50"`) zł, copied from the circle by value; `null` for a free term. */
+  price: string | null;
+  /** An https link; requires `price`. */
+  payment_url: string | null;
+  payment_method: PaymentMethod | null;
 }
 
 /** `GET /api/terms/moderation` (ADMIN-only) row — a Term of any Circle
@@ -33,14 +39,19 @@ export interface ModerationTermResponse {
   capacity?: number | null;
 }
 
-/** Omitted `location_id`/`capacity` inherit the group's defaults by value;
- * an explicit `null` suppresses that. */
+/** Omitted `location_id`/`capacity`/`price`/`payment_url` inherit the
+ * group's defaults by value; an explicit `null` suppresses that, and an
+ * explicit `price: null` with `payment_url` omitted gives a free term
+ * without the circle's link. */
 export interface CreateTermRequest {
   group_id: string;
   occurs_on: string;
   description?: string;
   location_id?: string | null;
   capacity?: number | null;
+  /** Canonical decimal string (`"25.50"`); see `parsePrice`. */
+  price?: string | null;
+  payment_url?: string | null;
   /** One of the allowed attendance levels; omitted -> the lowest one. */
   attendance_points?: number;
 }
@@ -71,7 +82,10 @@ export type MyTermRole = "led" | "member";
 /** `GET /groups/mine/terms` row — only what a `/meetings` card shows;
  * `attendee_count`/`child_count` are set for led terms. */
 export interface MyTermResponse
-  extends Pick<TermResponse, "id" | "group_id" | "occurs_on" | "description" | "attendee_count" | "child_count"> {
+  extends Pick<
+    TermResponse,
+    "id" | "group_id" | "occurs_on" | "description" | "attendee_count" | "child_count" | "price" | "payment_url" | "payment_method"
+  > {
   group_name: string;
   organizer_slug: string;
   location: LocationRefResponse | null;
@@ -103,12 +117,15 @@ export function createTerm(request: CreateTermRequest): Promise<TermResponse> {
   return api.post("/terms", request);
 }
 
-/** Omitted fields keep their value; `null` clears `location_id`/`capacity`. */
+/** Omitted fields keep their value; `null` clears `location_id`/`capacity`/`price`/`payment_url`
+ * (a resulting link without a price is a 400). */
 export interface UpdateTermRequest {
   occurs_on?: string;
   description?: string;
   location_id?: string | null;
   capacity?: number | null;
+  price?: string | null;
+  payment_url?: string | null;
   /** Sent only when changed; a different level after the close is a 409. */
   attendance_points?: number;
 }

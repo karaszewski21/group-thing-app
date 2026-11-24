@@ -55,14 +55,6 @@ from .term_item_listings import list_public_term_item_listings
 from .terms import get_term, list_needed_item_views, list_terms
 
 
-async def list_attendances_for_term(db: AsyncSession, term_id: uuid.UUID) -> list[TermAttendance]:
-    """Row-level `TermAttendance` list for a Term, ordered by creation —
-    used to build the public guardian list's `display_name`s via a join in
-    `get_public_circle_view` (no N+1: one query resolves every attendance's
-    party's profile)."""
-    return await repository.list_attendances_for_term(db, term_id)
-
-
 async def _resolve_organizer(db: AsyncSession, group_id: uuid.UUID) -> tuple[str | None, str]:
     """`(display_name, slug)` for a Circle's active organizer, resolving the
     active `Leadership` -> `GroupRole` party id chain ONCE and deriving both
@@ -145,6 +137,10 @@ async def list_my_attendances(db: AsyncSession, party_id: uuid.UUID) -> list[MyA
                 ),
                 capacity=term.capacity,
                 attendee_count=counts.get(cast(uuid.UUID, term.id), (0, 0))[0],
+                price=term.price,
+                payment_url=term.payment_url,
+                payment_method=term.payment_method,
+                payment_status=attendance.payment_status,
             )
         )
     return responses
@@ -312,9 +308,14 @@ async def get_public_circle_view(
             capacity=term.capacity,
             attendee_count=counts.get(cast(uuid.UUID, term.id), (0, 0))[0],
             attendance_points=term.attendance_points,
+            price=term.price,
+            payment_url=term.payment_url,
+            payment_method=term.payment_method,
         )
 
-        attendances = await list_attendances_for_term(db, cast(uuid.UUID, term.id))
+        attendances = await repository.list_active_attendances_for_term(
+            db, cast(uuid.UUID, term.id)
+        )
         if attendances:
             party_ids = [attendance.party_id for attendance in attendances]
             profile_rows = await repository.list_profile_names_by_party_ids(db, party_ids)
@@ -382,11 +383,12 @@ async def get_group_access(
     is_attending = profile is not None and any(
         guardian.party_id == profile.party_id for guardian in group_response.guardians
     )
-    is_active_attendee = (
-        profile is not None
-        and group_response.term is not None
-        and await repository.has_active_attendance(db, group_response.term.id, profile.party_id)
+    attendance = (
+        await repository.get_active_attendance(db, group_response.term.id, profile.party_id)
+        if profile is not None and group_response.term is not None
+        else None
     )
+    is_active_attendee = attendance is not None
 
     can_view_content = group_response.visibility != GroupVisibility.PRIVATE or is_member
 
@@ -398,6 +400,7 @@ async def get_group_access(
             can_view_content=can_view_content,
             is_attending=is_attending,
             is_active_attendee=is_active_attendee,
+            payment_status=attendance.payment_status if attendance is not None else None,
         ),
     )
 
@@ -411,8 +414,10 @@ async def create_rsvp(
 ) -> RsvpResponse:
     """Attaches a `TermAttendance` to the caller's own party, idempotent per
     `(party, term.id)` (an existing row's `child_count` is refreshed in
-    place). An account is required; a PRIVATE group also requires standing
-    membership or the organizer role. The ownership check
+    place). A withdrawn row is reactivated; while the list is open presence
+    must be confirmed again, after the close it stays as frozen; payment
+    status is kept. An account is required; a PRIVATE group also requires
+    standing membership or the organizer role. The ownership check
     (`term.circle_group_id == group_id`) runs first."""
     term = await get_term(db, term_id)
     if term.circle_group_id != group_id:
@@ -443,6 +448,10 @@ async def create_rsvp(
     ).scalar_one_or_none()
     if existing is not None:
         existing.child_count = child_count
+        if existing.withdrawn_at is not None:
+            existing.withdrawn_at = None
+            if term.attendance_closed_at is None:
+                existing.present_marked_at = None
         attendance = existing
     else:
         attendance = TermAttendance(

@@ -58,6 +58,9 @@ function term(overrides: Partial<PublicTermResponse> = {}): PublicTermResponse {
     description: null,
     needed_items: [],
     item_listings: [],
+    price: null,
+    payment_url: null,
+    payment_method: null,
     ...overrides,
   };
 }

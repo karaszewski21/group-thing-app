@@ -2,7 +2,20 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Link } from "../../routing/navigation";
 import { useRegisterOpenSheet } from "./openSheets";
 import dayjs from "../../utils/dayjs";
-import { CAPACITY_ERROR, capitalize, ITEM_MODE_TONE, parseCapacity, type ItemMode } from "../../utils/appHelpers";
+import {
+  CAPACITY_ERROR,
+  capitalize,
+  ITEM_MODE_TONE,
+  MAX_PAYMENT_URL_LENGTH,
+  parseCapacity,
+  parsePaymentUrl,
+  parsePrice,
+  PAYMENT_URL_ERROR,
+  PAYMENT_URL_LENGTH_ERROR,
+  PAYMENT_URL_REQUIRES_PRICE_ERROR,
+  PRICE_ERROR,
+  type ItemMode,
+} from "../../utils/appHelpers";
 import { ChevronRightIcon, CloseIcon } from "./appIcons";
 import type { MockMeeting } from "../../utils/mocks";
 
@@ -25,19 +38,38 @@ export function ToggleRow({
         <strong className="block text-sm text-ink">{label}</strong>
         <small className="mt-0.5 block text-xs text-ink-soft">{hint}</small>
       </div>
-      <button
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        onClick={onChange}
-        className={`relative h-[26px] w-11 flex-none rounded-full transition-colors ${checked ? "bg-mint" : "bg-line"}`}
-      >
-        <span
-          className="absolute top-[3px] left-[3px] h-5 w-5 rounded-full bg-white shadow transition-transform"
-          style={checked ? { transform: "translateX(18px)" } : undefined}
-        />
-      </button>
+      <Switch checked={checked} label={label} onChange={onChange} />
     </div>
+  );
+}
+
+/** An on/off switch button; `label` is its accessible name. */
+export function Switch({
+  checked,
+  label,
+  onChange,
+  disabled = false,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onChange}
+      className={`relative h-[26px] w-11 flex-none rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:opacity-60 ${checked ? "bg-mint" : "bg-line"}`}
+    >
+      <span
+        className="absolute top-[3px] left-[3px] h-5 w-5 rounded-full bg-white shadow transition-transform"
+        style={checked ? { transform: "translateX(18px)" } : undefined}
+      />
+    </button>
   );
 }
 
@@ -175,6 +207,125 @@ export function CapacityField({
         </p>
       )}
     </Field>
+  );
+}
+
+const FIELD_HINT_CLASS = "text-[12.5px] text-ink-soft";
+const FIELD_ERROR_CLASS = "text-[12.5px] font-semibold text-danger";
+
+/** A text input with an optional hint and at most one inline error below it,
+ * both referenced by `aria-describedby`. */
+function DescribedTextField({
+  label,
+  hint,
+  error,
+  input,
+}: {
+  label: string;
+  hint?: string;
+  error: string | null;
+  input: (props: { id: string; "aria-invalid": true | undefined; "aria-describedby": string | undefined }) => ReactNode;
+}) {
+  const inputId = useId();
+  const hintId = useId();
+  const errorId = useId();
+  const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ");
+  return (
+    <Field label={label} htmlFor={inputId}>
+      {input({ id: inputId, "aria-invalid": error ? true : undefined, "aria-describedby": describedBy || undefined })}
+      {hint && (
+        <p id={hintId} className={FIELD_HINT_CLASS}>
+          {hint}
+        </p>
+      )}
+      {error && (
+        <p id={errorId} role="alert" className={FIELD_ERROR_CLASS}>
+          {error}
+        </p>
+      )}
+    </Field>
+  );
+}
+
+/** A price in zł: `value` is the raw input text (see `parsePrice`); an invalid
+ * amount shows `PRICE_ERROR` inline, and the host blocks submit. */
+export function PriceField({
+  label,
+  value,
+  onChange,
+  hint,
+}: {
+  label: string;
+  value: string;
+  onChange: (raw: string) => void;
+  hint?: string;
+}) {
+  const error = parsePrice(value) === undefined ? PRICE_ERROR : null;
+  return (
+    <DescribedTextField
+      label={label}
+      hint={hint}
+      error={error}
+      input={(aria) => (
+        <input
+          {...aria}
+          type="text"
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="np. 25,50"
+          className={`${INPUT_CLASS} w-36`}
+        />
+      )}
+    />
+  );
+}
+
+/** An optional https payment link: `value` is the raw input text (see
+ * `parsePaymentUrl`). Shows one error at a time — the format or length error
+ * for an invalid link, else "Link wymaga ceny" when a valid link has
+ * `priceMissing` — and the host blocks submit (`parsePayment`). */
+export function PaymentUrlField({
+  label,
+  value,
+  onChange,
+  hint,
+  priceMissing,
+}: {
+  label: string;
+  value: string;
+  onChange: (raw: string) => void;
+  hint?: string;
+  priceMissing: boolean;
+}) {
+  const parsed = parsePaymentUrl(value);
+  const error =
+    parsed === undefined
+      ? value.trim().length > MAX_PAYMENT_URL_LENGTH
+        ? PAYMENT_URL_LENGTH_ERROR
+        : PAYMENT_URL_ERROR
+      : parsed !== null && priceMissing
+        ? PAYMENT_URL_REQUIRES_PRICE_ERROR
+        : null;
+  return (
+    <DescribedTextField
+      label={label}
+      hint={hint}
+      error={error}
+      input={(aria) => (
+        <input
+          {...aria}
+          type="text"
+          inputMode="url"
+          autoComplete="off"
+          spellCheck={false}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://"
+          className={`${INPUT_CLASS} w-full`}
+        />
+      )}
+    />
   );
 }
 

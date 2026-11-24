@@ -1,5 +1,7 @@
 import type { EventResponse } from "../../../api/events";
+import { withdrawMyAttendance } from "../../../api/groups";
 import type { MyPledgeResponse } from "../../../api/pledges";
+import { extractProblemMessage } from "../../../api/problem";
 import type { NeededItemResponse } from "../../../api/terms";
 import { useAttendingEvents } from "../../../hooks/useAttendingEvents";
 import { useMyPledges } from "../../../hooks/useMyPledges";
@@ -20,6 +22,9 @@ export interface AttendingMeetings {
   pledgesOf: (termId: string) => MyPledgeResponse[];
   /** Withdraws a pledge and reports the outcome in a toast. */
   withdrawPledge: (pledgeId: string) => Promise<void>;
+  /** Withdraws the caller's RSVP and re-reads the panel data; rejects with
+   * the server's message, for the confirm dialog to show inline. */
+  withdrawAttendance: (attendanceId: string) => Promise<void>;
   /** Until the first member terms page, the attended events and the pledges are in. */
   loading: boolean;
   error: string | null;
@@ -62,12 +67,24 @@ export function useAttendingMeetings(): AttendingMeetings {
     void refetchNeededItems();
   }
 
+  async function withdrawAttendance(attendanceId: string) {
+    try {
+      await withdrawMyAttendance(attendanceId);
+    } catch (err) {
+      throw new Error(extractProblemMessage(err));
+    }
+    // `savedCards` come from the panel's `load()`, not a query of their own.
+    await load({ silent: true });
+    showToast("Wypisano z terminu");
+  }
+
   return {
     entries: mergeLatestFirst<GuestTermCard | EventResponse>(member, memberCards, [...savedCards, ...events.data]),
     paged: member,
     neededItems,
     pledgesOf: (termId) => pledgesByTerm.get(termId) ?? NO_PLEDGES,
     withdrawPledge,
+    withdrawAttendance,
     loading: member.loading || events.loading || pledges.loading,
     error: member.error ?? events.error ?? pledges.error,
   };

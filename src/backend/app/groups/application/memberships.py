@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import date
 from typing import cast
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
@@ -120,19 +120,18 @@ async def _require_term_in_group(db: AsyncSession, group_id: uuid.UUID, term_id:
 async def list_term_attendees(
     db: AsyncSession, principal: Principal, group_id: uuid.UUID, term_id: uuid.UUID
 ) -> list[TermAttendeeResponse]:
-    """The organizer's attendee list for a term — active (non-withdrawn)
-    RSVPs on `term_id`, annotated with the attendee's resolved family (if
-    any). Once the attendance list is closed, the rows active at close with
-    the presence they had, so a later withdrawal removes no one.
-    Organizer-only."""
+    """The organizer's attendee list for a term, annotated with the
+    attendee's resolved family (if any): the counted rows (active while the
+    list is open; active at the close, with the presence they had, once it
+    is closed) plus withdrawn PAID rows to refund, counted rows first —
+    `repository.listed_attendance_condition`, the rows the payment PUT
+    accepts. Each row carries `withdrawn` and `counted`. Organizer-only."""
     profile = await get_profile_by_principal(db, principal)
     await _require_active_organizer(db, group_id, profile.party_id)
     term = await _require_term_in_group(db, group_id, term_id)
 
-    if term.attendance_closed_at is None:
-        attendances = await repository.list_active_attendances_for_term(db, term_id)
-    else:
-        attendances = await _attendances_active_at(db, term_id, term.attendance_closed_at)
+    closed_at = term.attendance_closed_at
+    attendances = await repository.list_listed_attendances(db, term_id, closed_at)
     party_ids = [a.party_id for a in attendances]
     families = await _resolve_party_families(db, party_ids)
     child_birth_years = await _resolve_family_child_birth_years(
@@ -168,23 +167,12 @@ async def list_term_attendees(
             children=children_by_party.get(attendance.party_id, []),
             present=attendance.present_marked_at is not None,
             is_organizer=attendance.party_id in organizers,
+            payment_status=attendance.payment_status,
+            withdrawn=attendance.withdrawn_at is not None,
+            counted=repository.is_counted(attendance, closed_at),
         )
         for attendance in attendances
     ]
-
-
-async def _attendances_active_at(
-    db: AsyncSession, term_id: uuid.UUID, closed_at: datetime
-) -> list[TermAttendance]:
-    result = await db.execute(
-        select(TermAttendance)
-        .where(
-            TermAttendance.term_id == term_id,
-            or_(TermAttendance.withdrawn_at.is_(None), TermAttendance.withdrawn_at > closed_at),
-        )
-        .order_by(TermAttendance.created_at)
-    )
-    return list(result.scalars().all())
 
 
 async def list_group_members(

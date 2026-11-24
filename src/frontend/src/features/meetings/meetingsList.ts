@@ -31,6 +31,7 @@ export function mergeLatestFirst<T extends ListedTerm>(
 export function memberTermCard(term: MyTermResponse): GuestTermCard {
   return {
     termId: term.id,
+    attendanceId: null,
     occursOn: term.occurs_on,
     groupName: term.group_name,
     description: term.description,
@@ -38,5 +39,7 @@ export function memberTermCard(term: MyTermResponse): GuestTermCard {
     location: term.location,
     capacity: term.capacity,
     attendeeCount: null,
+    price: term.price,
+    paymentStatus: null,
   };
 }

@@ -25,6 +25,8 @@ export function AppModals() {
           organizerSlug={myGroups[0].organizer_slug ?? null}
           defaultLocation={myGroups[0].default_location ?? null}
           defaultCapacity={myGroups[0].default_capacity ?? null}
+          defaultPrice={myGroups[0].default_price ?? null}
+          defaultPaymentUrl={myGroups[0].default_payment_url ?? null}
           draft={firstTermDraft}
           onDraftChange={setFirstTermDraft}
           onClose={closeStepper}

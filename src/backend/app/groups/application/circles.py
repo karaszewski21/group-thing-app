@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 from typing import cast
 
 from sqlalchemy import select
@@ -36,6 +37,7 @@ from ..infrastructure import locations_acl, repository
 from ..models import Group, GroupRoleType, GroupVisibility, Leadership
 from ..schemas import CreateCircleRequest, ModerationGroupResponse, UpdateGroupRequest
 from .group_roles import get_or_create_active_group_role
+from .term_payments import derive_payment_method, ensure_payment_url_has_price
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +115,9 @@ async def create_additional_circle(
     default_location_id: uuid.UUID | None = None,
     default_capacity: int | None = None,
     description: str | None = None,
+    *,
+    default_price: Decimal | None = None,
+    default_payment_url: str | None = None,
 ) -> Group:
     """Non-idempotent twin of `create_own_circle` — always creates a brand
     new Circle and a brand new `Leadership` for `organizer_party_id`, never
@@ -125,7 +130,10 @@ async def create_additional_circle(
     `visibility` lets the organizer pick Public/Private at creation time
     instead of always starting `PUBLIC` and editing afterward. A
     `default_location_id` must be one of the organizer's own (PERSON party)
-    live places — not the Circle's ORGANIZATION party."""
+    live places — not the Circle's ORGANIZATION party. A
+    `default_payment_url` needs a `default_price` (400 before anything is
+    created); the payment method is derived from the link."""
+    ensure_payment_url_has_price(default_price, default_payment_url)
     if default_location_id is not None:
         await locations_acl.get_owned_location(db, default_location_id, organizer_party_id)
     circle = await create_circle(db, CreateCircleRequest(name=circle_name, description=description))
@@ -133,6 +141,9 @@ async def create_additional_circle(
         circle.visibility = visibility
     circle.default_location_id = default_location_id
     circle.default_capacity = default_capacity
+    circle.default_price = default_price
+    circle.default_payment_url = default_payment_url
+    circle.default_payment_method = derive_payment_method(default_payment_url)
     role = await get_or_create_active_group_role(db, organizer_party_id, GroupRoleType.ORGANIZATOR)
     leadership = Leadership(
         from_role_id=cast(uuid.UUID, role.id),
@@ -259,9 +270,17 @@ async def update_group(
     of the caller's own live places — re-sending the current id is not
     re-checked, so a soft-deleted or handed-over default survives a save.
     `description` follows `model_fields_set` too and is checked before any
-    write."""
+    write. `default_price`/`default_payment_url` follow it independently;
+    the merged pair is checked (a link needs a price) before any write and
+    the payment method is re-derived from the merged link."""
     group = await get_group(db, group_id)
     await _require_active_organizer(db, group_id, caller_party_id)
+    fields = data.model_fields_set
+    price = data.default_price if "default_price" in fields else group.default_price
+    payment_url = (
+        data.default_payment_url if "default_payment_url" in fields else group.default_payment_url
+    )
+    ensure_payment_url_has_price(price, payment_url)
     await check_text(TextField.GROUP_NAME, data.name, group.name)
     if "description" in data.model_fields_set:
         await _check_description(data.description, group.description)
@@ -280,6 +299,9 @@ async def update_group(
         group.default_location_id = data.default_location_id
     if "default_capacity" in data.model_fields_set:
         group.default_capacity = data.default_capacity
+    group.default_price = price
+    group.default_payment_url = payment_url
+    group.default_payment_method = derive_payment_method(payment_url)
     if "description" in data.model_fields_set:
         group.description = data.description
     await db.commit()

@@ -15,6 +15,9 @@ const TERM: TermResponse = {
   updated_at: "2026-11-01T10:00:00",
   attendee_count: 1,
   child_count: 0,
+  price: null,
+  payment_url: null,
+  payment_method: null,
 };
 
 const GROUP: GroupResponse = {
@@ -27,6 +30,9 @@ const GROUP: GroupResponse = {
   visibility: "PUBLIC",
   created_at: "2026-11-01T10:00:00",
   updated_at: "2026-11-01T10:00:00",
+  default_price: null,
+  default_payment_url: null,
+  default_payment_method: null,
 };
 
 const ATTENDEES: TermAttendeeResponse[] = [
@@ -39,6 +45,9 @@ const ATTENDEES: TermAttendeeResponse[] = [
     children: [],
     present: true,
     is_organizer: false,
+    payment_status: "UNPAID",
+    withdrawn: false,
+    counted: true,
   },
 ];
 

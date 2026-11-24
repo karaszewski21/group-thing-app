@@ -1,4 +1,4 @@
-import type { PublicCircleResponse } from "../../api/groups";
+import type { PaymentStatus, PublicCircleResponse } from "../../api/groups";
 import type { TermAccessState } from "../../hooks/useTermAccess";
 
 export const TERM_LOAD_ERROR = "Nie udało się wczytać zajęć.";
@@ -14,8 +14,10 @@ export const TERM_LOAD_ERROR = "Nie udało się wczytać zajęć.";
  * - `enterCode`: PRIVATE group, logged-in non-member.
  * - `refreshFailed`: the gate was resolved for another token and the fetch
  *   for the current one failed, so only a retry is offered.
- * The `content` flags come from the server: `isAttending` drives the sign-up
- * footer, the others gate the chat buttons. */
+ * The `content` flags come from the server: `isAttending` (an active
+ * attendance — a withdrawn viewer is not attending) picks the sign-up or the
+ * payment footer, `paymentStatus` is the viewer's own payment (`null` without
+ * an attendance record), the others gate the chat buttons. */
 export type TermViewState =
   | { kind: "loading" }
   | { kind: "notFound" }
@@ -27,6 +29,7 @@ export type TermViewState =
       isOrganizer: boolean;
       isMember: boolean;
       isActiveAttendee: boolean;
+      paymentStatus: PaymentStatus | null;
     }
   | { kind: "loginRequired"; group: PublicCircleResponse; refreshError: string | null }
   | { kind: "enterCode"; group: PublicCircleResponse; refreshError: string | null }
@@ -50,6 +53,7 @@ export function resolveTermView(state: TermAccessState, isStale: boolean): TermV
       isOrganizer: access.is_organizer,
       isMember: access.is_member,
       isActiveAttendee: access.is_active_attendee,
+      paymentStatus: access.payment_status,
     };
   }
   if (isStale) return state.refreshError === null ? { kind: "loading" } : { kind: "refreshFailed", group };

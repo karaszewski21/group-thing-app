@@ -91,6 +91,9 @@ const term: termsApi.TermResponse = {
   child_count: 0,
   location: locationRef(salaNr2),
   capacity: 10,
+  price: null,
+  payment_url: null,
+  payment_method: null,
 };
 
 const neededItem: termsApi.NeededItemResponse = {
@@ -300,6 +303,32 @@ describe("TermEditForm — place and capacity", () => {
     expect(save).toBeDisabled();
     fireEvent.click(save);
     expect(termsApi.updateTerm).not.toHaveBeenCalled();
+  });
+
+  it("saveTermFields_untouchedPaidTerm_sendsNoPricePatch", async () => {
+    const paid = { ...term, price: "25.50", payment_url: "https://x.pl", payment_method: "EXTERNAL_LINK" as const };
+    const onDone = vi.fn();
+    renderForm(paid, vi.fn(), onDone);
+
+    expect(await screen.findByLabelText("Cena (zł)")).toHaveValue("25,50");
+    expect(screen.getByLabelText("Link do płatności (opcjonalnie)")).toHaveValue("https://x.pl");
+    fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[0]);
+
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(false));
+    expect(termsApi.updateTerm).not.toHaveBeenCalled();
+  });
+
+  it("saveTermFields_changedPrice_sendsOnlyPrice", async () => {
+    const paid = { ...term, price: "25.50", payment_url: "https://x.pl", payment_method: "EXTERNAL_LINK" as const };
+    vi.mocked(termsApi.updateTerm).mockResolvedValue(paid);
+    const onDone = vi.fn();
+    renderForm(paid, vi.fn(), onDone);
+
+    fireEvent.change(await screen.findByLabelText("Cena (zł)"), { target: { value: "30" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Zapisz" })[0]);
+
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(true));
+    expect(termsApi.updateTerm).toHaveBeenCalledWith("t1", { price: "30.00" });
   });
 
   it("deletedTermLocation_rendersUsunieteRow", async () => {

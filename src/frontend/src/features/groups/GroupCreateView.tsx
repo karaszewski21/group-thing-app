@@ -1,6 +1,6 @@
 import { useAppData } from "../panel/appDataStore";
 import { GroupFormFields, isDescriptionTooLong } from "./GroupFormFields";
-import { parseCapacity } from "../../utils/appHelpers";
+import { parseCapacity, parsePayment } from "../../utils/appHelpers";
 
 const TITLE = "Nowa grupa";
 
@@ -10,7 +10,8 @@ const TITLE = "Nowa grupa";
 export function GroupCreateView() {
   const { groupForm, setGroupForm, addGroupError, busy, handleAddGroup } = useAppData();
   const invalid = !groupForm.name.trim() || parseCapacity(groupForm.defaultCapacity) === undefined ||
-    isDescriptionTooLong(groupForm.description);
+    isDescriptionTooLong(groupForm.description) ||
+    parsePayment(groupForm.defaultPrice, groupForm.defaultPaymentUrl) === undefined;
 
   return (
     <section aria-label={TITLE}>

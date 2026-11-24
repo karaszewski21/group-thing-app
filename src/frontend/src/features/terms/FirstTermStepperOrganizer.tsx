@@ -3,11 +3,18 @@ import { Link } from "../../routing/navigation";
 import type { LocationRefResponse } from "../../api/locations";
 import { createTerm, type CreateTermRequest } from "../../api/terms";
 import { serverMessageOr } from "../../api/problem";
-import { CapacityField, Field, INPUT_CLASS, ModalSheet } from "../../components/shared/appComponents";
-import { parseCapacity } from "../../utils/appHelpers";
+import {
+  CapacityField,
+  Field,
+  INPUT_CLASS,
+  ModalSheet,
+  PaymentUrlField,
+  PriceField,
+} from "../../components/shared/appComponents";
+import { parseCapacity, parsePayment, parsePrice } from "../../utils/appHelpers";
 import { LocationPicker } from "../../components/shared/LocationPicker";
 import { FIRST_TERM_PICKER } from "./hooks/useFirstTermStepper";
-import type { TermDraft } from "./termDraft";
+import { TERM_PAYMENT_PREFILL_HINT, type TermDraft } from "./termDraft";
 
 /* ------------------------------------------------------------------ */
 /*  ORGANIZER "first term" stepper — 1 step (term only), for an          */
@@ -33,9 +40,11 @@ interface FirstTermStepperOrganizerProps {
    * Organization yet — drives the done-screen CTA. */
   organizerSlug?: string | null;
   onDone: () => void;
-  /** The group's default place and capacity, which the host's draft starts from. */
+  /** The group's default place, capacity, price and payment link, which the host's draft starts from. */
   defaultLocation?: LocationRefResponse | null;
   defaultCapacity?: number | null;
+  defaultPrice?: string | null;
+  defaultPaymentUrl?: string | null;
 }
 
 export function FirstTermStepperOrganizer({
@@ -48,9 +57,13 @@ export function FirstTermStepperOrganizer({
   onDone,
   defaultLocation = null,
   defaultCapacity = null,
+  defaultPrice = null,
+  defaultPaymentUrl = null,
 }: FirstTermStepperOrganizerProps) {
   const { occursOn, description, locationId } = draft;
   const capacity = parseCapacity(draft.capacity);
+  const payment = parsePayment(draft.price, draft.paymentUrl);
+  const invalid = !occursOn || !circleGroupId || !locationId || capacity === undefined || payment === undefined;
   const set = (patch: Partial<TermDraft>) => onDraftChange({ ...draft, ...patch });
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -58,7 +71,7 @@ export function FirstTermStepperOrganizer({
   const [createdTermId, setCreatedTermId] = useState<string | null>(null);
 
   async function handleSubmit() {
-    if (!occursOn || !circleGroupId || !locationId || capacity === undefined) return;
+    if (invalid) return;
     setBusy(true);
     setFormError(null);
     try {
@@ -70,6 +83,10 @@ export function FirstTermStepperOrganizer({
       };
       // An omitted capacity inherits the group default; a cleared prefill must be an explicit null.
       if (capacity !== null || defaultCapacity !== null) request.capacity = capacity;
+      // Likewise for the price and the link: an explicit `price: null` with the
+      // link omitted gives a free term without the group's default link.
+      if (payment.price !== null || defaultPrice != null) request.price = payment.price;
+      if (payment.payment_url !== null || defaultPaymentUrl != null) request.payment_url = payment.payment_url;
       const created = await createTerm(request);
       setCreatedTermId(created.id);
       setDone(true);
@@ -106,6 +123,9 @@ export function FirstTermStepperOrganizer({
 
   return (
     <ModalSheet title="Dodaj pierwszy termin" onClose={onClose}>
+      {(defaultPrice != null || defaultPaymentUrl != null) && (
+        <p className="mb-3 text-[13.5px] text-ink-soft">{TERM_PAYMENT_PREFILL_HINT}</p>
+      )}
       <div className="grid grid-cols-1 gap-3">
         <Field label="Data i godzina">
           <input
@@ -138,6 +158,13 @@ export function FirstTermStepperOrganizer({
           />
         </Field>
         <CapacityField label="Ile miejsc" value={draft.capacity} onChange={(text) => set({ capacity: text })} />
+        <PriceField label="Cena (zł)" value={draft.price} onChange={(price) => set({ price })} />
+        <PaymentUrlField
+          label="Link do płatności (opcjonalnie)"
+          value={draft.paymentUrl}
+          onChange={(paymentUrl) => set({ paymentUrl })}
+          priceMissing={parsePrice(draft.price) === null}
+        />
       </div>
       {formError && (
         <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">
@@ -146,7 +173,7 @@ export function FirstTermStepperOrganizer({
       )}
       <button
         onClick={() => void handleSubmit()}
-        disabled={busy || !occursOn || !circleGroupId || !locationId || capacity === undefined}
+        disabled={busy || invalid}
         className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
       >
         Dodaj termin

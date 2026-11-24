@@ -79,6 +79,9 @@ const group: GroupResponse = {
   updated_at: "2026-11-01T10:00:00",
   default_location: makeLocationRef({ id: "loc-1" }),
   default_capacity: null,
+  default_price: null,
+  default_payment_url: null,
+  default_payment_method: null,
 };
 
 function renderAddTerm() {

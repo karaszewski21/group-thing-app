@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useAppParams } from "../../routing/navigation";
 import { useAppData } from "../panel/appDataStore";
 import { GroupFormFields, isDescriptionTooLong } from "./GroupFormFields";
-import { parseCapacity } from "../../utils/appHelpers";
+import { parseCapacity, parsePayment } from "../../utils/appHelpers";
 
 const TITLE = "Edytuj grupę";
 
@@ -41,7 +41,8 @@ export function GroupEditView() {
   }
 
   const invalid = !editGroupForm.name.trim() || parseCapacity(editGroupForm.defaultCapacity) === undefined ||
-    isDescriptionTooLong(editGroupForm.description);
+    isDescriptionTooLong(editGroupForm.description) ||
+    parsePayment(editGroupForm.defaultPrice, editGroupForm.defaultPaymentUrl) === undefined;
   return (
     <section aria-label={TITLE}>
       {seeded && (

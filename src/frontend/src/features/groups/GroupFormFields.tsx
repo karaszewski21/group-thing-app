@@ -1,5 +1,6 @@
 import type { GroupLayoutMode, GroupVisibility } from "../../api/groups";
-import { CapacityField, Field, INPUT_CLASS } from "../../components/shared/appComponents";
+import { CapacityField, Field, INPUT_CLASS, PaymentUrlField, PriceField } from "../../components/shared/appComponents";
+import { parsePrice } from "../../utils/appHelpers";
 import { LocationPicker, type FallbackLocation } from "../../components/shared/LocationPicker";
 
 const LAYOUT_OPTIONS: { mode: GroupLayoutMode; label: string }[] = [
@@ -40,6 +41,9 @@ export interface GroupFormValue {
   defaultLocationId: string | null;
   /** Raw input text; `parseCapacity` turns it into the request value. */
   defaultCapacity: string;
+  /** Raw input texts; `parsePayment` turns them into the request values. */
+  defaultPrice: string;
+  defaultPaymentUrl: string;
 }
 
 interface GroupFormFieldsProps {
@@ -52,7 +56,8 @@ interface GroupFormFieldsProps {
 }
 
 /** The group fields shared by the add and edit group pages, always in one
- * order: name, description, (layout), visibility, place, capacity. */
+ * order: name, description, (layout), visibility, place, capacity, price,
+ * payment link. */
 export function GroupFormFields({ value, onChange, showLayoutMode = false, idPrefix, fallbackLocation }: GroupFormFieldsProps) {
   function set(patch: Partial<GroupFormValue>) {
     onChange({ ...value, ...patch });
@@ -138,6 +143,19 @@ export function GroupFormFields({ value, onChange, showLayoutMode = false, idPre
         label={CAPACITY_LABEL}
         value={value.defaultCapacity}
         onChange={(defaultCapacity) => set({ defaultCapacity })}
+      />
+      <PriceField
+        label="Cena domyślna (zł)"
+        value={value.defaultPrice}
+        onChange={(defaultPrice) => set({ defaultPrice })}
+        hint="Puste = zajęcia bezpłatne."
+      />
+      <PaymentUrlField
+        label="Link do płatności (opcjonalnie)"
+        value={value.defaultPaymentUrl}
+        onChange={(defaultPaymentUrl) => set({ defaultPaymentUrl })}
+        hint="Bez linku uczestnicy płacą na miejscu."
+        priceMissing={parsePrice(value.defaultPrice) === null}
       />
     </div>
   );

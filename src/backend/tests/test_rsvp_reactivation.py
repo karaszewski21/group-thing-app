@@ -9,10 +9,15 @@ naming follows `action_condition_expectedResult`
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from collections.abc import Callable
+from datetime import date, datetime, timedelta
 
 from httpx import AsyncClient
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import clock
+from app.points.models import PointsConfig
 from tests.conftest import create_location
 
 
@@ -99,3 +104,109 @@ async def test_access_withdrawnAttendee_notAttendingAndNotListedPublicly(
     assert body["access"]["is_attending"] is False
     assert body["access"]["is_active_attendee"] is False
     assert guest_party not in [g["party_id"] for g in body["group"]["guardians"]]
+
+
+async def _started_term(client: AsyncClient, org_token: str) -> tuple[str, str, datetime]:
+    occurs_on = (clock.local_now() + timedelta(days=7)).replace(second=0, microsecond=0)
+    circle = await client.post(
+        "/api/groups/mine", json={"name": "Reactivate Closed"}, headers=_auth(org_token)
+    )
+    assert circle.status_code == 201
+    term = await client.post(
+        "/api/terms",
+        json={
+            "location_id": await create_location(client, _auth(org_token)),
+            "group_id": circle.json()["id"],
+            "occurs_on": occurs_on.isoformat(),
+            "attendance_points": 10,
+        },
+        headers=_auth(org_token),
+    )
+    assert term.status_code == 201, term.text
+    return circle.json()["id"], term.json()["id"], occurs_on
+
+
+async def _mark(
+    client: AsyncClient, org_token: str, group_id: str, term_id: str, party_id: str, kind: str
+) -> None:
+    body = {"present": True} if kind == "presence" else {"paid": True}
+    r = await client.put(
+        f"/api/groups/{group_id}/terms/{term_id}/attendees/{party_id}/{kind}",
+        json=body,
+        headers=_auth(org_token),
+    )
+    assert r.status_code == 204, r.text
+
+
+async def _guest_row(
+    client: AsyncClient, org_token: str, group_id: str, term_id: str, party_id: str
+) -> dict[str, object]:
+    r = await client.get(
+        f"/api/groups/{group_id}/terms/{term_id}/attendees", headers=_auth(org_token)
+    )
+    assert r.status_code == 200, r.text
+    return next(a for a in r.json() if a["party_id"] == party_id)
+
+
+async def _balance(client: AsyncClient, token: str) -> int:
+    r = await client.get("/api/points/me", headers=_auth(token))
+    assert r.status_code == 200, r.text
+    return int(r.json()["balance"])
+
+
+async def test_rsvp_afterWithdraw_clearsPresenceKeepsPaymentStatus(
+    client: AsyncClient, freeze_local_now: Callable[[datetime], None]
+) -> None:
+    org_token, _ = await _register(client, "ORGANIZER", "reactivate.org3@example.com")
+    guest_token, guest = await _register(client, "GUEST", "reactivate.guest3@example.com")
+    group_id, term_id, occurs_on = await _started_term(client, org_token)
+    attendance_id = await _rsvp(client, guest_token, group_id, term_id)
+    freeze_local_now(occurs_on + timedelta(hours=1))
+    await _mark(client, org_token, group_id, term_id, guest, "presence")
+    await _mark(client, org_token, group_id, term_id, guest, "payment")
+    await _withdraw(client, guest_token, attendance_id)
+
+    again_id = await _rsvp(client, guest_token, group_id, term_id)
+    row = await _guest_row(client, org_token, group_id, term_id, guest)
+
+    assert again_id == attendance_id
+    assert (row["present"], row["payment_status"], row["withdrawn"]) == (False, "PAID", False)
+
+
+async def test_rsvp_afterWithdrawOnClosedList_keepsPresenceAndPoints(
+    client: AsyncClient, db_session: AsyncSession, freeze_local_now: Callable[[datetime], None]
+) -> None:
+    await db_session.execute(
+        update(PointsConfig).values(attendance_levels=[0, 10, 20], attendance_min_present=1)
+    )
+    await db_session.commit()
+    org_token, _ = await _register(client, "ORGANIZER", "reactivate.org4@example.com")
+    guest_token, guest = await _register(client, "GUEST", "reactivate.guest4@example.com")
+    group_id, term_id, occurs_on = await _started_term(client, org_token)
+    attendance_id = await _rsvp(client, guest_token, group_id, term_id)
+    freeze_local_now(occurs_on + timedelta(hours=1))
+    await _mark(client, org_token, group_id, term_id, guest, "presence")
+    await _mark(client, org_token, group_id, term_id, guest, "payment")
+    close = await client.post(
+        f"/api/groups/{group_id}/terms/{term_id}/attendance/close", headers=_auth(org_token)
+    )
+    assert close.status_code == 200, close.text
+    closed = close.json()
+    assert closed["rewarded"] is True
+    balance = await _balance(client, guest_token)
+    await _withdraw(client, guest_token, attendance_id)
+
+    again_id = await _rsvp(client, guest_token, group_id, term_id)
+    row = await _guest_row(client, org_token, group_id, term_id, guest)
+    attendance = await client.get(
+        f"/api/groups/{group_id}/terms/{term_id}/attendance", headers=_auth(org_token)
+    )
+
+    assert again_id == attendance_id
+    assert (row["present"], row["payment_status"], row["withdrawn"]) == (True, "PAID", False)
+    after = attendance.json()
+    assert (after["present_count"], after["attendee_count"]) == (
+        closed["present_count"],
+        closed["attendee_count"],
+    )
+    assert await _balance(client, guest_token) == balance > 0

@@ -38,17 +38,24 @@ const SWIETLICA_REF: LocationRefResponse = makeLocationRef({
   formatted_address: SWIETLICA.formatted_address,
 });
 
+interface StepperDefaults {
+  defaultLocation?: LocationRefResponse | null;
+  defaultCapacity?: number | null;
+  defaultPrice?: string | null;
+  defaultPaymentUrl?: string | null;
+}
+
 /** The stepper alone, its draft held as the panel would hold it. */
 function StandaloneStepper({
   onDone,
   defaultLocation = null,
   defaultCapacity = null,
-}: {
-  onDone: () => void;
-  defaultLocation?: LocationRefResponse | null;
-  defaultCapacity?: number | null;
-}) {
-  const [draft, setDraft] = useState(() => newTermDraft(defaultLocation, defaultCapacity));
+  defaultPrice = null,
+  defaultPaymentUrl = null,
+}: StepperDefaults & { onDone: () => void }) {
+  const [draft, setDraft] = useState(() =>
+    newTermDraft(defaultLocation, defaultCapacity, defaultPrice, defaultPaymentUrl),
+  );
   return (
     <FirstTermStepperOrganizer
       draft={draft}
@@ -60,14 +67,13 @@ function StandaloneStepper({
       onDone={onDone}
       defaultLocation={defaultLocation}
       defaultCapacity={defaultCapacity}
+      defaultPrice={defaultPrice}
+      defaultPaymentUrl={defaultPaymentUrl}
     />
   );
 }
 
-function renderStepper(
-  onDone = vi.fn(),
-  defaults: { defaultLocation?: LocationRefResponse | null; defaultCapacity?: number | null } = {},
-) {
+function renderStepper(onDone = vi.fn(), defaults: StepperDefaults = {}) {
   renderWithRoute(<StandaloneStepper onDone={onDone} {...defaults} />, { url: "/", wrapper: createQueryWrapper() });
   return onDone;
 }
@@ -115,6 +121,8 @@ describe("FirstTermStepperOrganizer — place and capacity", () => {
 
     expect(await screen.findByRole("combobox", { name: "Miejsce" })).toHaveDisplayValue("Poznań, wielkopolskie");
     expect(screen.getByLabelText("Ile miejsc")).toHaveValue("12");
+    // No default price or link on the circle, so no prefill hint.
+    expect(screen.queryByText(/podpowiedziane z ustawień kręgu/)).not.toBeInTheDocument();
     fillAndSubmit("opis");
 
     expect(await screen.findByRole("button", { name: "Gotowe" })).toBeInTheDocument();
@@ -142,6 +150,27 @@ describe("FirstTermStepperOrganizer — place and capacity", () => {
       description: "opis",
       location_id: "loc-1",
       capacity: null,
+    });
+  });
+
+  it("createTerm_clearedPrefilledPrice_sendsExplicitNullAndOmitsTheLink", async () => {
+    vi.mocked(termsApi.createTerm).mockResolvedValue({ id: "t-1" } as termsApi.TermResponse);
+    renderStepper(vi.fn(), { defaultLocation: SWIETLICA_REF, defaultPrice: "25.50" });
+
+    expect(await screen.findByRole("combobox", { name: "Miejsce" })).toHaveDisplayValue("Poznań, wielkopolskie");
+    const price = screen.getByLabelText("Cena (zł)");
+    expect(price).toHaveValue("25,50");
+    expect(screen.getByLabelText("Link do płatności (opcjonalnie)")).toHaveValue("");
+    fireEvent.change(price, { target: { value: "" } });
+    fillAndSubmit("opis");
+
+    expect(await screen.findByRole("button", { name: "Gotowe" })).toBeInTheDocument();
+    expect(termsApi.createTerm).toHaveBeenCalledWith({
+      group_id: "g-1",
+      occurs_on: "2026-10-10T10:00",
+      description: "opis",
+      location_id: "loc-1",
+      price: null,
     });
   });
 

@@ -107,6 +107,14 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
         r"^/api/groups/[^/]+/terms/[^/]+/attendees/[^/]+/presence$",
         ("EDIT", "mcp:edit"),
     ),  # 70
+    # 71: the organizer's "opłacone" toggle (app.groups `attendance_points`),
+    # declared before the blanket rows 26/27 like row 70; the organizer
+    # check lives in the service.
+    (
+        _methods("PUT"),
+        r"^/api/groups/[^/]+/terms/[^/]+/attendees/[^/]+/payment$",
+        ("EDIT", "mcp:edit"),
+    ),  # 71
     # 26-47: app.party / app.inventory — added beyond spec.md's original 25
     # rows for the Organizer/Circle/Family + Wypożyczalnia domain. Ownership
     # checks the matrix itself can't express (active organizer, own-family

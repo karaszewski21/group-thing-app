@@ -38,6 +38,7 @@ from app.groups.schemas import (
     MembershipResponse,
     ModerationGroupResponse,
     MyAttendanceResponse,
+    PaymentStatusRequest,
     PresenceRequest,
     PublicCircleResponse,
     RsvpResponse,
@@ -106,12 +107,14 @@ async def create_additional_my_circle(
     profile = await get_profile_by_principal(db, principal)
     circle = await service.create_additional_circle(
         db,
-        profile.party_id,
-        body.name,
-        body.visibility,
-        body.default_location_id,
-        body.default_capacity,
-        body.description,
+        organizer_party_id=profile.party_id,
+        circle_name=body.name,
+        visibility=body.visibility,
+        default_location_id=body.default_location_id,
+        default_capacity=body.default_capacity,
+        description=body.description,
+        default_price=body.default_price,
+        default_payment_url=body.default_payment_url,
     )
     return await _group_response(db, circle)
 
@@ -184,12 +187,19 @@ async def create_rsvp(
     response_model=list[TermAttendeeResponse],
 )
 async def list_term_attendees(
-    group_id: uuid.UUID, term_id: uuid.UUID, db: DbSession, principal: EditPrincipal
+    group_id: uuid.UUID,
+    term_id: uuid.UUID,
+    db: DbSession,
+    principal: EditPrincipal,
+    response: Response,
 ) -> list[TermAttendeeResponse]:
     """The organizer's attendee list for a term — covered by row 27's blanket
     `GET ^/api/groups(/.*)?$` READ/EDIT rows, no new matrix row needed.
-    Organizer-only check happens inside `service.list_term_attendees`."""
-    return await service.list_term_attendees(db, principal, group_id, term_id)
+    Organizer-only check happens inside `service.list_term_attendees`. Names
+    and payment marks: never kept by a shared cache."""
+    attendees = await service.list_term_attendees(db, principal, group_id, term_id)
+    set_personalised_cache_headers(response, principal)
+    return attendees
 
 
 @router.get(
@@ -233,6 +243,25 @@ async def set_attendee_presence(
     await attendance_points.set_presence(db, principal, group_id, term_id, party_id, body.present)
 
 
+@router.put(
+    "/api/groups/{group_id}/terms/{term_id}/attendees/{party_id}/payment",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def set_attendee_payment(
+    group_id: uuid.UUID,
+    term_id: uuid.UUID,
+    party_id: uuid.UUID,
+    body: PaymentStatusRequest,
+    db: DbSession,
+    principal: EditPrincipal,
+) -> None:
+    """Marks or unmarks a listed row as paid — matrix row 71; organizer-only;
+    any attendance state."""
+    await attendance_points.set_payment_status(
+        db, principal, group_id, term_id, party_id, body.paid
+    )
+
+
 @router.get("/api/groups/{group_id}/members", response_model=list[GroupMemberResponse])
 async def list_group_members(
     group_id: uuid.UUID, db: DbSession, principal: ReadPrincipal
@@ -245,14 +274,17 @@ async def list_group_members(
 
 @router.get("/api/groups/mine/attendances", response_model=list[MyAttendanceResponse])
 async def list_my_attendances(
-    db: DbSession, principal: ReadPrincipal
+    db: DbSession, principal: ReadPrincipal, response: Response
 ) -> list[MyAttendanceResponse]:
     """The caller's own Term RSVPs (R10). Registered ahead of `get_group`
     below so the literal `mine/attendances` segments aren't consumed by
     `{group_id}: int` path conversion. Caller's party is derived from the
-    principal — no ownership check beyond authentication + READ."""
+    principal — no ownership check beyond authentication + READ. The
+    caller's own payment status: never kept by a shared cache."""
     profile = await get_profile_by_principal(db, principal)
-    return await service.list_my_attendances(db, profile.party_id)
+    attendances = await service.list_my_attendances(db, profile.party_id)
+    set_personalised_cache_headers(response, principal)
+    return attendances
 
 
 @router.post(

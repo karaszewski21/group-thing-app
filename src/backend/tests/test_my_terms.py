@@ -24,6 +24,9 @@ _MY_TERM_KEYS = {
     "capacity",
     "group_name",
     "organizer_slug",
+    "price",
+    "payment_url",
+    "payment_method",
 }
 
 

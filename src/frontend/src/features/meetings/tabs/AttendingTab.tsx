@@ -7,7 +7,7 @@ const NO_NEEDED_ITEMS: NeededItemResponse[] = [];
 
 /** "Biorę udział": attended events, RSVPed terms and private circles' terms on one list. */
 export function AttendingTab() {
-  const { entries, paged, neededItems, pledgesOf, withdrawPledge, loading, error } = useAttendingMeetings();
+  const { entries, paged, neededItems, pledgesOf, withdrawPledge, withdrawAttendance, loading, error } = useAttendingMeetings();
 
   return (
     <TermList
@@ -23,6 +23,7 @@ export function AttendingTab() {
             neededItems={neededItems.get(entry.termId) ?? NO_NEEDED_ITEMS}
             pledges={pledgesOf(entry.termId)}
             onWithdrawPledge={(pledgeId) => void withdrawPledge(pledgeId)}
+            onWithdrawAttendance={withdrawAttendance}
           />
         ) : (
           <EventCard event={entry} editable={false} />

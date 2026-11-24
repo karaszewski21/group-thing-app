@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useAppParams } from "../../routing/navigation";
 import type { GroupResponse, TermAttendanceResponse, TermAttendeeResponse } from "../../api/groups";
 import type { TermResponse } from "../../api/terms";
+import { Switch } from "../../components/shared/appComponents";
 import { ConfirmDeleteDialog } from "../../components/shared/ConfirmDeleteDialog";
 import { useOpenAndNavigate } from "../../hooks/useOpenAndNavigate";
 import { useTermAttendance } from "../../hooks/useTermAttendance";
@@ -9,7 +10,7 @@ import { useTermAttendees } from "../../hooks/useTermAttendees";
 import { formatChildAges } from "../../utils/age";
 import dayjs from "../../utils/dayjs";
 import { pluralPl } from "../../utils/plural";
-import { dayMonth, termPublicPath, termTime } from "../../utils/appHelpers";
+import { dayMonth, formatPrice, termPublicPath, termTime } from "../../utils/appHelpers";
 import { resolveAttendanceView, type AttendanceContentKind } from "./attendanceViewState";
 
 const MUTED = "text-[12.5px] text-ink-soft";
@@ -74,6 +75,7 @@ export function TermAttendeesPage() {
           attendees={view.attendees}
           attendance={view.attendance}
           onPresence={attendanceRead.setPresence}
+          onPayment={attendanceRead.setPaymentStatus}
           onClose={attendanceRead.close}
         />
       );
@@ -82,7 +84,12 @@ export function TermAttendeesPage() {
 
 function AttendeesHeading({ term, group }: { term: TermResponse; group: GroupResponse }) {
   const time = termTime(term.occurs_on);
-  const parts = [dayjs(term.occurs_on).format("ddd, D MMMM"), time && `godz. ${time}`, group.name];
+  const parts = [
+    dayjs(term.occurs_on).format("ddd, D MMMM"),
+    time && `godz. ${time}`,
+    group.name,
+    term.price != null && formatPrice(term.price),
+  ];
   return (
     <>
       <h1 className="font-serif text-[26px] leading-tight font-extrabold tracking-tight text-ink">
@@ -100,6 +107,7 @@ interface AttendanceContentProps {
   attendees: TermAttendeeResponse[];
   attendance: TermAttendanceResponse;
   onPresence: (partyId: string, present: boolean) => Promise<void>;
+  onPayment: (partyId: string, paid: boolean) => Promise<void>;
   onClose: () => Promise<void>;
 }
 
@@ -110,12 +118,18 @@ function AttendanceContent({
   attendees,
   attendance,
   onPresence,
+  onPayment,
   onClose,
 }: AttendanceContentProps) {
   const [confirming, setConfirming] = useState(false);
   const [presenceError, setPresenceError] = useState<string | null>(null);
-  const childTotal = attendees.reduce((sum, a) => sum + a.child_count, 0);
-  const countable = attendees.filter((a) => !a.is_organizer).length;
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  // Withdrawn PAID rows stay listed for the refund but count toward nothing.
+  const counted = attendees.filter((a) => a.counted);
+  const childTotal = counted.reduce((sum, a) => sum + a.child_count, 0);
+  const countable = counted.filter((a) => !a.is_organizer).length;
+  const priced = term.price != null;
+  const paidCount = counted.filter((a) => a.payment_status === "PAID").length;
   const open = kind === "open";
 
   async function togglePresence(partyId: string, present: boolean) {
@@ -127,13 +141,22 @@ function AttendanceContent({
     }
   }
 
+  async function togglePayment(partyId: string, paid: boolean) {
+    setPaymentError(null);
+    try {
+      await onPayment(partyId, paid);
+    } catch (err) {
+      setPaymentError(err instanceof Error ? err.message : "Nie udało się zapisać płatności");
+    }
+  }
+
   return (
     <>
       <AttendeesHeading term={term} group={group} />
       <p className={`mt-0.5 ${MUTED}`}>
-        {attendees.length === 0
+        {counted.length === 0
           ? "Brak zapisów"
-          : `${attendees.length} ${pluralPl(attendees.length, "zapis", "zapisy", "zapisów")} · ${childTotal} ${pluralPl(childTotal, "dziecko", "dzieci", "dzieci")}`}
+          : `${counted.length} ${pluralPl(counted.length, "zapis", "zapisy", "zapisów")} · ${childTotal} ${pluralPl(childTotal, "dziecko", "dzieci", "dzieci")}${priced ? ` · opłaceni: ${paidCount}` : ""}`}
       </p>
       <TermHeadCard term={term} group={group} />
       <AttendanceBanner kind={kind} attendance={attendance} countable={countable} />
@@ -149,7 +172,9 @@ function AttendanceContent({
                 key={a.party_id}
                 attendee={a}
                 editable={open}
+                priced={priced}
                 onToggle={(present) => togglePresence(a.party_id, present)}
+                onPayment={(paid) => togglePayment(a.party_id, paid)}
               />
             ))}
           </ul>
@@ -158,6 +183,11 @@ function AttendanceContent({
       {presenceError && (
         <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">
           {presenceError}
+        </p>
+      )}
+      {paymentError && (
+        <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">
+          {paymentError}
         </p>
       )}
       {open && (
@@ -299,19 +329,26 @@ interface TermAttendeeRowProps {
   attendee: TermAttendeeResponse;
   /** Only while the attendance is open. */
   editable: boolean;
+  /** The term has a price, so every row gets the payment switch. */
+  priced: boolean;
   onToggle: (present: boolean) => Promise<void>;
+  onPayment: (paid: boolean) => Promise<void>;
 }
 
-function TermAttendeeRow({ attendee, editable, onToggle }: TermAttendeeRowProps) {
+function TermAttendeeRow({ attendee, editable, priced, onToggle, onPayment }: TermAttendeeRowProps) {
   const ages = formatChildAges(attendee.children.map((c) => c.birth_year));
+  const isPaid = attendee.payment_status === "PAID";
+  const refundDue = attendee.withdrawn && isPaid;
   const pillClass =
-    attendee.child_count === 0
+    attendee.child_count === 0 || refundDue
       ? "border border-line bg-cream text-ink-soft"
       : "bg-mint-soft text-[#12604D]";
   const boxId = `presence-${attendee.party_id}`;
-  // The value being saved, shown until the refreshed list arrives.
+  // The values being saved, shown until the refreshed list arrives.
   const [pending, setPending] = useState<boolean | null>(null);
+  const [pendingPaid, setPendingPaid] = useState<boolean | null>(null);
   const checked = pending ?? attendee.present;
+  const paid = pendingPaid ?? isPaid;
 
   async function toggle(present: boolean) {
     setPending(present);
@@ -322,13 +359,23 @@ function TermAttendeeRow({ attendee, editable, onToggle }: TermAttendeeRowProps)
     }
   }
 
+  async function togglePaid() {
+    const next = !paid;
+    setPendingPaid(next);
+    try {
+      await onPayment(next);
+    } finally {
+      setPendingPaid(null);
+    }
+  }
+
   return (
     <li className="mt-2.5 flex items-start gap-3 rounded-2xl border border-line bg-cream p-[15px] first:mt-0">
       <input
         id={boxId}
         type="checkbox"
         checked={checked}
-        disabled={!editable || pending !== null}
+        disabled={!editable || attendee.withdrawn || pending !== null}
         onChange={(e) => void toggle(e.target.checked)}
         aria-describedby={attendee.is_organizer ? `${boxId}-organizer` : undefined}
         className="mt-1 h-6 w-6 flex-none accent-mint disabled:opacity-60"
@@ -346,13 +393,31 @@ function TermAttendeeRow({ attendee, editable, onToggle }: TermAttendeeRowProps)
         <span
           className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${pillClass}`}
         >
-          {attendancePill(attendee.child_count)}
+          {refundDue ? "wypisany — do zwrotu" : attendancePill(attendee.child_count)}
         </span>
+        {refundDue && (
+          <p className={`mt-1.5 ${MUTED}`}>Wypisany po opłaceniu. Odznacz „opłacone” po zwrocie pieniędzy.</p>
+        )}
         <p className={`mt-1.5 ${MUTED}`}>
           {ages ? `dzieci w rodzinie: ${ages}` : "brak dzieci w profilu rodziny"}
         </p>
       </div>
-      {checked && <span className="flex-none text-[12px] font-bold text-mint">obecny</span>}
+      {(checked || priced || isPaid) && (
+        <div className="flex flex-none flex-col items-end gap-2">
+          {checked && <span className="text-[12px] font-bold text-mint">obecny</span>}
+          {(priced || isPaid) && (
+            <span className="flex items-center gap-1.5 text-[12.5px] font-bold text-ink">
+              <Switch
+                checked={paid}
+                label={`opłacone — ${attendee.display_name}`}
+                disabled={pendingPaid !== null}
+                onChange={() => void togglePaid()}
+              />
+              <span aria-hidden="true">opłacone</span>
+            </span>
+          )}
+        </div>
+      )}
     </li>
   );
 }

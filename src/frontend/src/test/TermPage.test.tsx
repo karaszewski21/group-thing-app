@@ -100,6 +100,9 @@ const circle: PublicCircleResponse = {
         reservation: null,
       },
     ],
+    price: null,
+    payment_url: null,
+    payment_method: null,
   },
   guardians: [
     { party_id: "21", display_name: "Ola Nowak" },
@@ -118,6 +121,7 @@ function access(
       can_view_content: true,
       is_attending: false,
       is_active_attendee: false,
+      payment_status: null,
       ...overrides.access,
     },
   };

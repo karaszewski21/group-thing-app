@@ -23,6 +23,9 @@ function term(id: string): MyTermResponse {
     capacity: null,
     group_name: "Maluchy",
     organizer_slug: "maluchy",
+    price: null,
+    payment_url: null,
+    payment_method: null,
   };
 }
 

@@ -194,6 +194,9 @@ async def test_getPublicCircle_noTermIdParam_returnsNearestTermUnchanged(
         "capacity",
         "attendee_count",
         "attendance_points",
+        "price",
+        "payment_url",
+        "payment_method",
     }
 
 
@@ -268,6 +271,9 @@ async def test_getPublicCircle_afterLoggedInRsvp_stillExposesOnlyGuardianDisplay
         "capacity",
         "attendee_count",
         "attendance_points",
+        "price",
+        "payment_url",
+        "payment_method",
     }
     assert "child_count" not in body
     assert "children" not in body

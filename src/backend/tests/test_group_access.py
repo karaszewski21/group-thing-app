@@ -68,6 +68,7 @@ async def test_getGroupAccess_publicGroupUnauthenticated_canViewNoMembership(
         "can_view_content": True,
         "is_attending": False,
         "is_active_attendee": False,
+        "payment_status": None,
     }
 
 
@@ -86,6 +87,7 @@ async def test_getGroupAccess_organizerOwnGroup_reportsOrganizerAndMember(
         "can_view_content": True,
         "is_attending": False,
         "is_active_attendee": False,
+        "payment_status": None,
     }
 
 
@@ -107,6 +109,7 @@ async def test_getGroupAccess_privateGroupUnrelatedLoggedInVisitor_cannotView(
         "can_view_content": False,
         "is_attending": False,
         "is_active_attendee": False,
+        "payment_status": None,
     }
 
 
@@ -161,7 +164,7 @@ async def test_getGroupAccess_loggedInAttendeeOfShownTerm_reportsAttending(
     assert bystander.json()["access"]["is_attending"] is False
 
 
-async def test_getGroupAccess_withdrawnAttendee_isAttendingButNotActiveAttendee(
+async def test_getGroupAccess_withdrawnAttendee_notAttendingNorActiveAttendee(
     client: AsyncClient,
 ) -> None:
     org_token = await _register(client, "ORGANIZER", "access.org6@example.com")
@@ -186,7 +189,7 @@ async def test_getGroupAccess_withdrawnAttendee_isAttendingButNotActiveAttendee(
 
     assert active["access"]["is_attending"] is True
     assert active["access"]["is_active_attendee"] is True
-    assert withdrawn["access"]["is_attending"] is True
+    assert withdrawn["access"]["is_attending"] is False
     assert withdrawn["access"]["is_active_attendee"] is False
     assert anonymous.json()["access"]["is_active_attendee"] is False
 
@@ -360,6 +363,9 @@ async def test_groupReads_privateGroupWithCode_neverExposeJoinCode(
         "visibility",
         "default_location",
         "default_capacity",
+        "default_price",
+        "default_payment_url",
+        "default_payment_method",
         "description",
         "created_at",
         "updated_at",
@@ -387,6 +393,7 @@ async def test_groupReads_privateGroupWithCode_neverExposeJoinCode(
             "can_view_content",
             "is_attending",
             "is_active_attendee",
+            "payment_status",
         }
 
 

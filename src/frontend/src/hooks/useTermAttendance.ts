@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import {
   closeAttendance,
   getTermAttendance,
+  setPaymentStatus as putPaymentStatus,
   setPresence as putPresence,
   type TermAttendanceResponse,
 } from "../api/groups";
@@ -21,12 +22,14 @@ interface UseTermAttendanceResult {
   refetch: () => Promise<void>;
   /** Rejects with the server's message (e.g. the 409 of a closed list). */
   setPresence: (partyId: string, present: boolean) => Promise<void>;
+  /** Rejects with the server's message; allowed in every attendance state. */
+  setPaymentStatus: (partyId: string, paid: boolean) => Promise<void>;
   /** Rejects with the server's message. */
   close: () => Promise<void>;
 }
 
-/** The organizer's attendance read of one term plus its presence and close
- * writes. Each write, failed or not, awaits invalidation of the attendance
+/** The organizer's attendance read of one term plus its presence, payment and
+ * close writes. Each write, failed or not, awaits invalidation of the attendance
  * and attendee reads, so a list closed meanwhile shows up at once. The read
  * waits for `groupId`, which the caller learns from the term. */
 export function useTermAttendance(groupId: string | undefined, termId: string): UseTermAttendanceResult {
@@ -63,6 +66,20 @@ export function useTermAttendance(groupId: string | undefined, termId: string): 
     [groupId, termId, invalidate],
   );
 
+  const setPaymentStatus = useCallback(
+    async (partyId: string, paid: boolean) => {
+      if (groupId === undefined) return;
+      try {
+        await putPaymentStatus(groupId, termId, partyId, paid);
+      } catch (err) {
+        throw new Error(extractProblemMessage(err));
+      } finally {
+        await invalidate();
+      }
+    },
+    [groupId, termId, invalidate],
+  );
+
   const close = useCallback(async () => {
     if (groupId === undefined) return;
     try {
@@ -84,6 +101,7 @@ export function useTermAttendance(groupId: string | undefined, termId: string): 
     error: error && !denied && !notFound ? extractProblemMessage(error) : null,
     refetch,
     setPresence,
+    setPaymentStatus,
     close,
   };
 }

@@ -5,23 +5,30 @@ import { createRsvp } from "../../../api/groups";
 import { Field } from "../../../components/shared/appComponents";
 import { ModalSheet } from "../../../components/shared/ModalSheet";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SM, ERROR_TEXT, FIELD, SUB_FORM } from "../../../components/shared/uiStyles";
+import { formatPrice } from "../../../utils/appHelpers";
 
 /**
  * The term sign-up dialog for a logged-in parent: asks only for the child
  * count (the profile `display_name` is the attendee's name), prefilled from
  * their family. Submit stays disabled until `displayName` has loaded, so
- * the "Zapisujesz się jako" line is never blank.
+ * the "Zapisujesz się jako" line is never blank. A priced term shows its
+ * cost and how it is paid before the sign-up.
  */
 export function RsvpDialogLoggedIn({
   groupId,
   termId,
   displayName,
+  price,
+  paymentUrl,
   onClose,
   onSubmitted,
 }: {
   groupId: string;
   termId: string;
   displayName: string | null;
+  /** Decimal string (`"25.50"`); `null` for a free term. */
+  price: string | null;
+  paymentUrl: string | null;
   onClose: () => void;
   onSubmitted: () => void;
 }) {
@@ -79,6 +86,12 @@ export function RsvpDialogLoggedIn({
       {displayName !== null && (
         <p className="mb-3.5 text-[13.5px] text-ink-soft">
           Zapisujesz się jako <strong className="text-ink">{displayName}</strong>
+        </p>
+      )}
+
+      {price != null && (
+        <p className="mb-3.5 rounded-2xl bg-accent-soft px-3 py-2.5 text-sm font-bold text-accent-fg">
+          Koszt: {formatPrice(price)} — {paymentUrl == null ? "płatność na miejscu" : "zapłacisz po zapisaniu"}
         </p>
       )}
 

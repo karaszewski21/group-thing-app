@@ -78,6 +78,9 @@ const ACCESS: GroupAccessResponse = {
       description: "Zajęcia w parku",
       needed_items: [],
       item_listings: [],
+      price: null,
+      payment_url: null,
+      payment_method: null,
     },
     guardians: [],
   },
@@ -87,6 +90,7 @@ const ACCESS: GroupAccessResponse = {
     can_view_content: true,
     is_attending: false,
     is_active_attendee: false,
+    payment_status: null,
   },
 };
 

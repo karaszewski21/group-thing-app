@@ -59,7 +59,7 @@ import { EMPTY_EVENT_DRAFT, type EventDraft } from "../events/eventDraft";
 import { newTermDraft, type TermDraft } from "../terms/termDraft";
 import { useFirstTermStepper } from "../terms/hooks/useFirstTermStepper";
 import { createEmptyItemQuickAddValue, type ItemEditDraft, type ItemQuickAddValue } from "../../utils/itemQuickAdd";
-import { defaultVisibility, ITEM_MODE_TO_RESERVATION_TYPE, RESERVATION_TYPE_TO_ITEM_MODE, type GuestTermCard, type ItemMode, type ModalKind, type NewFamilyMember, capacityText, circleTermPath, parseCapacity } from "../../utils/appHelpers";
+import { defaultVisibility, ITEM_MODE_TO_RESERVATION_TYPE, RESERVATION_TYPE_TO_ITEM_MODE, type GuestTermCard, type ItemMode, type ModalKind, type NewFamilyMember, capacityText, circleTermPath, parseCapacity, parsePayment, priceText } from "../../utils/appHelpers";
 import { type View, viewPath } from "../../routing/paths";
 import { AppDataContext } from "./appDataStore";
 
@@ -105,7 +105,7 @@ function useAppDataValue() {
   const queryClient = useQueryClient();
   const [familyMemberError, setFamilyMemberError] = useState<string | null>(null);
   // The `/groups/:groupId/edit` form (name, layout template, visibility,
-  // default place and capacity), seeded by `startEditGroup`.
+  // default place, capacity, price and payment link), seeded by `startEditGroup`.
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editGroupForm, setEditGroupForm] = useState<GroupFormValue>({
     name: "",
@@ -114,6 +114,8 @@ function useAppDataValue() {
     description: "",
     defaultLocationId: null,
     defaultCapacity: "",
+    defaultPrice: "",
+    defaultPaymentUrl: "",
   });
   const [editGroupError, setEditGroupError] = useState<string | null>(null);
   // Optimistic item delete in the "Moje rzeczy" view.
@@ -157,6 +159,8 @@ function useAppDataValue() {
     description: "",
     defaultLocationId: null,
     defaultCapacity: "",
+    defaultPrice: "",
+    defaultPaymentUrl: "",
   });
   const [groupForm, setGroupForm] = useState<GroupFormValue>(emptyGroupForm);
 
@@ -181,7 +185,13 @@ function useAppDataValue() {
   const [termEdit, setTermEdit] = useState<{ termId: string; draft: TermDraft } | null>(null);
   const firstGroup = myGroups[0];
   const firstTermDefaults = useMemo(
-    () => newTermDraft(firstGroup?.default_location ?? null, firstGroup?.default_capacity ?? null),
+    () =>
+      newTermDraft(
+        firstGroup?.default_location ?? null,
+        firstGroup?.default_capacity ?? null,
+        firstGroup?.default_price ?? null,
+        firstGroup?.default_payment_url ?? null,
+      ),
     [firstGroup],
   );
   const firstTerm = useFirstTermStepper(setModal, firstTermDefaults);
@@ -193,6 +203,9 @@ function useAppDataValue() {
   const [termLocationId, setTermLocationId] = useState<string | null>(null);
   // Raw input text; `parseCapacity` turns it into the request value.
   const [termCapacity, setTermCapacity] = useState("");
+  // Raw input texts; `parsePayment` turns them into the request values.
+  const [termPrice, setTermPrice] = useState("");
+  const [termPaymentUrl, setTermPaymentUrl] = useState("");
   // The picked attendance level; `null` until `AddTermView` preselects the
   // lowest one (and then omitted, so the server applies that default).
   const [termAttendancePoints, setTermAttendancePoints] = useState<number | null>(null);
@@ -360,7 +373,15 @@ function useAppDataValue() {
 
   async function handleAddGroup() {
     const defaultCapacity = parseCapacity(groupForm.defaultCapacity);
-    if (!groupForm.name.trim() || defaultCapacity === undefined || isDescriptionTooLong(groupForm.description)) return;
+    const payment = parsePayment(groupForm.defaultPrice, groupForm.defaultPaymentUrl);
+    if (
+      !groupForm.name.trim() ||
+      defaultCapacity === undefined ||
+      payment === undefined ||
+      isDescriptionTooLong(groupForm.description)
+    ) {
+      return;
+    }
     setBusy(true);
     setAddGroupError(null);
     try {
@@ -372,6 +393,8 @@ function useAppDataValue() {
         description: descriptionRequestValue(groupForm.description),
         default_location_id: groupForm.defaultLocationId,
         default_capacity: defaultCapacity,
+        default_price: payment.price,
+        default_payment_url: payment.payment_url,
       });
       setGroupForm(emptyGroupForm());
       navigate(viewPath("groups"));
@@ -395,12 +418,14 @@ function useAppDataValue() {
     setDraftNeededItem(createEmptyNeededItemQuickAddValue());
   }
 
-  /** Picks the group of the "Dodaj termin" form and prefills its default place and capacity. */
+  /** Picks the group of the "Dodaj termin" form and prefills its default place, capacity, price and payment link. */
   function selectTermGroup(groupId: string | null) {
     const group = myGroups.find((g) => g.id === groupId);
     setTermGroupId(groupId);
     setTermLocationId(group?.default_location?.id ?? null);
     setTermCapacity(capacityText(group?.default_capacity));
+    setTermPrice(priceText(group?.default_price));
+    setTermPaymentUrl(group?.default_payment_url ?? "");
   }
 
   function removeDraftNeededItem(index: number) {
@@ -411,7 +436,8 @@ function useAppDataValue() {
    * page for "Spotkania". */
   async function handleAddTerm() {
     const capacity = parseCapacity(termCapacity);
-    if (!termGroupId || !termDate || capacity === undefined) return;
+    const payment = parsePayment(termPrice, termPaymentUrl);
+    if (!termGroupId || !termDate || capacity === undefined || payment === undefined) return;
     setBusy(true);
     setAddTermError(null);
     try {
@@ -423,6 +449,9 @@ function useAppDataValue() {
           description: termDescription || undefined,
           location_id: termLocationId,
           capacity,
+          // Always explicit: the form already starts from the group's defaults.
+          price: payment.price,
+          payment_url: payment.payment_url,
           ...(termAttendancePoints !== null && { attendance_points: termAttendancePoints }),
         });
       } catch (err) {
@@ -608,6 +637,8 @@ function useAppDataValue() {
       description: group.description ?? "",
       defaultLocationId: group.default_location?.id ?? null,
       defaultCapacity: capacityText(group.default_capacity),
+      defaultPrice: priceText(group.default_price),
+      defaultPaymentUrl: group.default_payment_url ?? "",
     });
     setEditGroupError(null);
   }
@@ -617,11 +648,14 @@ function useAppDataValue() {
     if (!group) return;
     const name = editGroupForm.name.trim();
     const defaultCapacity = parseCapacity(editGroupForm.defaultCapacity);
-    if (!name || defaultCapacity === undefined || isDescriptionTooLong(editGroupForm.description)) return;
+    const payment = parsePayment(editGroupForm.defaultPrice, editGroupForm.defaultPaymentUrl);
+    if (!name || defaultCapacity === undefined || payment === undefined || isDescriptionTooLong(editGroupForm.description)) {
+      return;
+    }
     setBusy(true);
     setEditGroupError(null);
     try {
-      // One PATCH with every field: `name` is required, and a `null` place, capacity or description clears it.
+      // One PATCH with every field: `name` is required, and a `null` place, capacity, description, price or link clears it.
       await updateGroup(group.id, {
         name,
         layout_mode: editGroupForm.layoutMode,
@@ -629,6 +663,8 @@ function useAppDataValue() {
         description: descriptionRequestValue(editGroupForm.description),
         default_location_id: editGroupForm.defaultLocationId,
         default_capacity: defaultCapacity,
+        default_price: payment.price,
+        default_payment_url: payment.payment_url,
       });
       setEditingGroupId(null);
       navigate(viewPath("groups"));
@@ -670,6 +706,7 @@ function useAppDataValue() {
   const savedCards: GuestTermCard[] = myAttendances
     .map((a) => ({
       termId: a.term_id,
+      attendanceId: a.attendance_id,
       occursOn: a.occurs_on,
       groupName: a.group_name,
       description: a.description,
@@ -677,6 +714,8 @@ function useAppDataValue() {
       location: a.location,
       capacity: a.capacity,
       attendeeCount: a.attendee_count,
+      price: a.price,
+      paymentStatus: a.payment_status,
     }))
     .sort((a, b) => a.occursOn.localeCompare(b.occursOn));
 
@@ -719,6 +758,8 @@ function useAppDataValue() {
     termDescription,
     termLocationId,
     termCapacity,
+    termPrice,
+    termPaymentUrl,
     termAttendancePoints,
     neededDraft,
     draftNeededItem,
@@ -745,6 +786,8 @@ function useAppDataValue() {
     setTermDescription,
     setTermLocationId,
     setTermCapacity,
+    setTermPrice,
+    setTermPaymentUrl,
     setTermAttendancePoints,
     setDraftNeededItem,
     setEditGroupForm,

@@ -1,4 +1,4 @@
-import type { GroupResponse, GroupVisibility } from "../api/groups";
+import type { GroupResponse, GroupVisibility, PaymentStatus } from "../api/groups";
 import type { ListingMode } from "../api/itemListingPreferences";
 import type { PublicLocationResponse } from "../api/locations";
 import type { ReservationType } from "../api/reservations";
@@ -69,6 +69,8 @@ export type ItemMode = "oddam" | "zamienię";
  * ("attended") or a term of a circle their family belongs to ("member"). */
 export interface GuestTermCard {
   termId: string;
+  /** The caller's own RSVP (withdrawable from "Moje zajęcia"); `null` for a membership-only card. */
+  attendanceId: string | null;
   occursOn: string;
   groupName: string;
   description: string | null;
@@ -77,6 +79,10 @@ export interface GuestTermCard {
   capacity: number | null;
   /** Known only for an RSVP; a membership-only card shows the capacity alone. */
   attendeeCount: number | null;
+  /** Decimal string (`"25.50"`); `null` for a free term. */
+  price: string | null;
+  /** The caller's own payment — known only for an RSVP. */
+  paymentStatus: PaymentStatus | null;
 }
 
 export type TermPlaceLocation = Pick<PublicLocationResponse, "locality" | "label" | "formatted_address" | "google_place_id">;
@@ -125,6 +131,84 @@ export function parseCapacity(raw: string): number | null | undefined {
 /** The input text for a stored capacity. */
 export function capacityText(capacity: number | null | undefined): string {
   return capacity == null ? "" : String(capacity);
+}
+
+const MAX_PRICE_CENTS = 100_000_00;
+export const MAX_PAYMENT_URL_LENGTH = 500;
+
+export const PRICE_ERROR = "Podaj kwotę od 0,01 do 100 000 zł albo zostaw puste.";
+export const PAYMENT_URL_ERROR = "Link musi zaczynać się od https://";
+export const PAYMENT_URL_LENGTH_ERROR = "Link do płatności może mieć najwyżej 500 znaków.";
+export const PAYMENT_URL_REQUIRES_PRICE_ERROR = "Link wymaga ceny — wpisz cenę albo usuń link.";
+
+/** The raw text of a price input: blank is `null` (free); an amount of
+ * 0,01–100 000 zł with at most 2 decimals, a comma or a dot, and spaces
+ * allowed as thousand separators ("1 000,50") is its canonical decimal string
+ * — the form the server stores and returns (`"1000.50"`), built from the
+ * digits, never through a float; anything else is `undefined` (the form shows
+ * `PRICE_ERROR` and blocks submit). */
+export function parsePrice(raw: string): string | null | undefined {
+  const compact = raw.replace(/\s/g, ""); // `\s` covers NBSP too
+  if (compact === "") return null;
+  const match = /^(\d{1,6})(?:[.,](\d{1,2}))?$/.exec(compact);
+  if (!match) return undefined;
+  const whole = match[1].replace(/^0+/, "") || "0";
+  const fraction = (match[2] ?? "").padEnd(2, "0");
+  const cents = Number(whole) * 100 + Number(fraction);
+  return cents > 0 && cents <= MAX_PRICE_CENTS ? `${whole}.${fraction}` : undefined;
+}
+
+/** The input text for a stored price (`"25.50"` → `"25,50"`). */
+export function priceText(price: string | null | undefined): string {
+  return price == null ? "" : price.replace(".", ",");
+}
+
+const PRICE_FORMAT = new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" });
+
+/** A stored price for display: `"25.50"` → "25,50 zł". */
+export function formatPrice(price: string): string {
+  return PRICE_FORMAT.format(Number(price));
+}
+
+/** The raw text of a payment-link input: blank is `null`; a URL starting with
+ * a literal `https://` (any case), with a host, no userinfo (no `@` in the
+ * authority), no backslash, no whitespace, no Unicode control/format
+ * characters (`\p{C}`) and at most 500 characters is returned trimmed but
+ * otherwise exactly as typed (never `URL.href`, which would add a trailing
+ * slash the server does not store); anything else is `undefined`. Mirrors the
+ * server-side check, so the client never accepts a link the API rejects
+ * (`https:host`, `https:\host`, U+200B, `user@host`, `https://@host`). */
+export function parsePaymentUrl(raw: string): string | null | undefined {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  if (trimmed.length > MAX_PAYMENT_URL_LENGTH) return undefined;
+  if (!/^https:\/\//i.test(trimmed)) return undefined;
+  if (/[\s\p{C}\\]/u.test(trimmed)) return undefined;
+  // Any `@` in the raw authority (`https://@x.pl`, `https://:@x.pl`) is
+  // userinfo to the server, even when WHATWG parses it as empty.
+  if (/^https:\/\/[^/?#]*@/i.test(trimmed)) return undefined;
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "https:" || url.hostname === "") return undefined;
+  if (url.username !== "" || url.password !== "") return undefined;
+  return trimmed;
+}
+
+/** The submit gate of every price + link form: both parts valid and no link
+ * without a price, else `undefined`. */
+export function parsePayment(
+  priceRaw: string,
+  urlRaw: string,
+): { price: string | null; payment_url: string | null } | undefined {
+  const price = parsePrice(priceRaw);
+  const paymentUrl = parsePaymentUrl(urlRaw);
+  if (price === undefined || paymentUrl === undefined) return undefined;
+  if (paymentUrl !== null && price === null) return undefined;
+  return { price, payment_url: paymentUrl };
 }
 
 export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

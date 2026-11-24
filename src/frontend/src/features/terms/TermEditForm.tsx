@@ -11,8 +11,8 @@ import {
   type UpdateTermRequest,
 } from "../../api/terms";
 import { serverMessageOr } from "../../api/problem";
-import { CapacityField, Field, INPUT_CLASS } from "../../components/shared/appComponents";
-import { parseCapacity } from "../../utils/appHelpers";
+import { CapacityField, Field, INPUT_CLASS, PaymentUrlField, PriceField } from "../../components/shared/appComponents";
+import { parseCapacity, parsePayment, parsePrice } from "../../utils/appHelpers";
 import { LocationPicker } from "../../components/shared/LocationPicker";
 import { TERM_ATTENDANCE_KEY, useTermAttendance } from "../../hooks/useTermAttendance";
 import { AttendancePointsPicker } from "./components/AttendancePointsPicker";
@@ -87,6 +87,8 @@ function NeededItemFields({
 export function TermEditForm({ term, draft, onDraftChange, neededItems, onChanged, onDone }: TermEditFormProps) {
   const { occursOn, description, locationId } = draft;
   const capacity = parseCapacity(draft.capacity);
+  const payment = parsePayment(draft.price, draft.paymentUrl);
+  const invalid = !locationId || capacity === undefined || payment === undefined;
   const set = (patch: Partial<TermDraft>) => onDraftChange({ ...draft, ...patch });
   const queryClient = useQueryClient();
   const { attendance } = useTermAttendance(term.group_id, term.id);
@@ -100,12 +102,15 @@ export function TermEditForm({ term, draft, onDraftChange, neededItems, onChange
   const [itemsError, setItemsError] = useState<string | null>(null);
 
   async function saveTermFields() {
-    if (capacity === undefined || !locationId) return;
+    if (capacity === undefined || !locationId || payment === undefined) return;
     const patch: UpdateTermRequest = {};
     if (occursOn && occursOn !== toLocalInput(term.occurs_on)) patch.occurs_on = occursOn;
     if (description !== (term.description ?? "")) patch.description = description;
     if (locationId !== (term.location?.id ?? null)) patch.location_id = locationId;
     if (capacity !== (term.capacity ?? null)) patch.capacity = capacity;
+    // Both sides are canonical (decimal string, link as stored) or null, so an untouched form patches neither.
+    if (payment.price !== term.price) patch.price = payment.price;
+    if (payment.payment_url !== term.payment_url) patch.payment_url = payment.payment_url;
     if (attendance && attendancePoints !== null && attendancePoints !== attendance.attendance_points) {
       patch.attendance_points = attendancePoints;
     }
@@ -232,6 +237,13 @@ export function TermEditForm({ term, draft, onDraftChange, neededItems, onChange
           onChange={(text) => set({ capacity: text })}
           inputClassName={`${inputClass} w-28`}
         />
+        <PriceField label="Cena (zł)" value={draft.price} onChange={(price) => set({ price })} />
+        <PaymentUrlField
+          label="Link do płatności (opcjonalnie)"
+          value={draft.paymentUrl}
+          onChange={(paymentUrl) => set({ paymentUrl })}
+          priceMissing={parsePrice(draft.price) === null}
+        />
         {attendance && (
           <AttendancePointsPicker
             allowedLevels={attendance.allowed_levels}
@@ -251,7 +263,7 @@ export function TermEditForm({ term, draft, onDraftChange, neededItems, onChange
       <button
         type="button"
         onClick={() => void saveTermFields()}
-        disabled={busy || !locationId || capacity === undefined}
+        disabled={busy || invalid}
         className="mt-3 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
       >
         Zapisz

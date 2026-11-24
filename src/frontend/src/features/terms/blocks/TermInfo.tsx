@@ -12,6 +12,8 @@ export function TermInfo() {
       capacity={term?.capacity ?? null}
       attendeeCount={term?.attendee_count}
       attendancePoints={term?.attendance_points ?? 0}
+      price={term?.price ?? null}
+      paymentUrl={term?.payment_url ?? null}
     />
   );
 }

@@ -6,9 +6,12 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic_core import PydanticCustomError
 
 from app.inventory.models import BalanceStatus, ItemCondition, ItemListingStatus, ReservationType
 
@@ -22,6 +25,8 @@ from .models import (
     GroupRoleType,
     GroupVisibility,
     ItemVisibility,
+    PaymentMethod,
+    PaymentStatus,
     PledgeStatus,
     SwapProposalStatus,
 )
@@ -41,6 +46,9 @@ class GroupResponse(BaseModel):
     visibility: GroupVisibility
     default_location: LocationRefResponse | None = None
     default_capacity: int | None = None
+    default_price: Decimal | None = None
+    default_payment_url: str | None = None
+    default_payment_method: PaymentMethod | None = None
     description: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -89,6 +97,64 @@ def _normalize_description(value: str | None) -> str | None:
     return trimmed
 
 
+PRICE_MESSAGE = "Podaj kwotę od 0,01 do 100 000 zł albo zostaw puste."
+PAYMENT_URL_MESSAGE = "Link musi zaczynać się od https://"
+PAYMENT_URL_LENGTH_MESSAGE = "Link do płatności może mieć najwyżej 500 znaków."
+MAX_PRICE = Decimal("100000")
+PAYMENT_URL_MAX_LENGTH = 500
+_CENT = Decimal("0.01")
+
+
+def _validate_price(value: object) -> Decimal | None:
+    """`mode="before"`: a number or a numeric string, > 0, ≤ 100 000 and at
+    most 2 decimals, returned quantized to cents (`"25.5"` -> `25.50`).
+    `bool` is rejected before Pydantic could read it as an int, and "25,5"
+    is not a number here (the client normalizes the comma). The finiteness
+    check comes before any comparison (`NaN` compares with an error)."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float | str | Decimal):
+        raise PydanticCustomError("value_error", PRICE_MESSAGE)
+    try:
+        price = Decimal(str(value).strip())
+    except InvalidOperation:
+        raise PydanticCustomError("value_error", PRICE_MESSAGE) from None
+    if not price.is_finite() or price <= 0 or price > MAX_PRICE:
+        raise PydanticCustomError("value_error", PRICE_MESSAGE)
+    quantized = price.quantize(_CENT)
+    if quantized != price:  # more than 2 decimals ("25.50" is fine)
+        raise PydanticCustomError("value_error", PRICE_MESSAGE)
+    return quantized
+
+
+def _normalize_payment_url(value: str | None) -> str | None:
+    """Stripped, blank -> `None`; at most 500 characters after the strip
+    (hence no `Field(max_length)`), `https` with a host, no userinfo
+    (`user:pass@`, which hides the real host), a valid port and no backslash,
+    whitespace or control characters. The stripped value is returned as typed
+    (no trailing slash added), which is what the client's `parsePaymentUrl` returns. Not a free
+    text: never passed to `check_text`/`ensure_no_contact_info`."""
+    if value is None:
+        return None
+    trimmed = value.strip()
+    if not trimmed:
+        return None
+    if len(trimmed) > PAYMENT_URL_MAX_LENGTH:
+        raise PydanticCustomError("value_error", PAYMENT_URL_LENGTH_MESSAGE)
+    if "\\" in trimmed or any(char.isspace() or not char.isprintable() for char in trimmed):
+        raise PydanticCustomError("value_error", PAYMENT_URL_MESSAGE)
+    try:
+        parts = urlsplit(trimmed)
+        parts.port  # noqa: B018 - raises ValueError on a non-numeric or out-of-range port
+    except ValueError:
+        raise PydanticCustomError("value_error", PAYMENT_URL_MESSAGE) from None
+    if parts.scheme.lower() != "https" or not parts.hostname:
+        raise PydanticCustomError("value_error", PAYMENT_URL_MESSAGE)
+    if "@" in parts.netloc:  # userinfo hides the real host: https://bank.pl@evil.tld
+        raise PydanticCustomError("value_error", PAYMENT_URL_MESSAGE)
+    return trimmed
+
+
 class CreateCircleRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     description: str | None = None
@@ -99,19 +165,25 @@ class CreateCircleRequest(BaseModel):
 class UpdateGroupRequest(BaseModel):
     """In-place circle update — the active-organizer check lives in
     `service.update_group`, not the matrix. `name` is required;
-    `layout_mode`/`visibility` apply only when non-null; the defaults and
-    `description` apply only when present in `model_fields_set` (omitted =
-    keep, `null` or blank = clear)."""
+    `layout_mode`/`visibility` apply only when non-null; the defaults
+    (place, capacity, price, payment link) and `description` apply only when
+    present in `model_fields_set` (omitted = keep, `null` or blank = clear).
+    The resulting link needs a price (400); the payment method is derived
+    from it, never sent."""
 
     name: str = Field(min_length=1, max_length=255)
     layout_mode: GroupLayoutMode | None = None
     visibility: GroupVisibility | None = None
     default_location_id: uuid.UUID | None = None
     default_capacity: int | None = Field(default=None, ge=1, le=10000)
+    default_price: Decimal | None = None
+    default_payment_url: str | None = None
     description: str | None = None
 
     _strip_name = field_validator("name")(_reject_blank_name)
     _strip_description = field_validator("description")(_normalize_description)
+    _check_price = field_validator("default_price", mode="before")(_validate_price)
+    _check_payment_url = field_validator("default_payment_url")(_normalize_payment_url)
 
 
 # Alias for call sites that speak of "circles" rather than "groups".
@@ -119,17 +191,21 @@ UpdateCircleRequest = UpdateGroupRequest
 
 
 class CreateOwnCircleRequest(BaseModel):
-    """`visibility` and the defaults are honoured by `/mine/new` only;
-    `/mine` ignores them. `description` applies on both when a Circle is
-    created."""
+    """`visibility` and the defaults (place, capacity, price, payment link)
+    are honoured by `/mine/new` only; `/mine` ignores them. A link needs a
+    price (400). `description` applies on both when a Circle is created."""
 
     name: str = Field(min_length=1, max_length=255)
     visibility: GroupVisibility | None = None
     default_location_id: uuid.UUID | None = None
     default_capacity: int | None = Field(default=None, ge=1, le=10000)
+    default_price: Decimal | None = None
+    default_payment_url: str | None = None
     description: str | None = None
 
     _strip_description = field_validator("description")(_normalize_description)
+    _check_price = field_validator("default_price", mode="before")(_validate_price)
+    _check_payment_url = field_validator("default_payment_url")(_normalize_payment_url)
 
 
 class GroupRoleResponse(BaseModel):
@@ -203,6 +279,9 @@ class TermResponse(BaseModel):
     child_count: int | None = None
     location: LocationRefResponse | None = None
     capacity: int | None = None
+    price: Decimal | None = None
+    payment_url: str | None = None
+    payment_method: PaymentMethod | None = None
 
 
 class TermPeriod(enum.StrEnum):
@@ -236,32 +315,52 @@ class MyTermResponse(BaseModel):
     capacity: int | None
     attendee_count: int | None
     child_count: int | None
+    price: Decimal | None
+    payment_url: str | None
+    payment_method: PaymentMethod | None
 
 
 class CreateTermRequest(BaseModel):
     """`location_id`/`capacity` omitted -> copied from the Circle's defaults
-    (told apart via `model_fields_set`); a term without any place is rejected."""
+    (told apart via `model_fields_set`); a term without any place is rejected.
+    `price`/`payment_url` follow the inheritance table: an omitted field
+    copies the Circle's default by value, except that an explicit
+    `price: null` with `payment_url` omitted gives a free term without the
+    Circle's link. A resulting link without a price is a 400; the payment
+    method is derived from the link, never sent."""
 
     group_id: uuid.UUID
     occurs_on: datetime
     description: str | None = Field(default=None, max_length=2000)
     location_id: uuid.UUID | None = None
     capacity: int | None = Field(default=None, ge=1, le=10000)
+    price: Decimal | None = None
+    payment_url: str | None = None
     # One of the config's `attendance_levels`; omitted -> the lowest one.
     attendance_points: int | None = None
+
+    _check_price = field_validator("price", mode="before")(_validate_price)
+    _check_payment_url = field_validator("payment_url")(_normalize_payment_url)
 
 
 class UpdateTermRequest(BaseModel):
     """`occurs_on`/`description`/`attendance_points` apply only when
-    non-null; `location_id`/`capacity` apply when present in
-    `model_fields_set` (`null` clears the capacity; a `null` place is
-    rejected)."""
+    non-null; `location_id`/`capacity`/`price`/`payment_url` apply when
+    present in `model_fields_set` (`null` clears the capacity, the price and
+    the link; a `null` place is rejected). `price` and `payment_url` are
+    independent: clearing the price of a term that keeps its link is a 400
+    (send `payment_url: null` too)."""
 
     occurs_on: datetime | None = None
     description: str | None = Field(default=None, max_length=2000)
     location_id: uuid.UUID | None = None
     capacity: int | None = Field(default=None, ge=1, le=10000)
+    price: Decimal | None = None
+    payment_url: str | None = None
     attendance_points: int | None = None
+
+    _check_price = field_validator("price", mode="before")(_validate_price)
+    _check_payment_url = field_validator("payment_url")(_normalize_payment_url)
 
 
 class NeededItemResponse(BaseModel):
@@ -367,6 +466,10 @@ class PublicTermResponse(BaseModel):
     attendee_count: int
     # Points for attendance (0 = none): public information about the term.
     attendance_points: int
+    # Public: anyone sees the price before signing up (never a payment status).
+    price: Decimal | None
+    payment_url: str | None
+    payment_method: PaymentMethod | None
 
 
 class PublicGuardianResponse(BaseModel):
@@ -416,10 +519,13 @@ class GroupAccessDetails(BaseModel):
     is_member: bool
     is_organizer: bool
     can_view_content: bool
-    # The caller has a `TermAttendance` on the response's `term`.
+    # The caller has an active (non-withdrawn) attendance on the response's `term`.
     is_attending: bool
     # ... and that attendance is not withdrawn.
     is_active_attendee: bool
+    # The caller's own payment status on `term`; `None` without an active
+    # attendance. Never exposed for anyone else.
+    payment_status: PaymentStatus | None
 
 
 class GroupAccessResponse(BaseModel):
@@ -517,6 +623,13 @@ class TermAttendeeResponse(BaseModel):
     present: bool
     # Holds the group's leadership: never paid nor counted at close.
     is_organizer: bool
+    payment_status: PaymentStatus
+    # The row was withdrawn (`withdrawn_at IS NOT NULL`), before or after the
+    # close; a PAID one is a refund case.
+    withdrawn: bool
+    # Part of the attendance record (active while open, active at close once
+    # closed); drives the counts.
+    counted: bool
 
 
 class TermAttendanceState(enum.StrEnum):
@@ -550,6 +663,12 @@ class PresenceRequest(BaseModel):
     """`PUT /api/groups/{id}/terms/{id}/attendees/{party_id}/presence`."""
 
     present: bool
+
+
+class PaymentStatusRequest(BaseModel):
+    """`PUT /api/groups/{id}/terms/{id}/attendees/{party_id}/payment`."""
+
+    paid: bool
 
 
 # --- A Group's standing member list (`GET /api/groups/{id}/members`) ----------
@@ -608,6 +727,11 @@ class MyAttendanceResponse(BaseModel):
     location: PublicLocationResponse | None
     capacity: int | None
     attendee_count: int
+    price: Decimal | None
+    payment_url: str | None
+    payment_method: PaymentMethod | None
+    # The caller's own payment status on this attendance.
+    payment_status: PaymentStatus
 
 
 class WithdrawAttendanceResponse(BaseModel):

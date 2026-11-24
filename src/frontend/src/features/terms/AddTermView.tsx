@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { Link } from "../../routing/navigation";
 import { NeededItemQuickAddForm } from "../../components/shared/NeededItemQuickAddForm";
 import { LocationPicker } from "../../components/shared/LocationPicker";
-import { CapacityField, Field, INPUT_CLASS } from "../../components/shared/appComponents";
+import { CapacityField, Field, INPUT_CLASS, PaymentUrlField, PriceField } from "../../components/shared/appComponents";
 import { useAppData } from "../panel/appDataStore";
 import { useAttendanceRules } from "../../hooks/useAttendanceRules";
 import { AttendancePointsPicker } from "./components/AttendancePointsPicker";
-import { parseCapacity } from "../../utils/appHelpers";
+import { parseCapacity, parsePayment, parsePrice } from "../../utils/appHelpers";
+import { TERM_PAYMENT_PREFILL_HINT } from "./termDraft";
 import { viewPath } from "../../routing/paths";
 
 const TITLE = "Dodaj termin zajęć";
@@ -22,6 +23,8 @@ export function AddTermView() {
     termDescription,
     termLocationId,
     termCapacity,
+    termPrice,
+    termPaymentUrl,
     termAttendancePoints,
     neededDraft,
     draftNeededItem,
@@ -31,6 +34,8 @@ export function AddTermView() {
     setTermDescription,
     setTermLocationId,
     setTermCapacity,
+    setTermPrice,
+    setTermPaymentUrl,
     setTermAttendancePoints,
     setDraftNeededItem,
     handleAddTerm,
@@ -44,6 +49,7 @@ export function AddTermView() {
   const termGroup = myGroups.find((g) => g.id === termGroupId) ?? null;
   const { data: attendanceRules } = useAttendanceRules();
   const lowestLevel = attendanceRules?.levels[0] ?? null;
+  const prefilledPayment = termGroup?.default_price != null || termGroup?.default_payment_url != null;
 
   // Entered by URL (not from a "Dodaj termin" button): start on the first group.
   useEffect(() => {
@@ -68,114 +74,131 @@ export function AddTermView() {
           </Link>
         </div>
       ) : (
-        <div className="rounded-[22px] border border-line bg-paper p-5">
-          <div className="grid grid-cols-1 gap-3">
-            <Field label="Grupa">
-              <select
-                aria-label="Grupa"
-                value={termGroupId ?? ""}
-                onChange={(e) => selectTermGroup(e.target.value || null)}
-                className={INPUT_CLASS}
-              >
-                <option value="" disabled>Wybierz grupę…</option>
-                {myGroups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Data i godzina">
-              <input
-                type="datetime-local"
-                aria-label="Data i godzina"
-                value={termDate}
-                onChange={(e) => setTermDate(e.target.value)}
-                className={INPUT_CLASS}
+        <>
+          {prefilledPayment && <p className="mb-3 px-1 text-sm text-ink-soft">{TERM_PAYMENT_PREFILL_HINT}</p>}
+          <div className="rounded-[22px] border border-line bg-paper p-5">
+            <div className="grid grid-cols-1 gap-3">
+              <Field label="Grupa">
+                <select
+                  aria-label="Grupa"
+                  value={termGroupId ?? ""}
+                  onChange={(e) => selectTermGroup(e.target.value || null)}
+                  className={INPUT_CLASS}
+                >
+                  <option value="" disabled>Wybierz grupę…</option>
+                  {myGroups.map((g) => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Data i godzina">
+                <input
+                  type="datetime-local"
+                  aria-label="Data i godzina"
+                  value={termDate}
+                  onChange={(e) => setTermDate(e.target.value)}
+                  className={INPUT_CLASS}
+                />
+              </Field>
+              <Field label="Opis (opcjonalnie)">
+                <input
+                  aria-label="Opis (opcjonalnie)"
+                  value={termDescription}
+                  onChange={(e) => setTermDescription(e.target.value)}
+                  placeholder="Park Sołacki · wstęp wolny"
+                  className={INPUT_CLASS}
+                />
+              </Field>
+              <Field label="Miejsce">
+                <LocationPicker
+                  value={termLocationId}
+                  onChange={setTermLocationId}
+                  label="Miejsce"
+                  idPrefix="add-term-place"
+                  required
+                  fallbackLocation={termGroup?.default_location ?? null}
+                />
+              </Field>
+              <CapacityField label="Ile miejsc" value={termCapacity} onChange={setTermCapacity} />
+              <PriceField label="Cena (zł)" value={termPrice} onChange={setTermPrice} />
+              <PaymentUrlField
+                label="Link do płatności (opcjonalnie)"
+                value={termPaymentUrl}
+                onChange={setTermPaymentUrl}
+                priceMissing={parsePrice(termPrice) === null}
               />
-            </Field>
-            <Field label="Opis (opcjonalnie)">
-              <input
-                aria-label="Opis (opcjonalnie)"
-                value={termDescription}
-                onChange={(e) => setTermDescription(e.target.value)}
-                placeholder="Park Sołacki · wstęp wolny"
-                className={INPUT_CLASS}
-              />
-            </Field>
-            <Field label="Miejsce">
-              <LocationPicker
-                value={termLocationId}
-                onChange={setTermLocationId}
-                label="Miejsce"
-                idPrefix="add-term-place"
-                required
-                fallbackLocation={termGroup?.default_location ?? null}
-              />
-            </Field>
-            <CapacityField label="Ile miejsc" value={termCapacity} onChange={setTermCapacity} />
-            {attendanceRules && (
-              <AttendancePointsPicker
-                allowedLevels={attendanceRules.levels}
-                value={termAttendancePoints}
-                onChange={setTermAttendancePoints}
-                minPresent={attendanceRules.min_present}
-              />
-            )}
-            <Field label="Potrzebne rzeczy (opcjonalnie)">
-              {neededDraft.map((item, index) => (
-                <div key={index} className="mb-1.5 flex items-center gap-2 text-[13px]">
-                  <span className="flex-1">
-                    {item.name}
-                    {item.description ? ` — ${item.description}` : ""}
-                  </span>
-                  <button type="button" onClick={() => removeDraftNeededItem(index)} className="text-xs font-bold text-danger">
-                    Usuń
-                  </button>
-                </div>
-              ))}
-              {addingNeeded ? (
-                <div className="mt-1.5 flex flex-col gap-1.5">
-                  <NeededItemQuickAddForm value={draftNeededItem} onChange={setDraftNeededItem} />
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={addDraftNeededItem}
-                      disabled={!draftNeededItem.name.trim()}
-                      className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-soft disabled:opacity-50"
-                    >
-                      Dodaj rzecz
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAddingNeeded(false)}
-                      className="rounded-full px-3 py-1.5 text-xs font-bold text-ink-soft hover:bg-cream"
-                    >
-                      Zwiń
+              {attendanceRules && (
+                <AttendancePointsPicker
+                  allowedLevels={attendanceRules.levels}
+                  value={termAttendancePoints}
+                  onChange={setTermAttendancePoints}
+                  minPresent={attendanceRules.min_present}
+                />
+              )}
+              <Field label="Potrzebne rzeczy (opcjonalnie)">
+                {neededDraft.map((item, index) => (
+                  <div key={index} className="mb-1.5 flex items-center gap-2 text-[13px]">
+                    <span className="flex-1">
+                      {item.name}
+                      {item.description ? ` — ${item.description}` : ""}
+                    </span>
+                    <button type="button" onClick={() => removeDraftNeededItem(index)} className="text-xs font-bold text-danger">
+                      Usuń
                     </button>
                   </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setAddingNeeded(true)}
-                  className="mt-1 self-start rounded-[9px] px-1.5 py-1 text-[12px] font-bold text-ink-soft transition-colors hover:bg-cream hover:text-ink"
-                >
-                  + Dodaj potrzebną rzecz
-                </button>
-              )}
-            </Field>
+                ))}
+                {addingNeeded ? (
+                  <div className="mt-1.5 flex flex-col gap-1.5">
+                    <NeededItemQuickAddForm value={draftNeededItem} onChange={setDraftNeededItem} />
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={addDraftNeededItem}
+                        disabled={!draftNeededItem.name.trim()}
+                        className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-soft disabled:opacity-50"
+                      >
+                        Dodaj rzecz
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAddingNeeded(false)}
+                        className="rounded-full px-3 py-1.5 text-xs font-bold text-ink-soft hover:bg-cream"
+                      >
+                        Zwiń
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setAddingNeeded(true)}
+                    className="mt-1 self-start rounded-[9px] px-1.5 py-1 text-[12px] font-bold text-ink-soft transition-colors hover:bg-cream hover:text-ink"
+                  >
+                    + Dodaj potrzebną rzecz
+                  </button>
+                )}
+              </Field>
+            </div>
+            {addTermError && (
+              <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">{addTermError}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleAddTerm()}
+              disabled={
+                busy ||
+                !termDate ||
+                !termGroupId ||
+                !termLocationId ||
+                parseCapacity(termCapacity) === undefined ||
+                parsePayment(termPrice, termPaymentUrl) === undefined
+              }
+              className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
+            >
+              Dodaj termin
+            </button>
           </div>
-          {addTermError && (
-            <p role="alert" className="mt-2 text-[12.5px] font-semibold text-danger">{addTermError}</p>
-          )}
-          <button
-            type="button"
-            onClick={() => void handleAddTerm()}
-            disabled={busy || !termDate || !termGroupId || !termLocationId || parseCapacity(termCapacity) === undefined}
-            className="mt-4 w-full rounded-[13px] bg-mint px-5 py-3 text-[13.5px] font-extrabold text-white disabled:opacity-60"
-          >
-            Dodaj termin
-          </button>
-        </div>
+        </>
       )}
     </section>
   );

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E2E Verification Report — 2026-11-24-paid-terms-payment-link</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.banner { border-radius:var(--radius); padding:14px 18px; font-weight:650; font-size:16px; margin:10px 0; }
+.banner.warn { background:var(--warn-soft); color:var(--warn); border:1px solid var(--warn); }
+.shots { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-top:10px; }
+.shots figure { margin:0; } .shots figcaption { font-size:11.5px; color:var(--dim); }
+.pair { display:grid; grid-template-columns:2fr 1fr; gap:14px; align-items:start; }
+@media (max-width:700px) { .pair { grid-template-columns:1fr; } }
+.ok { color:var(--ok); } .wn { color:var(--warn); }
+ul.tight { margin:6px 0; padding-left:20px; }
+
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="implementation-verification.html">Verification</a>
+  <span class="here">E2E</span>
+  <a href="visual-fidelity.html">Visual fidelity</a>
+  <a href="e2e-verification-report.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <span class="badge">e2e verification</span>
+  <h1>E2E Verification Report — Paid terms (price, payment link, payment status)</h1>
+  <div style="color:var(--dim);font-size:13px">2026-11-24 (first run + re-check of the withdraw control) · git fba8262 · Chromium (Playwright MCP) · 400×860 · http://localhost:5173</div>
+</header>
+<div class="banner warn">⚠️ GO WITH CAVEATS — 14/14 scenarios passed · 0 Critical · 0 Major (5.2-1 resolved) · 2 Minor</div>
+<div class="tiles">
+  <div class="tile"><b>14/14</b><span>scenarios passed</span></div>
+  <div class="tile"><b>0</b><span>failed</span></div>
+  <div class="tile"><b>0</b><span>critical</span></div>
+  <div class="tile"><b>0</b><span>major</span></div>
+  <div class="tile"><b>2</b><span>minor</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul class="tight">
+    <li><b>Verdict: ⚠️ GO WITH CAVEATS.</b> 14/14 scenarios pass at 400×860: the 9-step smoke script, 2 extra checks, and 3 re-check scenarios for the new withdraw control.</li>
+    <li><b>Major 5.2-1 is resolved.</b> "Moje zajęcia" → "Biorę udział" now has "Wypisz się" on every card. It opens "Wypisać się z terminu?". A PAID attendance adds "Płatność jest oznaczona jako opłacona — zwrot ustalasz z organizatorem." Confirming shows "Wypisano z terminu" and removes the card.</li>
+    <li>Smoke steps 7 and 8 now run fully in the UI. The organizer sees "wypisany — do zwrotu" (presence disabled, switch on). A re-signup keeps "✓ Opłacone", and the organizer row returns to normal.</li>
+    <li>The UNPAID dialog has no refund note, and "Anuluj" does not withdraw (checked against the API). No feature console errors.</li>
+    <li>Remaining: 5.3-1 (Minor, existing: footer behind the bottom nav) and 5.3-2 (Minor, new: identical "Wypisz się" accessible names for two terms of one circle).</li>
+  </ul>
+  <h2>Key Decisions</h2>
+  <ul class="tight">
+    <li><b>Re-check data:</b> the first run's accounts could not be reused (passwords not recorded). I registered two new throwaway @example.com accounts in the UI, with random, never-printed passwords. The circle, place, terms, RSVPs and the PAID mark were set up through the API. RSVP and the PAID toggle were already UI-verified in 4.3 and 4.5.</li>
+    <li><b>In the UI:</b> every re-check step, from the withdraw buttons and both dialogs through cancel, confirm, the toast, the organizer list and the re-signup. Accounts were switched by swapping the stored token; test tokens were cleared at the end.</li>
+    <li><b>Kept from the first run:</b> the "Zapłać" link was inspected and not followed. The free term was a second term. Extra checks: "na miejscu" and anonymous privacy.</li>
+  </ul>
+  <h2>Open Questions / Risks</h2>
+  <ul class="tight">
+    <li><span class="sev info">minor</span>5.3-1: the payment footer and "＋ Zapisz się" sit behind the bottom navigation until the page is scrolled to the end (existing).</li>
+    <li><span class="sev info">minor</span>5.3-2: two terms of the same circle give two buttons both named "Wypisz się z terminu: E2E Wypis krąg". A screen-reader user cannot tell the dates apart.</li>
+    <li><span class="sev info">info</span>Setup side observation: <code>POST /api/terms</code> with an offset <code>occurs_on</code> (<code>…T17:00:00+01:00</code>) returned 500 instead of 400. The UI format works. Not caused by this feature.</li>
+  </ul>
+</section>
+<p style="font-size:13px">Contents: <a href="#recheck">Re-check (withdraw control)</a> · <a href="#env">Environment</a> · <a href="#scen">Scenarios</a> · <a href="#disc">Discrepancies</a> · <a href="#console">Console</a> · <a href="#align">Spec alignment</a> · <a href="#exit">Exit criteria</a> · <a href="#rec">Recommendations</a></p>
+
+<main>
+<h2 id="recheck">Re-check (withdraw control)</h2>
+<div class="card">
+<p style="margin-top:0">Run on 2026-11-24 against the new frontend and backend (<code>features/meetings/TermCards.tsx</code>), with a 400×860 viewport. Re-check data: circle "E2E Wypis krąg", 10 Dec (PAID) and 17 Dec (UNPAID) terms, place Jelenia Góra. Scenarios 4.12–4.14.</p>
+<table>
+<tr><th>#</th><th>Check</th><th>Result</th></tr>
+<tr><td>R1</td><td>"Wypisz się" button on each "Biorę udział" card</td><td class="pass">✅ 2 cards, 2 buttons</td></tr>
+<tr><td>R2</td><td>UNPAID → "Wypisać się z terminu?" without a refund note</td><td class="pass">✅ "Znikniesz z listy zapisanych na ten termin." only</td></tr>
+<tr><td>R3</td><td>"Anuluj" does not withdraw</td><td class="pass">✅ Dialog closed, both cards kept, API: both active</td></tr>
+<tr><td>R4</td><td>PAID → refund note</td><td class="pass">✅ "… Płatność jest oznaczona jako opłacona — zwrot ustalasz z organizatorem."</td></tr>
+<tr><td>R5</td><td>Confirm → toast, card removed</td><td class="pass">✅ "Wypisano z terminu"; 10 Dec card gone</td></tr>
+<tr><td>R6</td><td>Organizer: "wypisany — do zwrotu" row</td><td class="pass">✅ Pill + note, presence disabled, switch on and enabled, "Brak zapisów"</td></tr>
+<tr><td>R7</td><td>Re-signup from the term page</td><td class="pass">✅ Cost line in the dialog; footer "✓ Opłacone", no "Zapłać"</td></tr>
+<tr><td>R8</td><td>"Moje zajęcia" after the re-signup</td><td class="pass">✅ 10 Dec card back with "✓ Opłacone"</td></tr>
+<tr><td>R9</td><td>Organizer row back to normal</td><td class="pass">✅ "przychodzi bez dzieci", switch on, "1 zapis · 0 dzieci · opłaceni: 1"</td></tr>
+<tr><td>R10</td><td>Console</td><td class="pass">✅ Only the baseline /api/organizations/mine 404</td></tr>
+</table>
+<p><b>Result:</b> 5.2-1 is resolved. Refund and reactivation can now be reached by users.</p>
+<div class="shots">
+<figure><img class="shot" src="screenshots/29-moje-zajecia-wypisz-buttons.png" alt="Wypisz się buttons on Moje zajęcia cards" loading="lazy"><figcaption>29 Wypisz się buttons</figcaption></figure>
+<figure><img class="shot" src="screenshots/30-unpaid-withdraw-dialog-no-refund-note.png" alt="UNPAID dialog without refund note" loading="lazy"><figcaption>30 UNPAID dialog</figcaption></figure>
+<figure><img class="shot" src="screenshots/31-paid-withdraw-dialog-refund-note.png" alt="PAID dialog with refund note" loading="lazy"><figcaption>31 PAID dialog + refund note</figcaption></figure>
+<figure><img class="shot" src="screenshots/32-withdrawn-toast-card-gone.png" alt="Card removed after withdraw" loading="lazy"><figcaption>32 card gone</figcaption></figure>
+<figure><img class="shot" src="screenshots/33-organizer-withdrawn-row-via-ui.png" alt="Organizer refund row" loading="lazy"><figcaption>33 organizer: do zwrotu</figcaption></figure>
+<figure><img class="shot" src="screenshots/34-guest-resignup-still-oplacone.png" alt="Re-signup still Opłacone" loading="lazy"><figcaption>34 re-signup: ✓ Opłacone</figcaption></figure>
+<figure><img class="shot" src="screenshots/35-moje-zajecia-after-resignup.png" alt="Moje zajęcia after re-signup" loading="lazy"><figcaption>35 Moje zajęcia</figcaption></figure>
+<figure><img class="shot" src="screenshots/36-organizer-row-normal-after-resignup.png" alt="Organizer row normal" loading="lazy"><figcaption>36 organizer: normal row</figcaption></figure>
+<figure><img class="shot" src="screenshots/37-unpaid-withdraw-toast.png" alt="Wypisano z terminu toast" loading="lazy"><figcaption>37 toast</figcaption></figure>
+</div></div>
+<h2 id="env">Test environment</h2>
+<div class="card"><table>
+<tr><th>Base URL</th><td>http://localhost:5173 (Next 16.4.4 dev, /api → :8080, DB at 0106; dev server started by the verifier)</td></tr>
+<tr><th>Viewport</th><td>400×860</td></tr>
+<tr><th>Accounts</th><td>First run: throwaway organizer "E2E Org 1764000001" and guest "E2E Guest 1764000001" (example.com), plus anonymous. Re-check: new throwaway organizer and guest "E2E Guest W1795530440853" (example.com)</td></tr>
+<tr><th>Data</th><td>Public circle "E2E Płatny krąg" (25,50 zł + https://example.com/pay), terms 5 Dec and 12 Dec 2026, place Poznań. Re-check: circle "E2E Wypis krąg", terms 10 Dec (PAID) and 17 Dec (UNPAID) 2026, place Jelenia Góra</td></tr>
+</table></div>
+
+<h2 id="scen">Scenarios</h2>
+
+<div class="card"><h3 style="margin:0 0 6px">4.1 Circle with a default price and link, plus validation — <span class="pass">✅ Passed</span></h3>
+<ul class="tight"><li class="pass">✅ Fields and hints after the capacity field</li><li class="pass">✅ Price 0 → "Podaj kwotę od 0,01 do 100 000 zł albo zostaw puste.", submit disabled</li><li class="pass">✅ http://x → "Link musi zaczynać się od https://"</li><li class="pass">✅ Link without price → "Link wymaga ceny — wpisz cenę albo usuń link."</li><li class="pass">✅ Saved; edit prefilled 25,50; API "25.50" / EXTERNAL_LINK</li></ul>
+<div class="shots">
+<figure><img class="shot" src="screenshots/01-circle-price-zero-error.png" alt="Price 0 error" loading="lazy"><figcaption>01 price 0</figcaption></figure>
+<figure><img class="shot" src="screenshots/02-circle-http-link-error.png" alt="http link error" loading="lazy"><figcaption>02 http link</figcaption></figure>
+<figure><img class="shot" src="screenshots/03-circle-link-without-price-error.png" alt="Link without price error" loading="lazy"><figcaption>03 link without price</figcaption></figure>
+<figure><img class="shot" src="screenshots/04-circle-form-valid.png" alt="Valid form" loading="lazy"><figcaption>04 valid</figcaption></figure>
+<figure><img class="shot" src="screenshots/05-circle-edit-prefilled.png" alt="Edit prefilled" loading="lazy"><figcaption>05 edit prefilled</figcaption></figure>
+</div></div>
+
+<div class="card"><h3 style="margin:0 0 6px">4.2 "Dodaj termin": prefill and hint — <span class="pass">✅ Passed</span></h3>
+<ul class="tight"><li class="pass">✅ Hint under the title; price and link prefilled</li><li class="pass">✅ Prefill kept after adding a place via +</li><li class="pass">✅ 25,555 and a 508-char link → two verbatim errors, submit blocked</li><li class="pass">✅ Term 5 Dec 17:00 saved ("Dodano termin")</li></ul>
+<div class="shots">
+<figure><img class="shot" src="screenshots/06-add-term-prefill-hint.png" alt="Prefill and hint" loading="lazy"><figcaption>06 prefill + hint</figcaption></figure>
+<figure><img class="shot" src="screenshots/07-add-term-inline-errors.png" alt="Inline errors" loading="lazy"><figcaption>07 inline errors</figcaption></figure>
+</div></div>
+
+<div class="card"><h3 style="margin:0 0 6px">4.3 Guest: price badge, RSVP cost line, sign up — <span class="pass">✅ Passed</span></h3>
+<ul class="tight"><li class="pass">✅ Badge "25,50 zł" + "Płatność online po zapisaniu się."</li><li class="pass">✅ Dialog "Koszt: 25,50 zł — zapłacisz po zapisaniu"</li><li class="pass">✅ Signed up</li></ul>
+<div class="shots">
+<figure><img class="shot" src="screenshots/08-guest-term-page-price-badge.png" alt="Price badge" loading="lazy"><figcaption>08 price badge</figcaption></figure>
+<figure><img class="shot" src="screenshots/09-rsvp-dialog-cost-line.png" alt="Cost line" loading="lazy"><figcaption>09 cost line</figcaption></figure>
+</div></div>
+
+<div class="card"><h3 style="margin:0 0 6px">4.4 Guest: "Zapłać ↗" footer, Moje zajęcia "Do zapłaty" — <span class="pass">✅ Passed</span></h3>
+<ul class="tight"><li class="pass">✅ &lt;a href="https://example.com/pay" target="_blank" rel="noopener noreferrer"&gt; "Zapłać 25,50 zł ↗" (not followed)</li><li class="pass">✅ Badge "Do zapłaty 25,50 zł" (accent-soft)</li><li class="wn">⚠️ Footer behind the bottom nav until the end of the page (5.3-1, existing)</li></ul>
+<div class="shots">
+<figure><img class="shot" src="screenshots/10-guest-footer-zaplac.png" alt="Zapłać footer" loading="lazy"><figcaption>10 Zapłać footer</figcaption></figure>
+<figure><img class="shot" src="screenshots/11-moje-zajecia-do-zaplaty.png" alt="Do zapłaty badge" loading="lazy"><figcaption>11 Do zapłaty</figcaption></figure>
+</div></div>
+
+<div class="card"><h3 style="margin:0 0 6px">4.5 Organizer toggles "opłacone" — <span class="pass">✅ Passed</span></h3>
+<ul class="tight"><li class="pass">✅ Subtitle "… · 25,50 zł"; "1 zapis · 0 dzieci · opłaceni: 0"</li><li class="pass">✅ Switch on → aria-checked=true, bg-mint, "opłaceni: 1"; persisted after a reload</li></ul>
+<div class="shots">
+<figure><img class="shot" src="screenshots/12-organizer-list-switch-off.png" alt="Switch off" loading="lazy"><figcaption>12 switch off</figcaption></figure>
+<figure><img class="shot" src="screenshots/13-organizer-switch-on-oplaceni-1.png" alt="Switch on" loading="lazy"><figcaption>13 switch on, opłaceni: 1</figcaption></figure>
+</div></div>
+
+<div class="card"><h3 style="margin:0 0 6px">4.6 Guest: "✓ Opłacone" (term page + Moje zajęcia) — <span class="pass">✅ Passed</span></h3>
+<ul class="tight"><li class="pass">✅ Footer "✓ Opłacone" bg-primary-soft text-primary-fg, no Zapłać</li><li class="pass">✅ Badge "✓ Opłacone", same tokens (D5)</li></ul>
+<div class="shots">
+<figure><img class="shot" src="screenshots/14-guest-term-page-oplacone.png" alt="Opłacone footer" loading="lazy"><figcaption>14 term page</figcaption></figure>
+<figure><img class="shot" src="screenshots/15-moje-zajecia-oplacone.png" alt="Opłacone badge" loading="lazy"><figcaption>15 Moje zajęcia</figcaption></figure>
+</div></div>
+
+<div class="card"><h3 style="margin:0 0 6px">4.7 Guest withdraws; organizer sees "wypisany — do zwrotu" — <span class="pass">✅ Passed (re-checked)</span></h3>
+<ul class="tight"><li class="pass">✅ First run: no control, so the API was used (5.2-1). Re-check: the "Wypisz się" control works; see <a href="#recheck">Re-check</a> / 4.12</li><li class="pass">✅ Guest: card gone, "＋ Zapisz się" back, not listed publicly</li><li class="pass">✅ Organizer: pill, refund note (D3), presence disabled, switch on and enabled, "Brak zapisów" (D1)</li></ul>
+<div class="shots">
+<figure><img class="shot" src="screenshots/16-moje-zajecia-after-withdraw.png" alt="Moje zajęcia after withdraw" loading="lazy"><figcaption>16 Moje zajęcia empty</figcaption></figure>
+<figure><img class="shot" src="screenshots/17-guest-term-after-withdraw.png" alt="Term page after withdraw" loading="lazy"><figcaption>17 term page</figcaption></figure>
+<figure><img class="shot" src="screenshots/18-organizer-withdrawn-do-zwrotu.png" alt="Refund row" loading="lazy"><figcaption>18 refund row</figcaption></figure>
+</div></div>
+
+<div class="card"><h3 style="margin:0 0 6px">4.8 Re-signup keeps "Opłacone" — <span class="pass">✅ Passed</span></h3>
+<ul class="tight"><li class="pass">✅ Dialog shows the cost line; sign-up OK</li><li class="pass">✅ Footer and Moje zajęcia "✓ Opłacone"</li><li class="pass">✅ Organizer row normal again, "1 zapis · 0 dzieci · opłaceni: 1"</li></ul>
+<div class="shots">
+<figure><img class="shot" src="screenshots/19-guest-resignup-still-oplacone.png" alt="Still Opłacone" loading="lazy"><figcaption>19 guest</figcaption></figure>
+<figure><img class="shot" src="screenshots/20-organizer-row-back-to-normal.png" alt="Row normal" loading="lazy"><figcaption>20 organizer</figcaption></figure>
+</div></div>
+
+<div class="card"><h3 style="margin:0 0 6px">4.9 Free term (price cleared in "Edytuj termin") — <span class="pass">✅ Passed</span></h3>
+<ul class="tight"><li class="pass">✅ Edit prefilled, no create hint; clearing only the price → "Link wymaga ceny…"</li><li class="pass">✅ Clearing both saves a free term</li><li class="pass">✅ Organizer: no price, no opłaceni, 0 switches; guest: no badge, cost line or footer</li></ul>
+<div class="shots">
+<figure><img class="shot" src="screenshots/21-edit-term-link-requires-price.png" alt="Edit error" loading="lazy"><figcaption>21 edit error</figcaption></figure>
+<figure><img class="shot" src="screenshots/22-organizer-free-term-no-switch.png" alt="Free term organizer" loading="lazy"><figcaption>22 organizer</figcaption></figure>
+<figure><img class="shot" src="screenshots/24-guest-free-term-no-price.png" alt="Free term guest" loading="lazy"><figcaption>24 guest</figcaption></figure>
+</div></div>
+
+<div class="card"><h3 style="margin:0 0 6px">4.10 Extra: price without a link ("na miejscu") — <span class="pass">✅ Passed</span></h3>
+<ul class="tight"><li class="pass">✅ Inline "płatność na miejscu"; footer "Do zapłaty: 10,00 zł (na miejscu)" accent-soft</li><li class="pass">✅ Moje zajęcia shows both badges</li></ul>
+<div class="shots">
+<figure><img class="shot" src="screenshots/25-guest-do-zaplaty-na-miejscu.png" alt="Na miejscu footer" loading="lazy"><figcaption>25 footer</figcaption></figure>
+<figure><img class="shot" src="screenshots/26-moje-zajecia-both-badges.png" alt="Both badges" loading="lazy"><figcaption>26 Moje zajęcia</figcaption></figure>
+</div></div>
+
+<div class="card"><h3 style="margin:0 0 6px">4.11 Extra: anonymous sees the price, never a status — <span class="pass">✅ Passed</span></h3>
+<ul class="tight"><li class="pass">✅ Badge + online line, no Zapłać/Opłacone</li><li class="pass">✅ No PAID value in any API response (/access has the key with no PAID value)</li></ul>
+<div class="shots">
+<figure><img class="shot" src="screenshots/23-anonymous-paid-term-price.png" alt="Anonymous" loading="lazy"><figcaption>23 anonymous</figcaption></figure>
+<figure><img class="shot" src="screenshots/28-anonymous-signup-footer-top.png" alt="Footer at top" loading="lazy"><figcaption>28 footer at scroll top</figcaption></figure>
+<figure><img class="shot" src="screenshots/27-footer-scrolled-bottom.png" alt="Footer at bottom" loading="lazy"><figcaption>27 footer at scroll end</figcaption></figure>
+</div></div>
+
+<div class="card"><h3 style="margin:0 0 6px">4.12 Re-check: withdraw a PAID attendance from "Moje zajęcia" (step 7') — <span class="pass">✅ Passed</span></h3>
+<ul class="tight"><li class="pass">✅ "Wypisz się" on each card</li><li class="pass">✅ PAID dialog shows the refund note</li><li class="pass">✅ Toast "Wypisano z terminu"; card removed</li><li class="pass">✅ Organizer: "wypisany — do zwrotu", presence disabled, switch on</li><li class="wn">⚠️ 5.3-2: both buttons have the same accessible name</li></ul>
+<p style="font-size:13px;color:var(--dim)">Evidence: screenshots 29, 31, 32, 33 (see <a href="#recheck">Re-check</a>).</p></div>
+
+<div class="card"><h3 style="margin:0 0 6px">4.13 Re-check: re-signup keeps "Opłacone" (step 8') — <span class="pass">✅ Passed</span></h3>
+<ul class="tight"><li class="pass">✅ Dialog cost line; footer "✓ Opłacone", 0 "Zapłać"</li><li class="pass">✅ Moje zajęcia: 10 Dec "✓ Opłacone" back</li><li class="pass">✅ Organizer: normal row, switch on, "opłaceni: 1"</li></ul>
+<p style="font-size:13px;color:var(--dim)">Evidence: screenshots 34, 35, 36.</p></div>
+
+<div class="card"><h3 style="margin:0 0 6px">4.14 Re-check: UNPAID dialog has no refund note; "Anuluj" does not withdraw — <span class="pass">✅ Passed</span></h3>
+<ul class="tight"><li class="pass">✅ No refund note for UNPAID</li><li class="pass">✅ "Anuluj": dialog closed, both attendances still active in the API</li><li class="pass">✅ UNPAID withdraw confirmed: toast, card removed</li></ul>
+<p style="font-size:13px;color:var(--dim)">Evidence: screenshots 30, 37.</p></div>
+
+<h2 id="disc">Discrepancies</h2>
+<div class="card"><h3 style="margin-top:0"><span class="sev info">resolved</span><s>5.2-1 No UI to withdraw a term RSVP</s> — ✅ resolved in the re-check</h3>
+<table>
+<tr><th>Spec</th><td>Key Decisions / D4: "Withdrawing stays in 'Moje zajęcia', as today"; story "attendee who withdrew … sign up again"</td></tr>
+<tr><th>Actual</th><td>SavedTermCard only has the pledge "Rezygnuję" buttons; <code>withdrawMyAttendance</code> (<code>api/groups.ts:497</code>) has no caller</td></tr>
+<tr><th>Root cause</th><td>An existing gap: the term-RSVP withdraw UI was never built, or was dropped, while the API function stayed</td></tr>
+<tr><th>Impact</th><td>The refund row and reactivation cannot be reached by real users</td></tr>
+<tr><th>Fix</th><td>Add a "Wypisz się" + ConfirmDeleteDialog on the RSVP card that calls withdrawMyAttendance and invalidates the queries (its own task)</td></tr>
+<tr><th>Workaround</th><td>API call with the attendee's own token only</td></tr>
+<tr><th>Re-check</th><td class="pass">✅ Resolved: SavedTermCard has "Wypisz się" with a confirmation, a PAID refund note and the toast "Wypisano z terminu". Verified for PAID, UNPAID and cancel (4.12–4.14; screenshots 29, 31–33)</td></tr>
+</table></div>
+<div class="card"><h3 style="margin-top:0"><span class="sev info">minor</span>5.3-1 Sticky footer hidden behind the bottom nav (400 px)</h3>
+<table>
+<tr><th>Actual</th><td>Footer top ≈ 785 px under the nav (≈ 789 px) at scroll top; the CTA's centre is not hit-testable; visible only at the end of the page. "＋ Zapisz się" does the same</td></tr>
+<tr><th>Root cause</th><td>An existing layout issue: footer and nav are both sticky at bottom:0, and the nav paints on top</td></tr>
+<tr><th>Fix</th><td>Offset the shared SignUpFooter by the nav height</td></tr>
+<tr><th>Workaround</th><td>Scroll to the end</td></tr>
+</table></div>
+<div class="card"><h3 style="margin-top:0"><span class="sev info">minor</span>5.3-2 Duplicate "Wypisz się" accessible names (same circle)</h3>
+<table>
+<tr><th>Actual</th><td>With two terms of "E2E Wypis krąg", both buttons are "Wypisz się z terminu: E2E Wypis krąg"; the date is only in the card link</td></tr>
+<tr><th>Root cause</th><td>The label uses only <code>card.groupName</code> (<code>TermCards.tsx:305</code>)</td></tr>
+<tr><th>Impact</th><td>Ambiguous for assistive tech; the dialog does not name the term either</td></tr>
+<tr><th>Fix</th><td>Add the date and time to the label (or <code>aria-describedby</code> pointing at the date); optionally name the term in the dialog</td></tr>
+<tr><th>Workaround</th><td>Read in order: the card link with the date comes right before the button</td></tr>
+</table></div>
+
+<h2 id="console">Console &amp; network</h2>
+<div class="card"><table>
+<tr><th>Request</th><th>Message</th><th>Note</th></tr>
+<tr><td><code>GET /api/organizations/mine</code></td><td>404</td><td>Baseline for accounts without an Organization</td></tr>
+<tr><td><code>GET /api/public/organizations/register</code></td><td>404</td><td>Self-inflicted (opened /register)</td></tr>
+<tr><td><code>GET /api/public/groups/…/terms/…</code></td><td>404</td><td>Self-inflicted probe URL</td></tr>
+<tr><td><code>POST /api/terms</code> (re-check setup, outside the UI)</td><td>500</td><td><code>occurs_on</code> with an offset (<code>…+01:00</code>); the UI format returned 201. Should be a 400; not caused by this feature</td></tr>
+</table><p>No JS errors or failed feature requests (withdraw, RSVP, payment PUT). The Next dev tools showed a "1 Insight" badge (dev-only overlay); I did not act on it.</p></div>
+
+<h2 id="align">Spec alignment</h2>
+<div class="card"><ul class="tight">
+<li class="pass">Fully implemented: circle defaults, shared error copy, term prefill/hint/override/free, price badge and payment lines, cost line, three footer states, Moje zajęcia badges, switch, counted-only counts, refund row, re-RSVP keeps PAID, privacy</li>
+<li class="pass">Withdraw control in Moje zajęcia with a confirmation, a PAID refund note and a toast (re-check)</li>
+<li>Partially: none (5.2-1 resolved)</li>
+<li>Not implemented: none (D4 accepted) · Extra behaviour: the PAID refund note in the withdraw dialog (new copy)</li>
+</ul>
+<p style="font-size:13px;color:var(--dim)">Variances: first run withdrew through the API; the re-check repeated steps 7–8 in the UI with new throwaway accounts and API-seeded data; second term used for the free check; presence was already disabled before the term start, so "disabled because withdrawn" could not be told apart; points+price badge row and the first-term stepper were not exercised.</p></div>
+
+<h2 id="exit">Exit criteria</h2>
+<div class="card"><table>
+<tr><th>Criterion</th><th>Status</th><th>Evidence</th></tr>
+<tr><td>Circle defaults (Req 1)</td><td class="pass">✅</td><td>4.1</td></tr>
+<tr><td>Term copy-by-value and override (Req 2)</td><td class="pass">✅</td><td>4.2, 4.9</td></tr>
+<tr><td>Validation copy (Req 3, 11)</td><td class="pass">✅</td><td>4.1, 4.2, 4.9</td></tr>
+<tr><td>Method derived (Req 4)</td><td class="pass">✅</td><td>4.1</td></tr>
+<tr><td>Payment PUT, any state (Req 5, 6)</td><td class="pass">✅</td><td>4.5, 4.7</td></tr>
+<tr><td>Organizer list rows and counts (Req 7)</td><td class="pass">✅</td><td>4.7</td></tr>
+<tr><td>Status private (Req 8, 10)</td><td class="pass">✅</td><td>4.11</td></tr>
+<tr><td>Re-RSVP keeps payment (Req 9)</td><td class="pass">✅</td><td>4.8, 4.13</td></tr>
+<tr><td>Price before sign-up (Req 12)</td><td class="pass">✅</td><td>4.3, 4.10</td></tr>
+<tr><td>Attendee payment state (Req 13)</td><td class="pass">✅</td><td>4.4, 4.6, 4.10</td></tr>
+<tr><td>Organizer switch and refund row (Req 14)</td><td class="pass">✅</td><td>4.5, 4.7</td></tr>
+<tr><td>Smoke step 7: withdraw from Moje zajęcia</td><td class="pass">✅</td><td>4.12 (was ❌; 5.2-1 resolved)</td></tr>
+</table></div>
+
+<h2 id="rec">Recommendations</h2>
+<div class="card"><ul class="tight">
+<li><b>Must fix before merge:</b> none</li>
+<li><b>Should fix soon:</b> 5.3-1 footer offset (existing); 5.3-2 add the date to the "Wypisz się" accessible name</li>
+<li><b>Nice-to-have:</b> name the term in the withdraw dialog; a 400 instead of a 500 for an offset occurs_on; E2E for the first-term stepper and the price + points badge row</li>
+</ul>
+<p><b>Conclusion:</b> ⚠️ GO WITH CAVEATS. The Major gap 5.2-1 is resolved, and withdraw, refund row and re-signup now work end-to-end in the UI. Merge, and open small follow-ups for 5.3-1 and 5.3-2.</p></div>
+</main>
+</body>
+</html>

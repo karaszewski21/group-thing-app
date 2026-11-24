@@ -13,6 +13,9 @@ const GROUP: GroupResponse = {
   visibility: "PUBLIC",
   created_at: "2026-10-01T10:00:00",
   updated_at: "2026-10-01T10:00:00",
+  default_price: null,
+  default_payment_url: null,
+  default_payment_method: null,
 };
 
 function renderDialog(onConfirm: () => Promise<void> = vi.fn(() => Promise.resolve())) {

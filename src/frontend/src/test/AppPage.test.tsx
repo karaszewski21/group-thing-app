@@ -282,6 +282,9 @@ const mockGroup: groupsApi.GroupResponse = {
   updated_at: "2026-01-01T00:00:00Z",
   default_location: null,
   default_capacity: null,
+  default_price: null,
+  default_payment_url: null,
+  default_payment_method: null,
 };
 
 // The same group with a default place, which prefills the required term place.
@@ -322,6 +325,10 @@ const mockAttendances: groupsApi.MyAttendanceResponse[] = [
     location: null,
     capacity: null,
     attendee_count: 1,
+    price: null,
+    payment_url: null,
+    payment_method: null,
+    payment_status: "UNPAID",
   },
   {
     attendance_id: "2",
@@ -336,6 +343,10 @@ const mockAttendances: groupsApi.MyAttendanceResponse[] = [
     location: null,
     capacity: null,
     attendee_count: 1,
+    price: null,
+    payment_url: null,
+    payment_method: null,
+    payment_status: "UNPAID",
   },
 ];
 
@@ -472,6 +483,9 @@ function myTermOf(term: termsApi.TermResponse, group: groupsApi.GroupResponse): 
     description: term.description,
     attendee_count: term.attendee_count,
     child_count: term.child_count,
+    price: term.price,
+    payment_url: term.payment_url,
+    payment_method: term.payment_method,
     location: term.location ?? null,
     capacity: term.capacity ?? null,
     group_name: group.name,
@@ -546,7 +560,7 @@ function mockOrganizerDefaults() {
 
 const TERM_FIXTURE: termsApi.TermResponse = {
   id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
-  attendee_count: null, child_count: null, location: null, capacity: null,
+  attendee_count: null, child_count: null, price: null, payment_url: null, payment_method: null, location: null, capacity: null,
 };
 
 /** Follows the Home "Załóż grupę" hint to /groups/new and saves a first group "Nutki". */
@@ -571,6 +585,8 @@ async function createFirstGroupFromHint() {
       description: null,
       default_location_id: null,
       default_capacity: null,
+      default_price: null,
+      default_payment_url: null,
     }),
   );
   expect(await screen.findByText("Dodano grupę")).toBeInTheDocument();
@@ -979,6 +995,9 @@ describe("AppPage — term edit page", () => {
     updated_at: "",
     attendee_count: null,
     child_count: null,
+    price: null,
+    payment_url: null,
+    payment_method: null,
     location: PLACE_REF,
   };
 
@@ -1053,6 +1072,9 @@ describe("AppPage — Term/Group ids stay UUID strings (R29)", () => {
     updated_at: "",
     attendee_count: null,
     child_count: null,
+    price: null,
+    payment_url: null,
+    payment_method: null,
   };
 
   it('"Nowy termin" group select keeps the selected group\'s UUID', async () => {
@@ -1357,7 +1379,7 @@ describe("AppPage — Spotkania list links to the public circle page", () => {
   it("each term row in the Spotkania list is a link (the whole tile) to the per-term public page, not the authenticated one", async () => {
     mockOrganizerDefaults();
     mockTerms([
-      { id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
+      { id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null, price: null, payment_url: null, payment_method: null },
     ]);
     vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
     renderPanel();
@@ -1558,7 +1580,7 @@ describe("AppPage — organizer term card signup chip", () => {
     mockTerms([
       {
         id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
-        attendee_count: attendeeCount, child_count: childCount,
+        attendee_count: attendeeCount, child_count: childCount, price: null, payment_url: null, payment_method: null,
       },
     ]);
     vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
@@ -1616,7 +1638,7 @@ describe("AppPage — per-term public links & copy-link button", () => {
     mockOrganizerDefaults();
     vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroupHashSlug);
     const term: termsApi.TermResponse = {
-      id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null,
+      id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null, price: null, payment_url: null, payment_method: null,
     };
     mockTerms([term]);
     // The card's link takes the slug from the `/groups/mine/terms` row.
@@ -1636,7 +1658,7 @@ describe("AppPage — per-term public links & copy-link button", () => {
   it("organizer term tile marks a claimed needed item with a checkmark", async () => {
     mockOrganizerDefaults();
     mockTerms([
-      { id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
+      { id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null, price: null, payment_url: null, payment_method: null },
     ]);
     vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([
       {
@@ -1659,7 +1681,7 @@ describe("AppPage — per-term public links & copy-link button", () => {
   it("copy-link button on an organizer 'Terminy' row writes the absolute per-term URL and toasts", async () => {
     mockOrganizerDefaults();
     mockTerms([
-      { id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
+      { id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null, price: null, payment_url: null, payment_method: null },
     ]);
     vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
     renderPanel();
@@ -1706,7 +1728,7 @@ describe("AppPage — per-term public links & copy-link button", () => {
     vi.mocked(groupsApi.getGroup).mockResolvedValue(mockGroupWithPlace);
     vi.mocked(termsApi.createTerm).mockResolvedValue({
       id: LATER_TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "",
-      attendee_count: null, child_count: null,
+      attendee_count: null, child_count: null, price: null, payment_url: null, payment_method: null,
     });
     renderPanel();
     fireEvent.click(await screen.findByRole("button", { name: "Dodaj termin →" }));
@@ -1715,7 +1737,7 @@ describe("AppPage — per-term public links & copy-link button", () => {
     fireEvent.change(await within(dialog).findByLabelText("Data i godzina"), { target: { value: "2026-02-01T17:00" } });
 
     mockTerms([
-      { id: LATER_TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
+      { id: LATER_TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null, price: null, payment_url: null, payment_method: null },
     ]);
     vi.mocked(termsApi.getNeededItemsForTerms).mockResolvedValue([]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Dodaj termin" }));
@@ -1739,6 +1761,9 @@ describe("AppPage — needed item sub-CRUD (in the term dialog)", () => {
     updated_at: "",
     attendee_count: null,
     child_count: null,
+    price: null,
+    payment_url: null,
+    payment_method: null,
     location: PLACE_REF,
   };
   const neededItem = {
@@ -2107,6 +2132,9 @@ describe("AppPage — needed item edit error path", () => {
     updated_at: "",
     attendee_count: null,
     child_count: null,
+    price: null,
+    payment_url: null,
+    payment_method: null,
     location: PLACE_REF,
   };
   const neededItem = {
@@ -2227,7 +2255,7 @@ describe("AppPage — Spotkania: pledges on term tiles, events next to group ter
     try {
       mockOrganizerDefaults();
       mockTerms([
-        { id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01T17:00:00", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
+        { id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01T17:00:00", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null, price: null, payment_url: null, payment_method: null },
       ]);
       vi.mocked(eventsApi.getMyEvents).mockResolvedValue([
         {
@@ -2669,7 +2697,7 @@ describe("AppPage — moderation errors inline in the add-group page and add-ter
   function mockCreatedTerm() {
     return {
       id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null,
-      created_at: "", updated_at: "", attendee_count: null, child_count: null,
+      created_at: "", updated_at: "", attendee_count: null, child_count: null, price: null, payment_url: null, payment_method: null,
     };
   }
 
@@ -2873,8 +2901,8 @@ describe("AppPage — delete group (soft delete)", () => {
       return id === OTHER_GROUP_ID ? otherGroup : { ...mockGroup, term_count: 2 };
     });
     mockTerms([
-      { id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
-      { id: LATER_TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-08", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null },
+      { id: TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-01", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null, price: null, payment_url: null, payment_method: null },
+      { id: LATER_TERM_ID, group_id: GROUP_ID, occurs_on: "2026-02-08", description: null, created_at: "", updated_at: "", attendee_count: null, child_count: null, price: null, payment_url: null, payment_method: null },
     ]);
     vi.mocked(termsApi.getNeededItemsForTerms).mockRejectedValue(gone());
     renderPanel();

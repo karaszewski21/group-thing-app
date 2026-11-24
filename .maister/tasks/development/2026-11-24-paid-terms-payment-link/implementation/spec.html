@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — Paid terms, payment link and payment status</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:760px) { .grid2 { grid-template-columns:1fr; } }
+.in h3 { color:var(--ok); } .out h3 { color:var(--crit); }
+h3 { font-size:14px; margin:0 0 8px; }
+ul { margin:6px 0; padding-left:20px; } li { margin:3px 0; }
+.stories { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px; }
+.story { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+  border-radius:var(--radius); padding:10px 12px; font-size:13px; }
+.story b { display:block; font-size:11px; text-transform:uppercase; color:var(--dim); letter-spacing:.05em; }
+.prio { font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:99px; background:var(--crit-soft); color:var(--crit); }
+.prio.should { background:var(--warn-soft); color:var(--warn); }
+pre { background:var(--accent-soft); padding:10px 12px; border-radius:var(--radius); overflow-x:auto; font-size:12.5px; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Specification</span>
+  <h1>Paid terms — price, payment link and manual payment status</h1>
+  <div style="color:var(--dim);font-size:12.5px">Generated 2026-11-24 · task 2026-11-24-paid-terms-payment-link · <a href="spec.md" target="_blank" rel="noopener">spec.md ↗</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>15</b><span>core requirements</span></div>
+  <div class="tile"><b>13</b><span>reused patterns</span></div>
+  <div class="tile"><b>10</b><span>new components</span></div>
+  <div class="tile"><b>9</b><span>design IDs</span></div>
+  <div class="tile"><b>4</b><span>accepted deviations</span></div>
+  <div class="tile"><b style="color:var(--warn)">medium</b><span>risk level</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <p>Circles get a default price (<code>Numeric(10,2)</code> zł, a decimal string such as <code>"25.50"</code> on the wire) and an optional https payment link. New terms copy both by value (an explicit <code>price: null</code> makes a term free and drops the inherited link), and each term can override them. The server derives the method from the link: <code>EXTERNAL_LINK</code> or NULL.</p>
+  <p>Each <code>TermAttendance</code> gains <code>payment_status</code> (UNPAID/PAID) and <code>paid_marked_at</code>. The organizer toggles "opłacone" through a new <code>PUT …/attendees/{party_id}/payment</code> (matrix row 71) in any attendance state. Withdrawn PAID rows stay on the organizer list flagged <code>withdrawn</code> (also after the close), and the count line counts only the attendance record's rows.</p>
+  <p>Attendees see the price before signing up. After signing up they see "Zapłać X zł ↗", "Do zapłaty: X zł (na miejscu)" or "✓ Opłacone", and their own status goes only to them.</p>
+  <p>Re-RSVP after a withdrawal reactivates the row and keeps the payment status. Presence is cleared only while the list is open; after the close, presence and points stay as frozen. Withdrawn rows no longer count for <code>is_attending</code> or appear in the public guardian list.</p>
+
+  <h3 style="margin-top:14px">Key Decisions</h3>
+  <ul>
+    <li><b>Money is <code>Numeric(10,2)</code> złoty, serialized as a JSON string</b> (<code>"25.50"</code>): the user's choice, it follows models.md (Numeric for money), and Pydantic <code>Decimal</code> serializes as a string by default, so there are no float rounding errors in TS.</li>
+    <li><b>NULL price means free; a price must be &gt; 0 and ≤ 100 000,00 with at most 2 decimals.</b> This gives one representation of "free", so no "0,00 zł" badges appear.</li>
+    <li><b>A payment URL requires a price.</b> The service checks this against the effective (merged) state and the DB CHECK backs it up. A price without a URL (pay on site) is allowed.</li>
+    <li><b>The server derives <code>payment_method</code>, and the client never sends it.</b> That avoids inconsistent states. <code>PLATFORM</code> exists in the enum but nothing writes it yet.</li>
+    <li><b>Payment status is two columns on <code>term_attendances</code></b> (<code>payment_status</code> NOT NULL DEFAULT 'UNPAID', <code>paid_marked_at</code>), mirroring <code>present_marked_at</code>. A payments table can come later with the PLATFORM gateway.</li>
+    <li><b>The payment toggle has no attendance-state guard.</b> People pay before the class, and the organizer must be able to unmark after a refund once the list is closed.</li>
+    <li><b>The organizer list and the payment PUT share one row predicate.</b> A listed row is a <i>counted</i> row (active while the list is open; active at close once it is closed) or a PAID row, so the PUT accepts exactly the rows the list shows.</li>
+    <li><b>Two row flags, <code>withdrawn</code> and <code>counted</code>.</b> <code>withdrawn</code> means the row has any withdrawal (<code>withdrawn_at IS NOT NULL</code>), so a PAID row withdrawn after the close also gets the refund hint. <code>counted</code> means the row belongs to the attendance record, so counts stay equal to <code>attendee_count</code> and to the close result.</li>
+    <li><b>Re-RSVP clears <code>present_marked_at</code> only while the list is open</b> (<code>attendance_closed_at IS NULL</code>). After the close, presence and points stay unchanged, because the close result is frozen and already paid out. The payment status is always kept.</li>
+    <li><b>On term create, an explicit <code>price: null</code> with <code>payment_url</code> omitted makes the term free.</b> The circle's default link and method are not copied, because a free term has no link. On update, both fields stay independent: <code>null</code> clears and an omitted field keeps (see the inheritance table).</li>
+    <li><b>The withdrawn-row fix is applied at the source:</b> the public guardian list reads only active attendances, so <code>is_attending</code> becomes correct and withdrawn names stop leaking publicly.</li>
+    <li><b>The term page gets no "Wypisz się" button.</b> It appears in the attendee mockup only as context. Withdrawing stays in "Moje zajęcia", as today (an accepted mockup deviation).</li>
+    <li><b>The organizer count line counts only counted rows.</b> On an open list these are the non-withdrawn rows, so the mockup's data reads "Zapisani: 2 · opłaceni: 1", not "3 · 2". This is an accepted deviation from the mockup and keeps the line equal to <code>attendee_count</code> and the banner.</li>
+    <li><b>One Polish copy table serves both client and server</b> for the price and URL errors, so a user sees the same text for the same rule on every path.</li>
+  </ul>
+
+  <h3 style="margin-top:14px">Open Questions / Risks</h3>
+  <ul style="list-style:none;padding-left:0">
+    <li><span class="sev info">info</span>An RSVP made or reactivated after the close appears on the closed list. This is existing <code>_attendances_active_at</code> behaviour and is accepted, not fixed here.</li>
+    <li><span class="sev warning">warning</span>The payment URL is any https site the organizer types: there is no allowlist or moderation. It is rendered only as a plain external <code>&lt;a&gt;</code>, so a phishing link is possible. Accepted for this release.</li>
+    <li><span class="sev warning">warning</span>Pages that test for <code>is_attending</code> change semantics: a withdrawn viewer now gets <code>false</code>. The old test <code>test_getGroupAccess_withdrawnAttendee_isAttendingButNotActiveAttendee</code> must be rewritten.</li>
+    <li><span class="sev info">info</span>An attendee who withdrew <b>before</b> the close and re-RSVPs <b>after</b> it is reactivated with presence unchanged. They appear on the closed list (existing quirk) as present if they had been marked present before withdrawing, although the close did not count them. This is a rare edge that follows from the binding M1 rule; accepted.</li>
+    <li><span class="sev warning">warning</span>The change is broad (about 12 backend and 25 frontend files) and many typed fixtures pin exact key sets on both stacks. The fixture lists below are complete as far as a grep shows; <code>npm run typecheck</code> and the exact key-set tests are the final gate.</li>
+    <li><span class="sev info">info</span>Rolling back with <code>downgrade 0105</code> loses every price, link and payment mark. This is documented in the runbook; there is no guard, because no ledger rows depend on these columns.</li>
+    <li><span class="sev info">info</span>Pre-existing: <code>term_attendances</code> has no unique <code>(term_id, party_id)</code> constraint, only non-unique indexes (<code>0014_term_attendances_schema.py:69-70</code>). A duplicate row would make the new PUT's <code>scalar_one_or_none</code> raise <code>MultipleResultsFound</code> (a 500), as <code>create_rsvp</code> already would. Accepted risk, not fixed here.</li>
+  </ul>
+</section>
+
+<nav style="font-size:13px">Contents: <a href="#goal">Goal</a> · <a href="#scope">Scope</a> · <a href="#requirements">Requirements</a> · <a href="#stories">User Stories</a> · <a href="#visual">Visual Design</a> · <a href="#reuse">Components</a> · <a href="#tech">Technical Approach</a> · <a href="#testing">Testing</a> · <a href="#standards">Standards</a> · <a href="#success">Success Criteria</a> · <a href="#post-verification">Post-verification</a> · <a href="#revisions">Revision history</a></nav>
+
+<main>
+<h2 id="goal">Goal</h2>
+<div class="card">Let organizers charge for circle terms: set a price and an optional external payment link, and track who has paid. Fix re-signing up after a withdrawal end to end. Shape the data so that a platform gateway can later set the same status.</div>
+
+<h2 id="scope">Scope</h2>
+<div class="grid2">
+  <div class="card in"><h3>In scope</h3><ul>
+    <li>Circle defaults: price and link (method derived)</li>
+    <li>Term snapshot copied by value; per-term override and clear</li>
+    <li>Server and client validation with Polish messages</li>
+    <li><code>payment_status</code> + <code>paid_marked_at</code> per attendance</li>
+    <li>Organizer payment PUT (matrix row 71); switch on the attendee list</li>
+    <li>Withdrawn PAID rows on the organizer list (open and closed)</li>
+    <li>Price on the term page and in the RSVP dialog; Zapłać / Do zapłaty / Opłacone footer</li>
+    <li>"Moje zajęcia" payment badges</li>
+    <li>Full re-RSVP fix and filtered public guardians</li>
+    <li>Migration 0106 with its round-trip test; <code>architecture.md</code> update</li>
+  </ul></div>
+  <div class="card out"><h3>Out of scope</h3><ul>
+    <li>Own payment gateway (PLATFORM), webhooks, <code>external_reference</code>, payments table, amount snapshot at marking, in-system refunds</li>
+    <li>Notifications when payment is marked or the price changes</li>
+    <li>The "X/Y opłacone" summary on the organizer meetings list (<code>OwnerMeetingsPage</code>/<code>TermCards</code> <code>OrganizerTermCard</code>); only the attendee page shows "opłaceni"</li>
+    <li>A price column in <code>AdminTermsPage</code>, the circle defaults summary on <code>GroupDetailsPage</code>, price in search (<code>TermMeta</code>), SEO and <code>app/pages</code></li>
+    <li>A withdraw ("Wypisz się") button on the term page</li>
+    <li>Payment status shown to a withdrawn attendee (Moje zajęcia keeps excluding withdrawn rows)</li>
+    <li>Currencies other than PLN; a price of 0; a domain allowlist or reachability check for payment URLs</li>
+    <li>Server-side capacity enforcement, and the existing quirk of RSVPs made after the close appearing on the closed list</li>
+  </ul></div>
+</div>
+
+<h2 id="requirements">Core Requirements</h2>
+<div class="card"><table>
+<tr><th>#</th><th>Requirement</th><th>Priority</th></tr>
+<tr><td>1</td><td><b>Circle defaults:</b> <code>groups.default_price</code> (Numeric(10,2), nullable), <code>default_payment_url</code> (≤500, https, nullable) and <code>default_payment_method</code> (derived, nullable). Set on create (<code>/mine/new</code> only, like the other defaults) and on PATCH via <code>model_fields_set</code>: an omitted field keeps its value, and <code>null</code> (or a blank URL) clears it.</td><td><span class="prio">must</span></td></tr>
+<tr><td>2</td><td><b>Term snapshot:</b> <code>terms.price</code>, <code>payment_url</code> and <code>payment_method</code>. On create, the effective pair follows the inheritance table below; copies are by value from the circle's current defaults. On update they follow <code>model_fields_set</code> independently: omitted keeps, <code>null</code> clears, a value replaces. A resulting URL without a price returns 400 (send <code>payment_url: null</code> too). Later circle edits never propagate to existing terms.
+<details style="margin-top:8px"><summary>Term-create inheritance (<code>G</code> = circle default; the method is always derived from the effective URL)</summary>
+<table style="margin-top:6px">
+<tr><th><code>price</code> in request</th><th><code>payment_url</code> in request</th><th>Effective price</th><th>Effective URL</th></tr>
+<tr><td>omitted</td><td>omitted</td><td>G price</td><td>G URL</td></tr>
+<tr><td>omitted</td><td><code>null</code></td><td>G price</td><td>none</td></tr>
+<tr><td>omitted</td><td>value</td><td>G price</td><td>value (400 if G price is null)</td></tr>
+<tr><td><code>null</code></td><td>omitted</td><td>none (free)</td><td><b>none: G URL is not copied</b></td></tr>
+<tr><td><code>null</code></td><td><code>null</code></td><td>none</td><td>none</td></tr>
+<tr><td><code>null</code></td><td>value</td><td>—</td><td><span class="fail">— (400: link requires a price)</span></td></tr>
+<tr><td>value</td><td>omitted</td><td>value</td><td>G URL</td></tr>
+<tr><td>value</td><td><code>null</code></td><td>value</td><td>none</td></tr>
+<tr><td>value</td><td>value</td><td>value</td><td>value</td></tr>
+</table>
+<p style="margin:6px 0 0">Circle create (<code>POST /api/groups/mine/new</code>) has no parent to inherit from: an omitted or <code>null</code> field is empty. Circle update follows the same independent <code>model_fields_set</code> rule as term update.</p>
+</details></td><td><span class="prio">must</span></td></tr>
+<tr><td>3</td><td><b>Validation (server).</b> Price: &gt; 0, ≤ 100000.00, at most 2 decimals, a number or a numeric string; anything else is 400 with the Polish message in <code>fieldErrors</code>. URL: stripped, blank becomes null, ≤ 500 chars after the strip, scheme <code>https</code> with a non-empty host, no whitespace or control characters; anything else is 400 with the Polish message. A URL without a price in the effective state is 400. Every message comes from the shared copy table (see <a href="#error-copy">Technical Approach › Error copy</a>), the same text the client shows. The URL never goes through <code>check_text</code>/<code>ensure_no_contact_info</code>.</td><td><span class="prio">must</span></td></tr>
+<tr><td>4</td><td><b>Method derivation:</b> the server sets <code>EXTERNAL_LINK</code> when the effective URL is non-null, otherwise NULL, on both groups and terms. Requests carry no method field; an unknown key is ignored, as Pydantic does by default.</td><td><span class="prio">must</span></td></tr>
+<tr><td>5</td><td><b>Payment status per attendance:</b> <code>term_attendances.payment_status</code> (UNPAID|PAID, NOT NULL, default UNPAID) and <code>paid_marked_at</code> (naive UTC), non-NULL exactly when the status is PAID (CHECK).</td><td><span class="prio">must</span></td></tr>
+<tr><td>6</td><td><b>Organizer toggle endpoint</b> <code>PUT /api/groups/{group_id}/terms/{term_id}/attendees/{party_id}/payment</code> with body <code>{"paid": bool}</code>: returns 204 and is organizer-only (403 before the 404 for a term outside the group; 404 when the party has no listed row). Works in any attendance state, is idempotent, accepts the same rows the organizer list shows, and has a new matrix row 71 ahead of rows 26/27.</td><td><span class="prio">must</span></td></tr>
+<tr><td>7</td><td><b>Organizer attendee list:</b> <code>TermAttendeeResponse</code> gains <code>payment_status</code>, <code>withdrawn</code> (any withdrawal) and <code>counted</code> (part of the attendance record). The list shows the counted rows plus non-counted PAID rows (withdrawn before the close, or withdrawn while open), counted rows first, in both the open and the closed state. A PAID row withdrawn after the close is counted and also flagged <code>withdrawn</code>, so it gets the refund hint. Unmarking a non-counted PAID row removes it from the list. The count line, the child total and "opłaceni: N" use counted rows only.</td><td><span class="prio">must</span></td></tr>
+<tr><td>8</td><td><b>Exposure:</b> <code>price</code>/<code>payment_url</code>/<code>payment_method</code> go into <code>TermResponse</code>, <code>MyTermResponse</code>, <code>PublicTermResponse</code> and <code>MyAttendanceResponse</code>; the <code>default_*</code> trio goes into <code>GroupResponse</code>. The viewer's own <code>payment_status</code> appears only in <code>GroupAccessDetails</code> (null unless the viewer has an active attendance) and <code>MyAttendanceResponse</code>. Status never appears in <code>guardians</code> or any public or anonymous shape.</td><td><span class="prio">must</span></td></tr>
+<tr><td>9</td><td><b>Re-RSVP fix:</b> <code>create_rsvp</code> on an existing withdrawn row reactivates it: <code>withdrawn_at = NULL</code>, <code>child_count</code> refreshed, payment status and <code>paid_marked_at</code> kept; the same row id is returned. <code>present_marked_at</code> is cleared only when the term's list is not closed (<code>attendance_closed_at IS NULL</code>); once closed, presence (and therefore the frozen count and the awarded points) stays unchanged. On an active row only <code>child_count</code> changes, as today.</td><td><span class="prio">must</span></td></tr>
+<tr><td>10</td><td><b>Withdrawn rows are not public:</b> the public guardian list, and therefore <code>GroupAccessDetails.is_attending</code>, ignores withdrawn rows.</td><td><span class="prio">must</span></td></tr>
+<tr><td>11</td><td><b>Frontend forms:</b> <code>PriceField</code> and <code>PaymentUrlField</code> (text inputs, shared parsers, inline <code>role="alert"</code> errors, submit blocked while invalid, including the cross-field "Link wymaga ceny" check) in circle create/edit (<code>GroupFormFields</code>), "Dodaj termin" (<code>AddTermView</code>), the first-term stepper (<code>FirstTermStepperOrganizer</code>) and "Edytuj termin" (<code>TermEditForm</code>). The term forms are prefilled from the circle defaults.</td><td><span class="prio">must</span></td></tr>
+<tr><td>12</td><td><b>Frontend, price before sign-up:</b> a price badge in <code>TermCard</code>, plus "Płatność online po zapisaniu się." with a link or "płatność na miejscu" without one, and a cost line in <code>RsvpDialogLoggedIn</code>.</td><td><span class="prio">must</span></td></tr>
+<tr><td>13</td><td><b>Frontend, attendee payment state:</b> on the term page, an active attendee of a paid term (or one already PAID) gets a sticky footer: a "Zapłać X zł ↗" external link, "Do zapłaty: X zł (na miejscu)", or "✓ Opłacone". <code>SavedTermCard</code> in "Moje zajęcia" shows a "Do zapłaty X zł" or "✓ Opłacone" badge for RSVP cards.</td><td><span class="prio">must</span></td></tr>
+<tr><td>14</td><td><b>Frontend, organizer switch:</b> <code>TermAttendeeRow</code> gets a <code>role="switch"</code> "opłacone" toggle with an optimistic pending state, shown when the term has a price or the row is PAID. Withdrawn PAID rows show the "wypisany — do zwrotu" pill and the refund note. Every withdrawn row has the presence checkbox disabled.</td><td><span class="prio">must</span></td></tr>
+<tr><td>15</td><td><b>TDD green:</b> both tests in <code>src/backend/tests/test_rsvp_reactivation.py</code> pass, and <code>architecture.md</code> is updated.</td><td><span class="prio">must</span></td></tr>
+</table></div>
+
+<h2 id="stories">User Stories</h2>
+<div class="stories">
+  <div class="story"><b>Organizer</b>I want to set a default price and payment link on my circle, so that every new term starts with them without retyping.</div>
+  <div class="story"><b>Organizer</b>I want to change or clear the price and link for a single term, so that special sessions can cost differently or be free.</div>
+  <div class="story"><b>Organizer</b>I want to mark each attendee as "opłacone" on the attendance list at any time, so that I know who still owes money. I also want to see who paid and then withdrew, so that I can refund them.</div>
+  <div class="story"><b>Attendee</b>I want to see the price before I sign up and, afterwards, a "Zapłać" button or a "Do zapłaty (na miejscu)" note, so that I know how and how much to pay.</div>
+  <div class="story"><b>Attendee</b>I want to see "Opłacone" once the organizer confirms my payment, on the term page and in "Moje zajęcia".</div>
+  <div class="story"><b>Attendee who withdrew</b>I want to sign up again from the term page, so that changing my mind works.</div>
+  <div class="story"><b>Anonymous visitor</b>I want to see the price on the public term page, never anyone's payment status.</div>
+</div>
+
+<h2 id="visual">Visual Design</h2>
+<div class="card">
+<p>Mockups in <code>analysis/design-context/</code> are binding inputs — implementation-planner will attach <code>Visual References</code> to UI task groups. Tokens: the <code>@theme</code> in <code>src/frontend/src/app/globals.css</code> (primary/mint, accent, lime, cream, line, ink, paper). Fidelity: high (HTML bound to real tokens and components).</p>
+<table>
+<tr><th>ID</th><th>Mockup</th><th>Implemented in</th><th>Key elements</th></tr>
+<tr><td><code>screen:circle-form-price</code></td><td><a href="../analysis/design-context/mockups/kr-g-edycja-cena-i-link-domy-lny.html">circle edit</a></td><td><code>GroupFormFields.tsx</code> (used by <code>GroupCreateView</code>, <code>GroupEditView</code>)</td><td>After "Ile miejsc (domyślnie)": "Cena domyślna (zł)" with the hint "Puste = zajęcia bezpłatne.", then "Link do płatności (opcjonalnie)" with the hint "Bez linku uczestnicy płacą na miejscu."</td></tr>
+<tr><td><code>screen:term-form-price</code></td><td><a href="../analysis/design-context/mockups/zaj-cia-formularz-terminu-cena-z-kr-gu-i-b-dy.html">term form</a></td><td><code>AddTermView</code>, <code>FirstTermStepperOrganizer</code>, <code>TermEditForm</code></td><td>"Cena (zł)" and "Link do płatności (opcjonalnie)" after the capacity field. Create forms carry the hint "Cena i link podpowiedziane z ustawień kręgu — możesz je zmienić." Errors from the shared copy table: "Podaj kwotę od 0,01 do 100 000 zł albo zostaw puste.", "Link musi zaczynać się od https://", "Link do płatności może mieć najwyżej 500 znaków.", "Link wymaga ceny — wpisz cenę albo usuń link." Submit is blocked while any of them shows.</td></tr>
+<tr><td><code>screen:term-page-price</code></td><td><a href="../analysis/design-context/mockups/strona-zaj-cena-przed-zapisem-okno-zapisu.html">term page</a></td><td><code>TermCard.tsx</code> (via <code>TermInfo</code>), <code>RsvpDialogLoggedIn.tsx</code> (props from <code>TermSignUp</code>)</td><td>The price badge comes before the points badge in one badge row. With a link: the muted line "Płatność online po zapisaniu się." Without one: muted "płatność na miejscu" inline in the row. The dialog shows an accent status box: "Koszt: 25,50 zł — zapłacisz po zapisaniu" (link) or "Koszt: 25,50 zł — płatność na miejscu" (no link).</td></tr>
+<tr><td><code>screen:attendee-payment-cta</code></td><td><a href="../analysis/design-context/mockups/zapisany-uczestnik-zap-a-do-zap-aty-op-acone.html">attendee CTA</a></td><td><code>SignUpFooter.tsx</code> (new <code>payment</code> variant), <code>TermSignUp.tsx</code>, <code>TermCards.tsx</code> (<code>SavedTermCard</code>)</td><td>Three footer states: the CTA_PRIMARY <code>&lt;a&gt;</code> "Zapłać 25,50 zł ↗", the accent-soft box "Do zapłaty: 25,50 zł (na miejscu)", and the "✓ Opłacone" box (<code>bg-primary-soft text-primary-fg</code>, <a href="#deviations"><b>D5</b></a>; the mockup shows mint-soft). <code>SavedTermCard</code> shows the badges "Do zapłaty 25,50 zł" (accent-soft) and "✓ Opłacone" (primary-soft, <a href="#deviations"><b>D5</b></a>). The mockup's "Wypisz się" is not built (<a href="#deviations"><b>D4</b></a>).</td></tr>
+<tr><td><code>screen:organizer-attendance-payment</code></td><td><a href="../analysis/design-context/mockups/organizator-lista-obecno-ci-z-prze-cznikiem-op-acone.html">attendance list</a></td><td><code>TermAttendeesPage.tsx</code> (<code>AttendeesHeading</code>, <code>AttendanceContent</code>, <code>TermAttendeeRow</code>)</td><td>The subtitle adds " · 25,50 zł". The existing count line keeps its "N zapisy · M dzieci" text and adds " · opłaceni: N" when the term has a price; both numbers count <code>counted</code> rows only (<a href="#deviations"><b>deviation D1</b></a>). Each row has a switch plus "opłacone" on the right, next to "obecny". A withdrawn PAID row (including one withdrawn after the close) shows the <code>p-out</code> pill "wypisany — do zwrotu", the note "Wypisany po opłaceniu. Odznacz „opłacone” po zwrocie pieniędzy." (<a href="#deviations"><b>D3</b></a>), a disabled presence checkbox and an enabled switch (<a href="#deviations"><b>D2</b></a> colours). A free term shows no switch.</td></tr>
+<tr><td><code>component:price-field</code></td><td>circle form <code>#p</code></td><td><code>appComponents.tsx</code> <code>PriceField</code></td><td>Modelled on <code>CapacityField</code>: <code>type="text" inputMode="decimal"</code>, <code>INPUT_CLASS w-36</code>, <code>aria-invalid</code>/<code>aria-describedby</code> to the <code>role="alert"</code> error, hint below.</td></tr>
+<tr><td><code>component:payment-url-field</code></td><td>circle form <code>#u</code></td><td><code>appComponents.tsx</code> <code>PaymentUrlField</code></td><td><code>type="text" inputMode="url" autoComplete="off" spellCheck={false}</code>, full width, placeholder <code>https://</code>, hint, and one inline error (format or "wymaga ceny").</td></tr>
+<tr><td><code>component:price-badge</code></td><td>term page <code>.b-price</code></td><td><code>TermCard.tsx</code></td><td><code>rounded-full bg-primary-soft px-2.5 py-1 text-[12.5px] font-extrabold text-primary-fg</code>, text <code>formatPrice(price)</code>, hidden when <code>price</code> is null.</td></tr>
+<tr><td><code>component:payment-switch</code></td><td>organizer <code>.switch</code></td><td><code>TermAttendeeRow</code></td><td>The shared <code>Switch</code> from <code>appComponents.tsx</code> (also used by <code>ToggleRow</code>): a <code>button role="switch" aria-checked</code>, visually the <code>ToggleRow</code> switch (<code>bg-mint</code> on, <code>bg-line</code> off, <a href="#deviations"><b>D2</b></a>), accessible name "opłacone — {display_name}", visible label "opłacone", <code>disabled</code> while pending.</td></tr>
+</table>
+<h3 id="deviations" style="margin-top:16px">Accepted deviations from the mockups <span style="font-weight:400;color:var(--dim)">(confirmed by the user after the spec audit)</span></h3>
+<table>
+<tr><th>ID</th><th>Screen / component</th><th>Mockup</th><th>Implemented</th><th>Reason</th></tr>
+<tr><td><span class="sev warning">D1</span></td><td><a href="../analysis/design-context/mockups/organizator-lista-obecno-ci-z-prze-cznikiem-op-acone.html"><code>screen:organizer-attendance-payment</code></a></td><td>"Zapisani: 3 · opłaceni: 2" (counts the withdrawn PAID Ola)</td><td>Counted rows only: the same data reads 2 and 1, inside the existing "N zapisy · M dzieci · opłaceni: N" line</td><td>Matches <code>attendee_count</code>, the banner and the close result</td></tr>
+<tr><td><span class="sev warning">D2</span></td><td><code>component:payment-switch</code></td><td><code>.switch.on</code> <code>--primary</code>, off <code>--line-strong</code></td><td><code>ToggleRow</code> styling: <code>bg-mint</code> on, <code>bg-line</code> off</td><td>Consistency with the existing switch (<code>appComponents.tsx:34</code>)</td></tr>
+<tr><td><span class="sev warning">D3</span></td><td><a href="../analysis/design-context/mockups/organizator-lista-obecno-ci-z-prze-cznikiem-op-acone.html"><code>screen:organizer-attendance-payment</code></a></td><td>"Wypisała się po opłaceniu…" (feminine)</td><td>"Wypisany po opłaceniu…" (neutral form, the same for every attendee)</td><td>The attendee's gender is not known</td></tr>
+<tr><td><span class="sev warning">D4</span></td><td><a href="../analysis/design-context/mockups/zapisany-uczestnik-zap-a-do-zap-aty-op-acone.html"><code>screen:attendee-payment-cta</code></a></td><td>A "Wypisz się" button under the payment state</td><td>No button on the term page; withdrawing stays in "Moje zajęcia"</td><td>Out of scope; <code>TermSignUp</code> has no withdraw today</td></tr>
+<tr><td><span class="sev warning">D5</span></td><td><a href="../analysis/design-context/mockups/zapisany-uczestnik-zap-a-do-zap-aty-op-acone.html"><code>screen:attendee-payment-cta</code></a> (footer and <code>SavedTermCard</code> badge)</td><td>"✓ Opłacone" on a mint-soft background</td><td><code>bg-primary-soft text-primary-fg</code> on both screens</td><td>Role tokens are required by the <code>themeTokenUsage</code> rule; 4.54:1 contrast (accepted after verification cycle 1)</td></tr>
+</table>
+</div>
+
+<h2 id="reuse">Reusable vs New Components</h2>
+<div class="grid2">
+<div class="card"><h3>Existing code to leverage — backend</h3><table>
+<tr><th>What</th><th>Where / how</th></tr>
+<tr><td>Copy-by-value defaults</td><td><code>application/terms.py:73</code> (<code>capacity = data.capacity if "capacity" in data.model_fields_set else group.default_capacity</code>); same line shape for <code>price</code> and <code>payment_url</code></td></tr>
+<tr><td><code>model_fields_set</code> partial updates</td><td><code>circles.py:update_group</code> (L250-287), <code>terms.py:update_term</code> (L262-268); same pattern for the new fields</td></tr>
+<tr><td>Organizer toggle template</td><td><code>attendance_points.py:set_presence</code> (L104-146); copy the structure (403, then 404, <code>mapped_transaction_conflicts</code>, idempotent set, commit) without the state guard</td></tr>
+<tr><td>Organizer and term checks</td><td><code>_require_active_organizer</code>, <code>memberships._require_term_in_group</code>; reused unchanged by the payment service</td></tr>
+<tr><td>Active-attendance reads</td><td><code>repository.list_active_attendances_for_term</code> (L634), <code>repository.get_active_attendance</code> (L695); public guardians and the access payment status</td></tr>
+<tr><td>Enum column helper</td><td><code>models._enum_column</code> (L43); <code>PaymentMethod</code>, <code>PaymentStatus</code></td></tr>
+<tr><td>Polish verbatim validator errors</td><td><code>PydanticCustomError</code> pattern in <code>app/product/schemas.py:19-32</code>; price and URL validators</td></tr>
+<tr><td>Strip-then-length validator</td><td><code>schemas._normalize_description</code> (L78); shape of <code>_normalize_payment_url</code></td></tr>
+<tr><td>Migration template</td><td><code>0104_points_columns.py</code>; 0106 structure, <code>lock_timeout</code>, named CHECKs</td></tr>
+<tr><td>Migration test</td><td><code>tests/test_points_migration.py</code> (<code>_alembic</code> from <code>test_personal_pickup_migration</code>); 0106 round trip</td></tr>
+<tr><td>Test helpers</td><td><code>tests/test_term_attendance_points.py</code>, <code>tests/test_rsvp_reactivation.py</code> (<code>_auth</code>, <code>_register</code>, <code>_circle_and_term</code>, <code>_rsvp</code>, <code>_withdraw</code>, <code>_access</code>); new backend tests</td></tr>
+<tr><td>Matrix row and its test</td><td><code>core/authorization_matrix.py</code> row 70, <code>tests/test_authorization_matrix.py:515</code>; row 71 and its test</td></tr>
+</table>
+<h3 style="margin-top:12px">Existing code to leverage — frontend</h3><table>
+<tr><th>What</th><th>Where / how</th></tr>
+<tr><td>Parse helpers</td><td><code>utils/appHelpers.ts</code> (<code>parseCapacity</code>, <code>capacityText</code>, <code>CAPACITY_ERROR</code>, L110-128); template for <code>parsePrice</code>, <code>priceText</code>, <code>formatPrice</code>, <code>parsePaymentUrl</code></td></tr>
+<tr><td>Field components</td><td><code>appComponents.tsx</code> (<code>Field</code>, <code>INPUT_CLASS</code>, <code>CapacityField</code> L145, <code>ToggleRow</code> switch styling); <code>PriceField</code>, <code>PaymentUrlField</code>, payment switch</td></tr>
+<tr><td>CTA classes</td><td><code>SignUpFooter.tsx</code> (<code>CTA_PRIMARY</code>, sticky footer shell); new <code>payment</code> variant</td></tr>
+<tr><td>External link pattern</td><td><code>TermPlaceLine.tsx:32-40</code> (<code>target="_blank" rel="noopener noreferrer"</code>, "(nowa karta)" aria-label); the "Zapłać" link</td></tr>
+<tr><td>Badge style</td><td><code>TermCard.tsx</code> points badge; price badge</td></tr>
+<tr><td>Optimistic pending toggle</td><td><code>TermAttendeesPage.tsx</code> <code>TermAttendeeRow</code>; payment switch</td></tr>
+<tr><td>Write, then await invalidate</td><td><code>hooks/useTermAttendance.ts</code> <code>setPresence</code>; <code>setPaymentStatus</code></td></tr>
+<tr><td>Prefill and explicit null</td><td><code>termDraft.ts</code> (<code>newTermDraft</code>, <code>termEditDraftFrom</code>), <code>AppDataContext.selectTermGroup</code>, <code>FirstTermStepperOrganizer</code> (explicit-null rule, L71-72), <code>TermEditForm.saveTermFields</code> diff patch; price and URL fields</td></tr>
+<tr><td>Server-derived view state</td><td><code>termViewState.ts</code> <code>resolveTermView</code>; adds <code>paymentStatus</code></td></tr>
+</table></div>
+<div class="card"><h3>New components required</h3><table>
+<tr><th>New</th><th>Why existing code cannot be reused</th></tr>
+<tr><td><code>PaymentMethod</code>, <code>PaymentStatus</code> StrEnums (<code>app/groups/models.py</code>)</td><td>No money or payment concept exists</td></tr>
+<tr><td><code>application/term_payments.py</code>: <code>derive_payment_method</code>, <code>ensure_payment_url_has_price</code> (plus the message constant); <code>set_payment_status</code> lives in <code>attendance_points.py</code> (see <a href="#post-verification">Post-verification changes (cycle 1)</a>)</td><td><code>set_presence</code> has a state guard and only-active semantics that must not apply; the URL-requires-price rule is shared by four write paths</td></tr>
+<tr><td><code>repository.listed_attendance_condition(term_id, closed_at)</code> + <code>list_listed_attendances(db, term_id, closed_at)</code> + the matching Python <code>is_counted(attendance, closed_at)</code></td><td>Neither existing query includes withdrawn PAID rows; one shared predicate keeps the list and the PUT consistent, and <code>is_counted</code> sets the <code>counted</code> flag with the same rule</td></tr>
+<tr><td><code>_validate_price</code> and <code>_normalize_payment_url</code> validators (<code>app/groups/schemas.py</code>)</td><td>No money or URL validators exist; the only URL check (<code>product/schemas.py</code>) accepts http</td></tr>
+<tr><td><code>PaymentStatusRequest</code> schema</td><td>Request body of the new route</td></tr>
+<tr><td>Migration <code>0106_paid_terms.py</code> + <code>tests/test_paid_terms_migration.py</code></td><td>New columns and CHECKs</td></tr>
+<tr><td><code>parsePrice</code>, <code>priceText</code>, <code>formatPrice</code>, <code>parsePaymentUrl</code>, <code>parsePayment</code>, error constants (<code>utils/appHelpers.ts</code>)</td><td>No money or URL helpers exist on the frontend</td></tr>
+<tr><td><code>PriceField</code>, <code>PaymentUrlField</code> (<code>components/shared/appComponents.tsx</code>)</td><td><code>CapacityField</code> is integer-only, and a URL field has a cross-field error</td></tr>
+<tr><td><code>SignUpFooter</code> <code>payment</code> variant</td><td>No footer state exists for an attendee</td></tr>
+<tr><td><code>setPaymentStatus</code> API function + hook method</td><td>New endpoint</td></tr>
+</table></div>
+</div>
+
+<h2 id="tech">Technical Approach</h2>
+
+<details class="card" open><summary>Data model — migration <code>0106_paid_terms.py</code> (down_revision 0105, schema only)</summary>
+<p>Docstring: "Schema only: additive columns, no backfill". Start with <code>SET LOCAL lock_timeout = '5s'</code>.</p>
+<table>
+<tr><th>Table</th><th>Column</th><th>Type</th><th>Null</th><th>Default</th></tr>
+<tr><td>groups</td><td><code>default_price</code></td><td>NUMERIC(10,2)</td><td>yes</td><td>—</td></tr>
+<tr><td>groups</td><td><code>default_payment_url</code></td><td>VARCHAR(500)</td><td>yes</td><td>—</td></tr>
+<tr><td>groups</td><td><code>default_payment_method</code></td><td>VARCHAR(20)</td><td>yes</td><td>—</td></tr>
+<tr><td>terms</td><td><code>price</code></td><td>NUMERIC(10,2)</td><td>yes</td><td>—</td></tr>
+<tr><td>terms</td><td><code>payment_url</code></td><td>VARCHAR(500)</td><td>yes</td><td>—</td></tr>
+<tr><td>terms</td><td><code>payment_method</code></td><td>VARCHAR(20)</td><td>yes</td><td>—</td></tr>
+<tr><td>term_attendances</td><td><code>payment_status</code></td><td>VARCHAR(10)</td><td><b>no</b></td><td><code>'UNPAID'</code> (server default, no rewrite)</td></tr>
+<tr><td>term_attendances</td><td><code>paid_marked_at</code></td><td>TIMESTAMP (naive UTC)</td><td>yes</td><td>—</td></tr>
+</table>
+<h3 style="margin-top:12px">Named CHECKs (nine; the two <code>ck_*_payment_url_https</code> rows were added in verification cycle 1, see <a href="#post-verification">Post-verification changes (cycle 1)</a>)</h3>
+<table>
+<tr><th>Name</th><th>Table</th><th>Expression</th></tr>
+<tr><td><code>ck_groups_default_price_positive</code></td><td>groups</td><td><code>default_price &gt; 0</code></td></tr>
+<tr><td><code>ck_groups_default_payment_url_requires_price</code></td><td>groups</td><td><code>default_payment_url IS NULL OR default_price IS NOT NULL</code></td></tr>
+<tr><td><code>ck_groups_default_payment_method_url</code></td><td>groups</td><td><code>num_nonnulls(default_payment_url, default_payment_method) IN (0, 2)</code></td></tr>
+<tr><td><code>ck_groups_default_payment_url_https</code></td><td>groups</td><td><code>default_payment_url IS NULL OR default_payment_url ILIKE 'https://%'</code> (case-insensitive; stored as typed)</td></tr>
+<tr><td><code>ck_terms_price_positive</code></td><td>terms</td><td><code>price &gt; 0</code></td></tr>
+<tr><td><code>ck_terms_payment_url_requires_price</code></td><td>terms</td><td><code>payment_url IS NULL OR price IS NOT NULL</code></td></tr>
+<tr><td><code>ck_terms_payment_method_url</code></td><td>terms</td><td><code>num_nonnulls(payment_url, payment_method) IN (0, 2)</code></td></tr>
+<tr><td><code>ck_terms_payment_url_https</code></td><td>terms</td><td><code>payment_url IS NULL OR payment_url ILIKE 'https://%'</code> (case-insensitive; stored as typed)</td></tr>
+<tr><td><code>ck_term_attendances_paid_marked</code></td><td>term_attendances</td><td><code>(payment_status = 'PAID') = (paid_marked_at IS NOT NULL)</code></td></tr>
+</table>
+<ul>
+  <li>The upper bound (100 000,00) lives in the API only, like capacity's <code>le=10000</code>.</li>
+  <li><code>ck_*_payment_method_url</code> is relaxed by the future PLATFORM migration.</li>
+  <li>Downgrade: <code>lock_timeout</code>, drop the CHECKs, then the columns in reverse order. It is lossy (prices, links, payment marks) and unguarded; this is documented in the runbook.</li>
+  <li>The models mirror the CHECKs in <code>__table_args__</code>. <code>Group</code> and <code>TermAttendance</code> get a new <code>__table_args__</code>; <code>Term</code> extends its existing one.</li>
+  <li>ORM types:
+    <ul>
+      <li><code>Mapped[Decimal | None]</code> with <code>Numeric(10, 2)</code></li>
+      <li><code>Mapped[str | None]</code> with <code>String(500)</code></li>
+      <li><code>Mapped[PaymentMethod | None]</code> with <code>_enum_column(PaymentMethod, 20)</code></li>
+      <li><code>payment_status: Mapped[PaymentStatus]</code> with <code>_enum_column(PaymentStatus, 10)</code>, <code>nullable=False</code>, <code>default=PaymentStatus.UNPAID</code>, <code>server_default="UNPAID"</code></li>
+      <li><code>paid_marked_at: Mapped[datetime | None]</code></li>
+    </ul>
+  </li>
+  <li>Enums: <code>PaymentMethod(StrEnum)</code> with <code>EXTERNAL_LINK</code> and <code>PLATFORM</code>; the docstring says PLATFORM is reserved for an own gateway and nothing writes it yet. <code>PaymentStatus(StrEnum)</code> with <code>UNPAID</code> and <code>PAID</code>.</li>
+</ul>
+</details>
+
+<details class="card" id="error-copy" open><summary>Error copy (single source for client and server)</summary>
+<p>Both stacks use exactly these texts. Each side declares them once as constants and pins them in a test (server: <code>test_term_pricing.py</code>; client: the <code>appHelpers</code> tests).</p>
+<table>
+<tr><th>Rule</th><th>Server constant</th><th>Client constant</th><th>Text</th></tr>
+<tr><td>Price out of range, more than 2 decimals, or not a number</td><td><code>PRICE_MESSAGE</code> (<code>app/groups/schemas.py</code>)</td><td><code>PRICE_ERROR</code> (<code>utils/appHelpers.ts</code>)</td><td>"Podaj kwotę od 0,01 do 100 000 zł albo zostaw puste."</td></tr>
+<tr><td>URL not https, no host, or with whitespace or control characters</td><td><code>PAYMENT_URL_MESSAGE</code> (<code>app/groups/schemas.py</code>)</td><td><code>PAYMENT_URL_ERROR</code></td><td>"Link musi zaczynać się od https://"</td></tr>
+<tr><td>URL longer than 500 characters after the trim</td><td><code>PAYMENT_URL_LENGTH_MESSAGE</code> (<code>app/groups/schemas.py</code>)</td><td><code>PAYMENT_URL_LENGTH_ERROR</code></td><td>"Link do płatności może mieć najwyżej 500 znaków."</td></tr>
+<tr><td>URL without a price</td><td><code>PAYMENT_URL_REQUIRES_PRICE_MESSAGE</code> (<code>term_payments.py</code>)</td><td><code>PAYMENT_URL_REQUIRES_PRICE_ERROR</code></td><td>"Link wymaga ceny — wpisz cenę albo usuń link."</td></tr>
+</table>
+<p>The client-only fallback "Nie udało się zapisać płatności" (failed PUT with no server message) is not a validation message and is not in the table.</p>
+</details>
+
+<details class="card"><summary>Schemas (<code>app/groups/schemas.py</code>)</summary>
+<p><b>Validators</b> (reused through <code>field_validator(...)(fn)</code>, raising <code>PydanticCustomError("value_error", msg)</code> so the Polish text reaches <code>fieldErrors</code> verbatim):</p>
+<ul>
+  <li><code>_validate_price</code>, <b>mode="before"</b>:
+    <ul>
+      <li><code>None</code> passes through; <code>bool</code> is rejected.</li>
+      <li><code>int</code>, <code>float</code>, <code>str</code> or <code>Decimal</code> is converted with <code>Decimal(str(value).strip())</code>; <code>InvalidOperation</code> is rejected.</li>
+      <li>Rejected when the value is not finite, ≤ 0, &gt; <code>100000</code>, or has more than 2 decimal places (<code>exponent &lt; -2</code> after <code>normalize()</code>, so "25.50" is fine).</li>
+      <li>Otherwise returns <code>value.quantize(Decimal("0.01"))</code>.</li>
+      <li>Message: <code>PRICE_MESSAGE</code> from the <a href="#error-copy">error copy table</a>.</li>
+    </ul>
+  </li>
+  <li><code>_normalize_payment_url</code>:
+    <ul>
+      <li><code>None</code> passes through; otherwise the value is stripped and a blank one becomes <code>None</code>.</li>
+      <li>A value over 500 chars gets <code>PAYMENT_URL_LENGTH_MESSAGE</code>.</li>
+      <li>A value with any whitespace or control character inside, a scheme other than <code>https</code> (by <code>urllib.parse.urlsplit</code>, case-insensitive), or an empty <code>hostname</code> gets <code>PAYMENT_URL_MESSAGE</code>.</li>
+      <li>Also <code>PAYMENT_URL_MESSAGE</code>: any <code>@</code> in the netloc (userinfo), a backslash, or an invalid port (cycles 1 and 2, see <a href="#post-verification">Post-verification changes (cycle 1)</a>).</li>
+      <li>Otherwise the stripped value is returned unchanged (no normalisation such as a trailing slash), which is also what the client's <code>parsePaymentUrl</code> returns.</li>
+      <li>The field is declared as <code>str | None = None</code>, without <code>Field(max_length)</code>, because the length counts after the strip.</li>
+    </ul>
+  </li>
+</ul>
+<p><b>Requests</b></p>
+<table>
+<tr><th>Model</th><th>New fields</th></tr>
+<tr><td><code>UpdateGroupRequest</code>, <code>CreateOwnCircleRequest</code></td><td><code>default_price: Decimal | None = None</code>, <code>default_payment_url: str | None = None</code> (+ validators). Docstrings mention them among "the defaults".</td></tr>
+<tr><td><code>CreateTermRequest</code>, <code>UpdateTermRequest</code></td><td><code>price: Decimal | None = None</code>, <code>payment_url: str | None = None</code> (+ validators). Docstrings: create follows the inheritance table (an explicit <code>price: null</code> with the URL omitted gives a free term without the circle's link); update keeps an omitted field and clears on <code>null</code>.</td></tr>
+<tr><td><code>PaymentStatusRequest</code> (new)</td><td><code>paid: bool</code>. Docstring names the route.</td></tr>
+</table>
+<p><b>Responses</b> (Decimal serializes as a JSON string such as <code>"25.50"</code>; frontend type <code>string</code>)</p>
+<table>
+<tr><th>Model</th><th>New fields</th></tr>
+<tr><td><code>GroupResponse</code></td><td><code>default_price: Decimal | None = None</code>, <code>default_payment_url: str | None = None</code>, <code>default_payment_method: PaymentMethod | None = None</code></td></tr>
+<tr><td><code>TermResponse</code></td><td><code>price</code>, <code>payment_url</code>, <code>payment_method</code> (all <code>| None = None</code>)</td></tr>
+<tr><td><code>MyTermResponse</code></td><td><code>price: Decimal | None</code>, <code>payment_url: str | None</code>, <code>payment_method: PaymentMethod | None</code> (filled from the <code>TermResponse</code> dump)</td></tr>
+<tr><td><code>PublicTermResponse</code></td><td><code>price</code>, <code>payment_url</code>, <code>payment_method</code> (no defaults, set explicitly)</td></tr>
+<tr><td><code>MyAttendanceResponse</code></td><td><code>price</code>, <code>payment_url</code>, <code>payment_method</code>, <code>payment_status: PaymentStatus</code></td></tr>
+<tr><td><code>GroupAccessDetails</code></td><td><code>payment_status: PaymentStatus | None</code>: the caller's own status on <code>term</code>, <code>None</code> without an active attendance. <code>is_attending</code> docstring: "an active (non-withdrawn) attendance".</td></tr>
+<tr><td><code>TermAttendeeResponse</code></td><td><code>payment_status: PaymentStatus</code>; <code>withdrawn: bool</code> (<code>withdrawn_at IS NOT NULL</code>: the row was withdrawn, before or after the close; a PAID one is a refund case); <code>counted: bool</code> (part of the attendance record: active while open, active at close once closed; drives the counts)</td></tr>
+</table>
+<p>No other response (<code>PublicGuardianResponse</code>, search, pages, <code>TermAttendanceResponse</code>, <code>RsvpResponse</code>) changes.</p>
+</details>
+
+<details class="card"><summary>Services</summary>
+<p><b><code>term_payments.py</code> (new)</b> — after verification cycle 1 it holds only the constant and the two pure rules; <code>set_payment_status</code> moved to <code>attendance_points.py</code> next to <code>set_presence</code> (see <a href="#post-verification">Post-verification changes (cycle 1)</a>). The steps below still describe it.</p>
+<ul>
+  <li><code>PAYMENT_URL_REQUIRES_PRICE_MESSAGE</code> from the <a href="#error-copy">error copy table</a>.</li>
+  <li><code>ensure_payment_url_has_price(price, url)</code> raises <code>ValueError</code> (which becomes 400).</li>
+  <li><code>derive_payment_method(url)</code> returns <code>PaymentMethod.EXTERNAL_LINK if url else None</code>.</li>
+  <li><code>set_payment_status(db, principal, group_id, term_id, party_id, paid)</code>:
+    <ol>
+      <li>Profile, then <code>_require_active_organizer</code> (403), then <code>_require_term_in_group</code> (404).</li>
+      <li>Inside <code>mapped_transaction_conflicts(db)</code>, select the <code>TermAttendance</code> with <code>term_id</code>, <code>party_id</code> and <code>listed_attendance_condition(term_id, term.attendance_closed_at)</code>, with <code>with_for_update()</code> and <code>populate_existing</code>.</li>
+      <li>If there is none, roll back and raise <code>EntityNotFoundException("TermAttendance", party_id)</code>.</li>
+      <li>If <code>paid</code> and the row is UNPAID: set PAID and <code>paid_marked_at = datetime.utcnow()</code>. If not <code>paid</code> and the row is PAID: set UNPAID and <code>paid_marked_at = None</code>. Otherwise do nothing (idempotent). Then commit.</li>
+      <li>There is no attendance-state check.</li>
+    </ol>
+  </li>
+  <li>Exported through <code>app/groups/service.py</code> only if the router imports through the facade. Follow the <code>attendance_points</code> precedent: the router imports the module directly.</li>
+</ul>
+<p><b><code>circles.py</code></b></p>
+<ul>
+  <li><code>create_additional_circle(…)</code> gains keyword-only <code>default_price</code> and <code>default_payment_url</code>. It runs <code>ensure_payment_url_has_price</code> before creating anything and sets the three default columns, with the method derived.</li>
+  <li><code>update_group</code>:
+    <ol>
+      <li>Compute the effective price and URL: request values when present in <code>model_fields_set</code>, current values otherwise.</li>
+      <li>Call <code>ensure_payment_url_has_price</code> before any write.</li>
+      <li>Assign the fields present in the request and set <code>default_payment_method = derive_payment_method(effective_url)</code>.</li>
+    </ol>
+  </li>
+</ul>
+<p><b><code>router/circles.py</code></b> — <code>/api/groups/mine/new</code>: switch the <code>service.create_additional_circle</code> call (L113) to keyword arguments and pass <code>default_price</code> and <code>default_payment_url</code>.</p>
+<p><b><code>terms.py</code></b></p>
+<ul>
+  <li><code>create_term</code> implements the inheritance table:
+    <ul>
+      <li><code>price = data.price if "price" in data.model_fields_set else group.default_price</code>.</li>
+      <li><code>payment_url = data.payment_url</code> when <code>"payment_url" in data.model_fields_set</code>; otherwise <code>None</code> when the request set <code>price</code> explicitly to <code>null</code>, else <code>group.default_payment_url</code>.</li>
+      <li>Then <code>ensure_payment_url_has_price</code>, and set <code>price</code>, <code>payment_url</code> and <code>payment_method=derive_payment_method(payment_url)</code> on the new <code>Term</code>.</li>
+    </ul>
+  </li>
+  <li><code>update_term</code>: compute the effective pair from <code>model_fields_set</code> and the current values, validate it before assigning anything, then assign and re-derive the method.</li>
+</ul>
+<p><b><code>public_view.py</code></b></p>
+<ul>
+  <li><code>get_public_circle_view</code>:
+    <ul>
+      <li>Fill <code>PublicTermResponse.price</code>, <code>payment_url</code> and <code>payment_method</code>.</li>
+      <li>Build the guardians from <code>repository.list_active_attendances_for_term</code>.</li>
+      <li>Delete <code>public_view.list_attendances_for_term</code> and <code>repository.list_attendances_for_term</code>, which have no other callers (unused code is debt). Also update <code>list_active_attendances_for_term</code>'s docstring, which mentions the removed function.</li>
+    </ul>
+  </li>
+  <li><code>get_group_access</code>:
+    <ul>
+      <li>Replace <code>has_active_attendance</code> with <code>attendance = await repository.get_active_attendance(db, term.id, party_id)</code>.</li>
+      <li><code>is_active_attendee = attendance is not None</code>.</li>
+      <li><code>payment_status = attendance.payment_status if attendance else None</code>.</li>
+      <li><code>is_attending</code> stays derived from the (now filtered) guardians.</li>
+      <li><code>has_active_attendance</code> stays, because <code>pledges.py</code> uses it.</li>
+    </ul>
+  </li>
+  <li><code>list_my_attendances</code>: fill the four new fields from <code>term</code> and <code>attendance</code>.</li>
+  <li><code>create_rsvp</code>:
+    <ul>
+      <li>When <code>existing.withdrawn_at is not None</code>, set <code>withdrawn_at = None</code>, and set <code>present_marked_at = None</code> only when <code>term.attendance_closed_at is None</code> (the term is already loaded by the ownership check).</li>
+      <li>Always refresh <code>child_count</code>.</li>
+      <li>Never touch <code>payment_status</code> or <code>paid_marked_at</code>.</li>
+      <li>Update the docstring: "a withdrawn row is reactivated; while the list is open presence must be confirmed again, after the close it stays as frozen; payment status is kept".</li>
+    </ul>
+  </li>
+</ul>
+<p><b><code>memberships.py</code></b></p>
+<ul>
+  <li><code>list_term_attendees</code> uses <code>repository.list_listed_attendances(db, term_id, term.attendance_closed_at)</code>, replacing both <code>list_active_attendances_for_term</code> and <code>_attendances_active_at</code>; delete the latter.</li>
+  <li>Each row gets <code>payment_status=attendance.payment_status</code>, <code>withdrawn=attendance.withdrawn_at is not None</code> and <code>counted=is_counted(attendance, closed_at)</code>.</li>
+  <li><code>counted</code> means <code>withdrawn_at is None</code>, or, when the list is closed, <code>withdrawn_at &gt; closed_at</code> (the row was active at close and is part of the frozen record). It is the same rule as the SQL <code>counted</code> term below, as a small Python helper next to it in <code>repository.py</code>.</li>
+  <li>The docstring is updated.</li>
+</ul>
+<p><b><code>repository.py</code></b></p>
+<ul>
+  <li><code>listed_attendance_condition(term_id, closed_at)</code> returns the SQL condition <code>term_id = :t AND (counted OR payment_status = 'PAID')</code>, where <code>counted</code> is <code>withdrawn_at IS NULL</code> while open and <code>withdrawn_at IS NULL OR withdrawn_at &gt; :closed_at</code> once closed.</li>
+  <li><code>list_listed_attendances</code> is one query ordered with the counted rows first (<code>ORDER BY (NOT counted), created_at</code>).</li>
+  <li>Row kinds this produces:</li>
+</ul>
+<table>
+<tr><th>Row</th><th>Open list</th><th>Closed list</th></tr>
+<tr><td>Active</td><td><span class="pass">listed</span>, counted</td><td><span class="pass">listed</span>, counted (incl. rows reactivated after the close: existing quirk)</td></tr>
+<tr><td>Withdrawn while open, UNPAID</td><td><span style="color:var(--dim)">not listed</span></td><td><span style="color:var(--dim)">not listed</span></td></tr>
+<tr><td>Withdrawn while open, PAID</td><td><span class="pass">listed</span>, <code>withdrawn</code>, not counted</td><td><span class="pass">listed</span>, <code>withdrawn</code>, not counted</td></tr>
+<tr><td>Withdrawn after the close, UNPAID</td><td>—</td><td><span class="pass">listed</span>, <code>withdrawn</code>, counted (no refund hint)</td></tr>
+<tr><td>Withdrawn after the close, PAID</td><td>—</td><td><span class="pass">listed</span>, <code>withdrawn</code>, counted, refund hint</td></tr>
+</table>
+<p><b><code>attendance_points.py</code></b> — unchanged. Close and points count only <code>withdrawn_at IS NULL AND present_marked_at IS NOT NULL</code> at the moment of the close, so the frozen <code>attendee_count</code>/<code>present_count</code> equal the counted rows. Non-counted withdrawn PAID rows never count.</p>
+</details>
+
+<details class="card"><summary>API contract — payment PUT</summary>
+<pre>PUT /api/groups/{group_id}/terms/{term_id}/attendees/{party_id}/payment
+Authorization: Bearer …   (EDIT or mcp:edit)
+Body: {"paid": true}
+204 No Content
+400 body invalid (missing/non-bool `paid`)
+401 no token · 403 not the group's active organizer (checked first)
+404 term not in group · 404 party has no row on the organizer list
+409 concurrent write (StaleDataError via mapped_transaction_conflicts)</pre>
+<ul>
+  <li>Router handler <code>set_attendee_payment</code> sits next to <code>set_attendee_presence</code>, with the docstring "matrix row 71; organizer-only; any attendance state".</li>
+  <li>Matrix: <code>(_methods("PUT"), r"^/api/groups/[^/]+/terms/[^/]+/attendees/[^/]+/payment$", ("EDIT", "mcp:edit"))  # 71</code>, placed directly after row 70 with a comment that mirrors row 70's.</li>
+</ul>
+</details>
+
+<details class="card"><summary>Frontend</summary>
+<p><b>Types</b> (<code>api/groups.ts</code>, <code>api/terms.ts</code>)</p>
+<ul>
+  <li><code>export type PaymentMethod = "EXTERNAL_LINK" | "PLATFORM"</code> and <code>export type PaymentStatus = "UNPAID" | "PAID"</code>.</li>
+  <li>Money is typed as <code>string</code> (a decimal string).</li>
+  <li>Add the fields to <code>GroupResponse</code>, the create/update group request types, <code>TermResponse</code>, <code>CreateTermRequest</code>, <code>UpdateTermRequest</code>, <code>MyTermResponse</code>, <code>PublicTermResponse</code>, <code>GroupAccessDetails</code>, <code>TermAttendeeResponse</code> and <code>MyAttendanceResponse</code>.</li>
+  <li>New <code>setPaymentStatus(groupId, termId, partyId, paid)</code> PUT next to <code>setPresence</code>.</li>
+</ul>
+<p><b>Helpers</b> (<code>utils/appHelpers.ts</code>)</p>
+<ul>
+  <li>Error constants <code>PRICE_ERROR</code>, <code>PAYMENT_URL_ERROR</code>, <code>PAYMENT_URL_LENGTH_ERROR</code> and <code>PAYMENT_URL_REQUIRES_PRICE_ERROR</code> carry the texts from the <a href="#error-copy">error copy table</a>.</li>
+  <li><code>parsePrice(raw): string | null | undefined</code>:
+    <ul>
+      <li>Trim and remove inner spaces and NBSP, so "1 000,50" is accepted.</li>
+      <li>Blank returns <code>null</code>.</li>
+      <li>The value must match <code>^\d{1,6}([.,]\d{1,2})?$</code>, be &gt; 0 and ≤ 100000. Otherwise it returns <code>undefined</code>.</li>
+      <li>Returns the <b>canonical decimal string</b>, the same form the server returns: integer part without leading zeros (a single <code>0</code> when empty), a <code>.</code> separator and exactly two fraction digits. It is built from the string parts, never via float <code>toFixed</code>.
+        <table style="margin-top:4px;width:auto">
+        <tr><th>Input</th><th>Output</th></tr>
+        <tr><td>"25"</td><td><code>"25.00"</code></td></tr>
+        <tr><td>"25,5"</td><td><code>"25.50"</code></td></tr>
+        <tr><td>"0025"</td><td><code>"25.00"</code></td></tr>
+        <tr><td>"0,5"</td><td><code>"0.50"</code></td></tr>
+        <tr><td>"100000"</td><td><code>"100000.00"</code></td></tr>
+        </table>
+      </li>
+    </ul>
+  </li>
+  <li><code>priceText(price: string | null | undefined): string</code> gives the input text: <code>""</code>, or <code>"25,50"</code> with a comma.</li>
+  <li><code>formatPrice(price: string): string</code> uses <code>new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" }).format(Number(price))</code> and gives "25,50 zł".</li>
+  <li><code>parsePaymentUrl(raw): string | null | undefined</code>:
+    <ul>
+      <li>Trim; blank returns <code>null</code>.</li>
+      <li>Needs <code>new URL()</code> to succeed, with <code>protocol === "https:"</code>, a non-empty <code>hostname</code>, no whitespace, and length ≤ 500. Otherwise it returns <code>undefined</code>.</li>
+      <li>Stricter after verification (see <a href="#post-verification">Post-verification changes (cycle 1)</a>): a literal <code>https://</code> prefix (any case), no <code>\p{C}</code> character or backslash, no userinfo and no <code>@</code> in the raw authority.</li>
+      <li>Returns the <b>trimmed input exactly as typed</b>, never <code>URL.href</code>, so <code>https://x.pl</code> stays <code>https://x.pl</code> (no trailing slash added). This equals what the server stores, so the edit-form comparison sends no spurious patch.</li>
+    </ul>
+  </li>
+  <li><code>parsePayment(priceRaw, urlRaw): { price: string | null; payment_url: string | null } | undefined</code> returns <code>undefined</code> when either part is invalid or a URL has no price. This is the one submit gate for all four forms.</li>
+</ul>
+<p><b>Fields</b> (<code>components/shared/appComponents.tsx</code>)</p>
+<ul>
+  <li><code>PriceField({ label, value, onChange, hint })</code> mirrors <code>CapacityField</code>: the error shows when <code>parsePrice(value) === undefined</code>.</li>
+  <li><code>PaymentUrlField({ label, value, onChange, hint, priceMissing })</code>: when <code>parsePaymentUrl(value) === undefined</code> the error is <code>PAYMENT_URL_LENGTH_ERROR</code> if the trimmed value is longer than 500 characters, otherwise <code>PAYMENT_URL_ERROR</code>. It is <code>PAYMENT_URL_REQUIRES_PRICE_ERROR</code> when the URL is valid and non-null and <code>priceMissing</code> is true.</li>
+  <li>Both fields set <code>aria-invalid</code> and <code>aria-describedby</code> (hint and error ids) and use a <code>role="alert"</code> <code>&lt;p&gt;</code> for the error.</li>
+</ul>
+<p><b>Form state and submit</b></p>
+<table>
+<tr><th>Form</th><th>State</th><th>Request</th></tr>
+<tr><td><code>GroupFormFields</code> + <code>AppDataContext</code> (<code>groupForm</code>, <code>editGroupForm</code>, <code>startEditGroup</code>, <code>handleAddGroup</code>, save group)</td><td><code>GroupFormValue</code> gains <code>defaultPrice</code> and <code>defaultPaymentUrl</code> (raw strings), seeded from <code>priceText(group.default_price)</code> and <code>group.default_payment_url ?? ""</code></td><td>Always sends <code>default_price</code> and <code>default_payment_url</code> (<code>null</code> when empty), like <code>default_capacity</code>. Submit is blocked when <code>parsePayment</code> returns <code>undefined</code>.</td></tr>
+<tr><td>"Dodaj termin" (<code>AddTermView</code> + <code>AppDataContext</code> <code>termPrice</code>/<code>termPaymentUrl</code>, <code>selectTermGroup</code> prefill)</td><td>Raw strings prefilled from the picked group</td><td>Always sends <code>price</code> and <code>payment_url</code> explicitly</td></tr>
+<tr><td>First-term stepper (<code>termDraft.newTermDraft</code> gains the defaults; <code>FirstTermStepperOrganizer</code>)</td><td><code>TermDraft</code> gains <code>price</code> and <code>paymentUrl</code>. <code>FirstTermStepperOrganizer</code> gains <code>defaultPrice?: string | null</code> and <code>defaultPaymentUrl?: string | null</code> props next to <code>defaultCapacity</code> (L38/L50), passed by <code>features/panel/AppModals.tsx:27</code> from <code>myGroups[0].default_price ?? null</code> and <code>myGroups[0].default_payment_url ?? null</code></td><td>Sends each field when it is non-null or when its group default is non-null (the explicit-null rule at L72, as for capacity). Clearing a prefilled price on a circle without a default link sends <code>price: null</code> with the URL omitted, which gives a free term (inheritance table)</td></tr>
+<tr><td>"Edytuj termin" (<code>termEditDraftFrom</code>, <code>TermEditForm.saveTermFields</code>)</td><td>From <code>priceText(term.price)</code> and <code>term.payment_url ?? ""</code></td><td>Adds <code>patch.price</code> only when <code>parsePrice(draft)</code> differs from <code>term.price</code>, and <code>patch.payment_url</code> only when <code>parsePaymentUrl(draft)</code> differs from <code>term.payment_url</code> (both canonical strings or null, so an untouched form sends nothing)</td></tr>
+</table>
+<p><b>Term page</b></p>
+<ul>
+  <li><code>TermInfo</code> passes <code>price</code> and <code>paymentUrl</code> to <code>TermCard</code>, which renders the badge row whenever there is a price or points (it currently renders only for points). It adds the muted payment line.</li>
+  <li><code>termViewState</code> <code>content</code> gains <code>paymentStatus: PaymentStatus | null</code> from <code>access.payment_status</code>. The <code>TermViewState</code> docstring is updated: <code>isAttending</code> now means an active attendance.</li>
+  <li><code>TermSignUp</code>:
+    <ul>
+      <li>When <code>!term</code>, render nothing.</li>
+      <li>When <code>isAttending</code>, render <code>&lt;SignUpFooter variant="payment" price=… paymentUrl=… status=… /&gt;</code> if <code>paymentStatus</code> is non-null and (<code>term.price</code> is non-null or <code>paymentStatus === "PAID"</code>); otherwise render nothing.</li>
+      <li>Otherwise render the sign-up footer, as today, and pass <code>price</code> and <code>paymentUrl</code> to <code>RsvpDialogLoggedIn</code>.</li>
+    </ul>
+  </li>
+  <li><code>SignUpFooter</code> <code>payment</code> variant (<code>{ variant: "payment"; price: string | null; paymentUrl: string | null; status: PaymentStatus }</code>):
+    <ul>
+      <li>PAID: a <code>bg-primary-soft text-primary-fg</code> box "✓ Opłacone" (<a href="#deviations"><b>D5</b></a>), with ✓ <code>aria-hidden</code>.</li>
+      <li>UNPAID with a link: <code>&lt;a href={paymentUrl} target="_blank" rel="noopener noreferrer" aria-label="Zapłać {formatPrice} (nowa karta)" className={CTA_PRIMARY + " flex items-center justify-center gap-2"}&gt;Zapłać {formatPrice} &lt;span aria-hidden&gt;↗&lt;/span&gt;&lt;/a&gt;</code>. Never a router <code>Link</code>.</li>
+      <li>UNPAID without a link: an accent-soft box "Do zapłaty: {formatPrice} (na miejscu)".</li>
+    </ul>
+  </li>
+  <li><code>RsvpDialogLoggedIn</code> gains <code>price: string | null</code> and <code>paymentUrl: string | null</code>. With a price it shows an accent-soft line above the child-count field: "Koszt: X — zapłacisz po zapisaniu" with a link, "Koszt: X — płatność na miejscu" without one.</li>
+</ul>
+<p><b>Moje zajęcia</b></p>
+<ul>
+  <li><code>GuestTermCard</code> (type in <code>utils/appHelpers.ts:70</code>) gains <code>price: string | null</code> and <code>paymentStatus: PaymentStatus | null</code>.</li>
+  <li><code>savedCards</code> (<code>features/panel/AppDataContext.tsx:670</code>) maps both from <code>MyAttendanceResponse</code>.</li>
+  <li><code>memberTermCard</code> (<code>features/meetings/meetingsList.ts:31</code>, used by <code>features/meetings/hooks/useAttendingMeetings.ts</code>) sets <code>price</code> from <code>MyTermResponse</code> and <code>paymentStatus: null</code>.</li>
+  <li><code>SavedTermCard</code> shows the badge "✓ Opłacone" (primary-soft, <a href="#deviations"><b>D5</b></a>) when PAID, or "Do zapłaty {formatPrice}" (accent-soft) when UNPAID with a price. There is no pay link inside the card, to avoid a nested anchor.</li>
+</ul>
+<p><b>Organizer list</b> (<code>TermAttendeesPage.tsx</code>, <code>hooks/useTermAttendance.ts</code>)</p>
+<ul>
+  <li><code>useTermAttendance</code> gains <code>setPaymentStatus(partyId, paid)</code>, a copy of <code>setPresence</code> (rejects with the server message, always awaits the shared invalidation).</li>
+  <li><code>AttendanceContent</code>:
+    <ul>
+      <li><code>counted = attendees.filter(a =&gt; a.counted)</code> drives the count line, <code>childTotal</code> and <code>countable</code> (<code>countable</code> still excludes organizers). On an open list these are exactly the non-withdrawn rows.</li>
+      <li>When <code>term.price</code> is set, the count line appends <code> · opłaceni: ${counted.filter(paid).length}</code>.</li>
+      <li>The count line says "Brak zapisów" when <code>counted</code> is empty, even if withdrawn PAID rows are listed below; the empty-list placeholder ("Nikt jeszcze nie zapisał się…") still depends on <code>attendees.length</code>.</li>
+      <li><code>AttendeesHeading</code> appends <code>formatPrice(term.price)</code> to the subtitle parts.</li>
+      <li>A separate <code>paymentError</code> <code>role="alert"</code> ("Nie udało się zapisać płatności" is the fallback).</li>
+      <li>It is passed <code>onPayment: (partyId, paid) =&gt; Promise&lt;void&gt;</code> from the page (<code>attendanceRead.setPaymentStatus</code>, wired in <code>TermAttendeesPage</code> next to <code>onPresence</code>).</li>
+    </ul>
+  </li>
+  <li><code>TermAttendeeRow</code> (<code>TermAttendeesPage.tsx:305</code>, today <code>{ attendee, editable, onToggle }</code>) gains two props: <code>priced: boolean</code> (<code>term.price != null</code>, passed by <code>AttendanceContent</code>) and <code>onPayment: (paid: boolean) =&gt; Promise&lt;void&gt;</code> (bound to the row's <code>party_id</code>).
+    <ul>
+      <li>Presence checkbox <code>disabled={!editable || attendee.withdrawn || pending !== null}</code>.</li>
+      <li>A withdrawn PAID row (open or closed list, before or after the close) shows the <code>p-out</code> pill "wypisany — do zwrotu" (<code>border border-line bg-cream text-ink-soft</code>) instead of the child pill, and the muted note "Wypisany po opłaceniu. Odznacz „opłacone” po zwrocie pieniędzy." A withdrawn UNPAID row (possible only on a closed list) keeps the usual child pill, with no refund hint.</li>
+      <li>Payment switch: shown when <code>priced || attendee.payment_status === "PAID"</code>. It has its own <code>pendingPaid</code> optimistic state and is enabled in every attendance kind.</li>
+    </ul>
+  </li>
+</ul>
+</details>
+
+<details class="card"><summary>Documentation</summary>
+<ul>
+  <li><code>.maister/docs/project/architecture.md</code>:
+    <ul>
+      <li>A new "Paid terms (migration 0106)" section covering the columns, CHECKs, derivation, copy-by-value, validation, privacy of status, payment PUT and row 71, and the shared listed-row predicate.</li>
+      <li>In the Points section: update the <code>list_term_attendees</code> sentence (withdrawn PAID rows, the <code>withdrawn</code>/<code>counted</code> flags) and note RSVP reactivation (clears presence only while the list is open, keeps payment).</li>
+      <li>In the authorization-matrix line: row 71.</li>
+      <li>A "Deploy / rollback for paid terms (migration 0106)" runbook entry: additive and schema only; rollback is <code>downgrade 0105</code> before the old image, losing prices, links and payment marks.</li>
+    </ul>
+  </li>
+  <li><code>.maister/docs/standards/backend/models.md</code>: add a short "Money as <code>Numeric(10,2)</code>, decimal string on the wire" entry next to the coordinates entry (L143). Money is a <code>Decimal</code> in Python and a JSON string such as <code>"25.50"</code> in responses and requests, typed <code>string</code> on the frontend; it never becomes a float. Then update the models.md line in <code>.maister/docs/INDEX.md</code>.</li>
+</ul>
+</details>
+
+<h2 id="testing">Testing Approach</h2>
+<div class="card">
+<p>Write 2-8 focused tests per implementation step group. Test verification runs only the new and updated tests, not the entire suite.</p>
+<div class="grid2">
+<div>
+<h3>Backend (pytest, <code>src/backend/tests/</code>, integration via HTTP, exact key sets)</h3>
+<ul>
+  <li><code>test_paid_terms_migration.py</code> (new, 2 tests):
+    <ul>
+      <li><code>test_migration0106_downgradeTo0105AndUpgradeHead_roundTrips</code>: columns and the nine CHECK names are gone at 0105 and back at head; head is always restored in <code>finally</code>.</li>
+      <li>A DB-level test that a term <code>payment_url</code> without <code>price</code> raises <code>IntegrityError</code>.</li>
+    </ul>
+  </li>
+  <li><code>test_term_pricing.py</code> (new, ≤ 8 tests):
+    <ul>
+      <li>Circle defaults are stored and returned as <code>"25.50"</code> with <code>EXTERNAL_LINK</code>.</li>
+      <li>Term create copies them by value, and later circle edits do not propagate.</li>
+      <li><code>test_createTerm_explicitNullPriceUrlOmitted_isFreeWithoutInheritedLink</code>: with circle defaults <code>25.50</code> plus a URL, <code>{"price": null}</code> and no <code>payment_url</code> gives 201 with <code>price</code>, <code>payment_url</code> and <code>payment_method</code> all null (M3). In the same test, <code>{"price": null, "payment_url": "https://…"}</code> gives 400 and an override pair is stored as sent.</li>
+      <li>Update: <code>null</code> clears, an omitted field keeps, and the method follows the URL.</li>
+      <li>Price validation: 0, -1, 100000.01, 1.234, "abc" and <code>true</code> give 400 with <code>fieldErrors.price</code> equal to the copy-table text; "25,5" is not accepted by the server; 100000 and "25.5" are accepted.</li>
+      <li>URL validation: <code>http://</code>, <code>javascript:</code> and <code>https://</code> without a host give 400 with the format text, 501 chars give 400 with the length text; a blank URL is stored as null; <code>https://x.pl</code> is stored without a trailing slash.</li>
+      <li>A URL without a price gives 400 with the copy-table text on term create, term update (clearing the price) and group update.</li>
+      <li>Public, term and my-term key sets contain the price trio and no <code>payment_status</code>.</li>
+    </ul>
+  </li>
+  <li><code>test_term_payments.py</code> (new, ≤ 8 tests):
+    <ul>
+      <li>Organizer marks PAID: 204, the list row is PAID, and a repeat is 204.</li>
+      <li>Non-organizer: 403 before the 404 for a foreign term. No RSVP: 404.</li>
+      <li>Allowed while NOT_STARTED and after the close (<code>freeze_local_now</code>).</li>
+      <li>A row withdrawn while open and PAID stays on the open and closed lists with <code>withdrawn: true, counted: false</code> and is excluded from the attendance <code>attendee_count</code>. Unmarking removes it, and the next PUT is 404. A withdrawn UNPAID row gives 404.</li>
+      <li>A PAID row withdrawn <b>after</b> the close is listed with <code>withdrawn: true, counted: true</code>; <code>attendee_count</code> and <code>present_count</code> stay at the close values, and the PUT still accepts it.</li>
+      <li>Access: own <code>payment_status</code> for self, <code>null</code> for anonymous and for another user. <code>MyAttendanceResponse</code> carries the status. Guardians have no status key.</li>
+    </ul>
+  </li>
+  <li><code>test_rsvp_reactivation.py</code>: the two red tests turn green. Add:
+    <ul>
+      <li><code>test_rsvp_afterWithdraw_clearsPresenceKeepsPaymentStatus</code>: a started term (<code>freeze_local_now</code>), open list, mark present and PAID, withdraw, re-RSVP; presence is false and payment PAID.</li>
+      <li><code>test_rsvp_afterWithdrawOnClosedList_keepsPresenceAndPoints</code> (M1): mark present and PAID, close (rewarded), withdraw, re-RSVP; the row is listed with <code>present: true</code>, <code>present_count</code> and <code>attendee_count</code> equal the close result, the guest's points balance is unchanged, and payment stays PAID.</li>
+    </ul>
+  </li>
+  <li><code>test_authorization_matrix.py</code>: a row 71 case (PUT <code>/payment</code> resolves to EDIT/mcp:edit, ahead of rows 26/27).</li>
+  <li><b>Update existing tests:</b>
+    <ul>
+      <li><code>test_group_access.py</code>: rename the old test to <code>test_getGroupAccess_withdrawnAttendee_notAttendingNorActiveAttendee</code> and assert <code>is_attending is False</code>.</li>
+      <li><code>test_group_access.py:353-390</code> (exact key sets): add <code>default_price</code>, <code>default_payment_url</code> and <code>default_payment_method</code> to the own <code>GroupResponse</code> key set, and <code>payment_status</code> to the <code>access</code> key set. The public group keys are unchanged; the nested <code>term</code> gains the price trio wherever it is pinned.</li>
+      <li>Add the new fields to the exact key-set assertions in <code>test_term_attendees.py</code> (<code>payment_status</code>, <code>withdrawn</code>, <code>counted</code>), <code>test_public_term.py</code>, <code>test_my_attendances.py</code>, <code>test_my_terms.py</code>, <code>test_term_location_capacity.py</code>, <code>test_group_location_defaults.py</code>, <code>test_circles_router.py</code>, <code>test_groups.py</code> and <code>test_term_attendance_points.py</code>, wherever they pin these shapes.</li>
+      <li><code>test_term_attendance_close.py:342</code> (<code>test_withdrawAfterClose_leavesFrozenResultAndListUnchanged</code>) stays green unchanged: the list still has 2 rows and <code>attendee_count</code> is still 2.</li>
+      <li>Confirm that <code>test_rsvp.py</code>'s repeat test still holds.</li>
+    </ul>
+  </li>
+</ul>
+</div>
+<div>
+<h3>Frontend (Vitest + Testing Library, <code>src/frontend/src/test/</code>)</h3>
+<ul>
+  <li><code>appHelpers</code> (≤ 8):
+    <ul>
+      <li><code>parsePrice</code>: "25" gives "25.00", "25,5" gives "25.50", "0025" gives "25.00", "0,5" gives "0.50", "1 000,50" gives "1000.50", "" gives null, "0", "100000,01", "1,234" and "abc" give undefined, "100000" gives "100000.00".</li>
+      <li><code>formatPrice</code> gives "25,50 zł" (with NBSP normalized).</li>
+      <li><code>parsePaymentUrl</code> returns the trimmed input as typed (<code>" https://x.pl "</code> gives <code>"https://x.pl"</code>, no trailing slash); <code>http:</code>, <code>javascript:</code> and 501 chars give undefined; the <code>parsePayment</code> cross-field rule.</li>
+      <li>The four error constants equal the copy-table texts.</li>
+    </ul>
+  </li>
+  <li>Fields and forms (≤ 8):
+    <ul>
+      <li><code>PriceField</code> and <code>PaymentUrlField</code> show the inline alert and <code>aria-invalid</code>.</li>
+      <li>Circle create sends <code>default_price: "25.50"</code>; edit seeds and sends the fields.</li>
+      <li>"Dodaj termin" prefills from the group and blocks submit on "Link wymaga ceny".</li>
+      <li><code>TermEditForm</code> sends no <code>price</code>/<code>payment_url</code> patch for an untouched form and patches only the changed field.</li>
+      <li>The stepper (with <code>defaultPrice</code>/<code>defaultPaymentUrl</code> props) sends an explicit null when a prefill is cleared.</li>
+    </ul>
+  </li>
+  <li>Term page (≤ 8):
+    <ul>
+      <li><code>TermCard</code> badge with the link and no-link lines; no badge when the price is null.</li>
+      <li><code>RsvpDialogLoggedIn</code> cost line.</li>
+      <li><code>SignUpFooter</code> payment variant: the <code>&lt;a&gt;</code> has <code>href</code>, <code>target="_blank"</code>, <code>rel="noopener noreferrer"</code> and the aria-label "(nowa karta)"; the "Do zapłaty" and "✓ Opłacone" states.</li>
+      <li><code>TermSignUp</code>: no footer for a free UNPAID term; the sign-up footer shows for a withdrawn viewer (<code>is_attending: false</code>).</li>
+      <li><code>resolveTermView</code> maps <code>payment_status</code>.</li>
+    </ul>
+  </li>
+  <li>Organizer list (≤ 8), in <code>TermAttendeesPage.test.tsx</code>:
+    <ul>
+      <li>The switch is hidden on a free term and shown when the price is set or the row is PAID.</li>
+      <li>Toggling calls the PUT with <code>{paid}</code> and shows the pending state.</li>
+      <li>A withdrawn PAID row shows the pill, the refund note and a disabled presence checkbox; a closed-list row with <code>withdrawn: true, counted: true, payment_status: "PAID"</code> also shows them.</li>
+      <li>The counts and "opłaceni" use counted rows only (the mockup's data gives "2 zapisy … · opłaceni: 1").</li>
+      <li>The error alert on a failed PUT.</li>
+    </ul>
+  </li>
+  <li>Moje zajęcia: the <code>SavedTermCard</code> badges.</li>
+  <li><b>Update every typed fixture</b> that builds an affected shape (<code>GroupResponse</code>, <code>TermResponse</code>, <code>MyTermResponse</code>, <code>PublicTermResponse</code>, <code>GroupAccessDetails</code>, <code>TermAttendeeResponse</code>, <code>MyAttendanceResponse</code>, <code>GuestTermCard</code>, <code>TermDraft</code>), all in <code>src/frontend/src/test/</code>:
+    <ul>
+      <li><code>termRoute.tsx</code>, <code>AppPage.test.tsx</code>, <code>GroupDetailsPage.test.tsx</code>, <code>useMyTerms.test.tsx</code>, <code>AdminTermsPage.test.tsx</code>, <code>OwnerMeetingsPage.test.tsx</code></li>
+      <li><code>TermEditForm.test.tsx</code>, <code>FirstTermStepperOrganizer.test.tsx</code>, <code>TermAttendeesPage.test.tsx</code>, <code>TermPage.test.tsx</code>, <code>ssrSafety.test.tsx</code>, <code>termViewState.test.ts</code>, <code>AddTermViewAttendancePoints.test.tsx</code>, <code>GroupFormDescription.test.tsx</code>, <code>attendanceViewState.test.ts</code> (the nine files the audit found)</li>
+      <li><code>AppDataContextNeededItems.test.tsx</code> and <code>publicMetadata.test.ts</code>, which also reference these types</li>
+      <li><code>termViewState.test.ts:65</code>: replace the now-impossible row <code>is_attending: true, is_active_attendee: false</code> ("withdrawn attendee: isAttending stays for the footer…") with a withdrawn-viewer row <code>is_attending: false, is_active_attendee: false</code>.</li>
+      <li><span class="sev info">gate</span><code>npm run typecheck</code> (<code>tsc --noEmit</code>) passes with no <code>as</code> casts added, and any further file it flags is updated the same way.</li>
+    </ul>
+  </li>
+</ul>
+</div>
+</div>
+</div>
+
+<h2 id="standards">Standards Compliance</h2>
+<div class="card"><table>
+<tr><th>Standard</th><th>How it applies</th></tr>
+<tr><td><code>standards/backend/models.md</code></td><td>Numeric for money (this task adds the explicit "decimal string on the wire" entry, see Documentation), StrEnum stored as String via <code>_enum_column</code>, no <code>relationship()</code> in groups, DB-level integrity through named CHECKs.</td></tr>
+<tr><td><code>standards/backend/migrations.md</code></td><td>One logical revision, schema only, additive nullable columns (plus a NOT NULL with a constant default), <code>lock_timeout</code>, named constraints, reversible downgrade, round-trip test.</td></tr>
+<tr><td><code>standards/backend/security.md</code></td><td>Explicit matrix row 71 before rows 26/27, route <code>Depends</code> matching the row, matrix test; personalised status only on <code>/access</code> (already <code>private, no-store</code>) and authenticated <code>/mine/attendances</code>; the attendee list and <code>/mine/attendances</code> also send <code>private, no-store</code> via <code>set_personalised_cache_headers</code> (verification cycle 1).</td></tr>
+<tr><td><code>standards/backend/time.md</code></td><td><code>paid_marked_at</code> is naive UTC (<code>datetime.utcnow()</code>); tests use <code>freeze_local_now</code> and <code>clock.local_now()</code>.</td></tr>
+<tr><td><code>standards/backend/api.md</code></td><td>PUT on the sub-resource, 204, proper 400/403/404/409.</td></tr>
+<tr><td><code>standards/global/validation.md</code></td><td>Server always validates; text inputs (not <code>type=number</code>); a shared parser returning null/value/undefined; inline Polish <code>role="alert"</code>; submit blocked while invalid; allowlist (https only).</td></tr>
+<tr><td><code>standards/global/minimal-implementation.md</code></td><td>No payments table, no gateway stubs; the removed unused <code>list_attendances_for_term</code> and <code>_attendances_active_at</code>.</td></tr>
+<tr><td><code>standards/frontend/accessibility.md</code>, <code>components.md</code>, <code>css.md</code>, <code>data-fetching.md</code></td><td><code>role="switch"</code> with an accessible name; the external link has a "(nowa karta)" label; tokens only; mutations await prefix invalidation (<code>TERM_ATTENDANCE_KEY</code>, <code>TERM_ATTENDEES_KEY</code>).</td></tr>
+<tr><td><code>standards/testing/backend-testing.md</code>, <code>frontend-testing.md</code></td><td>Naming <code>test_&lt;op&gt;_&lt;scenario&gt;_&lt;expected&gt;</code>, exact response key sets, 2-8 tests per group.</td></tr>
+</table></div>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card"><ul style="list-style:none;padding-left:0">
+  <li>☐ <code>uv run python -m pytest tests/test_rsvp_reactivation.py</code> (from <code>src/backend</code>): all tests pass, including the 2 former red tests.</li>
+  <li>☐ The new and updated backend and frontend tests pass. The 0106 round trip passes, and <code>alembic downgrade 0105</code> followed by <code>upgrade head</code> leaves the schema identical.</li>
+  <li>☐ An organizer can:
+    <ul>
+      <li>set a default price and link</li>
+      <li>create a term that inherits them</li>
+      <li>override or clear them per term</li>
+      <li>mark an attendee as paid before the start, while the list is open, and after the close</li>
+    </ul>
+  </li>
+  <li>☐ An attendee sees the price before signing up and the correct one of the three payment states after it. An anonymous visitor sees the price and never any status.</li>
+  <li>☐ A user who withdraws can sign up again from the term page. They reappear on the organizer list with their payment status kept and presence cleared (open list) or unchanged (closed list), and they no longer appear in the public guardian list while withdrawn.</li>
+  <li>☐ The organizer sees the refund hint on every withdrawn PAID row, including one withdrawn after the close, and the counts equal <code>attendee_count</code>.</li>
+  <li>☐ Client and server show the same Polish text for each price and URL rule. Saving an untouched "Edytuj termin" form sends no price or URL patch.</li>
+  <li>☐ Invalid prices and URLs are rejected with Polish messages on both client and server. A <code>javascript:</code> or <code>http:</code> URL can never be stored.</li>
+  <li>☐ <code>architecture.md</code> documents migration 0106, row 71, the payment semantics and the rollback.</li>
+  <li>☐ <code>standards/backend/models.md</code> documents money as <code>Numeric</code> with decimal-string JSON on the wire.</li>
+</ul></div>
+
+<h2 id="post-verification">Post-verification changes (cycle 1)</h2>
+<div class="card">
+<p>Changes made after <code>verification/implementation-verification.md</code> (cycle 0) and its fix cycles. They override the earlier sections where they differ.</p>
+<ul>
+  <li><b>Nine CHECKs.</b> <code>ck_groups_default_payment_url_https</code> and <code>ck_terms_payment_url_https</code> (<code>url IS NULL OR url ILIKE 'https://%'</code>) join the original seven, as a database backstop for the request validation. <code>ILIKE</code> makes the check case-insensitive, like the server's <code>scheme.lower()</code> and the client's <code>/i</code>, so <code>HTTPS://…</code> is stored as typed instead of failing with a 500.</li>
+  <li><b>Module of <code>set_payment_status</code>.</b> It lives in <code>app/groups/application/attendance_points.py</code> next to <code>set_presence</code> (same check order 403 → 404 term → 404 row, <code>FOR UPDATE</code> + <code>populate_existing</code>, <code>mapped_transaction_conflicts</code>). <code>term_payments.py</code> holds only the price/link rules (<code>PAYMENT_URL_REQUIRES_PRICE_MESSAGE</code>, <code>ensure_payment_url_has_price</code>, <code>derive_payment_method</code>). The status comparison uses <code>!=</code> (cycle 2).</li>
+  <li><b>Userinfo rejected.</b> The server rejects any <code>@</code> in the netloc; the client rejects a non-empty <code>username</code>/<code>password</code> and (cycle 2) any <code>@</code> in the raw authority (<code>https://@x.pl</code>, <code>https://:@x.pl</code>).</li>
+  <li><b>Client/server parity (cycle 2).</b> Both sides reject a backslash. The server also rejects an invalid port (<code>urlsplit(...).port</code> raising <code>ValueError</code>, e.g. <code>https://x.pl:99999</code>), which the client's <code>new URL</code> already refused.</li>
+  <li><b>INFO log on a payment status change.</b> One line with ids and the new status only, written only when the status actually changes; never the URL.</li>
+  <li><b><code>private, no-store</code></b> via <code>set_personalised_cache_headers</code> on the organizer attendee list and on <code>/mine/attendances</code>.</li>
+  <li><b>Client href re-check.</b> <code>SignUpFooter</code> renders the "Zapłać" <code>&lt;a&gt;</code> only when <code>parsePaymentUrl(paymentUrl)</code> returns a string; otherwise it shows "Do zapłaty: … (na miejscu)".</li>
+  <li><b>Stricter client parser.</b> <code>parsePaymentUrl</code> needs a literal <code>https://</code> prefix (any case), rejects <code>[\s\p{C}]</code> (matching Python <code>isspace()</code>/<code>isprintable()</code>), needs a host and returns the trimmed input as typed.</li>
+  <li><b><code>!= null</code> tolerance.</b> Price/link reads use <code>!= null</code> / <code>== null</code> (<code>TermCard</code>, <code>TermSignUp</code>, <code>TermCards</code>, <code>RsvpDialogLoggedIn</code>, <code>FirstTermStepperOrganizer</code>, <code>SignUpFooter</code>), so a response from an older backend without the fields renders as free (no "NaN zł", no link); pinned by a test in <code>TermPagePayment.test.tsx</code> (cycle 2).</li>
+  <li><b>Prefill hint.</b> The "price and link from the circle" hint sits under the page/sheet title and is shown only when the circle has defaults.</li>
+  <li><b>Shared <code>Switch</code>.</b> The payment toggle and <code>ToggleRow</code> use one <code>Switch</code> component (<code>components/shared/appComponents.tsx</code>).</li>
+  <li><b>"Zapłać" after the term ends</b> stays visible (user decision).</li>
+  <li><b>Deviation D5.</b> "✓ Opłacone" uses <code>bg-primary-soft text-primary-fg</code> instead of the mockup's mint-soft (see the <a href="#deviations">deviations table</a>).</li>
+</ul>
+</div>
+
+<h2 id="revisions">Revision history</h2>
+<div class="card">
+<p><b>2026-11-24, rev 3</b> (after verification cycles 1 and 2)</p>
+<ul>
+  <li>Added <a href="#post-verification">Post-verification changes (cycle 1)</a>: nine CHECKs incl. <code>ck_*_payment_url_https</code> (<code>ILIKE</code>), <code>set_payment_status</code> in <code>attendance_points.py</code>, userinfo/backslash/port rules, INFO log, <code>private, no-store</code>, client href re-check and stricter parser, <code>!= null</code> tolerance, prefill hint placement, shared <code>Switch</code>, "Zapłać" after term end kept.</li>
+  <li>Accepted deviation D5 ("Opłacone" in primary-soft) recorded; stale statements (7 CHECKs, module of <code>set_payment_status</code>, mint-soft) updated.</li>
+</ul>
+<p><b>2026-11-24, rev 2</b> (after <a href="../verification/spec-audit.md" target="_blank" rel="noopener"><code>verification/spec-audit.md</code></a>; user decisions binding)</p>
+<table>
+<tr><th>Finding</th><th>Resolution</th></tr>
+<tr><td><span class="sev warning">M1</span></td><td>Re-RSVP clears <code>present_marked_at</code> only while the list is open; a closed-list test was added.</td></tr>
+<tr><td><span class="sev warning">M2</span></td><td>Counts use counted rows only; recorded as mockup deviation D1.</td></tr>
+<tr><td><span class="sev warning">M3</span></td><td>On term create, an explicit <code>price: null</code> with the URL omitted gives a free term without the inherited link; full inheritance table and a test.</td></tr>
+<tr><td><span class="sev info">L1/L2</span></td><td>Complete frontend fixture list (incl. the nine audit files and the <code>termViewState.test.ts:65</code> row) and the <code>test_group_access.py:353-390</code> key sets.</td></tr>
+<tr><td><span class="sev info">L3/L4/L5</span></td><td>Switch colours, neutral withdrawn note and the missing "Wypisz się" listed as accepted deviations D2–D4.</td></tr>
+<tr><td><span class="sev info">L6</span></td><td>Canonical outputs of <code>parsePrice</code> and <code>parsePaymentUrl</code> pinned.</td></tr>
+<tr><td><span class="sev info">L7</span></td><td>One Polish error copy table shared by client and server (adds the client length message).</td></tr>
+<tr><td><span class="sev info">L8</span></td><td>Prop wiring for <code>TermAttendeeRow</code> (<code>priced</code>, <code>onPayment</code>), <code>memberTermCard</code> (<code>features/meetings/meetingsList.ts</code>) and the stepper's <code>defaultPrice</code>/<code>defaultPaymentUrl</code>.</td></tr>
+<tr><td><span class="sev info">L9</span></td><td><code>withdrawn</code> now means any withdrawal and a new <code>counted</code> flag drives the counts, so PAID rows withdrawn after the close get the refund hint while counts stay equal to the close result.</td></tr>
+<tr><td><span class="sev info">L10</span></td><td>Missing unique <code>(term_id, party_id)</code> recorded as an accepted risk.</td></tr>
+<tr><td>—</td><td>Off-by-one line references fixed; a <code>models.md</code> money-convention update item added.</td></tr>
+</table>
+</div>
+</main>
+</body>
+</html>

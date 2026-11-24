@@ -33,6 +33,7 @@ from ..schemas import (
     UpdateTermRequest,
 )
 from .circles import _require_active_organizer, get_group, is_active_group_organizer
+from .term_payments import derive_payment_method, ensure_payment_url_has_price
 
 TERM_LOCATION_REQUIRED_MESSAGE = "Wybierz miejsce terminu."
 ATTENDANCE_LEVEL_MESSAGE = "Wybierz jeden z dozwolonych poziomów punktów."
@@ -57,7 +58,9 @@ async def create_term(db: AsyncSession, principal: Principal, data: CreateTermRe
     value (later default changes never propagate). A term needs a place:
     neither a sent one nor the Circle's default -> 400. Only a caller-supplied
     place other than the Circle's default is ownership-checked — the default
-    (inherited or re-sent) is the Circle's own and may even be soft-deleted."""
+    (inherited or re-sent) is the Circle's own and may even be soft-deleted.
+    `price`/`payment_url` follow the spec's inheritance table (see
+    `CreateTermRequest`); the payment method is derived from the link."""
     profile = await get_profile_by_principal(db, principal)
     group = await get_group(db, data.group_id)
     await _require_active_organizer(db, data.group_id, profile.party_id)
@@ -72,6 +75,14 @@ async def create_term(db: AsyncSession, principal: Principal, data: CreateTermRe
     if location_id is None:
         raise ValueError(TERM_LOCATION_REQUIRED_MESSAGE)
     capacity = data.capacity if "capacity" in data.model_fields_set else group.default_capacity
+    price = data.price if "price" in data.model_fields_set else group.default_price
+    if "payment_url" in data.model_fields_set:
+        payment_url = data.payment_url
+    elif "price" in data.model_fields_set and data.price is None:
+        payment_url = None  # an explicit free term does not inherit the link
+    else:
+        payment_url = group.default_payment_url
+    ensure_payment_url_has_price(price, payment_url)
     attendance_points = await _allowed_level(db, data.attendance_points)
 
     term = Term(
@@ -80,6 +91,9 @@ async def create_term(db: AsyncSession, principal: Principal, data: CreateTermRe
         description=data.description,
         location_id=location_id,
         capacity=capacity,
+        price=price,
+        payment_url=payment_url,
+        payment_method=derive_payment_method(payment_url),
         attendance_points=attendance_points,
     )
     db.add(term)
@@ -240,11 +254,17 @@ async def update_term(
     cannot be cleared (`null` -> 400). A newly assigned place is
     ownership-checked; re-sending the current one or the
     Circle's default (mirrors `create_term`) is not. A changed
-    `attendance_points` must be one of the config's current levels."""
+    `attendance_points` must be one of the config's current levels.
+    `price`/`payment_url` follow `model_fields_set` independently; the
+    merged pair is checked (a link needs a price) before any assignment and
+    the payment method is re-derived from the merged link."""
     term = await get_term(db, term_id)
     await _require_active_organizer(db, term.circle_group_id, caller_party_id)
     if "location_id" in data.model_fields_set and data.location_id is None:
         raise ValueError(TERM_LOCATION_REQUIRED_MESSAGE)
+    price = data.price if "price" in data.model_fields_set else term.price
+    payment_url = data.payment_url if "payment_url" in data.model_fields_set else term.payment_url
+    ensure_payment_url_has_price(price, payment_url)
     await check_text(TextField.TERM_DESCRIPTION, data.description, term.description)
     # Re-sending the current level is a no-op, even when it was retired or
     # the attendance list is already closed.
@@ -265,6 +285,9 @@ async def update_term(
         term.location_id = data.location_id
     if "capacity" in data.model_fields_set:
         term.capacity = data.capacity
+    term.price = price
+    term.payment_url = payment_url
+    term.payment_method = derive_payment_method(payment_url)
 
     await db.commit()
     await db.refresh(term)

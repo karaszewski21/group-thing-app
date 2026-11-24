@@ -522,3 +522,34 @@ def test_resolveRequirement_termPresencePut_resolvesToRow70EditAheadOfRows26And2
     patterns = [entry.pattern.pattern for entry in AUTHORIZATION_MATRIX]
     row_70 = patterns.index(r"^/api/groups/[^/]+/terms/[^/]+/attendees/[^/]+/presence$")
     assert row_70 < patterns.index(r"^/api/groups(/.*)?$")
+
+
+_PAYMENT_PATTERN = r"^/api/groups/[^/]+/terms/[^/]+/attendees/[^/]+/payment$"
+
+
+def test_resolveRequirement_termPaymentPut_resolvesToRow71EditAheadOfRows26And27() -> None:
+    """Row 71: the organizer's payment PUT needs EDIT/mcp:edit instead of
+    falling to the AUTHENTICATED catch-all; it sits right after row 70."""
+    path = "/api/groups/g1/terms/t1/attendees/p1/payment"
+    assert resolve_requirement("PUT", path) == EDIT
+    patterns = [entry.pattern.pattern for entry in AUTHORIZATION_MATRIX]
+    row_70 = patterns.index(r"^/api/groups/[^/]+/terms/[^/]+/attendees/[^/]+/presence$")
+    row_71 = patterns.index(_PAYMENT_PATTERN)
+    assert row_71 == row_70 + 1
+    assert row_71 < patterns.index(r"^/api/groups(/.*)?$")
+
+
+def test_resolveRequirement_row71_matchesOnlyPaymentPut() -> None:
+    row_71 = next(e for e in AUTHORIZATION_MATRIX if e.pattern.pattern == _PAYMENT_PATTERN)
+    assert row_71.methods == frozenset({"PUT"})
+    assert row_71.requirement == EDIT
+    payment = "/api/groups/g1/terms/t1/attendees/p1/payment"
+    assert resolve_requirement("GET", payment) == READ
+    assert resolve_requirement("POST", payment) == EDIT
+    assert resolve_requirement("PATCH", payment) == "AUTHENTICATED"
+    assert resolve_requirement("PUT", payment + "/x") == "AUTHENTICATED"
+    assert (
+        resolve_requirement("PUT", "/api/groups/g1/terms/t1/attendees/p1/paid") == "AUTHENTICATED"
+    )
+    assert resolve_requirement("PUT", "/api/groups/g1/terms/t1/attendees/p1/presence") == EDIT
+    assert resolve_requirement("GET", "/api/groups/g1/terms/t1/attendees") == READ

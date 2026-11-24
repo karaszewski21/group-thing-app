@@ -102,6 +102,8 @@ export function TermNeededItems() {
           groupId={view.group.id}
           termId={term.id}
           displayName={displayName}
+          price={term.price}
+          paymentUrl={term.payment_url}
           onClose={signUp.closeDialog}
           onSubmitted={signUp.handleSubmitted}
         />
