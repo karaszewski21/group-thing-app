@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Log: Google login and sign-up in aj — 2026-11-25-google-login</title>
+<style>:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+/* extensions */
+pre { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:12px 14px; overflow-x:auto; font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace; }
+.tldr { border-left:4px solid var(--accent); }
+.tldr h3 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); margin:12px 0 4px; }
+.toc { font-size:13px; margin:8px 0 4px; color:var(--dim); }
+.tablewrap { overflow-x:auto; }
+.adr h2 { margin-top:0; }
+.adr h3 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); margin:14px 0 4px; }
+.adr h4 { font-size:13px; margin:8px 0 2px; }
+.adr .good { color:var(--ok); } .adr .bad { color:var(--warn); }
+.status { background:var(--ok-soft); color:var(--ok); }
+.outcome { background:var(--accent-soft); border-radius:8px; padding:8px 12px; }
+</style>
+</head>
+<body>
+<nav class="crumbs"><a href="../dashboard.html">← Dashboard</a> <a href="research-report.html">Report</a> <a href="solution-exploration.html">Exploration</a> <a href="high-level-design.html">Design</a> <span class="here">Decision Log</span> <a href="decision-log.md" target="_blank" rel="noopener" class="md">md twin ↗</a></nav>
+<header>
+  <span class="badge">decision log</span>
+  <h1>Decision Log: Google login and sign-up in aj</h1>
+  <div style="color:var(--dim);font-size:12.5px">Generated 2026-11-25 · research suite · <a href="decision-log.md" target="_blank" rel="noopener">decision-log.md</a></div>
+</header>
+<div class="tiles"><div class="tile"><b>9</b><span>ADRs</span></div><div class="tile"><b>9</b><span>accepted</span></div><div class="tile"><b>0</b><span>superseded</span></div><div class="tile"><b>0</b><span>proposed</span></div></div>
+<section class="card tldr"><h3>TL;DR</h3><ul><li>Nine accepted ADRs. Together they make Google an upstream identity source that ends in the existing aj login JWT, so the session, guards and the OAuth2 server stay unchanged.</li><li>The most consequential: the <strong>GIS popup with a nonce cookie</strong> (ADR-001), <strong>no auto-linking by email</strong> (ADR-005, forced by unverified emails and unrevocable JWTs), and the <strong>nullable <code>password_hash</code></strong>, which rules out image-only rollback past 0108 (ADR-004).</li><li>Alternatives come from <code>solution-exploration.md</code> (areas 1–5) and the research report (§5–§11).</li></ul><h3>Key Decisions</h3><ul><li>ADR-001 GIS popup + ID token + server nonce cookie — in-page <code>AuthSheet</code>, no secret.</li><li>ADR-002 JSON response body — single session writer, no token in URLs.</li><li>ADR-003 <code>user_identities</code> keyed on (provider, subject) — <code>sub</code> is the stable key.</li><li>ADR-004 nullable <code>password_hash</code>, guarded downgrade — the old image would 500 on Google-only users.</li><li>ADR-005 409 on email collision, 403 on unverified email — prevents the pre-account-hijack.</li><li>ADR-006 always GUEST — parity with password sign-up.</li><li>ADR-007 <code>pyjwt[crypto]</code> — smallest dependency for RS256.</li><li>ADR-008 code in <code>app/auth</code>, shared bootstrap, DB permissions — one account-creation path, admins keep ADMIN.</li><li>ADR-009 lean complete MVP behind a client-ID presence gate.</li></ul><h3>Open Questions / Risks</h3><ul><li>ADR-001 rests on three owner assumptions: the custom pill button is not required, Facebook is not next, and popups work for the main audience. If any fails, ADR-001 and ADR-002 should be superseded by the code flow with a handoff cookie (1B + 2B).</li><li>ADR-005 leaves existing password users with a dead end until linking from settings (D1) ships.</li></ul></section>
+
+<main>
+<section class="card"><h2 style="margin-top:0">Index</h2><div class="tablewrap"><table><thead><tr><th>ADR</th><th>Decision</th><th>Status</th></tr></thead><tbody><tr><td><a href="#adr-001">ADR-001</a></td><td>Browser flow — GIS popup button with a server-issued nonce cookie</td><td><span class="badge status">Accepted</span></td></tr><tr><td><a href="#adr-002">ADR-002</a></td><td>Token handoff — aj JWT in the JSON response body</td><td><span class="badge status">Accepted</span></td></tr><tr><td><a href="#adr-003">ADR-003</a></td><td>External identities in a separate <code>user_identities</code> table keyed on (provider, subject)</td><td><span class="badge status">Accepted</span></td></tr><tr><td><a href="#adr-004">ADR-004</a></td><td>Nullable <code>users.password_hash</code> with a guarded downgrade and no image-only rollback</td><td><span class="badge status">Accepted</span></td></tr><tr><td><a href="#adr-005">ADR-005</a></td><td>No automatic linking by email — refuse collisions with 409</td><td><span class="badge status">Accepted</span></td></tr><tr><td><a href="#adr-006">ADR-006</a></td><td>Every Google sign-up starts as GUEST</td><td><span class="badge status">Accepted</span></td></tr><tr><td><a href="#adr-007">ADR-007</a></td><td>Verify ID tokens locally with <code>pyjwt[crypto]</code></td><td><span class="badge status">Accepted</span></td></tr><tr><td><a href="#adr-008">ADR-008</a></td><td>Google code in <code>app/auth</code>, with a shared person-account bootstrap and DB permissions</td><td><span class="badge status">Accepted</span></td></tr><tr><td><a href="#adr-009">ADR-009</a></td><td>Lean complete MVP behind a client-ID presence gate</td><td><span class="badge status">Accepted</span></td></tr></tbody></table></div></section><section class="card adr" id="adr-001"><h2>ADR-001: Browser flow — GIS popup button with a server-issued nonce cookie <span class="badge status">Accepted</span></h2><h3>Context</h3>
+<p>The browser must obtain a proof of Google identity and hand it to aj. aj logs people in "without leaving the page" through <code>AuthSheet</code> on six public surfaces, and that in-page flow is a documented design intent. A redirect flow would leave the page, need a client secret, redirect URIs for each environment and an explicit public base URL (request-derived URLs are wrong behind nginx today).</p>
+<h3>Decision Drivers</h3>
+<ul><li>Keep the in-page <code>AuthSheet</code> login</li><li>Smallest config and secret burden (no secret, no redirect URIs)</li><li>Replay protection binding the token to this browser</li><li>Fewest new routes and moving parts</li></ul>
+<h3>Considered Options</h3>
+<ol><li>1A GIS popup button posting the ID token, with a nonce from a signed HttpOnly cookie</li><li>1B Server-side OIDC code flow with full redirect (state + nonce + PKCE)</li><li>1C GIS redirect mode (<code>login_uri</code> form POST with <code>g_csrf_token</code>)</li><li>1D GIS code client in popup mode (custom button, server code exchange)</li><li>1E Hybrid of 1A with a 1B fallback</li></ol>
+<h3>Decision Outcome</h3>
+<p class="outcome">Chosen option: 1A, because it is the cheapest option that keeps the in-page login: two routes (<code>GET /api/auth/google/nonce</code>, <code>POST /api/auth/google</code>), no secret, no redirect URIs, and the Google-rendered button that Google's branding guidelines prefer anyway.</p>
+<h3>Consequences</h3>
+<h4 class="good">Good</h4>
+<ul><li><code>AuthSheet</code> stays in place on all six surfaces; page context such as a half-typed message survives sign-in.</li><li>No <code>GOOGLE_CLIENT_SECRET</code>, no <code>PUBLIC_BASE_URL</code>, so the nginx base-URL bug (D11) does not apply.</li><li>The signed, 10-minute, HttpOnly nonce cookie makes a stolen ID token useless in another browser.</li><li>One Tap (D5) can be added later on the same loader.</li></ul>
+<h4 class="bad">Bad</h4>
+<ul><li>A third-party script and iframe run on auth surfaces; a future CSP must list the <code>gsi</code> sources.</li><li>Popups may be blocked in in-app browsers (unmeasured); the fix is the code-flow fallback (D6).</li><li>The button is Google-rendered at a fixed pixel width, and its behaviour inside the focus trap is untested.</li><li>The browser side is Google-specific; Facebook would need its own flow.</li></ul></section>
+<section class="card adr" id="adr-002"><h2>ADR-002: Token handoff — aj JWT in the JSON response body <span class="badge status">Accepted</span></h2><h3>Context</h3>
+<p>After verification, the aj login JWT has to reach the browser. Today login and register return it as JSON, and the frontend's <code>setSession</code> is the only writer of both localStorage and the <code>auth_token</code> cookie; the backend never sets cookies. A backend-set session cookie can lose to a stale localStorage token and log the user into the wrong account.</p>
+<h3>Decision Drivers</h3>
+<ul><li><code>setSession</code> stays the single session writer</li><li>The token never appears in a URL, history or <code>Location</code> header</li><li>No server-side store (works with several workers and restarts)</li><li>Login CSRF stays structurally impossible</li></ul>
+<h3>Considered Options</h3>
+<ol><li>2A JSON body <code>{token, created, party_id}</code> of the POST response</li><li>2B Short-lived HttpOnly handoff cookie plus a JSON exchange</li><li>2C One-time code in a server-side store</li><li>2D Token in the URL fragment</li><li>2E Backend sets the <code>auth_token</code> cookie</li></ol>
+<h3>Decision Outcome</h3>
+<p class="outcome">Chosen option: 2A, because with the popup flow the credential is already in JS, so returning the token exactly like <code>POST /api/auth/login</code> needs no new mechanism. The response is 200 for an existing account and 201 for a new one; <code>party_id</code> is the account's party in both cases.</p>
+<h3>Consequences</h3>
+<h4 class="good">Good</h4>
+<ul><li><code>AuthContext.loginWithGoogle</code> reuses <code>applyToken</code>, and <code>AuthGuard</code>'s full reload to <code>returnTo</code> (including <code>/oauth2/authorize?…</code>) works unchanged.</li><li>A cross-site POST cannot plant a session: the endpoint accepts JSON only and the attacker's page cannot read the response.</li></ul>
+<h4 class="bad">Bad</h4>
+<ul><li>Only works for flows where JS holds the credential; a redirect fallback (D6) would need 2B.</li></ul></section>
+<section class="card adr" id="adr-003"><h2>ADR-003: External identities in a separate <code>user_identities</code> table keyed on (provider, subject) <span class="badge status">Accepted</span></h2><h3>Context</h3>
+<p>aj identifies users by <code>users.username</code>, which about 20 call sites resolve, and the JWT <code>sub</code> must stay that username. A Google account must map to exactly one aj user. Google's <code>sub</code> is stable and unique; the email can change, and OIDC Core §5.7 says it must not be used as a key. Facebook or another provider may come later.</p>
+<h3>Decision Drivers</h3>
+<ul><li><code>sub</code> as the only lookup key; email only as a hint and a snapshot</li><li>No change to <code>users.username</code> or the JWT shape</li><li>Room for more providers and for linking from settings (D1)</li><li>Project entity standards (<code>BaseEntity</code>, string-backed enums, named constraints)</li></ul>
+<h3>Considered Options</h3>
+<ol><li>A separate <code>user_identities</code> table: <code>user_id</code> FK ON DELETE CASCADE, <code>provider</code> (string enum, GOOGLE), case-sensitive <code>subject</code>, <code>email</code> snapshot (not unique), <code>email_verified</code>; unique (provider, subject) and (user_id, provider)</li><li><code>google_sub</code> and related columns on <code>users</code></li><li>Email as the link key (no new table)</li></ol>
+<h3>Decision Outcome</h3>
+<p class="outcome">Chosen option: 1, because it keeps identity keyed on <code>sub</code>, adds providers as data rather than columns, and leaves <code>users</code> untouched apart from the nullable hash (ADR-004). It lives in <code>app/auth</code> next to <code>User</code>, migration 0107 (schema only).</p>
+<h3>Consequences</h3>
+<h4 class="good">Good</h4>
+<ul><li>A changed Google email never breaks sign-in; the snapshot is refreshed on each login.</li><li>One Google account per aj user is enforced by the database.</li><li>The CASCADE FK means a future account deletion (D10) needs no extra step.</li></ul>
+<h4 class="bad">Bad</h4>
+<ul><li>One more table and an extra lookup per Google sign-in (an indexed unique lookup).</li><li><code>last_login_at</code> is not included (minimal implementation), so there is no per-identity audit trail.</li></ul></section>
+<section class="card adr" id="adr-004"><h2>ADR-004: Nullable <code>users.password_hash</code> with a guarded downgrade and no image-only rollback <span class="badge status">Accepted</span></h2><h3>Context</h3>
+<p><code>users.password_hash</code> is <code>NOT NULL</code>, and a Google-only account has no password. Only a few places assume a password: account creation always hashes, and login calls <code>verify_password</code>, which raises (a 500) on <code>None</code>. There is no password change, reset or account deletion. Migration standards require reversible migrations and allow guarded downgrades when data would be lost.</p>
+<h3>Decision Drivers</h3>
+<ul><li>Represent "no password" honestly, not with a fake secret</li><li>Password login must stay a plain 401 for such accounts</li><li>Safe, documented rollback</li></ul>
+<h3>Considered Options</h3>
+<ol><li>Revision 0108: <code>ALTER COLUMN password_hash DROP NOT NULL</code> with <code>SET LOCAL lock_timeout = '5s'</code>; downgrade refuses while any <code>password_hash IS NULL</code> row exists and names the recovery path</li><li>Store a random unusable bcrypt hash for Google-only accounts</li><li>A sentinel string in the column</li></ol>
+<h3>Decision Outcome</h3>
+<p class="outcome">Chosen option: 1, because a NULL is unambiguous for a future "set first password" (D4) and "unlink needs a credential" rule (D1), and the guarded downgrade follows the 0073–0076 precedent. Login short-circuits on NULL to the same 401.</p>
+<h3>Consequences</h3>
+<h4 class="good">Good</h4>
+<ul><li>No fake secrets; the state is visible in the data.</li><li>The downgrade cannot silently corrupt Google-only accounts.</li></ul>
+<h4 class="bad">Bad</h4>
+<ul><li><strong>No image-only rollback past 0108</strong>: an older image returns a 500 for Google-only users. The runbook in <code>architecture.md</code> says: <code>pg_dump</code> first, ship 0107 and 0108 in one deploy, run the guard count before any downgrade, recovery = delete those accounts or restore the pre-0108 dump.</li><li>The <code>ALTER</code> takes an ACCESS EXCLUSIVE lock (metadata-only, fast; the lock timeout bounds the wait).</li></ul></section>
+<section class="card adr" id="adr-005"><h2>ADR-005: No automatic linking by email — refuse collisions with 409 <span class="badge status">Accepted</span></h2><h3>Context</h3>
+<p>An unlinked Google sign-in may carry an email that already belongs to an aj profile. aj never verifies emails at password registration, and login JWTs cannot be revoked (1 h lifetime). In the classic–federated merge attack (USENIX Security 2022), an attacker pre-registers the victim's email with a password, and the victim's later Google login is merged into the attacker's account. The defences (verify before merge, or kill the password and every session on merge) are not available to aj.</p>
+<h3>Decision Drivers</h3>
+<ul><li>No pre-account-hijack window</li><li>No new enumeration leak beyond what <code>register</code> already reveals</li><li>Least code; works regardless of future email verification</li></ul>
+<h3>Considered Options</h3>
+<ol><li>3A Refuse with a Polish 409; linking only later, from an authenticated session (D1)</li><li>3B Link after password re-authentication in the same flow</li><li>3C Auto-link when Google vouches and the aj email is verified</li><li>3D Auto-link on the Google-verified email and NULL the password</li></ol>
+<h3>Decision Outcome</h3>
+<p class="outcome">Chosen option: 3A, because it is the only option that is safe today without new infrastructure. The resolver's rules:</p>
+<div class="tablewrap"><table><thead><tr><th>Situation</th><th>Result</th></tr></thead><tbody><tr><td>(GOOGLE, <code>sub</code>) linked</td><td>log in; refresh the email snapshot</td></tr><tr><td>unlinked, <code>email_verified = false</code></td><td>403 "Adres email konta Google nie jest potwierdzony"</td></tr><tr><td>unlinked, email matches any <code>user_profiles</code> row (account or login-less)</td><td>409 "Konto z tym adresem już istnieje — zaloguj się hasłem"</td></tr><tr><td>unlinked, no match</td><td>create the account + identity, 201</td></tr><tr><td>concurrent first sign-in, identity unique violated</td><td>roll back, re-read, log in</td></tr><tr><td>concurrent sign-up, email unique violated</td><td>409</td></tr></tbody></table></div>
+<h3>Consequences</h3>
+<h4 class="good">Good</h4>
+<ul><li>No hijack window, and the 409 mirrors the existing <code>DuplicateEmailException</code>, so it leaks nothing new.</li><li>3C slots in later once email verification (D8) exists.</li></ul>
+<h4 class="bad">Bad</h4>
+<ul><li>Existing password users pressing Google meet a dead end until D1 ships; the copy must tell them to log in with the password.</li><li>One person cannot hold both credentials in v1.</li><li>Accepted risk: an account change (future unlink, deletion, Google session revocation) cannot end a live JWT before <code>exp</code>.</li></ul></section>
+<section class="card adr" id="adr-006"><h2>ADR-006: Every Google sign-up starts as GUEST <span class="badge status">Accepted</span></h2><h3>Context</h3>
+<p>The research proposed an optional <code>role</code> parameter because the register form once offered GUEST or ORGANIZER. The current form has no chooser; <code>AuthContext.register</code> always sends GUEST. Organizers become organizers by founding an Organization, which grants ORGANIZATOR.</p>
+<h3>Decision Drivers</h3>
+<ul><li>Parity with password sign-up</li><li>Minimal-implementation standard: no speculative inputs</li><li>No new decision point or abuse surface</li></ul>
+<h3>Considered Options</h3>
+<ol><li>4A Optional <code>role</code> request parameter, default GUEST</li><li>4B Post-sign-up onboarding chooser</li><li>4C Always GUEST, no role input</li><li>4D Separate Google buttons per tab, role from the tab</li></ol>
+<h3>Decision Outcome</h3>
+<p class="outcome">Chosen option: 4C, because no UI would send ORGANIZER and the organizer path already exists. The request body is only <code>{credential}</code>.</p>
+<h3>Consequences</h3>
+<h4 class="good">Good</h4>
+<ul><li>The resolver depends on nothing from the request but the credential.</li><li>One button rendered once above both <code>AuthTabs</code> tabs, as today.</li></ul>
+<h4 class="bad">Bad</h4>
+<ul><li>If an organizer sign-up entry returns, the optional field has to be added then (D2, additive).</li></ul></section>
+<section class="card adr" id="adr-007"><h2>ADR-007: Verify ID tokens locally with <code>pyjwt[crypto]</code> <span class="badge status">Accepted</span></h2><h3>Context</h3>
+<p>Google ID tokens are RS256 JWTs signed with keys published as JWKS. PyJWT 2.13.0 is already the aj JWT library, but <code>cryptography</code> is absent from <code>uv.lock</code>, so RS256 needs a new dependency in any case. Verification must check <code>iss</code> (two forms), <code>aud</code>, <code>azp</code>, <code>exp</code>/<code>iat</code> and the nonce, and must not block the event loop.</p>
+<h3>Decision Drivers</h3>
+<ul><li>Minimal dependencies</li><li>Async-friendly (no blocking JWKS fetch on the event loop)</li><li>Pinned algorithm, issuer containers, required claims, key refresh on unknown <code>kid</code></li><li>Testable without network calls</li></ul>
+<h3>Considered Options</h3>
+<ol><li><code>pyjwt[crypto]</code> with a cached JWKS client fetched in a threadpool</li><li>google-auth (sync <code>requests</code> transport, certificates re-fetched unless wrapped)</li><li>Authlib (needs Starlette <code>SessionMiddleware</code>)</li><li>Google's <code>tokeninfo</code> endpoint (network call per sign-in, discouraged for production)</li></ol>
+<h3>Decision Outcome</h3>
+<p class="outcome">Chosen option: 1, because it is an extra of a library already in use, supports every required check, and lets tests inject a locally generated RSA key. <code>algorithms=["RS256"]</code> is pinned, leeway ≤ 30 s, the nonce compared in constant time, and the verifier exposed as an overridable FastAPI dependency.</p>
+<h3>Consequences</h3>
+<h4 class="good">Good</h4>
+<ul><li>One JWT library for both aj tokens and Google tokens; no session middleware.</li><li>Table tests with locally signed tokens cover alg confusion, wrong <code>aud</code>/<code>iss</code>, expiry, nonce and unknown <code>kid</code>.</li></ul>
+<h4 class="bad">Bad</h4>
+<ul><li>Adds <code>cryptography</code> (with <code>cffi</code>, <code>pycparser</code>) to the image; <code>uv.lock</code> ships in the same change.</li><li>Sign-in depends on reaching Google's JWKS when the cache is cold or a key rotates; it fails closed with a 401.</li></ul></section>
+<section class="card adr" id="adr-008"><h2>ADR-008: Google code in <code>app/auth</code>, with a shared person-account bootstrap and DB permissions <span class="badge status">Accepted</span></h2><h3>Context</h3>
+<p>The owner asked to keep Google code in <code>app/auth</code> (no new module). Creating a person account (Party, Profile, <code>UserRole(USER)</code>, solo Family, username and display name) currently lives inside <code>register()</code>, which also has an unhandled IntegrityError race (a 500). Register hard-codes <code>["READ","EDIT"]</code> in the token, while login reads permissions from <code>user_permissions</code>.</p>
+<h3>Decision Drivers</h3>
+<ul><li>One definition of "create a person account"</li><li>A returning admin must keep ADMIN</li><li>Respect bounded-context boundaries (users context owns profiles and roles)</li></ul>
+<h3>Considered Options</h3>
+<ol><li>Verifier, nonce issuer, resolver, router and <code>UserIdentity</code> in <code>app/auth</code>; extract <code>bootstrap_person_account</code> (password optional) into the users context, used by both <code>register</code> and the resolver; mint tokens from <code>_load_permissions</code></li><li>A new <code>app/identity</code> module with its own account creation</li><li>Copy the <code>register</code> logic into the Google resolver</li></ol>
+<h3>Decision Outcome</h3>
+<p class="outcome">Chosen option: 1, because it follows the owner's preference, reuses the existing users-context logic instead of duplicating it, and fixes the register race in the same place (IntegrityError → the existing Polish 409).</p>
+<h3>Consequences</h3>
+<h4 class="good">Good</h4>
+<ul><li>Password and Google sign-ups create identical accounts.</li><li>Permissions always come from the DB on a Google sign-in, so roles granted later are honoured.</li><li>The router is included in the app next to the existing auth router; <code>app/oauth2</code>, core security and <code>_auth</code> are untouched.</li></ul>
+<h4 class="bad">Bad</h4>
+<ul><li><code>register</code> is refactored, so its existing tests must stay green.</li><li><code>app/auth</code> grows a dependency on a users-context service (already the direction for login).</li></ul></section>
+<section class="card adr" id="adr-009"><h2>ADR-009: Lean complete MVP behind a client-ID presence gate <span class="badge status">Accepted</span></h2><h3>Context</h3>
+<p>The feature has to ship safely before the production legal prerequisites (privacy policy, homepage, brand verification) exist, and without speculative extras. aj already gates optional integrations on the presence of their settings (photo storage, Google Maps).</p>
+<h3>Decision Drivers</h3>
+<ul><li>Ship a complete, safe sign-in with a runbook</li><li>Nothing speculative (minimal-implementation standard)</li><li>Deployable with the feature switched off</li></ul>
+<h3>Considered Options</h3>
+<ol><li>5A Minimal sign-in only (no runbook, race unfixed)</li><li>5B Lean complete MVP: migrations with tests and runbook, shared bootstrap, null-hash login guard, verifier, resolver, two routes with matrix rows, frontend button/loader/<code>loginWithGoogle</code>, Settings/compose/Dockerfile/<code>.env.example</code>, docs</li><li>5C 5B plus link/unlink in settings</li><li>5D Full social-identity package (avatar, set password, RISC, Facebook)</li></ol>
+<h3>Decision Outcome</h3>
+<p class="outcome">Chosen option: 5B, gated by <code>GOOGLE_CLIENT_ID</code> on the backend (routes answer a Polish 503 without it) and <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> on the frontend (button hidden, no script loaded; inlined at build, so changing it means rebuilding <code>web</code>).</p>
+<h3>Consequences</h3>
+<h4 class="good">Good</h4>
+<ul><li>Covers every high-priority recommendation (R2–R7) and nothing speculative.</li><li>Can be merged and deployed dark; turning it on is a config change plus a web rebuild.</li><li>Every deferral (D1–D14) is additive.</li></ul>
+<h4 class="bad">Bad</h4>
+<ul><li>Two env values must be kept consistent; a frontend-only configuration shows a button that answers 503.</li><li>Existing password users cannot attach Google yet (see ADR-005).</li></ul></section>
+</main>
+</body>
+</html>

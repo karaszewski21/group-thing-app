@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research Report — Google login for aj</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+/* extensions */
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.tldr { border-left:4px solid var(--accent); }
+.toc { font-size:13px; color:var(--dim); margin:8px 0 4px; }
+.conf { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; padding:1.5px 7px; border-radius:99px; }
+.conf.high { background:var(--ok-soft); color:var(--ok); }
+.conf.med { background:var(--warn-soft); color:var(--warn); }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media (max-width:720px){ .grid2 { grid-template-columns:1fr; } }
+.rec { border:2px solid var(--accent); }
+.swot h3 { margin:0 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:.05em; }
+pre { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px; overflow-x:auto; font-size:12px; line-height:1.45; }
+ul.check { list-style:none; padding-left:0; } ul.check li::before { content:"☐ "; color:var(--dim); }
+.insights { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px; }
+.insights .card { margin:0; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Report</span>
+  <a href="../analysis/synthesis.md" target="_blank" rel="noopener">Synthesis ↗</a>
+  <a href="research-report.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">research report · mixed</span>
+  <h1>Login and registration with a Google account in aj</h1>
+  <div style="color:var(--dim);font-size:13px">Generated 2026-11-25 · maister research-synthesizer · <a href="research-report.md" target="_blank" rel="noopener">research-report.md</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>15</b><span>findings</span></div>
+  <div class="tile"><b>11</b><span>finding files</span></div>
+  <div class="tile"><b>~25</b><span>official sources</span></div>
+  <div class="tile"><b>High</b><span>overall confidence</span></div>
+  <div class="tile"><b>2</b><span>migrations</span></div>
+  <div class="tile"><b>1</b><span>new dependency</span></div>
+</div>
+
+<section class="card tldr">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <p>Add Google sign-in as a new identity source that ends in aj's existing login path. The backend verifies the Google ID token with PyJWT + <code>cryptography</code>, resolves the user through a new <code>user_identities</code> table keyed on provider + <code>sub</code>, and returns the usual <code>{token}</code> from <code>encode_login_token</code>. The frontend stores it via <code>applyToken</code> → <code>setSession</code>, and the existing <code>AuthGuard</code> reload takes over. Nothing changes in <code>app/oauth2</code>, <code>session.ts</code> or the proxy. Two migrations are needed (0107 identities, 0108 nullable <code>password_hash</code> with a guarded downgrade). Email-based auto-linking is refused, because aj never verifies emails. Recommended flow: <b>A, a GIS popup that posts the ID token</b>, because it keeps the in-page <code>AuthSheet</code> login. <b>B, the server-side OIDC code flow</b>, is the alternative.</p>
+  <h3>Key Decisions</h3>
+  <ul>
+    <li><b>Reuse <code>encode_login_token</code> and JSON token delivery.</b> Every consumer keys off <code>token</code>, and the backend never sets cookies.</li>
+    <li><b>Use a separate, provider-generic <code>user_identities</code> table, unique on (provider, subject).</b> <code>sub</code> is the only stable key (OIDC Core §5.7).</li>
+    <li><b>Never auto-link by email.</b> Emails are never verified, so merging would allow a classic-federated-merge pre-hijack, and stateless JWTs can't be revoked to contain it.</li>
+    <li><b>Use <code>pyjwt[crypto]</code>, not google-auth or Authlib.</b> <code>cryptography</code> is absent from <code>uv.lock</code>, and this is the smallest addition that makes RS256 work.</li>
+    <li><b>Load permissions from the DB with <code>_load_permissions</code>.</b> Otherwise admins who sign in with Google lose ADMIN.</li>
+    <li><b>Recommend flow A over B.</b> This is a recommendation, not a decision. The trade-off matrix is below.</li>
+  </ul>
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li><span class="sev critical">critical</span>Owner decision: flow A or B, and whether the custom pill button is a hard requirement.</li>
+    <li><span class="sev warning">warning</span>Production prerequisites: a domain, a privacy policy and a homepage on a verified domain (for brand verification).</li>
+    <li><span class="sev warning">warning</span>Sessions can't be revoked. Unlinking, deleting the account or a Google <code>sessions-revoked</code> event can't end a live JWT before <code>exp</code> (1 h).</li>
+    <li><span class="sev info">info</span>There is no password reset, so a Google-only user who loses their Google account has no fallback.</li>
+    <li><span class="sev info">info</span>Role at sign-up: an optional <code>role</code> (default GUEST), honoured only when the account is created.</li>
+    <li><span class="sev info">info</span>Not yet tested: the GIS iframe inside the focus-trapped <code>AuthSheet</code>, and popup blocking in in-app browsers.</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents: <a href="#findings">Findings</a> · <a href="#flow">Recommended flow</a> · <a href="#tradeoff">Trade-off</a> · <a href="#linking">Linking policy</a> · <a href="#data">Data model</a> · <a href="#security">Security</a> · <a href="#config">Config &amp; deploy</a> · <a href="#tests">Tests</a> · <a href="#deps">Dependency</a> · <a href="#insights">Insights</a> · <a href="#swot">SWOT</a> · <a href="#recs">Recommendations</a> · <a href="#gaps">Gaps</a></nav>
+
+<main>
+<h2 id="findings">Findings</h2>
+<div class="card">
+<table>
+<tr><th>#</th><th>Finding</th><th>Category</th><th>Confidence</th><th>Sources</th></tr>
+<tr><td>F1</td><td>One login JWT; the frontend <code>setSession</code> is the only writer</td><td>current auth</td><td><span class="conf high">High</span></td><td>4</td></tr>
+<tr><td>F2</td><td><code>sub</code> = <code>users.username</code>; login reads permissions from the DB, register hard-codes them</td><td>current auth</td><td><span class="conf high">High</span></td><td>3</td></tr>
+<tr><td>F3</td><td>The in-house OAuth2 server is unaffected; only <code>returnTo</code> must survive</td><td>OAuth2</td><td><span class="conf high">High</span></td><td>3</td></tr>
+<tr><td>F4</td><td>Few places assume a password (create, login)</td><td>data model</td><td><span class="conf high">High</span></td><td>2</td></tr>
+<tr><td>F5</td><td>Emails are never verified; sign-up races cause a 500</td><td>data model / security</td><td><span class="conf high">High</span></td><td>3</td></tr>
+<tr><td>F6</td><td>Google ID-token rules (RS256, iss ×2, aud, exp, nonce, sub)</td><td>external</td><td><span class="conf high">High</span></td><td>4</td></tr>
+<tr><td>F7</td><td>Code flow vs GIS; FedCM; no implicit flow</td><td>external</td><td><span class="conf high">High</span></td><td>5</td></tr>
+<tr><td>F8</td><td>Pre-account hijack (classic–federated merge)</td><td>security</td><td><span class="conf high">High</span></td><td>3</td></tr>
+<tr><td>F9</td><td><code>AuthSheet</code> logs in without leaving the page, on 6 surfaces</td><td>frontend</td><td><span class="conf high">High</span></td><td>2</td></tr>
+<tr><td>F10</td><td><code>googleMaps.ts</code> loader pattern; SSR safety</td><td>frontend</td><td><span class="conf high">High</span></td><td>2</td></tr>
+<tr><td>F11</td><td>Same-origin <code>/api</code> in all environments; <code>resolve_base_url</code> is wrong at :5174</td><td>config</td><td><span class="conf high">High</span></td><td>3</td></tr>
+<tr><td>F12</td><td>Presence-gated settings; one build arg; no CSP</td><td>config</td><td><span class="conf high">High</span></td><td>3</td></tr>
+<tr><td>F13</td><td><code>cryptography</code> absent, so <code>pyjwt[crypto]</code> is needed (re-verified)</td><td>dependency</td><td><span class="conf high">High</span></td><td>3</td></tr>
+<tr><td>F14</td><td>Basic scopes need no app verification; branding needs a verified domain and a privacy policy</td><td>legal / UX</td><td><span class="conf high">High</span></td><td>4</td></tr>
+<tr><td>F15</td><td>Facebook fits the (provider, subject) table; its email is never authoritative</td><td>external</td><td><span class="conf med">Medium</span></td><td>4</td></tr>
+</table>
+<details><summary>Evidence highlights</summary>
+<ul>
+<li>The JWT is built in <code>app/core/security.py:39-55</code>. Login is at <code>app/auth/router.py:57-87</code> and register at <code>app/users/router.py:41-51</code>. <code>auth/session.ts:1-5,63-74</code> writes it; the backend never calls <code>set_cookie</code>.</li>
+<li><code>POST /oauth2/authorize</code> calls <code>Depends(require_any())</code> and stores <code>principal.username</code> (<code>app/oauth2/router.py:316-391</code>). The consent page sends <code>_token</code> (<code>OAuth2AuthorizePage.tsx:28,99-101</code>).</li>
+<li><code>password_hash</code> is NOT NULL (<code>app/auth/models.py:50</code>), and <code>verify_password(None)</code> returns a 500 (<code>core/security.py:23-25</code>).</li>
+<li>Google requires <code>sub</code> as the account key. An email is authoritative only for <code>@gmail.com</code>, or when <code>email_verified</code> is true and <code>hd</code> is set (verify-google-id-token page; OIDC Core §5.7).</li>
+<li>nginx sets <code>Host $host</code> without the port, and uvicorn runs without <code>--proxy-headers</code>, so <code>resolve_base_url</code> returns <code>http://localhost</code> (<code>metadata_router.py:45-62</code>).</li>
+<li>Re-checked during synthesis: <code>grep -i cryptography src/backend/uv.lock</code> finds no match.</li>
+</ul></details>
+</div>
+
+<h2 id="flow">Recommended flow: request sequences</h2>
+<div class="grid2">
+<div class="card rec">
+<span class="badge">recommended</span>
+<h3 style="margin:8px 0">A. GIS popup posts the ID token</h3>
+<pre>1. SocialAuthButtons (hidden without NEXT_PUBLIC_GOOGLE_CLIENT_ID)
+2. GET /api/auth/google/nonce
+   → Set-Cookie g_nonce (signed, HttpOnly, Lax,
+     Path=/api/auth/google, 600 s) → {nonce}
+3. lib/googleIdentity.ts loads gsi/client;
+   initialize({client_id, nonce, callback, ux_mode:"popup"})
+   renderButton(locale "pl")
+4. Google popup → callback({credential})
+5. AuthContext.loginWithGoogle → POST /api/auth/google
+   JSON {credential, role?}
+6. app/auth/google.py: JSON only, check the nonce cookie,
+   verify_google_id_token → resolve_google_sign_in
+   → _load_permissions → encode_login_token
+   → 200/201 {token, created, party_id?, role?}
+7. applyToken → setSession → AuthGuard reload to returnTo
+   (AuthSheet closes in place)
+8. returnTo /oauth2/authorize → consent _token (unchanged)</pre>
+</div>
+<div class="card">
+<span class="badge">alternative</span>
+<h3 style="margin:8px 0">B. Server code flow with a handoff cookie</h3>
+<pre>1. Button → /api/auth/google/start?returnTo&amp;role
+2. Validate returnTo; state + nonce + PKCE verifier
+   → Set-Cookie g_tx (signed, 600 s) → 302 Google (S256)
+3. Google → PUBLIC_BASE_URL/api/auth/google/callback
+4. Check state, clear g_tx; httpx token exchange
+   (client_secret, code_verifier) → verify id_token
+   → resolve → aj token in g_handoff (HttpOnly, 60 s)
+   → 302 /login/google?returnTo
+5. GoogleCallbackPage (AuthGuard requireAuth=false)
+   → POST /api/auth/google/exchange → {token}
+6. applyToken → AuthGuard reload → returnTo</pre>
+<p style="font-size:12.5px;color:var(--dim)">The JWT never appears in a URL, no server-side store is needed, and <code>setSession</code> stays the only writer. The cost: a client secret, <code>PUBLIC_BASE_URL</code>, three routes plus a landing page, and the <code>AuthSheet</code> page context is lost.</p>
+</div>
+</div>
+<details class="card"><summary>Shared backend core</summary>
+<ul>
+<li><code>app/auth/google.py</code>: <code>verify_google_id_token</code> using <code>PyJWKClient(v3/certs, lifespan=3600)</code> in a threadpool, <code>algorithms=["RS256"]</code>, both issuers, <code>aud</code>, required <code>iss/aud/sub/exp/iat</code>, <code>leeway=30</code>, <code>compare_digest</code> on the nonce, and <code>azp</code> when present. It is exposed as the <code>get_google_verifier</code> dependency.</li>
+<li><code>app/auth/google_service.py</code>: <code>resolve_google_sign_in</code> applies the linking policy, uses a shared <code>bootstrap_person_account(password=None)</code> extracted from <code>register()</code>, and inserts the identity in the same transaction. An IntegrityError becomes a 409 or a re-read.</li>
+<li>Errors use the <code>ErrorResponse</code> envelope with Polish messages: 401 for an invalid credential, 403 for an unverified email, 409 for an email conflict.</li>
+<li>Login guard: <code>app/auth/router.py:70</code> treats a NULL <code>password_hash</code> as a failed login and returns the same 401.</li>
+</ul></details>
+
+<h2 id="tradeoff">Trade-off matrix</h2>
+<div class="card">
+<table>
+<tr><th>Criterion</th><th>A. GIS popup</th><th>B. Code flow</th><th>GIS redirect</th></tr>
+<tr><td><code>AuthSheet</code> stays in-page</td><td class="pass">Yes</td><td class="fail">No</td><td class="fail">No</td></tr>
+<tr><td>Client secret</td><td class="pass">none</td><td>backend env</td><td class="pass">none</td></tr>
+<tr><td>Button</td><td>Google iframe</td><td>custom pill, following the guidelines</td><td>Google iframe</td></tr>
+<tr><td>Third-party script / future CSP</td><td>gsi/* sources</td><td class="pass">none</td><td>gsi/* sources</td></tr>
+<tr><td>Popup blockers / in-app browsers</td><td class="fail">at risk</td><td class="pass">robust</td><td class="pass">robust</td></tr>
+<tr><td>Backend routes</td><td>2</td><td>3 + landing page</td><td>1 + landing page</td></tr>
+<tr><td>Console entries</td><td>JS origins</td><td>redirect URIs</td><td>origins + <code>login_uri</code></td></tr>
+<tr><td>Needs <code>PUBLIC_BASE_URL</code></td><td class="pass">no</td><td>yes</td><td>yes</td></tr>
+<tr><td>Replay / CSRF protection</td><td>nonce cookie + JSON-only POST</td><td>state + nonce + PKCE</td><td><code>g_csrf_token</code> + nonce</td></tr>
+<tr><td>Reusable for other providers (Facebook)</td><td class="fail">no</td><td class="pass">yes</td><td class="fail">no</td></tr>
+<tr><td>Dependency</td><td colspan="3"><code>pyjwt[crypto]</code> in every option (B also uses the existing <code>httpx</code>)</td></tr>
+</table>
+<p><b>Recommendation: A.</b> It keeps the documented in-page login on six surfaces, uses the fewest secrets and routes, and aj has no CSP that the GIS script would conflict with. Choose <b>B</b> if any of these is a must-have: the custom button, no Google script on the page, or Facebook support next.</p>
+</div>
+
+<h2 id="linking">Account-linking policy (MVP)</h2>
+<div class="card">
+<table>
+<tr><th>Situation</th><th>Action</th></tr>
+<tr><td>(GOOGLE, <code>sub</code>) already linked</td><td>Log in and refresh the email snapshot</td></tr>
+<tr><td>No link, <code>email_verified=false</code></td><td><span class="sev warning">403</span> Polish message</td></tr>
+<tr><td>No link, no profile with that email</td><td>Create the account (NULL hash) and the identity, role defaults to GUEST, return 201</td></tr>
+<tr><td>No link, an account profile has that email</td><td><span class="sev critical">409 refuse</span> and tell the user to log in with their password. No merge.</td></tr>
+<tr><td>No link, a login-less profile (family member or guest) has that email</td><td><span class="sev critical">409 refuse</span></td></tr>
+<tr><td>Logged-in user clicks "Połącz z Google" (phase 2)</td><td>Link through an EDIT endpoint; refuse if the <code>sub</code> is linked to another account</td></tr>
+<tr><td>Unlink (phase 2)</td><td>Allowed only while another credential remains</td></tr>
+</table>
+<details><summary>Rejected alternatives</summary>
+<ul><li><b>Auto-link when the email is authoritative.</b> aj's side of the email is unverified, which is exactly the pre-hijack case.</li><li><b>Link and set the password hash to NULL.</b> An attacker's live JWT would survive for up to 1 h, and a legitimate user would silently lose their password.</li><li>The 409 does not leak anything new: <code>register</code> already reveals whether an email is taken.</li></ul></details>
+</div>
+
+<h2 id="data">Data model changes</h2>
+<div class="grid2">
+<div class="card"><h3 style="margin-top:0">0107: <code>user_identities</code> (schema only)</h3>
+<ul>
+<li><code>BaseEntity</code> id, created_at, updated_at; <code>pk_user_identities</code></li>
+<li><code>user_id</code> FK <code>users</code> <b>ON DELETE CASCADE</b></li>
+<li><code>provider</code> VARCHAR(20) (string enum GOOGLE); <code>subject</code> VARCHAR(255), case-sensitive</li>
+<li><code>email</code> nullable snapshot, not unique; <code>email_verified</code> bool; optional <code>last_login_at</code></li>
+<li><code>uq_user_identities_provider_subject</code>, <code>uq_user_identities_user_id_provider</code></li>
+<li>Downgrade: a plain reverse drop (it runs only after 0108's guard has passed)</li>
+</ul></div>
+<div class="card"><h3 style="margin-top:0">0108: <code>password_hash</code> nullable</h3>
+<ul>
+<li><code>SET LOCAL lock_timeout = '5s'</code>, then <code>DROP NOT NULL</code></li>
+<li><b>Guarded downgrade</b>: refuses while <code>count(password_hash IS NULL) &gt; 0</code> and names the recovery path</li>
+<li>No image-only rollback past 0108: an old image returns a 500 for Google-only users</li>
+<li>Runbook in <code>architecture.md</code>: <code>pg_dump</code> first, then the guard count</li>
+</ul></div>
+</div>
+<details class="card"><summary>Code touch-list</summary>
+<table>
+<tr><th>Area</th><th>File</th><th>Change</th></tr>
+<tr><td>ORM</td><td><code>app/auth/models.py:50</code></td><td>Optional hash; add <code>IdentityProvider</code> and <code>UserIdentity</code></td></tr>
+<tr><td>Account</td><td><code>app/users/service.py:46-81</code></td><td><code>password: str | None</code></td></tr>
+<tr><td>Registration</td><td><code>app/users/service.py:268-308</code></td><td>Extract <code>bootstrap_person_account</code>; map IntegrityError to 409</td></tr>
+<tr><td>Display name</td><td><code>service.py:261-265</code></td><td>Use the Google <code>name</code> (checked with <code>check_text</code>), falling back to the name derived from the email</td></tr>
+<tr><td>Login</td><td><code>app/auth/router.py:70</code></td><td>Return the same 401 when the hash is NULL</td></tr>
+<tr><td>Google</td><td>new <code>app/auth/google.py</code>, <code>google_service.py</code></td><td>Verifier, cookies, resolver, router</td></tr>
+<tr><td>Matrix</td><td><code>authorization_matrix.py</code></td><td>PUBLIC rows next to row 47, plus tests</td></tr>
+<tr><td>Avatar (optional)</td><td><code>app/media/service.py:305</code></td><td>Best-effort AVATAR import after commit, from Google hosts only</td></tr>
+<tr><td>Unchanged</td><td colspan="2"><code>app/oauth2/*</code>, <code>core/security.py</code>, <code>core/_auth/*</code>, <code>session.ts</code>, <code>proxy.ts</code>, <code>AuthGuard.tsx</code></td></tr>
+</table></details>
+
+<h2 id="security">Security checklist</h2>
+<div class="grid2">
+<div class="card"><h3 style="margin-top:0">ID-token validation</h3><ul class="check">
+<li>Pin RS256 and verify against the Google JWKS; never trust the alg header</li>
+<li><code>iss</code> is one of the two Google issuer values</li>
+<li><code>aud</code> equals the client ID; <code>azp</code> equals it when present</li>
+<li><code>exp</code> and <code>iat</code> required, leeway ≤ 60 s</li>
+<li>Nonce issued by the server, compared with <code>compare_digest</code>, used once</li>
+<li><code>sub</code> is the key; email is only a hint</li>
+<li><code>email_verified</code> required for sign-up; <code>hd</code> not used</li>
+<li>Verify locally (never <code>tokeninfo</code>); JWKS fetched in a threadpool with a timeout</li>
+<li>Discard the Google credential after use and never log it</li>
+</ul></div>
+<div class="card"><h3 style="margin-top:0">Flow, accounts, secrets</h3><ul class="check">
+<li>A: the POST accepts JSON only; no session cookie is set by the backend</li>
+<li>B: state + PKCE S256 + nonce in a signed one-time <code>g_tx</code> cookie</li>
+<li>Cookies: HttpOnly, Lax, <code>Path=/api/auth/google</code>, Secure from the base-URL scheme</li>
+<li>The JWT never goes in a URL; error redirects carry fixed codes only</li>
+<li><code>returnTo</code> checked with the <code>isSafeReturnPath</code> rules on both stacks</li>
+<li>No automatic email linking; a login-less profile collision returns 409</li>
+<li>A NULL hash returns the same 401; permissions come from the DB</li>
+<li>IntegrityError returns 409, never a 500</li>
+<li>nginx <code>limit_req</code> on <code>/api/auth/</code></li>
+<li>The secret lives only in the backend env; scopes are <code>openid email profile</code></li>
+<li>The avatar fetch is restricted to allowed hosts with size and time limits</li>
+<li>Accepted risk: no revocation; RISC is deferred</li>
+</ul></div>
+</div>
+
+<h2 id="config">Config &amp; deploy</h2>
+<div class="card">
+<h3 style="margin-top:0">Redirect-URI / JavaScript-origin matrix</h3>
+<table>
+<tr><th>Environment</th><th>JS origins (A)</th><th>Redirect URI (B)</th><th>Backend reached via</th><th>Secrets</th><th>Client ID (A)</th></tr>
+<tr><td>Dev host :5173</td><td><code>http://localhost</code>, <code>http://localhost:5173</code></td><td><code>http://localhost:5173/api/auth/google/callback</code></td><td>Next rewrite</td><td><code>src/backend/.env</code></td><td><code>src/frontend/.env.local</code></td></tr>
+<tr><td>Compose :5174</td><td><code>http://localhost</code>, <code>http://localhost:5174</code></td><td><code>http://localhost:5174/api/auth/google/callback</code></td><td>nginx <code>/api/</code></td><td>root <code>.env</code> → <code>backend.environment</code></td><td>root <code>.env</code> → <code>web.build.args</code></td></tr>
+<tr><td>Production (host TBD)</td><td><code>https://&lt;host&gt;</code></td><td><code>https://&lt;host&gt;/api/auth/google/callback</code></td><td>TLS → nginx → backend</td><td>server root <code>.env</code></td><td>build arg</td></tr>
+</table>
+<details><summary>Checklist</summary><ul class="check">
+<li>Consent screen: External, the three basic scopes, privacy policy and homepage set, domain verified in Search Console</li>
+<li>Two OAuth clients: dev (localhost) and prod</li>
+<li><code>Settings</code>: <code>google_client_id</code>, <code>google_client_secret</code> (B), <code>public_base_url</code> (B), and a <code>google_login_configured</code> property</li>
+<li>Compose <code>backend.environment</code> entries; for A, a <code>web.build.args</code> entry plus Dockerfile <code>ARG</code>/<code>ENV</code></li>
+<li>B: a flag that tells the frontend to show the button (<code>NEXT_PUBLIC_GOOGLE_LOGIN_ENABLED</code> or the client ID)</li>
+<li><code>.env.example</code>: comment blocks and empty placeholders only</li>
+<li>No nginx or <code>next.config.ts</code> change; CORS unchanged; no COOP</li>
+<li>If a CSP is added later: the gsi sources for script, frame, connect and style</li>
+<li><code>pyjwt[crypto]</code> plus an updated <code>uv.lock</code></li>
+<li>Docs: <code>tech-stack.md</code>, <code>architecture.md</code> runbook, <code>INDEX.md</code></li>
+<li>Legal: an <code>/about/privacy</code> page (the <code>about</code> slug is already reserved) and the Polish copy</li>
+</ul></details>
+</div>
+
+<h2 id="tests">Test strategy (no network calls to Google)</h2>
+<div class="grid2">
+<div class="card"><h3 style="margin-top:0">Backend (pytest)</h3><ul>
+<li><b>Verifier unit tests</b>: an RSA key generated in the test and a local JWK set; parametrized failures for aud, iss, exp, nonce, alg confusion and unknown <code>kid</code></li>
+<li><b>Endpoint tests</b>: <code>dependency_overrides[get_google_verifier]</code>; cover create (exact key set, 201), returning user (ADMIN kept), 409 for both conflict cases, 403 for an unverified email, ORGANIZER role, <code>/api/people/me</code>, non-JSON rejected, missing nonce</li>
+<li><b>Password login</b> on a Google-only account returns 401, not 500</li>
+<li><b>OAuth2 pass-through</b>: DCR client plus <code>_token</code> returns a 302 with a code</li>
+<li><b>Migrations</b>: a round trip, and the 0108 refusal with head restored in <code>finally</code></li>
+<li><b>Matrix</b> rows</li>
+<li>B: start URL, callback with the exchange as an overridden dependency, the handoff cookie</li>
+</ul></div>
+<div class="card"><h3 style="margin-top:0">Frontend (Vitest)</h3><ul>
+<li><b>SocialAuthButtons</b>: hidden without the env var (<code>vi.stubEnv</code>); a fake <code>window.google.accounts.id</code> whose callback triggers the JSON POST; Facebook still shows "wkrótce"; Polish error on 409</li>
+<li><b>googleIdentity loader</b>: mirrors the Maps loader tests</li>
+<li><b>AuthContext.loginWithGoogle</b>: calls <code>setSession</code>; throws on errors</li>
+<li><b>ssrSafety</b>: no access to <code>window.google</code> during render</li>
+<li>B: <code>GoogleCallbackPage</code> via <code>renderWithRoute</code>, and <code>proxy.test.ts</code> entries</li>
+</ul></div>
+</div>
+
+<h2 id="deps">Dependency decision</h2>
+<div class="card">
+<table>
+<tr><th>Option</th><th>New packages</th><th>Verdict</th></tr>
+<tr><td><code>pyjwt[crypto]</code></td><td><code>cryptography</code> (+ cffi, pycparser)</td><td class="pass">Choose: already the JWT library; JWKS, issuer containers, <code>require</code></td></tr>
+<tr><td>google-auth</td><td>google-auth + <code>requests</code> transport, cachetools, pyasn1-modules, rsa</td><td class="fail">Reject: synchronous, fetches certs on every call, <code>audience=None</code> skips the check</td></tr>
+<tr><td>Authlib</td><td>authlib + itsdangerous, SessionMiddleware</td><td class="fail">Reject: needs a session middleware aj doesn't use, and has URL-scheme issues behind nginx</td></tr>
+</table>
+<p style="font-size:12.5px;color:var(--dim)">Re-checked during synthesis: <code>grep -i cryptography src/backend/uv.lock</code> finds no match. The frontend needs no npm package.</p>
+</div>
+
+<h2 id="insights">Key insights</h2>
+<div class="insights">
+<div class="card"><span class="conf high">High</span><h3>Google is an upstream identity source</h3><p>Plugin/MCP OAuth2 is unchanged. The one requirement is that the seven-parameter <code>returnTo</code> survives the round trip.</p></div>
+<div class="card"><span class="conf high">High</span><h3>aj's own gaps decide the linking policy</h3><p>With unverified emails and no way to revoke sessions, every merge-by-email variant leaves a window for account hijacking.</p></div>
+<div class="card"><span class="conf high">High</span><h3><code>AuthSheet</code> decides the flow</h3><p>In-page login on six surfaces works only with the GIS popup or a code-client popup.</p></div>
+<div class="card"><span class="conf med">Med-High</span><h3>A handoff cookie needs no store</h3><p>In flow B, a 60 s HttpOnly cookie plus a JSON exchange keeps the JWT out of URLs and avoids per-process memory stores.</p></div>
+<div class="card"><span class="conf high">High</span><h3>Request-derived URLs break behind nginx</h3><p>Redirect URIs need an explicit <code>PUBLIC_BASE_URL</code>. The OAuth2 metadata issuer already has this bug at :5174.</p></div>
+<div class="card"><span class="conf med">Med-High</span><h3>JSON delivery blocks login CSRF</h3><p>The backend sets no session cookie, so a cross-site POST cannot log the victim in.</p></div>
+<div class="card"><span class="conf high">High</span><h3>Permissions trap</h3><p>Register hard-codes READ/EDIT. Google sign-in must read permissions from the DB, or admins lose ADMIN.</p></div>
+</div>
+
+<h2 id="swot">SWOT</h2>
+<div class="grid2 swot">
+<div class="card" style="border-left:4px solid var(--ok)"><h3>Strengths</h3><ul><li>One token shape; everything downstream is unchanged</li><li>Same-origin <code>/api</code> in every environment</li><li>Existing loader, guard and matrix patterns</li><li>PyJWT is already used</li></ul></div>
+<div class="card" style="border-left:4px solid var(--crit)"><h3>Weaknesses</h3><ul><li>No email verification, revocation, reset or deletion</li><li>The register race returns a 500</li><li>Base URL is wrong behind nginx</li></ul></div>
+<div class="card" style="border-left:4px solid var(--info)"><h3>Opportunities</h3><ul><li>One Tap later (A)</li><li>Facebook through the same table and resolver (B)</li><li>Fix the race and the issuer while touching the code</li><li>Import the Google avatar</li></ul></div>
+<div class="card" style="border-left:4px solid var(--warn)"><h3>Threats</h3><ul><li>Pre-account hijack if linking is relaxed</li><li>Popup blocking (A)</li><li>Brand verification and the privacy policy</li><li>Changes to GIS and FedCM</li></ul></div>
+</div>
+
+<h2 id="recs">Recommendations</h2>
+<div class="card">
+<table>
+<tr><th>#</th><th>Recommendation</th><th>Priority</th><th>Effort</th></tr>
+<tr><td>R1</td><td>Owner picks flow A or B</td><td><span class="sev critical">critical</span></td><td>XS</td></tr>
+<tr><td>R2</td><td>Migrations 0107 + 0108, with tests and a runbook</td><td><span class="sev warning">high</span></td><td>S</td></tr>
+<tr><td>R3</td><td>Shared bootstrap, IntegrityError mapped to 409, null-hash login guard</td><td><span class="sev warning">high</span></td><td>S</td></tr>
+<tr><td>R4</td><td><code>pyjwt[crypto]</code> and the verifier, with unit tests</td><td><span class="sev warning">high</span></td><td>S</td></tr>
+<tr><td>R5</td><td>Resolver with the linking policy, endpoints, matrix rows</td><td><span class="sev warning">high</span></td><td>M</td></tr>
+<tr><td>R6</td><td>Frontend: loader, button, <code>loginWithGoogle</code> (or the landing page for B)</td><td><span class="sev warning">high</span></td><td>M</td></tr>
+<tr><td>R7</td><td>Settings, compose, Dockerfile, <code>.env.example</code>, docs</td><td><span class="sev warning">high</span></td><td>S</td></tr>
+<tr><td>R8</td><td>Privacy policy, homepage, domain verification, brand verification</td><td><span class="sev warning">high (prod)</span></td><td>M</td></tr>
+<tr><td>R9</td><td>Phase 2: link and unlink from settings</td><td><span class="sev info">medium</span></td><td>M</td></tr>
+<tr><td>R10</td><td>Token-version cutoff, RISC, email verification for password accounts</td><td><span class="sev info">low-med</span></td><td>M-L</td></tr>
+<tr><td>R11</td><td>Side fix: <code>resolve_base_url</code> behind nginx</td><td><span class="sev info">low</span></td><td>XS</td></tr>
+<tr><td>R12</td><td>Optional Google avatar import</td><td><span class="sev info">low</span></td><td>S</td></tr>
+</table>
+</div>
+
+<h2 id="gaps">Gaps &amp; uncertainties</h2>
+<details class="card" open><summary>9 open gaps</summary>
+<table>
+<tr><th>Gap</th><th>Impact</th><th>Next step</th></tr>
+<tr><td>Production host and TLS terminator unknown</td><td>Production URIs and origins</td><td>Owner names the domain</td></tr>
+<tr><td>No privacy policy or homepage</td><td>Brand verification</td><td>Write <code>/about/privacy</code></td></tr>
+<tr><td>Terms/consent at password registration not researched</td><td>Sign-up parity</td><td>Check during the spec</td></tr>
+<tr><td>PyJWKClient behaviour known only from docs</td><td>Low</td><td>Unit tests</td></tr>
+<tr><td>GIS iframe inside the focus trap; mobile width</td><td>UX</td><td>Manual check</td></tr>
+<tr><td>Google docs conflict on the Testing-status warning</td><td>Low</td><td>Check in the console</td></tr>
+<tr><td>No account deletion</td><td>Legal</td><td>Privacy policy; later feature</td></tr>
+<tr><td>No session revocation; RISC deferred</td><td>Security</td><td>R10</td></tr>
+<tr><td>Facebook details</td><td>Future</td><td>Research when Facebook is scheduled</td></tr>
+</table></details>
+
+<details class="card"><summary>Sources</summary>
+<p><b>Finding files</b>: <a href="../analysis/findings/codebase-auth-login-jwt.md" target="_blank" rel="noopener">codebase-auth-login-jwt</a>, <a href="../analysis/findings/codebase-auth-oauth2-server.md" target="_blank" rel="noopener">codebase-auth-oauth2-server</a>, <a href="../analysis/findings/codebase-data-model-current.md" target="_blank" rel="noopener">codebase-data-model-current</a>, <a href="../analysis/findings/codebase-data-model-proposal.md" target="_blank" rel="noopener">codebase-data-model-proposal</a>, <a href="../analysis/findings/codebase-frontend-google-integration.md" target="_blank" rel="noopener">codebase-frontend-google-integration</a>, <a href="../analysis/findings/codebase-frontend-session-routing.md" target="_blank" rel="noopener">codebase-frontend-session-routing</a>, <a href="../analysis/findings/config-deploy-env-and-origins.md" target="_blank" rel="noopener">config-deploy-env-and-origins</a>, <a href="../analysis/findings/external-google-console-branding-facebook.md" target="_blank" rel="noopener">external-google-console-branding-facebook</a>, <a href="../analysis/findings/external-google-flows.md" target="_blank" rel="noopener">external-google-flows</a>, <a href="../analysis/findings/external-google-id-token-verification.md" target="_blank" rel="noopener">external-google-id-token-verification</a>, <a href="../analysis/findings/external-google-security-linking.md" target="_blank" rel="noopener">external-google-security-linking</a>.</p>
+<p><b>External</b>: Google Identity docs (OIDC, GIS overview, JS reference, display-button, verify ID token, FedCM migration, client ID setup, code model, web-server OAuth, production readiness, RISC, branding guidelines), the Google discovery document, Google Cloud help 15549945 / 13463073 / 13464321, OIDC Core 1.0, RFC 9700, RFC 7636, the OWASP OAuth2 cheat sheet, PyJWT docs, google-auth docs, Authlib docs, USENIX Security 2022 (Sudhodanan &amp; Paverd) and MSRC, and Meta developer docs.</p>
+</details>
+</main>
+</body>
+</html>
