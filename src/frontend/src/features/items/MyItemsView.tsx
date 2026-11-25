@@ -41,8 +41,34 @@ const MODE_TONE: Record<ItemMode, string> = {
   "zamienię": "bg-accent-soft text-accent-fg",
 };
 
+/** The offer badge on the photo and the picked mode button: solid tones. */
+const MODE_BADGE: Record<ItemMode, string> = {
+  "oddam": "bg-primary text-on-primary",
+  "zamienię": "bg-accent text-ink",
+};
+const MODE_BUTTON_ON: Record<ItemMode, string> = {
+  "oddam": "border-[1.5px] border-primary bg-primary text-on-primary",
+  "zamienię": "border-[1.5px] border-accent bg-accent text-ink",
+};
+
+/** One column on a phone, two and three as the panel widens, so a tile keeps
+ * its proportions on a desktop. */
+const TILE_GRID = "grid grid-cols-1 items-start gap-3 @2xl:grid-cols-2 @5xl:grid-cols-3 @5xl:gap-4";
+
+const PUBLIC_HINT = "Publiczna: widzą ją wszyscy.";
+
 const ICON_BUTTON =
-  "flex h-9 w-9 items-center justify-center rounded-full border-[1.5px] border-line text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+  "flex h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-line bg-paper text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+
+/** „Marta W.” → „MW”, for the proposer's avatar. */
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
 /** Passive "moje rzeczy" status badge label for an item's current
  * `BalanceStatus` — `null` means no badge (the item is free). Only the two
@@ -281,7 +307,7 @@ export function MyItemsView() {
   const hasAnyItem = counts.ALL > 0;
 
   return (
-    <div>
+    <div className="@container">
       {personalSwapAccepted && (
         <p role="status" className="mb-3 rounded-2xl bg-primary-soft px-3.5 py-2.5 text-[13px] font-bold text-primary-fg">
           {PERSONAL_SWAP_ACCEPTED_MESSAGE}
@@ -382,164 +408,189 @@ export function MyItemsView() {
             Brak rzeczy pasujących do filtra.
           </p>
         )}
-        {items.map((it) => {
-          const mode = modeOf(it);
-          const locked = ACTIVE_LOCK_BALANCE_STATUSES.includes(it.balance_status);
-          const badgeLabel = lockBadgeLabel(it.balance_status);
-          // Informational only: pending photos dash the card border; the mode stays selectable.
-          const photosPending = it.photos_moderation_pending === true;
-          return (
-            <div
-              key={it.id}
-              className={`relative rounded-[22px] border bg-paper p-3.5 transition-shadow hover:shadow-md ${photosPending ? "border-dashed border-line-strong" : "border-line"}`}
-            >
-              <div className="flex items-start gap-3">
-                {/* Stretched link: the whole card opens the item; the controls
-                    below sit on `relative z-10` above its overlay. */}
-                <Link
-                  to={itemPagePath(ownSlug, it.id)}
-                  aria-label={`Zobacz rzecz ${it.product_name}`}
-                  className={`flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-2xl after:absolute after:inset-0 after:rounded-[22px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${mode ? MODE_TONE[mode] : "bg-cream text-ink-soft"}`}
+        {items.length > 0 && (
+          <div className={TILE_GRID}>
+            {items.map((it) => {
+              const mode = modeOf(it);
+              const locked = ACTIVE_LOCK_BALANCE_STATUSES.includes(it.balance_status);
+              const badgeLabel = lockBadgeLabel(it.balance_status);
+              const settle = locked && canSettle(it.id);
+              // Informational only: pending photos dash the card border; the mode stays selectable.
+              const photosPending = it.photos_moderation_pending === true;
+              const proposals = swapProposals[it.id] ?? [];
+              return (
+                <div
+                  key={it.id}
+                  className={`relative flex flex-col rounded-[22px] border bg-paper p-3 transition-shadow hover:shadow-md ${photosPending ? "border-[1.5px] border-dashed border-line-strong" : "border-line"}`}
                 >
-                  {it.thumb_url ? (
-                    <SafeImage src={it.thumb_url} alt="" className="size-full" placeholderSize={22} />
-                  ) : (
-                    <BoxIcon c="currentColor" />
-                  )}
-                </Link>
-                <div className="min-w-0 flex-1">
-                  <h3 title={it.product_name} className="line-clamp-2 text-base leading-snug font-bold wrap-break-word text-ink">{it.product_name}</h3>
-                  <small className="mt-0.5 block text-[13px] text-ink-soft">
-                    Stan: {CONDITION_LABELS[it.condition]}
-                    {it.points_value !== null && (
-                      <>
-                        {" · "}
-                        <span className="font-bold text-ink" title="Wycena systemu">
+                  <div className="flex items-start gap-3">
+                    {/* Stretched link: the whole card opens the item; the controls
+                        below sit on `relative z-10` above its overlay. */}
+                    <Link
+                      to={itemPagePath(ownSlug, it.id)}
+                      aria-label={`Zobacz rzecz ${it.product_name}`}
+                      className={`relative flex h-24 w-24 flex-none items-center justify-center overflow-hidden rounded-2xl after:absolute after:inset-0 after:rounded-[22px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${mode ? MODE_TONE[mode] : "bg-stage text-ink-soft"} ${photosPending ? "opacity-60" : ""}`}
+                    >
+                      {it.thumb_url ? (
+                        <SafeImage src={it.thumb_url} alt="" className="size-full" placeholderSize={22} />
+                      ) : (
+                        <BoxIcon c="currentColor" />
+                      )}
+                      {mode && (
+                        <span
+                          aria-hidden="true"
+                          className={`absolute top-1.5 left-1.5 rounded-full px-2 py-0.5 text-[10.5px] font-extrabold shadow-[0_2px_8px_-2px_rgba(19,38,29,0.35)] ${MODE_BADGE[mode]}`}
+                        >
+                          {capitalize(mode)}
+                        </span>
+                      )}
+                    </Link>
+                    <div className="min-w-0 flex-1 pt-0.5">
+                      <h3 title={it.product_name} className="line-clamp-2 text-base leading-snug font-extrabold wrap-break-word text-ink">
+                        {it.product_name}
+                      </h3>
+                      <small className="mt-0.5 block text-[13px] text-ink-soft">Stan: {CONDITION_LABELS[it.condition]}</small>
+                      {it.points_value !== null && (
+                        <span
+                          title="Wycena systemu — widzisz ją tylko Ty"
+                          className="mt-2 inline-flex items-center rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-extrabold text-accent-fg"
+                        >
                           {it.points_value} pkt
                         </span>
-                      </>
-                    )}
-                  </small>
-                </div>
-                <div className="relative z-10 flex flex-none gap-1">
-                  <Link to={itemEditPath(it.id)} aria-label={`Edytuj rzecz ${it.product_name}`} className={ICON_BUTTON}>
-                    <PencilIcon />
-                  </Link>
-                  <button
-                    onClick={() => void handleDeleteItem(it.id)}
-                    aria-label={`Usuń rzecz ${it.product_name}`}
-                    className={`${ICON_BUTTON} hover:border-danger hover:text-danger`}
-                  >
-                    <TrashIcon />
-                  </button>
-                </div>
-              </div>
-
-              {/* Lock pill and its actions first (an in-flight transaction the
-                  user may have to act on), the moderation notice second. */}
-              {(badgeLabel || (locked && canSettle(it.id))) && (
-                <div className="relative z-10 mt-3 flex flex-wrap items-center gap-1.5">
-                  {badgeLabel && <StatusPill label={badgeLabel} />}
-                  {locked && canSettle(it.id) && (
-                    <>
-                      {!isGift(it.id) && (
-                        <button
-                          type="button"
-                          onClick={() => void handleConfirmReceipt(it.id)}
-                          disabled={actionBusyItemId === it.id}
-                          className="min-h-9 rounded-full bg-primary px-3.5 text-[13px] font-extrabold text-on-primary disabled:opacity-60"
-                        >
-                          Odebrał
-                        </button>
                       )}
+                    </div>
+                    <div className="relative z-10 flex flex-none flex-col gap-1">
+                      <Link to={itemEditPath(it.id)} aria-label={`Edytuj rzecz ${it.product_name}`} className={ICON_BUTTON}>
+                        <PencilIcon />
+                      </Link>
                       <button
-                        type="button"
-                        onClick={() => void handleCancelTransaction(it.id)}
-                        disabled={actionBusyItemId === it.id}
-                        className="min-h-9 rounded-full px-3.5 text-[13px] font-extrabold text-danger transition-colors hover:bg-danger-soft disabled:opacity-60"
+                        onClick={() => void handleDeleteItem(it.id)}
+                        aria-label={`Usuń rzecz ${it.product_name}`}
+                        className={`${ICON_BUTTON} hover:border-danger hover:text-danger`}
                       >
-                        Anuluj wymianę
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {photosPending ? (
-                <div className="relative z-10 mt-3 rounded-2xl bg-cream px-3.5 py-2.5 text-[13px] leading-snug text-ink">
-                  <StatusPill label="Zdjęcia w moderacji" />
-                  <p className="mt-1.5">
-                    <Link to={itemEditPath(it.id)} className="font-extrabold text-primary-fg underline">
-                      Zobacz zdjęcia →
-                    </Link>
-                  </p>
-                </div>
-              ) : null}
-
-              <div className="relative z-10 mt-3 flex gap-1.5">
-                {ITEM_MODES.map((m) => {
-                  const on = mode === m;
-                  return (
-                    <button
-                      key={m}
-                      onClick={() => void setItemMode(it.id, m)}
-                      aria-pressed={on}
-                      disabled={locked}
-                      aria-disabled={locked}
-                      className={`min-h-9 flex-1 rounded-full px-2 text-[13px] font-extrabold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                        on ? MODE_TONE[m] : "border-[1.5px] border-dashed border-line-strong text-ink-soft hover:text-ink"
-                      }`}
-                    >
-                      {on && <span aria-hidden="true">✓ </span>}
-                      {capitalize(m)}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="relative z-10 mt-2">
-                {mode ? (
-                  <div className="flex items-center gap-2">
-                    <VisibilityToggle
-                      value={it.listing_visibility ?? "PUBLIC"}
-                      onChange={(v) => void setItemVisibility(it.id, mode, v)}
-                      itemName={it.product_name}
-                    />
-                    {it.listing_visibility === "PRIVATE" && (
-                      <p className="text-xs text-ink-soft">{PRIVATE_HINT}</p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xs text-ink-soft">{NO_MODE_HINT}</p>
-                )}
-              </div>
-
-              {(swapProposals[it.id]?.length ?? 0) > 0 && (
-                <div className="relative z-10 mt-3 flex flex-col gap-1.5">
-                  <small className="text-xs font-extrabold text-ink-soft">
-                    Propozycje zamiany ({swapProposals[it.id]!.length})
-                  </small>
-                  {swapProposals[it.id]!.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between gap-2 rounded-2xl bg-accent-soft px-3 py-2">
-                      <span className="min-w-0 flex-1 text-[13px] text-ink">
-                        <strong>{p.proposer_display_name}</strong> oferuje <strong>{p.offered_product_name}</strong>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => void handleAcceptSwapProposal(it.id, p)}
-                        disabled={acceptBusyProposalId !== null}
-                        className="min-h-9 flex-none rounded-full bg-primary px-3.5 text-[13px] font-extrabold text-on-primary disabled:opacity-60"
-                      >
-                        Wybierz
+                        <TrashIcon />
                       </button>
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Lock pill and its actions first (an in-flight transaction the
+                      user may have to act on), the moderation notice second. */}
+                  {(badgeLabel || settle) && (
+                    <div
+                      className={`relative z-10 mt-3 flex flex-wrap items-center gap-1.5 rounded-2xl px-3 py-2.5 ${
+                        it.balance_status === "RESERVED" ? "border border-accent/40 bg-accent-soft" : "bg-stage"
+                      }`}
+                    >
+                      {badgeLabel && <StatusPill label={badgeLabel} />}
+                      {settle && (
+                        <>
+                          {!isGift(it.id) && (
+                            <button
+                              type="button"
+                              onClick={() => void handleConfirmReceipt(it.id)}
+                              disabled={actionBusyItemId === it.id}
+                              className="min-h-10 rounded-full bg-primary px-4 text-[13px] font-extrabold text-on-primary disabled:opacity-60"
+                            >
+                              Odebrał
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => void handleCancelTransaction(it.id)}
+                            disabled={actionBusyItemId === it.id}
+                            className="min-h-10 rounded-full border-[1.5px] border-danger/30 bg-paper px-4 text-[13px] font-extrabold text-danger transition-colors hover:bg-danger-soft disabled:opacity-60"
+                          >
+                            Anuluj wymianę
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {photosPending ? (
+                    <div className="relative z-10 mt-3 rounded-2xl border-[1.5px] border-dashed border-line-strong bg-cream px-3.5 py-2.5 text-[13px] leading-snug text-ink">
+                      <StatusPill label="Zdjęcia w moderacji" />
+                      <p className="mt-1.5 text-ink-soft">Sprawdzamy je — do tego czasu inni widzą rzecz bez zdjęć.</p>
+                      <p className="mt-1">
+                        <Link to={itemEditPath(it.id)} className="font-extrabold text-primary-fg underline">
+                          Zobacz zdjęcia →
+                        </Link>
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <div className="relative z-10 mt-3 grid grid-cols-2 gap-1.5">
+                    {ITEM_MODES.map((m) => {
+                      const on = mode === m;
+                      return (
+                        <button
+                          key={m}
+                          onClick={() => void setItemMode(it.id, m)}
+                          aria-pressed={on}
+                          disabled={locked}
+                          aria-disabled={locked}
+                          className={`min-h-11 rounded-full px-2 text-sm font-extrabold transition-colors disabled:cursor-not-allowed disabled:opacity-55 ${
+                            on ? MODE_BUTTON_ON[m] : "border-[1.5px] border-dashed border-line-strong text-ink-soft hover:text-ink"
+                          }`}
+                        >
+                          {on && <span aria-hidden="true">✓ </span>}
+                          {capitalize(m)}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="relative z-10 mt-2">
+                    {mode ? (
+                      <div className="flex items-center gap-2">
+                        <VisibilityToggle
+                          value={it.listing_visibility ?? "PUBLIC"}
+                          onChange={(v) => void setItemVisibility(it.id, mode, v)}
+                          itemName={it.product_name}
+                        />
+                        <p className="text-xs leading-snug text-ink-soft">
+                          {it.listing_visibility === "PRIVATE" ? PRIVATE_HINT : PUBLIC_HINT}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="rounded-2xl bg-primary-soft px-3 py-2 text-xs font-bold text-primary-fg">{NO_MODE_HINT}</p>
+                    )}
+                  </div>
+
+                  {proposals.length > 0 && (
+                    <div className="relative z-10 mt-3 flex flex-col gap-1.5 border-t border-line pt-2.5">
+                      <small className="text-xs font-extrabold tracking-wide text-ink-soft uppercase">
+                        Propozycje zamiany ({proposals.length})
+                      </small>
+                      {proposals.map((p) => (
+                        <div key={p.id} className="flex items-center gap-2.5 rounded-2xl bg-accent-soft py-2 pr-2 pl-2.5">
+                          <span
+                            aria-hidden="true"
+                            className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-primary text-xs font-extrabold text-on-primary"
+                          >
+                            {initials(p.proposer_display_name)}
+                          </span>
+                          <span className="min-w-0 flex-1 text-[13px] text-ink">
+                            <strong>{p.proposer_display_name}</strong> oferuje <strong>{p.offered_product_name}</strong>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => void handleAcceptSwapProposal(it.id, p)}
+                            disabled={acceptBusyProposalId !== null}
+                            className="min-h-10 flex-none rounded-full bg-primary px-3.5 text-[13px] font-extrabold text-on-primary disabled:opacity-60"
+                          >
+                            Wybierz
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-              {actionError && <p className="mt-1.5 text-[13px] font-semibold text-danger">{actionError}</p>}
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        )}
+        {actionError && <p className="text-[13px] font-semibold text-danger">{actionError}</p>}
         {hasNextPage && <div ref={sentinel} aria-hidden="true" className="h-px" />}
         {fetchingNextPage && (
           <p role="status" className="text-center text-[13px] text-ink-soft">
