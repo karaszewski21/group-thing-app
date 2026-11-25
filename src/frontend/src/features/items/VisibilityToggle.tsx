@@ -1,9 +1,13 @@
-import { Lock, LockOpen } from "lucide-react";
 import type { ItemVisibility } from "../../api/itemListingPreferences";
 
-/** Icon-only visibility switch of one listed item: an open lock is public,
- * a closed one private. Pressed means private; the caller saves the change
- * with the item's mode. */
+const OPTIONS: { value: ItemVisibility; label: string }[] = [
+  { value: "PUBLIC", label: "Publiczna" },
+  { value: "PRIVATE", label: "Prywatna" },
+];
+
+/** Who sees one listed item: a two-way „Publiczna | Prywatna” switch (radio
+ * buttons named with the item, so a list of tiles stays unambiguous). The
+ * caller saves the change with the item's mode. */
 export function VisibilityToggle({
   value,
   onChange,
@@ -15,21 +19,33 @@ export function VisibilityToggle({
   itemName: string;
   disabled?: boolean;
 }) {
-  const isPrivate = value === "PRIVATE";
-  const Icon = isPrivate ? Lock : LockOpen;
   return (
-    <button
-      type="button"
-      aria-pressed={isPrivate}
-      aria-label={`Prywatna: ${itemName}`}
-      title={isPrivate ? "Prywatna — kliknij, aby upublicznić" : "Publiczna — kliknij, aby ukryć"}
-      disabled={disabled}
-      onClick={() => onChange(isPrivate ? "PUBLIC" : "PRIVATE")}
-      className={`flex h-9 w-9 flex-none items-center justify-center rounded-full border-[1.5px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:opacity-60 ${
-        isPrivate ? "border-ink bg-ink text-on-ink" : "border-line bg-paper text-ink-soft hover:text-ink"
-      }`}
+    <div
+      role="radiogroup"
+      aria-label={`Kto widzi rzecz ${itemName}`}
+      className="grid flex-none grid-cols-2 gap-0.5 rounded-full bg-line p-0.5"
     >
-      <Icon aria-hidden="true" size={16} strokeWidth={2.4} />
-    </button>
+      {OPTIONS.map((option) => {
+        const on = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            aria-label={`${option.label}: ${itemName}`}
+            disabled={disabled}
+            onClick={() => {
+              if (!on) onChange(option.value);
+            }}
+            className={`min-h-9 rounded-full px-3 text-[13px] font-extrabold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:opacity-60 ${
+              on ? "bg-paper text-ink shadow-[0_2px_6px_-2px_rgba(19,38,29,0.25)]" : "text-ink-soft hover:text-ink"
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }

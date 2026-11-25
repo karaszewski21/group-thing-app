@@ -264,8 +264,8 @@ describe("MyItemsView — accepting a personal swap", () => {
 });
 
 describe("MyItemsView — item visibility", () => {
-  const PRIVATE_HINT = "Prywatna: widoczna tylko w Twoich prywatnych grupach.";
-  const NO_MODE_HINT = "Ustaw tryb, żeby wybrać widoczność.";
+  const PRIVATE_HINT = "Widzą ją tylko osoby z Twoich prywatnych grup.";
+  const NO_MODE_HINT = "Wybierz, czy oddajesz, czy zamieniasz — wtedy inni zobaczą rzecz.";
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -278,9 +278,9 @@ describe("MyItemsView — item visibility", () => {
     });
     renderWithProviders();
 
-    const lock = await screen.findByRole("button", { name: `Prywatna: ${item.product_name}` });
-    expect(lock).toHaveAttribute("aria-pressed", "false");
-    fireEvent.click(lock);
+    const priv = await screen.findByRole("radio", { name: `Prywatna: ${item.product_name}` });
+    expect(priv).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(priv);
 
     const { setItemVisibility, setItemMode } = vi.mocked(appDataStore.useAppData)();
     expect(setItemVisibility).toHaveBeenCalledWith(item.id, "zamienię", "PRIVATE");
@@ -306,7 +306,7 @@ describe("MyItemsView — item visibility", () => {
     renderWithProviders();
 
     expect(await screen.findByText(NO_MODE_HINT)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: `Prywatna: ${item.product_name}` })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: `Prywatna: ${item.product_name}` })).not.toBeInTheDocument();
   });
 
   it("a private item shows its hint", async () => {
@@ -317,7 +317,7 @@ describe("MyItemsView — item visibility", () => {
     renderWithProviders();
 
     expect(await screen.findByText(PRIVATE_HINT)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: `Prywatna: ${item.product_name}` })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("radio", { name: `Prywatna: ${item.product_name}` })).toHaveAttribute("aria-checked", "true");
     expect(screen.queryByText(NO_MODE_HINT)).not.toBeInTheDocument();
   });
 

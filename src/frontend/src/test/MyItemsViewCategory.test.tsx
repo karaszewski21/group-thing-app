@@ -167,7 +167,8 @@ describe("MyItemsView — item card links to the item page", () => {
       "href",
       `/ania/product/${item.id}`,
     );
-    expect(screen.getByRole("link", { name: "Edytuj rzecz Rowerek" })).toHaveAttribute(
+    fireEvent.click(screen.getByRole("button", { name: "Więcej działań: Rowerek" }));
+    expect(screen.getByRole("menuitem", { name: "Edytuj rzecz Rowerek" })).toHaveAttribute(
       "href",
       `/items/${item.id}/edit`,
     );

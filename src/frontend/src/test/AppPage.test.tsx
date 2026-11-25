@@ -1911,7 +1911,8 @@ describe("AppPage — inventory item edit/delete", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Moje rzeczy" }));
     expect(await screen.findByText("Rowerek")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Usuń rzecz Rowerek" }));
+    fireEvent.click(screen.getByRole("button", { name: "Więcej działań: Rowerek" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Usuń rzecz Rowerek" }));
 
     expect(screen.getByRole("status")).toHaveTextContent("Usunięto");
     expect(await screen.findByText(/Nie udało się usunąć/)).toBeInTheDocument();

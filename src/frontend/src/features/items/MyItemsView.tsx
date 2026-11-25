@@ -18,7 +18,7 @@ import {
   type SwapProposalOfferResponse,
 } from "../../api/termItemListings";
 import { CONDITION_LABELS } from "../../utils/productCategory";
-import { BoxIcon, CloseIcon, PencilIcon, SearchIcon, TrashIcon } from "../../components/shared/appIcons";
+import { BoxIcon, CloseIcon, SearchIcon } from "../../components/shared/appIcons";
 import {
   capitalize,
   ITEM_MODE_TO_RESERVATION_TYPE,
@@ -29,11 +29,12 @@ import {
 import { useAppData } from "../panel/appDataStore";
 import { SafeImage } from "../product/ItemGallery";
 import { itemEditPath, itemPagePath } from "../product/useItemRoutes";
+import { ItemActionsMenu } from "./ItemActionsMenu";
 import { SwapAcceptSuccessSheet, type AcceptedSwap } from "./SwapAcceptSuccessSheet";
 import { VisibilityToggle } from "./VisibilityToggle";
 
-const PRIVATE_HINT = "Prywatna: widoczna tylko w Twoich prywatnych grupach.";
-const NO_MODE_HINT = "Ustaw tryb, żeby wybrać widoczność.";
+const PRIVATE_HINT = "Widzą ją tylko osoby z Twoich prywatnych grup.";
+const NO_MODE_HINT = "Wybierz, czy oddajesz, czy zamieniasz — wtedy inni zobaczą rzecz.";
 
 /** Soft tile + readable text per item mode, matching the exchange tones. */
 const MODE_TONE: Record<ItemMode, string> = {
@@ -55,10 +56,7 @@ const MODE_BUTTON_ON: Record<ItemMode, string> = {
  * its proportions on a desktop. */
 const TILE_GRID = "grid grid-cols-1 items-start gap-3 @2xl:grid-cols-2 @5xl:grid-cols-3 @5xl:gap-4";
 
-const PUBLIC_HINT = "Publiczna: widzą ją wszyscy.";
-
-const ICON_BUTTON =
-  "flex h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-line bg-paper text-ink-soft transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+const PUBLIC_HINT = "Widzą ją wszyscy w wyszukiwaniu i w grupach.";
 
 /** „Marta W.” → „MW”, for the proposer's avatar. */
 function initials(name: string): string {
@@ -424,52 +422,64 @@ export function MyItemsView() {
                   className={`relative flex flex-col rounded-[22px] border bg-paper p-3 transition-shadow hover:shadow-md ${photosPending ? "border-[1.5px] border-dashed border-line-strong" : "border-line"}`}
                 >
                   <div className="flex items-start gap-3">
-                    {/* Stretched link: the whole card opens the item; the controls
-                        below sit on `relative z-10` above its overlay. */}
+                    {/* Stretched link: the photo is the link and its ::after covers
+                        the whole card (the card is its containing block, so the
+                        photo must stay unpositioned); every control sits on
+                        `relative z-10`/`z-20` above that layer and keeps working. */}
                     <Link
                       to={itemPagePath(ownSlug, it.id)}
                       aria-label={`Zobacz rzecz ${it.product_name}`}
-                      className={`relative flex h-24 w-24 flex-none items-center justify-center overflow-hidden rounded-2xl after:absolute after:inset-0 after:rounded-[22px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${mode ? MODE_TONE[mode] : "bg-stage text-ink-soft"} ${photosPending ? "opacity-60" : ""}`}
+                      className={`flex h-24 w-24 flex-none items-center justify-center overflow-hidden rounded-2xl after:absolute after:inset-0 after:rounded-[22px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${mode ? MODE_TONE[mode] : "bg-stage text-ink-soft"} ${photosPending ? "opacity-60" : ""}`}
                     >
                       {it.thumb_url ? (
                         <SafeImage src={it.thumb_url} alt="" className="size-full" placeholderSize={22} />
                       ) : (
                         <BoxIcon c="currentColor" />
                       )}
-                      {mode && (
-                        <span
-                          aria-hidden="true"
-                          className={`absolute top-1.5 left-1.5 rounded-full px-2 py-0.5 text-[10.5px] font-extrabold shadow-[0_2px_8px_-2px_rgba(19,38,29,0.35)] ${MODE_BADGE[mode]}`}
-                        >
-                          {capitalize(mode)}
-                        </span>
-                      )}
                     </Link>
+                    {mode && (
+                      <span
+                        aria-hidden="true"
+                        className={`pointer-events-none absolute top-4.5 left-4.5 rounded-full px-2 py-0.5 text-[10.5px] font-extrabold shadow-[0_2px_8px_-2px_rgba(19,38,29,0.35)] ${MODE_BADGE[mode]}`}
+                      >
+                        {capitalize(mode)}
+                      </span>
+                    )}
                     <div className="min-w-0 flex-1 pt-0.5">
                       <h3 title={it.product_name} className="line-clamp-2 text-base leading-snug font-extrabold wrap-break-word text-ink">
                         {it.product_name}
                       </h3>
                       <small className="mt-0.5 block text-[13px] text-ink-soft">Stan: {CONDITION_LABELS[it.condition]}</small>
-                      {it.points_value !== null && (
-                        <span
-                          title="Wycena systemu — widzisz ją tylko Ty"
-                          className="mt-2 inline-flex items-center rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-extrabold text-accent-fg"
-                        >
-                          {it.points_value} pkt
-                        </span>
-                      )}
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {it.points_value !== null && (
+                          <span
+                            title="Wycena systemu — widzisz ją tylko Ty"
+                            className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-extrabold text-accent-fg"
+                          >
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3">
+                              <path d="M12 2l2.9 6.6 7.1.7-5.4 4.7 1.6 7L12 17.3 5.8 21l1.6-7L2 9.3l7.1-.7z" />
+                            </svg>
+                            {it.points_value} pkt
+                          </span>
+                        )}
+                        {mode && (
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-extrabold ${
+                              it.listing_visibility === "PRIVATE" ? "bg-stage text-ink-soft" : "bg-primary-soft text-primary-fg"
+                            }`}
+                          >
+                            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+                            {it.listing_visibility === "PRIVATE" ? "Prywatna" : "Publiczna"}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="relative z-10 flex flex-none flex-col gap-1">
-                      <Link to={itemEditPath(it.id)} aria-label={`Edytuj rzecz ${it.product_name}`} className={ICON_BUTTON}>
-                        <PencilIcon />
-                      </Link>
-                      <button
-                        onClick={() => void handleDeleteItem(it.id)}
-                        aria-label={`Usuń rzecz ${it.product_name}`}
-                        className={`${ICON_BUTTON} hover:border-danger hover:text-danger`}
-                      >
-                        <TrashIcon />
-                      </button>
+                    <div className="relative z-20">
+                      <ItemActionsMenu
+                        itemName={it.product_name}
+                        editPath={itemEditPath(it.id)}
+                        onDelete={() => void handleDeleteItem(it.id)}
+                      />
                     </div>
                   </div>
 
@@ -519,6 +529,13 @@ export function MyItemsView() {
                     </div>
                   ) : null}
 
+                  {!mode && (
+                    <div className="relative z-10 mt-3 rounded-2xl bg-primary-soft px-3.5 py-2.5 text-primary-fg">
+                      <p className="text-sm font-extrabold">To jeszcze szkic</p>
+                      <p className="mt-0.5 text-[13px] leading-snug">{NO_MODE_HINT}</p>
+                    </div>
+                  )}
+
                   <div className="relative z-10 mt-3 grid grid-cols-2 gap-1.5">
                     {ITEM_MODES.map((m) => {
                       const on = mode === m;
@@ -540,22 +557,18 @@ export function MyItemsView() {
                     })}
                   </div>
 
-                  <div className="relative z-10 mt-2">
-                    {mode ? (
-                      <div className="flex items-center gap-2">
-                        <VisibilityToggle
-                          value={it.listing_visibility ?? "PUBLIC"}
-                          onChange={(v) => void setItemVisibility(it.id, mode, v)}
-                          itemName={it.product_name}
-                        />
-                        <p className="text-xs leading-snug text-ink-soft">
-                          {it.listing_visibility === "PRIVATE" ? PRIVATE_HINT : PUBLIC_HINT}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="rounded-2xl bg-primary-soft px-3 py-2 text-xs font-bold text-primary-fg">{NO_MODE_HINT}</p>
-                    )}
-                  </div>
+                  {mode && (
+                    <div className="relative z-10 mt-2 flex items-center gap-2.5">
+                      <VisibilityToggle
+                        value={it.listing_visibility ?? "PUBLIC"}
+                        onChange={(v) => void setItemVisibility(it.id, mode, v)}
+                        itemName={it.product_name}
+                      />
+                      <p className="text-xs leading-snug text-ink-soft">
+                        {it.listing_visibility === "PRIVATE" ? PRIVATE_HINT : PUBLIC_HINT}
+                      </p>
+                    </div>
+                  )}
 
                   {proposals.length > 0 && (
                     <div className="relative z-10 mt-3 flex flex-col gap-1.5 border-t border-line pt-2.5">

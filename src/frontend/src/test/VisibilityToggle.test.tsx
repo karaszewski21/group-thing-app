@@ -3,27 +3,29 @@ import { describe, expect, it, vi } from "vitest";
 import { VisibilityToggle } from "../features/items/VisibilityToggle";
 
 describe("VisibilityToggle", () => {
-  it("an open lock is public and clicking it makes the item private", () => {
+  it("a public item has „Publiczna” checked and picking „Prywatna” makes it private", () => {
     const onChange = vi.fn();
     render(<VisibilityToggle value="PUBLIC" onChange={onChange} itemName="Rowerek" />);
 
-    const lock = screen.getByRole("button", { name: "Prywatna: Rowerek" });
-    expect(lock).toHaveAttribute("aria-pressed", "false");
-    expect(lock).toHaveAttribute("type", "button");
-    expect(lock).toHaveTextContent("");
+    expect(screen.getByRole("radiogroup", { name: "Kto widzi rzecz Rowerek" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Publiczna: Rowerek" })).toHaveAttribute("aria-checked", "true");
+    const priv = screen.getByRole("radio", { name: "Prywatna: Rowerek" });
+    expect(priv).toHaveAttribute("aria-checked", "false");
+    expect(priv).toHaveAttribute("type", "button");
 
-    fireEvent.click(lock);
+    fireEvent.click(priv);
     expect(onChange).toHaveBeenCalledWith("PRIVATE");
   });
 
-  it("a closed lock is private and clicking it makes the item public", () => {
+  it("a private item has „Prywatna” checked, picking „Publiczna” makes it public, re-picking does nothing", () => {
     const onChange = vi.fn();
     render(<VisibilityToggle value="PRIVATE" onChange={onChange} itemName="Rowerek" />);
 
-    const lock = screen.getByRole("button", { name: "Prywatna: Rowerek" });
-    expect(lock).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("radio", { name: "Prywatna: Rowerek" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByRole("radio", { name: "Prywatna: Rowerek" }));
+    expect(onChange).not.toHaveBeenCalled();
 
-    fireEvent.click(lock);
+    fireEvent.click(screen.getByRole("radio", { name: "Publiczna: Rowerek" }));
     expect(onChange).toHaveBeenCalledWith("PUBLIC");
   });
 });
