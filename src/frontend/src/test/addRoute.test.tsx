@@ -31,7 +31,7 @@ describe("/add route", () => {
     renderAt("/add");
 
     expect(await screen.findByRole("heading", { name: "Co dodajesz?" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Rzecz/ })).toHaveAttribute("href", "/login?returnTo=%2Fadd%2Fproduct");
+    expect(screen.getByRole("link", { name: /^Dodaj rzecz/ })).toHaveAttribute("href", "/login?returnTo=%2Fadd%2Fproduct");
     expect(screen.getByRole("link", { name: /^Szukam rzeczy/ })).toHaveAttribute(
       "href",
       "/login?returnTo=%2Fadd%2Fwanted",
