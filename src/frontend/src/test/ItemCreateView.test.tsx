@@ -131,6 +131,7 @@ function myItem(id: string, location_id: string | null, created_at: string): MyI
     listing_visibility: null,
     photos_moderation_pending: false,
     location_id,
+    points_value: null,
     balance_status: "AVAILABLE",
     reservation_id: null,
   };

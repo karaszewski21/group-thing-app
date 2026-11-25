@@ -247,3 +247,71 @@ async def test_itemResponses_valuedListedItem_carryNoPointsField(
         assert not {key for key in _keys(response.json()) if "point" in key}, response.url
     search_ids = {result.get("id") for result in responses[-1].json()["items"]}
     assert item_id in search_ids
+
+
+async def test_itemValuePreview_categoryAndCondition_returnsValueWithoutSaving(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    headers = await _register(client, "pval.preview@example.com")
+    leaves = await leaf_category_ids(client, headers, 50)
+    chain = next(
+        c for c in [await _ancestor_ids(db_session, leaf) for leaf in leaves] if len(c) >= 2
+    )
+    for category_id in chain:
+        await _set_size_class(db_session, category_id, None)
+    await _set_size_class(db_session, chain[1], "LARGE")
+
+    inherited = await client.get(
+        "/api/points/item-value",
+        params={"category_id": str(chain[0]), "condition": "POOR"},
+        headers=headers,
+    )
+    await _set_size_class(db_session, chain[1], None)
+    root_default = await client.get(
+        "/api/points/item-value",
+        params={"category_id": str(chain[0]), "condition": "NEW"},
+        headers=headers,
+    )
+
+    assert inherited.status_code == 200, inherited.text
+    assert inherited.json() == {"points_value": 40}  # 60 × 0.50 = 30 → 40
+    assert root_default.json() == {"points_value": 60}  # 40 × 1.50 = 60
+
+
+async def test_itemValuePreview_badInput_rejected(client: AsyncClient) -> None:
+    headers = await _register(client, "pval.preview.bad@example.com")
+    category_id = (await leaf_category_ids(client, headers))[0]
+
+    unknown = await client.get(
+        "/api/points/item-value",
+        params={"category_id": str(uuid.uuid4()), "condition": "GOOD"},
+        headers=headers,
+    )
+    bad_condition = await client.get(
+        "/api/points/item-value",
+        params={"category_id": category_id, "condition": "BROKEN"},
+        headers=headers,
+    )
+    anonymous = await client.get(
+        "/api/points/item-value", params={"category_id": category_id, "condition": "GOOD"}
+    )
+
+    assert unknown.status_code == 404
+    assert bad_condition.status_code == 400
+    assert anonymous.status_code == 401
+
+
+async def test_myItemsPage_ownerRow_carriesStoredPointsValue(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    headers = await _register(client, "pval.mine@example.com")
+    category_id = (await leaf_category_ids(client, headers))[0]
+    await _set_size_class(db_session, category_id, "LARGE")
+    product_id = await _product_id(client, headers, "Wycena komoda", category_id)
+    item_id = await _create_item(client, headers, product_id, "GOOD")
+
+    page = await client.get("/api/inventory-items/mine/page", headers=headers)
+
+    assert page.status_code == 200, page.text
+    rows = {row["id"]: row for row in page.json()["items"]}
+    assert rows[item_id]["points_value"] == 60  # 60 × 1.00

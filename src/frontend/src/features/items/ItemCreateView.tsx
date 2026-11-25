@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAppNavigate } from "../../routing/navigation";
 import type { ListingMode } from "../../api/itemListingPreferences";
 import { Field } from "../../components/shared/appComponents";
+import { ItemPointsPreview } from "../../components/shared/ItemPointsPreview";
 import { ItemQuickAddForm } from "../../components/shared/ItemQuickAddForm";
 import { LocationPicker } from "../../components/shared/LocationPicker";
 import { useCreateItem } from "../../hooks/useCreateItem";
@@ -100,6 +101,9 @@ export function ItemCreateView() {
         <NewPhotosField files={photos} onChange={setPhotos} disabled={busy} />
         <div className="mt-4">
           <ItemQuickAddForm value={value} onChange={setValue} disabled={busy} />
+        </div>
+        <div className="mt-3">
+          <ItemPointsPreview categoryId={value.category_id || null} condition={value.condition} />
         </div>
         {/* The picker names itself through its aria-label; the Field label is visible copy. */}
         <div className="mt-3">

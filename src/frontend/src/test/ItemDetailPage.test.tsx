@@ -573,6 +573,7 @@ describe("ItemDetailPage context actions", () => {
     listing_mode: "SWAP",
     listing_visibility: "PUBLIC",
     location_id: null,
+    points_value: null,
     photos_moderation_pending: false,
     balance_status: "AVAILABLE",
     reservation_id: null,

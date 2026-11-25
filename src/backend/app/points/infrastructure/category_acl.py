@@ -16,10 +16,24 @@ _products = table("products", column("id"), column("category_id"))
 _categories = table("categories", column("id"), column("parent_id"), column("size_class"))
 
 
+def _chain_statement(start: Select[Any]) -> Select[Any]:
+    """The size classes from the `start` category up to the root, nearest
+    first; the climb stops at the first category that sets one, so the
+    first non-NULL row is the inherited class."""
+    chain = start.cte("size_class_chain", recursive=True)
+    parent = _categories.alias("parent")
+    chain = chain.union_all(
+        select(parent.c.parent_id, parent.c.size_class, chain.c.depth + 1)
+        .join_from(chain, parent, parent.c.id == chain.c.parent_id)
+        .where(chain.c.size_class.is_(None))
+    )
+    return select(chain.c.size_class).order_by(chain.c.size_class.is_(None), chain.c.depth).limit(1)
+
+
 def size_class_statement(product_id: uuid.UUID) -> Select[Any]:
-    """The nearest non-NULL `size_class` from the product's category up to
-    the root; the climb stops at the first category that sets one."""
-    chain = (
+    """The nearest `size_class` from the product's category up to the root;
+    NULL or no row when none in the chain sets one."""
+    return _chain_statement(
         select(
             _categories.c.parent_id,
             _categories.c.size_class,
@@ -27,22 +41,28 @@ def size_class_statement(product_id: uuid.UUID) -> Select[Any]:
         )
         .join_from(_products, _categories, _categories.c.id == _products.c.category_id)
         .where(_products.c.id == product_id)
-        .cte("size_class_chain", recursive=True)
-    )
-    parent = _categories.alias("parent")
-    chain = chain.union_all(
-        select(parent.c.parent_id, parent.c.size_class, chain.c.depth + 1)
-        .join_from(chain, parent, parent.c.id == chain.c.parent_id)
-        .where(chain.c.size_class.is_(None))
-    )
-    return (
-        select(chain.c.size_class)
-        .where(chain.c.size_class.is_not(None))
-        .order_by(chain.c.depth)
-        .limit(1)
     )
 
 
 async def resolve_size_class(db: AsyncSession, product_id: uuid.UUID) -> str:
     size_class = (await db.execute(size_class_statement(product_id))).scalar_one_or_none()
     return DEFAULT_SIZE_CLASS if size_class is None else str(size_class)
+
+
+async def resolve_category_size_class(db: AsyncSession, category_id: uuid.UUID) -> str | None:
+    """The size class a product in `category_id` would inherit; `None` for
+    an unknown category."""
+    row = (
+        await db.execute(
+            _chain_statement(
+                select(
+                    _categories.c.parent_id,
+                    _categories.c.size_class,
+                    literal(0).label("depth"),
+                ).where(_categories.c.id == category_id)
+            )
+        )
+    ).first()
+    if row is None:
+        return None
+    return DEFAULT_SIZE_CLASS if row.size_class is None else str(row.size_class)

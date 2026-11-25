@@ -7,6 +7,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -68,6 +69,15 @@ class AttendanceRulesResponse(BaseModel):
     levels: list[int]
     min_present: int
     auto_close_days: int
+
+
+ItemConditionKey = Literal["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"]
+
+
+class ItemPointsValueResponse(BaseModel):
+    """What an item would be worth if saved now (20, 40 or 60)."""
+
+    points_value: int
 
 
 class PointsSummaryResponse(BaseModel):

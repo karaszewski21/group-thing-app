@@ -56,6 +56,7 @@ const item: MyInventoryItemResponse = {
   listing_status: "ACTIVE",
   photos_moderation_pending: false,
   location_id: "loc-1",
+  points_value: null,
   balance_status: "AVAILABLE",
   reservation_id: null,
 };
@@ -132,6 +133,21 @@ describe("MyItemsView — no inventory location card", () => {
     expect(await screen.findByText(item.product_name)).toBeInTheDocument();
     expect(screen.queryByText("Gdzie są moje rzeczy?")).not.toBeInTheDocument();
     expect(screen.getAllByRole("combobox")).toEqual([screen.getByRole("combobox", { name: "Tryb" })]);
+  });
+});
+
+describe("MyItemsView — points value", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("shows the stored value next to the condition, and nothing for an item not valued yet", async () => {
+    const valued: MyInventoryItemResponse = { ...item, id: "item-2", product_name: "Komoda", points_value: 60 };
+    setup({ items: [item, valued] });
+    renderWithProviders();
+
+    expect(await screen.findByText("60 pkt")).toBeInTheDocument();
+    expect(screen.getAllByText(/pkt$/)).toHaveLength(1);
   });
 });
 

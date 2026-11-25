@@ -26,6 +26,7 @@ function myItem(id: string): MyInventoryItemResponse {
     listing_status: "DRAFT",
     photos_moderation_pending: false,
     location_id: "loc-1",
+    points_value: null,
     balance_status: "AVAILABLE",
     reservation_id: null,
   };

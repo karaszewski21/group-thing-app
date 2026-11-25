@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { ItemCondition, ListingStatus } from "../../api/inventories";
 import type { ItemDetailsResponse } from "../../api/items";
 import { CategoryTreePicker } from "../../components/shared/CategoryTreePicker";
+import { ItemPointsPreview } from "../../components/shared/ItemPointsPreview";
 import { LocationPicker } from "../../components/shared/LocationPicker";
 import type { useItemEditing } from "../../hooks/useItemDetail";
 import { useMyLocations } from "../../hooks/useMyLocations";
@@ -187,6 +188,7 @@ export function ItemEditForm({
             placeholder={item.category_name ?? undefined}
           />
         </div>
+        <ItemPointsPreview categoryId={categoryId} condition={condition} />
         {repoints && (
           <p className="text-[11.5px] text-ink-soft">
             Ta zmiana podepnie rzecz pod inny produkt z katalogu — innych rzeczy nie zmienia. Zdjęcia i opis

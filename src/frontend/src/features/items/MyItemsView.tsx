@@ -409,7 +409,17 @@ export function MyItemsView() {
                 </Link>
                 <div className="min-w-0 flex-1">
                   <h3 title={it.product_name} className="line-clamp-2 text-base leading-snug font-bold wrap-break-word text-ink">{it.product_name}</h3>
-                  <small className="mt-0.5 block text-[13px] text-ink-soft">Stan: {CONDITION_LABELS[it.condition]}</small>
+                  <small className="mt-0.5 block text-[13px] text-ink-soft">
+                    Stan: {CONDITION_LABELS[it.condition]}
+                    {it.points_value !== null && (
+                      <>
+                        {" · "}
+                        <span className="font-bold text-ink" title="Wycena systemu">
+                          {it.points_value} pkt
+                        </span>
+                      </>
+                    )}
+                  </small>
                 </div>
                 <div className="relative z-10 flex flex-none gap-1">
                   <Link to={itemEditPath(it.id)} aria-label={`Edytuj rzecz ${it.product_name}`} className={ICON_BUTTON}>

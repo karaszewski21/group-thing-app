@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { ItemCondition } from "./inventories";
 import { pageParams, type Page } from "./pagination";
 
 /** The admin-tunable point thresholds (`points_config`), as the backend's
@@ -79,4 +80,14 @@ export interface AttendanceRules {
 
 export function getAttendanceRules(): Promise<AttendanceRules> {
   return api.get("/points/attendance-rules");
+}
+
+/** What an item in this category and condition is worth if saved now. */
+export interface ItemPointsValue {
+  points_value: number;
+}
+
+export function getItemPointsValue(categoryId: string, condition: ItemCondition): Promise<ItemPointsValue> {
+  const params = new URLSearchParams({ category_id: categoryId, condition });
+  return api.get(`/points/item-value?${params}`);
 }

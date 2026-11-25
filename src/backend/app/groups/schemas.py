@@ -797,7 +797,8 @@ class MyInventoryItemResponse(BaseModel):
     block listing the item.
     `thumb_url` is the product's first APPROVED photo (400 px), `None`
     without one or without object storage. `location_id` is the item's
-    place as stored, soft-deleted or not."""
+    place as stored, soft-deleted or not. `points_value` is the value the
+    item stored when it was saved (owner only, `None` before valuation)."""
 
     id: uuid.UUID
     inventory_id: uuid.UUID
@@ -812,6 +813,7 @@ class MyInventoryItemResponse(BaseModel):
     listing_visibility: ItemVisibility | None
     listing_status: ItemListingStatus
     location_id: uuid.UUID | None
+    points_value: int | None
     photos_moderation_pending: bool
     thumb_url: str | None = None
     # As `GET /api/inventory-items/{id}/balance` reports them.

@@ -51,6 +51,9 @@ export interface MyInventoryItemResponse extends InventoryItemResponse {
   thumb_url?: string | null;
   /** The item's place (owner only), or `null` without one. */
   location_id: string | null;
+  /** The points the system valued the item at when it was saved (owner
+   * only); `null` for an item not valued yet. */
+  points_value: number | null;
   /** As `GET /inventory-items/{id}/balance` reports them: the item's
    * balance and, while it is RESERVED or IN_TRANSIT, its active reservation. */
   balance_status: BalanceStatus;

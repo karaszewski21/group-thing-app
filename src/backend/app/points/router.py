@@ -4,9 +4,10 @@ OAuth `mcp:*` scopes (row 69)."""
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth_deps import Principal, require_any
@@ -14,9 +15,11 @@ from app.core.cache_headers import set_personalised_cache_headers
 from app.core.pagination import Page, Pagination
 from app.db import get_db
 
-from .application import config, reads
+from .application import config, reads, valuation
 from .schemas import (
     AttendanceRulesResponse,
+    ItemConditionKey,
+    ItemPointsValueResponse,
     PointHistoryEntryResponse,
     PointsConfigResponse,
     PointsSummaryResponse,
@@ -68,3 +71,15 @@ async def get_my_points_history(
     history = await reads.my_history(db, principal, pagination)
     set_personalised_cache_headers(response, principal)
     return history
+
+
+@router.get("/item-value", response_model=ItemPointsValueResponse)
+async def get_item_value(
+    db: DbSession,
+    _principal: ReadPrincipal,
+    category_id: Annotated[uuid.UUID, Query()],
+    condition: Annotated[ItemConditionKey, Query()],
+) -> ItemPointsValueResponse:
+    """The item forms' preview: the value a new or edited item in
+    `category_id` and `condition` gets when saved now."""
+    return await valuation.item_value_preview(db, category_id, condition)

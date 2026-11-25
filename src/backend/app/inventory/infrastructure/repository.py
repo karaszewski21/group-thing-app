@@ -208,7 +208,7 @@ async def list_items_for_inventory_with_product_name(
 def inventory_items_with_product_select(inventory_id: uuid.UUID) -> Select[Any]:
     """`(id, inventory_id, owner_inventory_id, product_id, product_name,
     condition, added_at, created_at, updated_at, listing_status, location_id,
-    balance_status, reservation_id)` of every live item in `inventory_id`.
+    points_value, balance_status, reservation_id)` of every live item in `inventory_id`.
     `balance_status` is `None` for an item without a balance row;
     `reservation_id` is the newest PENDING/CONFIRMED reservation while the
     balance is RESERVED or IN_TRANSIT, as `GET /inventory-items/{id}/balance`
@@ -241,6 +241,7 @@ def inventory_items_with_product_select(inventory_id: uuid.UUID) -> Select[Any]:
             InventoryItem.updated_at.label("updated_at"),
             InventoryItem.listing_status.label("listing_status"),
             InventoryItem.location_id.label("location_id"),
+            InventoryItem.points_value.label("points_value"),
             InventoryBalance.status.label("balance_status"),
             case(
                 (

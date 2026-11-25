@@ -263,6 +263,7 @@ async def _my_inventory_item_responses(
             listing_visibility=row.visibility,
             listing_status=row.listing_status,
             location_id=row.location_id,
+            points_value=row.points_value,
             photos_moderation_pending=row.product_id in pending,
             thumb_url=(
                 storage.public_url(photos[row.product_id].thumb_key)

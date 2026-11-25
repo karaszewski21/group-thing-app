@@ -8,9 +8,9 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.points.application import valuation
 from app.points.application.awards import ExchangeLeg, award_attendance, award_exchange
 from app.points.application.config import load_config
-from app.points.domain.valuation import item_points_value
 from app.points.infrastructure import category_acl
 
 __all__ = [
@@ -45,20 +45,5 @@ async def compute_item_points_value(db: AsyncSession, product_id: uuid.UUID, con
     """The value of an item of `product_id` in `condition` under the current
     config; the caller stores it, later config or size class changes never
     touch it."""
-    config = await load_config(db)
-    return item_points_value(
-        await category_acl.resolve_size_class(db, product_id),
-        condition,
-        bases={
-            "SMALL": config.base_small,
-            "MEDIUM": config.base_medium,
-            "LARGE": config.base_large,
-        },
-        multipliers={
-            "NEW": config.multiplier_new,
-            "LIKE_NEW": config.multiplier_like_new,
-            "GOOD": config.multiplier_good,
-            "FAIR": config.multiplier_fair,
-            "POOR": config.multiplier_poor,
-        },
-    )
+    size_class = await category_acl.resolve_size_class(db, product_id)
+    return await valuation.value_for(db, size_class, condition)
