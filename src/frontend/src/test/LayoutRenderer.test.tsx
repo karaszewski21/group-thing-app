@@ -342,8 +342,8 @@ describe("LayoutRenderer", () => {
     const block = screen.getByRole("region", { name: "Rzeczy do oddania i wymiany" });
     expect(within(block).getAllByRole("listitem")).toHaveLength(2);
     expect(within(block).getByRole("link", { name: "Kurtka" })).toHaveAttribute("href", `/${SLUG}/product/i1`);
-    expect(within(block).getByText("Chcę oddać")).toHaveClass("bg-primary-soft");
-    expect(within(block).getByText("Chcę się zamienić")).toHaveClass("bg-accent-soft");
+    expect(within(block).getByText("Oddam")).toHaveClass("bg-primary");
+    expect(within(block).getByText("Zamienię")).toHaveClass("bg-accent");
     expect(within(block).getByRole("link", { name: "Zobacz wszystkie rzeczy →" })).toHaveAttribute(
       "href",
       `/${SLUG}/items`,

@@ -19,12 +19,12 @@ function renderCard(marker?: string) {
 }
 
 describe("ItemCard", () => {
-  it("shows the marker beside today's intent label when one is passed", () => {
+  it("shows the marker beside the offer badge when one is passed", () => {
     renderCard("nowe");
 
     const card = screen.getByRole("article");
     expect(card).toHaveTextContent("nowe");
-    expect(card).toHaveTextContent("Chcę oddać");
+    expect(card).toHaveTextContent("Oddam");
     expect(screen.getByRole("link", { name: "Rowerek biegowy Puky" })).toHaveAttribute("href", "/ania/product/7");
   });
 
@@ -32,6 +32,6 @@ describe("ItemCard", () => {
     renderCard();
 
     expect(screen.queryByText("nowe")).not.toBeInTheDocument();
-    expect(screen.getByRole("article")).toHaveTextContent("Chcę oddać");
+    expect(screen.getByRole("article")).toHaveTextContent("Oddam");
   });
 });

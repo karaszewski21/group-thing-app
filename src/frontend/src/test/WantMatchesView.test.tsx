@@ -183,7 +183,7 @@ describe("WantMatchesView", () => {
     expect(within(cardOf("Moja rezerwacja")).getByText("Zarezerwowane przez Ciebie")).toBeInTheDocument();
     expect(within(cardOf("Moja propozycja")).getByText("Twoja propozycja")).toBeInTheDocument();
     expect(within(cardOf("Cudza rezerwacja")).getByText("Zarezerwowane")).toBeInTheDocument();
-    expect(within(cardOf("Rowerek biegowy Puky")).getByText("Chcę oddać")).toBeInTheDocument();
+    expect(within(cardOf("Rowerek biegowy Puky")).getByText("Oddam")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("link", { name: "Moja propozycja" }));
 

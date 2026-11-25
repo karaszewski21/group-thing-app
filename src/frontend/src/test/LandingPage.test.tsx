@@ -4,6 +4,7 @@ import * as localitiesApi from "../api/localities";
 import * as searchApi from "../api/search";
 import type { SearchPage, SearchQuery, SearchResult } from "../api/search";
 import { LandingPage } from "../features/landing/LandingPage";
+import { LandingPageSkeleton } from "../features/home/HomeSkeleton";
 import { makeLocality } from "./fixtures/locations";
 import { createQueryWrapper } from "./queryClient";
 import { renderWithRoute } from "./renderWithRoute";
@@ -123,7 +124,7 @@ describe("LandingPage", () => {
     expect(searchApi.searchPublic).toHaveBeenCalledWith(
       expect.objectContaining({ mode: "items", filters: expect.objectContaining({ locality: KETY.id, radius: 25 }) }),
       1,
-      6,
+      8,
     );
     // No meetings near: the soonest from everywhere, and the section says so.
     expect(await screen.findByText("Kiermasz")).toBeInTheDocument();
@@ -207,6 +208,52 @@ describe("LandingPage", () => {
     expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 
+  it("after turning the location off offers „Cofnij”, which turns it back on", async () => {
+    const getCurrentPosition = stubGeolocation("granted");
+    vi.mocked(localitiesApi.getNearestLocality).mockResolvedValue(KETY);
+    answerSearch({
+      items: page([product("it-1", "Rowerek")], 1),
+      events: page([], 0),
+      nearItems: page([product("it-2", "Fotelik")], 1),
+      nearEvents: page([], 0),
+    });
+
+    renderLanding();
+    expect(await screen.findByRole("link", { name: "Fotelik" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Wyłącz lokalizację" }));
+
+    const notice = await screen.findByRole("status");
+    expect(notice).toHaveTextContent("Lokalizacja wyłączona");
+    fireEvent.click(within(notice).getByRole("button", { name: "Cofnij" }));
+
+    expect(await screen.findByRole("link", { name: "Fotelik" })).toBeInTheDocument();
+    expect(getCurrentPosition).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("Lokalizacja wyłączona")).not.toBeInTheDocument();
+  });
+
+  it("„Twoja okolica” changes the radius and turns the location off", async () => {
+    stubGeolocation("granted");
+    vi.mocked(localitiesApi.getNearestLocality).mockResolvedValue(KETY);
+    answerSearch({
+      items: page([product("it-1", "Rowerek")], 1),
+      events: page([], 0),
+      nearItems: page([product("it-2", "Fotelik")], 1),
+      nearEvents: page([], 0),
+    });
+
+    renderLanding();
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(`${KETY.name} · do 25 km`) }));
+
+    const sheet = screen.getByRole("dialog", { name: "Twoja okolica" });
+    fireEvent.click(within(sheet).getByRole("button", { name: "+10 km" }));
+    expect(within(sheet).getByRole("button", { name: "+10 km" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(within(sheet).getByRole("button", { name: "Wyłącz lokalizację" }));
+
+    expect(screen.queryByRole("dialog", { name: "Twoja okolica" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Rowerek" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pokaż w pobliżu" })).toBeInTheDocument();
+  });
+
   it("turns the location off, also over a granted permission, and back on", async () => {
     const getCurrentPosition = stubGeolocation("granted");
     vi.mocked(localitiesApi.getNearestLocality).mockResolvedValue(KETY);
@@ -236,5 +283,18 @@ describe("LandingPage", () => {
     expect(await screen.findByRole("link", { name: "Fotelik" })).toBeInTheDocument();
     expect(getCurrentPosition).toHaveBeenCalledTimes(2);
     expect(localStorage.getItem("home.location.declined")).toBeNull();
+  });
+});
+
+describe("LandingPageSkeleton", () => {
+  it("draws the hero, the location card and both sections in their grids while the page loads", () => {
+    const { container } = renderWithRoute(<LandingPageSkeleton />, { url: "/" });
+
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.getByText("Wczytywanie…")).toHaveClass("sr-only");
+    const items = container.querySelector('[aria-hidden="true"][class*="grid-cols-2"]');
+    const meetings = container.querySelector('[aria-hidden="true"][class*="flex-col gap-2.5"]');
+    expect(items?.children).toHaveLength(8);
+    expect(meetings?.children).toHaveLength(4);
   });
 });

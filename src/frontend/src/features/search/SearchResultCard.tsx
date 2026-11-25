@@ -1,20 +1,37 @@
 import type { ReactNode } from "react";
-import type { SearchResult } from "../../api/search";
+import type { ProductSearchResult, SearchResult } from "../../api/search";
 import { BuildingIcon, FamilyIcon } from "../../components/shared/appIcons";
+import { ItemCard } from "../../components/shared/ItemCard";
 import { Link } from "../../routing/navigation";
 import dayjs from "../../utils/dayjs";
-import { ItemResultTile } from "./ItemResultTile";
 import { MeetingResultTile, RESULT_ROW_CLASS } from "./MeetingResultTile";
 import { ResultKindLabel } from "./ResultKindLabel";
 
 const ICON_CLASS = "flex h-14 w-14 flex-none items-center justify-center rounded-2xl md:h-16 md:w-16";
 
-/** One search result: an item tile for a product, a meeting tile for a term
- * or an event, and a directory row for a group or an organization. */
+/** „Zarezerwowana do pt 21 lis” for a term's or event's reservation,
+ * „Zarezerwowana” for a personal pickup or a pending proposal. */
+function reservedCaption({ reserved, reserved_until }: ProductSearchResult["meta"]): string | undefined {
+  if (!reserved) return undefined;
+  return reserved_until ? `Zarezerwowana do ${dayjs(reserved_until).format("ddd D MMM")}` : "Zarezerwowana";
+}
+
+/** One search result: the app's item tile for a product, a meeting tile for
+ * a term or an event, and a directory row for a group or an organization. */
 export function SearchResultCard({ result }: { result: SearchResult }) {
   switch (result.kind) {
     case "product":
-      return <ItemResultTile result={result} />;
+      return (
+        <ItemCard
+          href={result.href}
+          name={result.title}
+          condition={result.meta.condition}
+          thumbUrl={result.meta.thumb_url}
+          mode={result.meta.mode}
+          reservation={null}
+          reservedCaption={reservedCaption(result.meta)}
+        />
+      );
     case "term":
     case "event":
       return <MeetingResultTile result={result} />;

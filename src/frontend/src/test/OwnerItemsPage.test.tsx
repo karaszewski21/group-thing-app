@@ -108,7 +108,7 @@ beforeEach(() => {
 });
 
 describe("OwnerItemsPage", () => {
-  it("keeps the nearest date card and shows intent pills on tiles linking to the plain product page", async () => {
+  it("keeps the nearest date card and shows offer badges on tiles linking to the plain product page", async () => {
     vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(ownerPage());
 
     await renderAt(`/${SLUG}/items`);
@@ -126,8 +126,8 @@ describe("OwnerItemsPage", () => {
     expect(within(nearest).queryByRole("combobox")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Rzecz i1" })).toHaveAttribute("href", `/${SLUG}/product/i1`);
     const [gift, swap] = screen.getAllByRole("article");
-    expect(within(gift).getByText("Chcę oddać")).toHaveClass("bg-primary-soft", "text-primary-fg");
-    expect(within(swap).getByText("Chcę się zamienić")).toHaveClass("bg-accent-soft", "text-accent-fg");
+    expect(within(gift).getByText("Oddam")).toHaveClass("bg-primary", "text-on-primary");
+    expect(within(swap).getByText("Zamienię")).toHaveClass("bg-accent", "text-ink");
     expect(gift).not.toHaveTextContent("sob 7 lis");
     expect(within(gift).queryByRole("button")).not.toBeInTheDocument();
     expect(ownerItemsApi.getOrganizationOwnerItems).toHaveBeenCalledWith(SLUG, 1, undefined);
@@ -155,7 +155,7 @@ describe("OwnerItemsPage", () => {
     expect(ownerItemsApi.getOrganizationOwnerMeetings).toHaveBeenCalledWith(SLUG);
   });
 
-  it("shows the chat-only notice and intent pills without a nearest date", async () => {
+  it("shows the chat-only notice and offer badges without a nearest date", async () => {
     vi.mocked(ownerItemsApi.getPartyOwnerItems).mockResolvedValue(
       ownerPage({
         owner: { party_id: PARTY_ID, display_name: "Ania W.", slug: null },
@@ -173,8 +173,8 @@ describe("OwnerItemsPage", () => {
     expect(screen.queryByText("Najbliższa okazja do odbioru")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Rzecz i1" })).toHaveAttribute("href", `/${PARTY_ID}/product/i1`);
     const [gift, swap] = screen.getAllByRole("article");
-    expect(within(gift).getByText("Chcę oddać")).toBeInTheDocument();
-    expect(within(swap).getByText("Chcę się zamienić")).toBeInTheDocument();
+    expect(within(gift).getByText("Oddam")).toBeInTheDocument();
+    expect(within(swap).getByText("Zamienię")).toBeInTheDocument();
     expect(ownerItemsApi.getPartyOwnerItems).toHaveBeenCalledWith(PARTY_ID, 1, undefined);
     expect(organizationsApi.getPublicOrganization).not.toHaveBeenCalled();
   });
@@ -199,7 +199,7 @@ describe("OwnerItemsPage", () => {
     expect(within(tablist).getByRole("tab", { name: "Chcę się zamienić 1" })).toBeInTheDocument();
   });
 
-  it("shows an anonymous viewer the reserved pill without a name, next to the intent pill", async () => {
+  it("shows an anonymous viewer the reserved pill without a name, under the offer badge", async () => {
     vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(
       ownerPage({
         items: [card("i1", "GIFT", { reservation: { by_name: null, by_me: false } }), card("i2", "SWAP")],
@@ -214,7 +214,7 @@ describe("OwnerItemsPage", () => {
     const pill = within(reserved).getByText("Zarezerwowana");
     expect(pill).toHaveClass("bg-teal-soft");
     expect(pill).toHaveTextContent(/^Zarezerwowana$/);
-    expect(within(reserved).getByText("Chcę oddać")).toBeInTheDocument();
+    expect(within(reserved).getByText("Oddam")).toBeInTheDocument();
     expect(screen.queryByText(/przez/)).not.toBeInTheDocument();
     const tabs = within(screen.getByRole("tablist")).getAllByRole("tab");
     expect(tabs.map((tab) => tab.textContent)).toEqual(["Wszystkie 3", "Chcę oddać 2", "Chcę się zamienić 1"]);

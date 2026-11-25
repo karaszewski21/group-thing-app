@@ -1,30 +1,27 @@
-import { useCallback } from "react";
-import type { Locality } from "../../api/locations";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { SearchFilters, SearchMode } from "../../api/search";
 import { useAuth } from "../../auth/AuthContext";
-import { RadiusChips } from "../../components/shared/RadiusChips";
 import { useNearestLocality } from "../../hooks/useNearestLocality";
 import { useSearch } from "../../hooks/useSearch";
 import { Link } from "../../routing/navigation";
 import { SearchResultCard } from "../search/SearchResultCard";
-import { SearchResultsSkeleton } from "../search/SearchSkeleton";
+import { ITEM_GRID_CLASS, MEETING_LIST_CLASS, SearchResultsSkeleton } from "../search/SearchSkeleton";
 import {
   resolveHomeFeedView,
   resolveHomeSectionView,
   type HomeFeedView,
   type HomeSectionView,
+  type LocationConsent,
 } from "./homeFeedViewState";
+import { LocationPanel, type LocationPanelState } from "./LocationPanel";
 import { useHomeRadius } from "./useHomeRadius";
 import { useLocationConsent } from "./useLocationConsent";
 
-const PAGE_SIZE: Record<SearchMode, number> = { items: 6, events: 4 };
+const PAGE_SIZE: Record<SearchMode, number> = { items: 8, events: 4 };
 
-const SECTION_TITLE = "font-serif text-[22px] leading-tight font-extrabold tracking-tight text-ink";
-const SECTION_LINK = "rounded text-sm font-extrabold text-primary-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
-const LIST_CLASS: Record<SearchMode, string> = {
-  items: "grid grid-cols-2 gap-3 sm:grid-cols-3",
-  events: "flex flex-col gap-2.5",
-};
+const SECTION_TITLE = "font-serif text-[22px] leading-tight font-extrabold tracking-tight text-ink @3xl:text-[30px]";
+const SECTION_LINK = "flex-none rounded text-sm font-extrabold whitespace-nowrap text-primary-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+const LIST_CLASS: Record<SearchMode, string> = { items: ITEM_GRID_CLASS, events: MEETING_LIST_CLASS };
 
 const NO_FILTERS: SearchFilters = {
   category: null,
@@ -45,97 +42,79 @@ const COPY: Record<SearchMode, { recent: string; nearby: string; empty: string }
   },
 };
 
-/** The home page's two sections, the same for a guest and a logged-in
- * visitor: items (the newest first) and meetings (terms and events, the
- * soonest first), each with „Pokaż więcej”. With the visitor's consent both
- * list what lies around their locality, within the radius picked above them
- * (`useHomeRadius`); without it, or when nothing is near, the newest and
- * soonest from everywhere. */
-export function HomeFeed() {
+const TOAST_MS = 6000;
+
+/** The location card's state from the consent and the feed view. */
+function panelState(consent: LocationConsent, view: HomeFeedView): LocationPanelState {
+  if (view.kind === "nearby") return { kind: "nearby", locality: view.locality };
+  if (view.kind === "pending") return consent.kind === "checking" ? { kind: "checking" } : { kind: "locating" };
+  if (view.location === "ask") return { kind: "ask" };
+  return view.location === "turnOn" ? { kind: "off" } : { kind: "unavailable" };
+}
+
+/** The home page's location card and two sections, the same for a guest and
+ * a logged-in visitor: items (the newest first) and meetings (terms and
+ * events, the soonest first), each with „Pokaż więcej”. With the visitor's
+ * consent both list what lies around their locality, within the radius
+ * picked in the card (`useHomeRadius`); without it, or when nothing is near,
+ * the newest and soonest from everywhere. Turning the location off shows a
+ * short „Cofnij” notice. `top` places the card (the landing page puts it
+ * beside its hero); without it the card leads the feed. The grids follow the
+ * feed's own width, so the narrow panel column keeps two columns. */
+export function HomeFeed({ top }: { top?: (location: ReactNode) => ReactNode }) {
   const { consent, turnOn, turnOff } = useLocationConsent();
   const nearest = useNearestLocality(consent.kind === "located" ? consent.point : null);
   const view = resolveHomeFeedView(consent, nearest);
   const [radius, setRadius] = useHomeRadius();
+  const [offNotice, setOffNotice] = useState(false);
+
+  useEffect(() => {
+    if (!offNotice) return;
+    const timer = setTimeout(() => setOffNotice(false), TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [offNotice]);
+
+  function switchOff() {
+    turnOff();
+    setOffNotice(consent.kind === "located");
+  }
+
+  function switchOn() {
+    setOffNotice(false);
+    turnOn();
+  }
+
+  const location = (
+    <LocationPanel
+      state={panelState(consent, view)}
+      radius={radius}
+      onRadiusChange={setRadius}
+      onTurnOn={switchOn}
+      onTurnOff={switchOff}
+    />
+  );
 
   return (
-    <div className="flex flex-col gap-9">
-      {view.kind === "recent" && view.location === "ask" && <LocationPrompt onEnable={turnOn} onDecline={turnOff} />}
-      {view.kind === "recent" && view.location === "turnOn" && <TurnOnLine onTurnOn={turnOn} />}
-      {view.kind === "nearby" && (
-        <RadiusPicker locality={view.locality} radius={radius} onChange={setRadius} onTurnOff={turnOff} />
-      )}
+    <div className="@container flex flex-col gap-9 md:gap-12">
+      {top ? top(location) : location}
       <HomeFeedSection mode="items" feed={view} radius={radius} />
       <HomeFeedSection mode="events" feed={view} radius={radius} />
-    </div>
-  );
-}
-
-const TEXT_BUTTON = `${SECTION_LINK} min-h-11`;
-
-function RadiusPicker({
-  locality,
-  radius,
-  onChange,
-  onTurnOff,
-}: {
-  locality: Locality;
-  radius: number | null;
-  onChange: (km: number | null) => void;
-  onTurnOff: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between gap-2.5">
-        <p className="text-sm text-ink-soft">
-          W pobliżu: <b className="font-extrabold text-ink">{locality.name}</b>
-        </p>
-        <button type="button" onClick={onTurnOff} className={TEXT_BUTTON}>
-          Wyłącz lokalizację
-        </button>
-      </div>
-      <RadiusChips value={radius} onChange={onChange} />
-    </div>
-  );
-}
-
-/** After „Nie teraz” or „Wyłącz”: the newest from everywhere, and the way back. */
-function TurnOnLine({ onTurnOn }: { onTurnOn: () => void }) {
-  return (
-    <div className="-mb-6 flex items-center justify-between gap-2.5">
-      <p className="text-sm text-ink-soft">Pokazujemy najnowsze ze wszystkich okolic.</p>
-      <button type="button" onClick={onTurnOn} className={TEXT_BUTTON}>
-        Pokaż w pobliżu
-      </button>
-    </div>
-  );
-}
-
-function LocationPrompt({ onEnable, onDecline }: { onEnable: () => void; onDecline: () => void }) {
-  return (
-    <section aria-labelledby="home-location" className="rounded-[22px] bg-primary-soft p-4">
-      <h2 id="home-location" className="text-base font-extrabold text-ink">
-        Pokazać, co jest blisko Ciebie?
-      </h2>
-      <p className="mt-1 text-sm leading-snug text-ink">
-        Włącz lokalizację, a pokażemy rzeczy i spotkania w okolicy. Nie zapisujemy Twojego położenia.
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={onEnable}
-          className="flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-extrabold text-on-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+      {offNotice && (
+        <div
+          role="status"
+          className="fixed inset-x-4 bottom-24 z-30 flex items-center justify-between gap-3 rounded-[18px] bg-ink py-2.5 pr-2.5 pl-4.5 text-on-ink shadow-[0_16px_30px_-14px_rgba(20,28,24,0.6)] md:inset-x-auto md:bottom-28 md:left-1/2 md:w-96 md:-translate-x-1/2"
         >
-          Włącz lokalizację
-        </button>
-        <button
-          type="button"
-          onClick={onDecline}
-          className="flex min-h-11 items-center rounded-full border-[1.5px] border-line bg-paper px-5 text-sm font-extrabold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-        >
-          Nie teraz
-        </button>
-      </div>
-    </section>
+          <span className="text-sm font-bold">Lokalizacja wyłączona</span>
+          <button
+            type="button"
+            onClick={switchOn}
+            className="min-h-10 rounded-full bg-on-ink/15 px-3.5 text-sm font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
+          >
+            Cofnij
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -183,8 +162,15 @@ function HomeFeedSection({ mode, feed, radius }: { mode: SearchMode; feed: HomeF
           Zobacz wszystkie
         </Link>
       </div>
-      {section.kind === "results" && section.fallback && (
+      {section.kind === "results" && section.fallback ? (
         <p className="text-sm text-ink-soft">W pobliżu nic nie znaleźliśmy — pokazujemy najnowsze.</p>
+      ) : (
+        showsNearby &&
+        locality && (
+          <p className="text-sm text-ink-soft">
+            {radius === null ? `${locality.name} · tylko ta miejscowość` : `${locality.name} i do ${radius} km dookoła`}
+          </p>
+        )
       )}
       <div className="mt-3">
         <SectionBody
@@ -207,7 +193,7 @@ interface LoadMore {
 function SectionBody({ mode, section, more }: { mode: SearchMode; section: HomeSectionView; more: LoadMore }) {
   switch (section.kind) {
     case "loading":
-      return <SearchResultsSkeleton mode={mode} />;
+      return <SearchResultsSkeleton mode={mode} count={PAGE_SIZE[mode]} />;
     case "error":
       return (
         <p role="alert" className="rounded-2xl bg-danger-soft p-4 text-sm text-ink">

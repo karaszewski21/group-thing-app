@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { useAppPathname } from "../../routing/navigation";
 import { threadPath } from "../../routing/messagesPaths";
-import { matchPath } from "../../routing/paths";
+import { matchPath, viewPath } from "../../routing/paths";
+import { HomeFeedSkeleton } from "../home/HomeSkeleton";
 import { AppDataProvider } from "./AppDataContext";
 import { useAppData } from "./appDataStore";
 import { AppSkeleton } from "./AppSkeleton";
@@ -35,11 +36,12 @@ export function AppPage({ children }: { children: ReactNode }) {
 
 function AppPageView({ children }: { children: ReactNode }) {
   const { loading, error, profile, toast } = useAppData();
+  const onStart = useAppPathname() === viewPath("home");
   if (loading) {
     return (
       <PhoneFrame>
         <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
-          <AppSkeleton />
+          {onStart ? <HomeFeedSkeleton /> : <AppSkeleton />}
         </div>
       </PhoneFrame>
     );
