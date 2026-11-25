@@ -1,7 +1,14 @@
 /** A pulsing placeholder shape; decorative, so screen readers skip it. The
  * screen's own "Wczytywanie…" label lives in the parent's sr-only text. */
-export function Skeleton({ className, tone = "neutral" }: { className: string; tone?: "neutral" | "primary" }) {
-  const color = tone === "primary" ? "bg-primary-soft" : "bg-line";
+export function Skeleton({
+  className,
+  tone = "neutral",
+}: {
+  className: string;
+  /** `paper` is for shapes on a colored tile. */
+  tone?: "neutral" | "primary" | "paper";
+}) {
+  const color = tone === "primary" ? "bg-primary-soft" : tone === "paper" ? "bg-paper/75" : "bg-line";
   return <span aria-hidden="true" className={`block animate-pulse motion-reduce:animate-none ${color} ${className}`} />;
 }
 

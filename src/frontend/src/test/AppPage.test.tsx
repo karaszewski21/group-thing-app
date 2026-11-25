@@ -3094,7 +3094,7 @@ describe("AppPage — redesigned navigation and pages", () => {
     mockOrganizerDefaults();
     renderPanel("/add");
 
-    expect(await screen.findByRole("link", { name: /^Rzecz/ })).toHaveAttribute("href", "/add/product");
+    expect(await screen.findByRole("link", { name: /^Dodaj rzecz/ })).toHaveAttribute("href", "/add/product");
     const wanted = screen.getByRole("link", { name: /Szukam rzeczy/ });
     expect(wanted).toHaveAttribute("href", "/add/wanted");
     expect(wanted).toHaveTextContent("Damy znać, gdy ktoś doda pasującą");
@@ -3155,7 +3155,7 @@ describe("AppPage — redesigned navigation and pages", () => {
     mockGuestDefaults();
     renderPanel("/add");
 
-    expect(await screen.findByRole("link", { name: /^Rzecz/ })).toHaveAttribute("href", "/add/product");
+    expect(await screen.findByRole("link", { name: /^Dodaj rzecz/ })).toHaveAttribute("href", "/add/product");
     expect(screen.getByRole("link", { name: /Termin spotkania/ })).toHaveAttribute("href", "/groups/new");
   });
 });

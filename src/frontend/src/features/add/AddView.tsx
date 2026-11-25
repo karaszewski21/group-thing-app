@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import { Link } from "../../routing/navigation";
-import { CalendarIcon, CalendarPlusIcon, CloseIcon, SearchIcon } from "../../components/shared/appIcons";
+import { CalendarIcon, CalendarPlusIcon, SearchIcon } from "../../components/shared/appIcons";
 import { authPath } from "../../auth/authPaths";
 import { useWants } from "../../hooks/useWants";
 import { viewPath } from "../../routing/paths";
 import { useAppData } from "../panel/appDataStore";
 import { newCountLabel } from "../wanted/wantText";
+import { ADD_GRID, ADD_PAGE, GROUP_TILE_BOX, GROUP_TILES, PRODUCT_TILE_BOX, WANTED_ROW_BOX } from "./addLayout";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 const LIFT = "transition-transform hover:-translate-y-0.5";
@@ -54,15 +55,15 @@ function GroupTile({
   return (
     <Link
       to={to}
-      className={`flex min-h-38 flex-col justify-between gap-4 rounded-3xl p-4 text-ink @2xl:min-h-0 @2xl:flex-row @2xl:items-start @2xl:justify-start @2xl:gap-3.5 @2xl:rounded-[26px] @2xl:p-5 ${tone} ${LIFT} ${FOCUS}`}
+      className={`flex flex-col justify-between gap-2.5 p-3.5 text-ink @2xl:flex-row @2xl:items-start @2xl:justify-start @2xl:gap-3.5 @2xl:p-5 ${GROUP_TILE_BOX} ${tone} ${LIFT} ${FOCUS}`}
     >
-      <span className={`flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-paper @2xl:h-12 @2xl:w-12 @2xl:rounded-2xl ${iconTone}`}>
+      <span className={`flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-paper @2xl:h-12 @2xl:w-12 @2xl:rounded-2xl ${iconTone}`}>
         {icon}
       </span>
       <span className="flex flex-col @2xl:h-full">
-        <span className="font-serif text-[19px] leading-tight font-extrabold @2xl:text-[21px]">{title}</span>
-        <span className="mt-1 text-[13px] leading-snug opacity-85 @2xl:mt-1.5 @2xl:text-sm">{hint}</span>
-        <span className={`mt-3 inline-flex items-center gap-1.5 self-start text-[13px] font-extrabold whitespace-nowrap @2xl:mt-auto @2xl:text-sm ${iconTone}`}>
+        <span className="font-serif text-[17px] leading-tight font-extrabold @2xl:text-[21px]">{title}</span>
+        <span className="mt-0.5 text-[13px] leading-snug opacity-85 @2xl:mt-1.5 @2xl:text-sm">{hint}</span>
+        <span className={`mt-2 inline-flex items-center gap-1.5 self-start text-[13px] font-extrabold whitespace-nowrap @2xl:mt-auto @2xl:text-sm ${iconTone}`}>
           <span className="@2xl:hidden">{ctaShort}</span>
           <span className="hidden @2xl:inline">{cta}</span>
           <span aria-hidden="true" className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-paper">
@@ -115,27 +116,21 @@ interface AddTilesProps {
 
 function AddTiles({ newMatchCount = 0, termHint, termCta, linkTo }: AddTilesProps) {
   return (
-    <div className="@container mx-auto w-full max-w-240">
+    <div className={ADD_PAGE}>
       <div className="mb-4 flex items-center justify-between gap-3 @2xl:mb-6">
         <div>
-          <h1 className="font-serif text-[28px] leading-tight font-extrabold tracking-tight text-ink @2xl:text-[36px]">
+          <h1 className="font-serif text-[22px] leading-tight font-extrabold tracking-tight text-ink @2xl:text-[30px]">
             Co dodajesz?
           </h1>
           <p className="mt-1 hidden text-[15px] text-ink-soft @2xl:block">Najczęściej to rzecz — zacznij od zdjęcia.</p>
         </div>
-        <Link
-          to="/"
-          aria-label="Zamknij"
-          className={`flex h-11 w-11 flex-none items-center justify-center rounded-full border-[1.5px] border-line bg-paper text-ink hover:border-line-strong @2xl:h-12 @2xl:w-12 ${FOCUS}`}
-        >
-          <CloseIcon />
-        </Link>
+      
       </div>
 
-      <div className="flex flex-col gap-3.5 @2xl:grid @2xl:grid-cols-3 @2xl:grid-rows-[repeat(2,11.25rem)] @2xl:gap-4">
+      <div className={ADD_GRID}>
         <Link
           to={linkTo(viewPath("add/product"))}
-          className={`relative flex min-h-80 flex-col justify-between gap-3.5 overflow-hidden rounded-[28px] bg-primary p-5 text-on-primary @2xl:col-span-2 @2xl:row-span-2 @2xl:min-h-0 @2xl:rounded-4xl @2xl:p-7 ${LIFT} ${FOCUS}`}
+          className={`relative flex flex-col justify-between gap-3.5 overflow-hidden bg-primary p-5 text-on-primary @2xl:p-7 ${PRODUCT_TILE_BOX} ${LIFT} ${FOCUS}`}
         >
           <Image
             src="/assets/sterta_rzeczy_w_pokoju.webp"
@@ -173,7 +168,7 @@ function AddTiles({ newMatchCount = 0, termHint, termCta, linkTo }: AddTilesProp
           </span>
         </Link>
 
-        <div className="grid grid-cols-2 gap-2.5 @2xl:contents">
+        <div className={GROUP_TILES}>
           <GroupTile
             to={linkTo(viewPath("add/term"))}
             tone="bg-accent-soft"
@@ -198,7 +193,7 @@ function AddTiles({ newMatchCount = 0, termHint, termCta, linkTo }: AddTilesProp
 
       <Link
         to={linkTo(viewPath("add/wanted"))}
-        className={`mt-3.5 flex min-h-16 items-center gap-3 rounded-[20px] border border-line bg-paper py-2.5 pr-3 pl-2.5 text-ink hover:border-line-strong @2xl:mt-4 @2xl:min-h-18 @2xl:gap-3.5 @2xl:rounded-[22px] @2xl:pr-4.5 @2xl:pl-3 ${FOCUS}`}
+        className={`flex items-center gap-3 border border-line bg-paper py-2.5 pr-3 pl-2.5 text-ink hover:border-line-strong @2xl:gap-3.5 @2xl:pr-4.5 @2xl:pl-3 ${WANTED_ROW_BOX} ${FOCUS}`}
       >
         <span aria-hidden="true" className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-stage text-ink-soft @2xl:h-12 @2xl:w-12 @2xl:rounded-2xl">
           <SearchIcon c="currentColor" />

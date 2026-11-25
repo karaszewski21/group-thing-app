@@ -3,6 +3,8 @@ import { PhoneFrame } from "../../components/shared/PhoneFrame";
 import { useAppPathname } from "../../routing/navigation";
 import { threadPath } from "../../routing/messagesPaths";
 import { matchPath, viewPath } from "../../routing/paths";
+import { EventFormSkeleton, ItemFormSkeleton, TermFormSkeleton, WantFormSkeleton } from "../add/AddFormSkeletons";
+import { AddSkeleton } from "../add/AddSkeleton";
 import { HomeFeedSkeleton } from "../home/HomeSkeleton";
 import { AppDataProvider } from "./AppDataContext";
 import { useAppData } from "./appDataStore";
@@ -34,14 +36,24 @@ export function AppPage({ children }: { children: ReactNode }) {
   );
 }
 
+/** The pages whose loading screen has their own shape, by path. */
+const PAGE_SKELETONS: Record<string, ReactNode> = {
+  [viewPath("home")]: <HomeFeedSkeleton />,
+  [viewPath("add")]: <AddSkeleton />,
+  [viewPath("add/product")]: <ItemFormSkeleton />,
+  [viewPath("add/event")]: <EventFormSkeleton />,
+  [viewPath("add/term")]: <TermFormSkeleton />,
+  [viewPath("add/wanted")]: <WantFormSkeleton />,
+};
+
 function AppPageView({ children }: { children: ReactNode }) {
   const { loading, error, profile, toast } = useAppData();
-  const onStart = useAppPathname() === viewPath("home");
+  const pathname = useAppPathname();
   if (loading) {
     return (
       <PhoneFrame>
         <div className="flex-1 overflow-y-auto px-[18px] pb-6 pt-[18px]">
-          {onStart ? <HomeFeedSkeleton /> : <AppSkeleton />}
+          {PAGE_SKELETONS[pathname] ?? <AppSkeleton />}
         </div>
       </PhoneFrame>
     );

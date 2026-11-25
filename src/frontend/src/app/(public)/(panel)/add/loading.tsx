@@ -1,5 +1,6 @@
-import { PanelSectionSkeleton } from "../../../../features/panel/PanelRouteStates";
+import { AddSkeleton } from "../../../../features/add/AddSkeleton";
 
+/** "Co dodajesz?"; the forms under /add have their own section skeleton. */
 export default function Loading() {
-  return <PanelSectionSkeleton />;
+  return <AddSkeleton />;
 }
