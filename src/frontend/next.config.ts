@@ -15,6 +15,8 @@ const nextConfig: NextConfig = {
   // take as the workspace root.
   outputFileTracingRoot: import.meta.dirname,
   turbopack: { root: import.meta.dirname },
+  // 90 is for the home hero photo; everything else keeps the default 75.
+  images: { qualities: [75, 90] },
   // Plugins on other origins load the SDK with `crossorigin`.
   async headers() {
     return [{ source: "/assets/:path*", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] }];
