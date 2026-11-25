@@ -10,7 +10,8 @@ from typing import Any
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from tests.conftest import count_queries
 from tests.test_organizer_page import _circle, _in_days, _organization_slug
@@ -223,3 +224,26 @@ async def test_publicLocalities_major_citiesWithCountyRightsByVoivodeship(
         "Tarnów",
     ]
     assert KETY not in {town["id"] for town in towns}
+
+
+async def test_publicLocalities_nearest_closestLocalityOr404(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    point = (
+        await db_session.execute(
+            text("SELECT lat, lng FROM localities WHERE id = :id"), {"id": KETY}
+        )
+    ).one()
+
+    near = await client.get(
+        "/api/public/localities/nearest",
+        params={"lat": float(point.lat) + 0.001, "lng": float(point.lng) - 0.001},
+    )
+    far = await client.get("/api/public/localities/nearest", params={"lat": 0, "lng": 0})
+    invalid = await client.get("/api/public/localities/nearest", params={"lat": 91, "lng": 0})
+
+    assert near.status_code == 200, near.text
+    assert near.json()["id"] == KETY
+    assert set(near.json()) == {"id", "name", "kind", "gmina", "powiat", "voivodeship"}
+    assert far.status_code == 404
+    assert invalid.status_code == 400

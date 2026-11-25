@@ -1,6 +1,5 @@
 import type { GroupLayoutMode, GroupVisibility } from "../../api/groups";
-import { CapacityField, Field, INPUT_CLASS, PaymentUrlField, PriceField } from "../../components/shared/appComponents";
-import { parsePrice } from "../../utils/appHelpers";
+import { CapacityField, Field, INPUT_CLASS, PaidFields } from "../../components/shared/appComponents";
 import { LocationPicker, type FallbackLocation } from "../../components/shared/LocationPicker";
 
 const LAYOUT_OPTIONS: { mode: GroupLayoutMode; label: string }[] = [
@@ -144,18 +143,11 @@ export function GroupFormFields({ value, onChange, showLayoutMode = false, idPre
         value={value.defaultCapacity}
         onChange={(defaultCapacity) => set({ defaultCapacity })}
       />
-      <PriceField
-        label="Cena domyślna (zł)"
-        value={value.defaultPrice}
-        onChange={(defaultPrice) => set({ defaultPrice })}
-        hint="Puste = zajęcia bezpłatne."
-      />
-      <PaymentUrlField
-        label="Link do płatności (opcjonalnie)"
-        value={value.defaultPaymentUrl}
-        onChange={(defaultPaymentUrl) => set({ defaultPaymentUrl })}
-        hint="Bez linku uczestnicy płacą na miejscu."
-        priceMissing={parsePrice(value.defaultPrice) === null}
+      <PaidFields
+        priceLabel="Cena domyślna (zł)"
+        value={{ price: value.defaultPrice, paymentUrl: value.defaultPaymentUrl }}
+        onChange={({ price, paymentUrl }) => set({ defaultPrice: price, defaultPaymentUrl: paymentUrl })}
+        paymentUrlHint="Bez linku uczestnicy płacą na miejscu."
       />
     </div>
   );

@@ -29,3 +29,9 @@ export function getMajorTowns(): Promise<Locality[]> {
 export function getLocality(id: string): Promise<Locality> {
   return api.get(`/public/localities/${encodeURIComponent(id)}`);
 }
+
+/** `GET /api/public/localities/nearest`: the locality closest to a point;
+ * a 404 when no locality is near it (outside the country). */
+export function getNearestLocality(lat: number, lng: number): Promise<Locality> {
+  return api.get(`/public/localities/nearest?${new URLSearchParams({ lat: String(lat), lng: String(lng) })}`);
+}

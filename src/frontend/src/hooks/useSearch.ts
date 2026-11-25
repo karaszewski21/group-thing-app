@@ -7,7 +7,7 @@ import { foldCategoryText } from "../utils/categoryTree";
 
 export const SEARCH_KEY = "search";
 
-const SEARCH_PAGE_SIZE = 20;
+export const SEARCH_PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
 /** The backend's minimum: `len(fold_polish(q.strip())) >= 2`. */
 export const SEARCH_MIN_LENGTH = 2;
@@ -50,11 +50,12 @@ export interface UseSearchResult {
  * `q` or filter loads. `viewer` (the logged-in username, `null` for a guest)
  * keys the cache, so results personalised for one account never show for
  * another; a guest's scope `all` comes from `useSearchUrlState`. `enabled`
- * false (invalid filters) asks for nothing. */
+ * false (invalid filters) asks for nothing. `pageSize` (20 by default) is
+ * part of the cache key, so a shorter list never shares pages with `/search`. */
 export function useSearch(
   { q, mode, scope, filters }: SearchQuery,
   viewer: string | null,
-  { enabled = true }: { enabled?: boolean } = {},
+  { enabled = true, pageSize = SEARCH_PAGE_SIZE }: { enabled?: boolean; pageSize?: number } = {},
 ): UseSearchResult {
   const term = q.trim();
   const [debounced, setDebounced] = useState(term);
@@ -66,8 +67,8 @@ export function useSearch(
   const tooShort = isSearchTooShort(term);
   const request: SearchQuery = { q: debounced, mode, scope, filters };
   const query = useInfiniteQuery({
-    queryKey: [SEARCH_KEY, { ...request, viewer }] as const,
-    queryFn: ({ pageParam }) => searchPublic(request, pageParam, SEARCH_PAGE_SIZE),
+    queryKey: [SEARCH_KEY, { ...request, viewer, pageSize }] as const,
+    queryFn: ({ pageParam }) => searchPublic(request, pageParam, pageSize),
     initialPageParam: 1,
     getNextPageParam: (last) =>
       last.page < SEARCH_MAX_PAGE && last.page * last.size < last.total ? last.page + 1 : undefined,

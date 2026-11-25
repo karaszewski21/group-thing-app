@@ -16,7 +16,7 @@ from app.db import get_db
 from app.users.service import get_profile_by_principal
 
 from . import service
-from .localities import list_major_towns, search_localities
+from .localities import find_nearest_locality, list_major_towns, search_localities
 from .models import Locality
 from .schemas import (
     LocalityResponse,
@@ -60,6 +60,21 @@ async def list_public_major_towns(db: DbSession) -> list[LocalityResponse]:
     """The larger towns of every voivodeship, by voivodeship then name: a
     pick list beside the search."""
     return [LocalityResponse.model_validate(town) for town in await list_major_towns(db)]
+
+
+@router.get("/api/public/localities/nearest", response_model=LocalityResponse)
+async def get_public_nearest_locality(
+    db: DbSession,
+    lat: Annotated[float, Query(ge=-90, le=90)],
+    lng: Annotated[float, Query(ge=-180, le=180)],
+) -> LocalityResponse:
+    """The locality closest to a point (the browser's geolocation), so the
+    home page can list what is near the visitor; 404 when no locality is
+    near the point. The coordinates are neither stored nor logged."""
+    locality = await find_nearest_locality(db, lat, lng)
+    if locality is None:
+        raise EntityNotFoundException("Locality", "nearest")
+    return LocalityResponse.model_validate(locality)
 
 
 @router.get("/api/public/localities/{locality_id}", response_model=LocalityResponse)

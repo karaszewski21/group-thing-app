@@ -4,12 +4,13 @@ uses the standard library only) and the `GET /api/localities` search."""
 
 from __future__ import annotations
 
+import math
 import re
 import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import case, func, select
+from sqlalchemy import Float, case, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import Locality, LocalityKind, LocalityPostalCode
@@ -112,3 +113,29 @@ async def search_localities(
     )
     total = await db.scalar(select(func.count()).select_from(Locality).where(name_match))
     return [LocalityMatch(locality, None) for locality in localities], total or 0
+
+
+# About 55 km of latitude; a point further from every locality is outside
+# the dictionary's country.
+NEAREST_BOX_DEGREES = 0.5
+
+
+async def find_nearest_locality(db: AsyncSession, lat: float, lng: float) -> Locality | None:
+    """The locality whose point is closest to (`lat`, `lng`), or `None` when
+    none lies within `NEAREST_BOX_DEGREES`. One statement: the box keeps the
+    scan small and the equirectangular distance orders it (exact enough at
+    this range)."""
+    lng_scale = math.cos(math.radians(lat))
+    point_lat = cast(Locality.lat, Float)
+    point_lng = cast(Locality.lng, Float)
+    distance = func.pow(point_lat - lat, 2) + func.pow((point_lng - lng) * lng_scale, 2)
+    localities = await db.scalars(
+        select(Locality)
+        .where(
+            Locality.lat.between(lat - NEAREST_BOX_DEGREES, lat + NEAREST_BOX_DEGREES),
+            Locality.lng.between(lng - NEAREST_BOX_DEGREES, lng + NEAREST_BOX_DEGREES),
+        )
+        .order_by(distance, Locality.id)
+        .limit(1)
+    )
+    return localities.first()

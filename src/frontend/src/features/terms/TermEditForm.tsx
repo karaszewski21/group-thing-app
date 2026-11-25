@@ -11,8 +11,8 @@ import {
   type UpdateTermRequest,
 } from "../../api/terms";
 import { serverMessageOr } from "../../api/problem";
-import { CapacityField, Field, INPUT_CLASS, PaymentUrlField, PriceField } from "../../components/shared/appComponents";
-import { parseCapacity, parsePayment, parsePrice } from "../../utils/appHelpers";
+import { CapacityField, Field, INPUT_CLASS, PaidFields } from "../../components/shared/appComponents";
+import { parseCapacity, parsePayment } from "../../utils/appHelpers";
 import { LocationPicker } from "../../components/shared/LocationPicker";
 import { TERM_ATTENDANCE_KEY, useTermAttendance } from "../../hooks/useTermAttendance";
 import { AttendancePointsPicker } from "./components/AttendancePointsPicker";
@@ -237,12 +237,10 @@ export function TermEditForm({ term, draft, onDraftChange, neededItems, onChange
           onChange={(text) => set({ capacity: text })}
           inputClassName={`${inputClass} w-28`}
         />
-        <PriceField label="Cena (zł)" value={draft.price} onChange={(price) => set({ price })} />
-        <PaymentUrlField
-          label="Link do płatności (opcjonalnie)"
-          value={draft.paymentUrl}
-          onChange={(paymentUrl) => set({ paymentUrl })}
-          priceMissing={parsePrice(draft.price) === null}
+        <PaidFields
+          priceLabel="Cena (zł)"
+          value={{ price: draft.price, paymentUrl: draft.paymentUrl }}
+          onChange={({ price, paymentUrl }) => set({ price, paymentUrl })}
         />
         {attendance && (
           <AttendancePointsPicker

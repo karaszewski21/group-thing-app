@@ -1,9 +1,8 @@
 import { Link } from "../../routing/navigation";
 import { authPath } from "../../auth/authPaths";
-import { ItemTile, MeetingRow } from "../../components/shared/appComponents";
 import { BuildingIcon } from "../../components/shared/appIcons";
 import { capitalize, ITEM_MODE_TONE, ITEM_MODES, type ItemMode } from "../../utils/appHelpers";
-import { MOCK_RECENT_ITEMS, MOCK_SEARCH_MEETINGS } from "../../utils/mocks";
+import { HomeFeed } from "../home/HomeFeed";
 
 const MODE_HINT: Record<ItemMode, string> = {
   "oddam": "Za darmo — komuś przyda się bardziej.",
@@ -14,8 +13,8 @@ const SECTION_TITLE = "font-serif text-[24px] leading-tight font-extrabold track
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
 /** The public home page at "/" for visitors who are not logged in (the brand
- * and "Zaloguj się" sit in PublicLayout's top bar). The item and meeting
- * previews are MOCK data (see utils/mocks.ts). */
+ * and "Zaloguj się" sit in PublicLayout's top bar), with the same item and
+ * meeting feed a logged-in visitor gets on Start (`HomeFeed`). */
 export function LandingPage() {
   return (
     <div className="flex-1 bg-cream font-sans text-ink">
@@ -61,30 +60,9 @@ export function LandingPage() {
           </ul>
         </section>
 
-        <section aria-labelledby="landing-rzeczy" className="mt-10">
-          <h2 id="landing-rzeczy" className={SECTION_TITLE}>
-            Ostatnio dodane
-          </h2>
-          <p className="mt-1 text-sm text-ink-soft">Tak wyglądają rzeczy, które krążą w grupach.</p>
-          <div className="mt-4 grid grid-cols-2 gap-3 min-[520px]:grid-cols-3">
-            {MOCK_RECENT_ITEMS.map((item) => (
-              <ItemTile key={item.id} name={item.name} owner={item.owner} mode={item.mode} note={item.addedAgo} />
-            ))}
-          </div>
-        </section>
-
-        <section aria-labelledby="landing-spotkania" className="mt-10">
-          <h2 id="landing-spotkania" className={SECTION_TITLE}>
-            Spotkania w okolicy
-          </h2>
-          <ul className="mt-4 flex flex-col gap-2.5">
-            {MOCK_SEARCH_MEETINGS.map((m) => (
-              <li key={m.id}>
-                <MeetingRow meeting={m} />
-              </li>
-            ))}
-          </ul>
-        </section>
+        <div className="mt-10">
+          <HomeFeed />
+        </div>
 
         <section className="mt-10 flex gap-4 rounded-[28px] bg-accent-soft p-5">
           <span className="flex h-12 w-12 flex-none items-center justify-center rounded-2xl bg-accent text-ink">

@@ -1,7 +1,7 @@
 import { RADII_KM } from "../../utils/appHelpers";
 import { chipTone, FOCUS_CLASS } from "./chipStyles";
 
-/** `CHIP_CLASS` with less side padding, so the four chips share one row at 390 px. */
+/** `CHIP_CLASS` with less side padding, so the chips fit narrow screens (they wrap below 390 px). */
 const RADIUS_CHIP_CLASS = `min-h-11 whitespace-nowrap rounded-full border-[1.5px] px-2.5 text-sm font-bold ${FOCUS_CLASS}`;
 
 /** How far around the picked locality: „Tylko tu” (`null`) or one of `RADII_KM`. */

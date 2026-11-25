@@ -14,7 +14,7 @@ import { useCategories } from "../../hooks/useCategories";
 import { useLocality } from "../../hooks/useLocality";
 import { useMajorTowns } from "../../hooks/useMajorTowns";
 import { useClientValue } from "../../lib/useClientValue";
-import { ITEM_MODE_TO_RESERVATION_TYPE, ITEM_MODES, RADII_KM } from "../../utils/appHelpers";
+import { ITEM_MODE_TO_RESERVATION_TYPE, ITEM_MODES } from "../../utils/appHelpers";
 import { buildCategoryIndex, type CategoryIndex } from "../../utils/categoryTree";
 import dayjs from "../../utils/dayjs";
 import { CONDITION_LABELS } from "../../utils/productCategory";
@@ -86,7 +86,7 @@ function ScopeSection({ scope, onSelect }: { scope: SearchScope; onSelect: (scop
   );
 }
 
-const DEFAULT_RADIUS_KM = RADII_KM[0];
+const DEFAULT_RADIUS_KM = 10;
 
 const byPolishName = (a: string, b: string) => a.localeCompare(b, "pl");
 

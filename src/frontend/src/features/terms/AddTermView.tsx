@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "../../routing/navigation";
 import { NeededItemQuickAddForm } from "../../components/shared/NeededItemQuickAddForm";
 import { LocationPicker } from "../../components/shared/LocationPicker";
-import { CapacityField, Field, INPUT_CLASS, PaymentUrlField, PriceField } from "../../components/shared/appComponents";
+import { CapacityField, Field, INPUT_CLASS, PaidFields } from "../../components/shared/appComponents";
 import { useAppData } from "../panel/appDataStore";
 import { useAttendanceRules } from "../../hooks/useAttendanceRules";
 import { AttendancePointsPicker } from "./components/AttendancePointsPicker";
-import { parseCapacity, parsePayment, parsePrice } from "../../utils/appHelpers";
+import { parseCapacity, parsePayment } from "../../utils/appHelpers";
 import { TERM_PAYMENT_PREFILL_HINT } from "./termDraft";
 import { viewPath } from "../../routing/paths";
 
@@ -120,12 +120,13 @@ export function AddTermView() {
                 />
               </Field>
               <CapacityField label="Ile miejsc" value={termCapacity} onChange={setTermCapacity} />
-              <PriceField label="Cena (zł)" value={termPrice} onChange={setTermPrice} />
-              <PaymentUrlField
-                label="Link do płatności (opcjonalnie)"
-                value={termPaymentUrl}
-                onChange={setTermPaymentUrl}
-                priceMissing={parsePrice(termPrice) === null}
+              <PaidFields
+                priceLabel="Cena (zł)"
+                value={{ price: termPrice, paymentUrl: termPaymentUrl }}
+                onChange={({ price, paymentUrl }) => {
+                  setTermPrice(price);
+                  setTermPaymentUrl(paymentUrl);
+                }}
               />
               {attendanceRules && (
                 <AttendancePointsPicker

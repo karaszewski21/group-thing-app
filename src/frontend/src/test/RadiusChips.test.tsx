@@ -7,11 +7,11 @@ function chips() {
 }
 
 describe("RadiusChips", () => {
-  it("lists „Tylko tu” and the three radii in order, with the picked one pressed", () => {
+  it("lists „Tylko tu” and the four radii in order, with the picked one pressed", () => {
     render(<RadiusChips value={25} onChange={() => {}} />);
 
-    expect(chips().map((chip) => chip.textContent)).toEqual(["Tylko tu", "+10 km", "+25 km", "+50 km"]);
-    expect(chips().map((chip) => chip.getAttribute("aria-pressed"))).toEqual(["false", "false", "true", "false"]);
+    expect(chips().map((chip) => chip.textContent)).toEqual(["Tylko tu", "+5 km", "+10 km", "+25 km", "+50 km"]);
+    expect(chips().map((chip) => chip.getAttribute("aria-pressed"))).toEqual(["false", "false", "false", "true", "false"]);
     for (const chip of chips()) expect(chip).toHaveAttribute("type", "button");
   });
 

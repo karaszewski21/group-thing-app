@@ -31,7 +31,7 @@ export function isAccountSubviewPath(pathname: string): boolean {
 }
 
 /** The distances offered around a picked locality, smallest first. */
-export const RADII_KM: readonly number[] = [10, 25, 50];
+export const RADII_KM: readonly number[] = [5, 10, 25, 50];
 
 /** `/places/new` opened from a form's place picker: after saving it goes
  * back to `returnTo` and hands the new place to the picker named `picker`

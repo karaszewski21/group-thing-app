@@ -1,11 +1,8 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Link } from "../../routing/navigation";
 import { useRegisterOpenSheet } from "./openSheets";
-import dayjs from "../../utils/dayjs";
 import {
   CAPACITY_ERROR,
-  capitalize,
-  ITEM_MODE_TONE,
   MAX_PAYMENT_URL_LENGTH,
   parseCapacity,
   parsePaymentUrl,
@@ -14,10 +11,8 @@ import {
   PAYMENT_URL_LENGTH_ERROR,
   PAYMENT_URL_REQUIRES_PRICE_ERROR,
   PRICE_ERROR,
-  type ItemMode,
 } from "../../utils/appHelpers";
 import { ChevronRightIcon, CloseIcon } from "./appIcons";
-import type { MockMeeting } from "../../utils/mocks";
 
 /* ---------------- małe komponenty pomocnicze (wydzielone z AppPage.tsx) ---------------- */
 
@@ -329,6 +324,66 @@ export function PaymentUrlField({
   );
 }
 
+export interface PaidFieldsValue {
+  /** Raw input texts; `parsePayment` turns them into the request values. */
+  price: string;
+  paymentUrl: string;
+}
+
+/** "Zajęcia płatne": unchecked (the default for a blank price and link) means
+ * free and hides the price and link; unchecking clears both, so a hidden field
+ * never carries a value. A price or link set from outside (a Circle default,
+ * an edited paid term) checks the box. */
+export function PaidFields({
+  value,
+  onChange,
+  priceLabel,
+  paymentUrlHint,
+}: {
+  value: PaidFieldsValue;
+  onChange: (next: PaidFieldsValue) => void;
+  priceLabel: string;
+  paymentUrlHint?: string;
+}) {
+  const fieldsId = useId();
+  const hasValue = value.price.trim() !== "" || value.paymentUrl.trim() !== "";
+  const [paid, setPaid] = useState(hasValue);
+  // Adjusting state during render: a prefill arriving after mount opens the fields.
+  if (hasValue && !paid) setPaid(true);
+
+  function toggle(checked: boolean) {
+    setPaid(checked);
+    if (!checked) onChange({ price: "", paymentUrl: "" });
+  }
+
+  return (
+    <>
+      <label className="flex items-center gap-2.5 text-sm font-semibold text-ink">
+        <input
+          type="checkbox"
+          checked={paid}
+          onChange={(e) => toggle(e.target.checked)}
+          aria-controls={paid ? fieldsId : undefined}
+          className="h-4 w-4 accent-primary"
+        />
+        Zajęcia płatne
+      </label>
+      {paid && (
+        <div id={fieldsId} className="grid grid-cols-1 gap-3">
+          <PriceField label={priceLabel} value={value.price} onChange={(price) => onChange({ ...value, price })} />
+          <PaymentUrlField
+            label="Link do płatności (opcjonalnie)"
+            value={value.paymentUrl}
+            onChange={(paymentUrl) => onChange({ ...value, paymentUrl })}
+            hint={paymentUrlHint}
+            priceMissing={parsePrice(value.price) === null}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
 const SHEET_FIRST_FIELD =
   "input:not([type='hidden']):not(:disabled), select:not(:disabled), textarea:not(:disabled)";
 
@@ -391,29 +446,6 @@ export function ModalSheet({
   );
 }
 
-/** A square photo tile of someone else's item (Start's "Ostatnio dodane",
- * the search results): mode chip, name and owner. */
-export function ItemTile({ name, owner, mode, note }: { name: string; owner: string; mode: ItemMode; note?: string }) {
-  return (
-    <article className="flex flex-col overflow-hidden rounded-[22px] border border-line bg-paper">
-      <div className={`relative aspect-square ${ITEM_MODE_TONE[mode]}`}>
-        <span className="absolute top-2 left-2 rounded-full bg-paper px-2.5 py-1 text-[11px] font-extrabold text-ink">
-          {capitalize(mode)}
-        </span>
-        {note && (
-          <span className="absolute top-2 right-2 rounded-full bg-ink/75 px-2 py-1 text-[11px] font-bold text-on-ink">
-            {note}
-          </span>
-        )}
-      </div>
-      <div className="flex flex-col gap-1 px-3 pt-2.5 pb-3">
-        <h4 className="text-[15px] leading-tight font-bold text-ink">{name}</h4>
-        <p className="text-xs text-ink-soft">{owner}</p>
-      </div>
-    </article>
-  );
-}
-
 export interface ListRowItem {
   label: string;
   meta?: string;
@@ -452,25 +484,5 @@ export function ListCard({ rows }: { rows: ListRowItem[] }) {
         );
       })}
     </ul>
-  );
-}
-
-/** One meeting card: weekday/day badge, group · time, organizer and spots. */
-export function MeetingRow({ meeting }: { meeting: MockMeeting }) {
-  const at = dayjs(meeting.occursOn);
-  return (
-    <div className="flex items-center gap-3 rounded-[22px] border border-line bg-paper p-3.5">
-      <div className="flex h-14.5 w-13 flex-none flex-col items-center justify-center rounded-2xl bg-accent-soft leading-none">
-        <small className="text-[10px] font-extrabold tracking-wide text-accent-fg uppercase">{at.format("dd")}</small>
-        <b className="mt-0.5 font-serif text-[22px] font-extrabold text-ink">{at.format("D")}</b>
-      </div>
-      <div className="min-w-0 flex-1">
-        <h3 className="text-base font-bold text-ink">
-          {meeting.group} · {at.format("H:mm")}
-        </h3>
-        <p className="text-sm text-ink-soft">{meeting.organizer}</p>
-        <p className="text-[13px] font-bold text-primary-fg">{meeting.spots}</p>
-      </div>
-    </div>
   );
 }

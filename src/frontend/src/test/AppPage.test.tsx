@@ -21,6 +21,7 @@ import * as reservationsApi from "../api/reservations";
 import * as itemListingPreferencesApi from "../api/itemListingPreferences";
 import * as termItemListingsApi from "../api/termItemListings";
 import * as localitiesApi from "../api/localities";
+import * as searchApi from "../api/search";
 import * as locationsApi from "../api/locations";
 import * as eventsApi from "../api/events";
 import * as wantsApi from "../api/wants";
@@ -516,6 +517,8 @@ function mockTerms(
 
 function mockGuestDefaults() {
   vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
+  // Start's HomeFeed browses the search.
+  vi.mocked(searchApi.searchPublic).mockResolvedValue({ items: [], total: 0, page: 1, size: 6, other_mode_count: 0 });
   vi.mocked(peopleApi.getMyProfile).mockResolvedValue(mockProfile);
   vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([]);
   vi.mocked(inventoriesApi.getInventories).mockResolvedValue([mockInventory]);
@@ -536,6 +539,8 @@ function mockGuestDefaults() {
 
 function mockOrganizerDefaults() {
   vi.mocked(categoriesApi.getCategories).mockResolvedValue(mockCategories);
+  // Start's HomeFeed browses the search.
+  vi.mocked(searchApi.searchPublic).mockResolvedValue({ items: [], total: 0, page: 1, size: 6, other_mode_count: 0 });
   vi.mocked(peopleApi.getMyProfile).mockResolvedValue(mockOrganizerProfile);
   vi.mocked(peopleApi.getLeadershipsForPerson).mockResolvedValue([
     { id: "1", from_role_id: "1", to_group_id: GROUP_ID, organizer_party_id: "1", valid_from: "2026-01-01", valid_to: null },
@@ -2927,7 +2932,8 @@ describe("AppPage — redesigned navigation and pages", () => {
     renderPanel();
 
     expect(await screen.findByRole("heading", { name: /Witaj/ })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Ostatnio dodane" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ostatnio dodane rzeczy" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Najbliższe spotkania" })).toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Nawigacja główna" });
     expect(within(nav).getAllByRole("button").map((b) => b.getAttribute("aria-label") ?? b.textContent)).toEqual([
       "Start",

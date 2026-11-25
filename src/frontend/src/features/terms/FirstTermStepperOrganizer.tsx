@@ -8,10 +8,9 @@ import {
   Field,
   INPUT_CLASS,
   ModalSheet,
-  PaymentUrlField,
-  PriceField,
+  PaidFields,
 } from "../../components/shared/appComponents";
-import { parseCapacity, parsePayment, parsePrice } from "../../utils/appHelpers";
+import { parseCapacity, parsePayment } from "../../utils/appHelpers";
 import { LocationPicker } from "../../components/shared/LocationPicker";
 import { FIRST_TERM_PICKER } from "./hooks/useFirstTermStepper";
 import { TERM_PAYMENT_PREFILL_HINT, type TermDraft } from "./termDraft";
@@ -158,12 +157,10 @@ export function FirstTermStepperOrganizer({
           />
         </Field>
         <CapacityField label="Ile miejsc" value={draft.capacity} onChange={(text) => set({ capacity: text })} />
-        <PriceField label="Cena (zł)" value={draft.price} onChange={(price) => set({ price })} />
-        <PaymentUrlField
-          label="Link do płatności (opcjonalnie)"
-          value={draft.paymentUrl}
-          onChange={(paymentUrl) => set({ paymentUrl })}
-          priceMissing={parsePrice(draft.price) === null}
+        <PaidFields
+          priceLabel="Cena (zł)"
+          value={{ price: draft.price, paymentUrl: draft.paymentUrl }}
+          onChange={({ price, paymentUrl }) => set({ price, paymentUrl })}
         />
       </div>
       {formError && (

@@ -3,10 +3,10 @@ import { Link } from "../../routing/navigation";
 import { useAuth } from "../../auth/AuthContext";
 import { useClientValue } from "../../lib/useClientValue";
 import { BuildingIcon, CalendarPlusIcon } from "../../components/shared/appIcons";
-import { HintCard, ItemTile } from "../../components/shared/appComponents";
+import { HintCard } from "../../components/shared/appComponents";
 import { capitalize, ITEM_MODE_TONE, ITEM_MODES } from "../../utils/appHelpers";
 import { appearancePath, viewPath } from "../../routing/paths";
-import { MOCK_RECENT_ITEMS } from "../../utils/mocks";
+import { HomeFeed } from "../home/HomeFeed";
 import { useAppData } from "./appDataStore";
 
 const SECTION_TITLE = "font-serif text-[21px] font-bold text-ink";
@@ -104,20 +104,9 @@ export function HomeView() {
         )}
       </section>
 
-      <section className="mt-7">
-        <div className="mb-1 flex items-baseline justify-between gap-2.5">
-          <h2 className={SECTION_TITLE}>Ostatnio dodane</h2>
-          <Link to={viewPath("search")} className={SECTION_LINK}>
-            Przeglądaj
-          </Link>
-        </div>
-        <p className="mb-2.5 text-sm text-ink-soft">Rzeczy od innych z Twoich grup i okolicy</p>
-        <div className="grid grid-cols-2 gap-3">
-          {MOCK_RECENT_ITEMS.map((item) => (
-            <ItemTile key={item.id} name={item.name} owner={item.owner} mode={item.mode} note={item.addedAgo} />
-          ))}
-        </div>
-      </section>
+      <div className="mt-7">
+        <HomeFeed />
+      </div>
 
       <div className="mt-7">
         {!hasGroups && !hintCreateGroupDismissed && (

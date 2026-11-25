@@ -73,6 +73,7 @@ const PAY_URL = "https://pay.example.pl/krag";
 const PRICE_LABEL = "Cena domyślna (zł)";
 const URL_LABEL = "Link do płatności (opcjonalnie)";
 const REQUIRES_PRICE = "Link wymaga ceny — wpisz cenę albo usuń link.";
+const PAID_LABEL = "Zajęcia płatne";
 
 const profile: peopleApi.UserProfileResponse = {
   id: "p1",
@@ -157,12 +158,16 @@ describe("Circle form — default price and payment link", () => {
     vi.mocked(groupsApi.createAdditionalMyCircle).mockResolvedValue(group);
     renderAt(<GroupCreateView />, "/groups/new", "/groups/new");
     fireEvent.change(await screen.findByLabelText("Nazwa grupy"), { target: { value: "Mamy z Ruczaju" } });
+    const paid = screen.getByRole("checkbox", { name: PAID_LABEL });
+    expect(paid).not.toBeChecked();
+    expect(screen.queryByLabelText(PRICE_LABEL)).not.toBeInTheDocument();
+    fireEvent.click(paid);
     const price = screen.getByLabelText(PRICE_LABEL);
     const url = screen.getByLabelText(URL_LABEL);
     const follows = Node.DOCUMENT_POSITION_FOLLOWING;
-    expect(screen.getByLabelText("Ile miejsc (opcjonalnie)").compareDocumentPosition(price) & follows).toBeTruthy();
+    expect(screen.getByLabelText("Ile miejsc (opcjonalnie)").compareDocumentPosition(paid) & follows).toBeTruthy();
+    expect(paid.compareDocumentPosition(price) & follows).toBeTruthy();
     expect(price.compareDocumentPosition(url) & follows).toBeTruthy();
-    expect(price).toHaveAccessibleDescription("Puste = zajęcia bezpłatne.");
     expect(url).toHaveAccessibleDescription("Bez linku uczestnicy płacą na miejscu.");
 
     fireEvent.change(price, { target: { value: "25,5" } });
@@ -258,6 +263,40 @@ function StepperWithDefaults({ defaultPrice, defaultPaymentUrl }: { defaultPrice
     />
   );
 }
+
+describe("First-term stepper — Zajęcia płatne checkbox", () => {
+  it("starts unchecked without Circle defaults and sends a free term", async () => {
+    renderWithRoute(<StepperWithDefaults defaultPrice="" defaultPaymentUrl="" />, { url: "/", wrapper: createQueryWrapper() });
+    const paid = await screen.findByRole("checkbox", { name: PAID_LABEL });
+    expect(paid).not.toBeChecked();
+    expect(screen.queryByLabelText("Cena (zł)")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(URL_LABEL)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Miejsce" })).not.toHaveValue(""));
+    fireEvent.change(screen.getByLabelText("Data i godzina"), { target: { value: "2026-12-06T10:00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Dodaj termin" }));
+
+    await waitFor(() =>
+      expect(termsApi.createTerm).toHaveBeenCalledWith(expect.objectContaining({ price: null, payment_url: null })),
+    );
+  });
+
+  it("starts checked from Circle defaults; unchecking hides and clears price and link", async () => {
+    renderWithRoute(<StepperWithDefaults defaultPrice="25.50" defaultPaymentUrl={PAY_URL} />, {
+      url: "/",
+      wrapper: createQueryWrapper(),
+    });
+    const paid = await screen.findByRole("checkbox", { name: PAID_LABEL });
+    expect(paid).toBeChecked();
+    expect(screen.getByLabelText("Cena (zł)")).toHaveValue("25,50");
+
+    fireEvent.click(paid);
+    expect(paid).not.toBeChecked();
+    expect(screen.queryByLabelText("Cena (zł)")).not.toBeInTheDocument();
+    fireEvent.click(paid);
+    expect(screen.getByLabelText("Cena (zł)")).toHaveValue("");
+    expect(screen.getByLabelText(URL_LABEL)).toHaveValue("");
+  });
+});
 
 describe("First-term stepper — circle with a default link", () => {
   it("clearing the price blocks submit until the link is cleared too, then sends both as explicit null", async () => {
