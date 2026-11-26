@@ -9,7 +9,8 @@ from collections.abc import Collection
 from datetime import date
 from typing import cast
 
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import Permission, User, user_permissions
@@ -25,6 +26,7 @@ from .schemas import (
     RegisterRequest,
     UpdateMyProfileAppearanceRequest,
     UpdateMyProfileRequest,
+    normalize_email,
 )
 
 _USERNAME_MAX_LENGTH = 50
@@ -43,8 +45,13 @@ class DuplicateEmailException(BusinessConflictException):
         super().__init__("Ten email jest już zarejestrowany, zaloguj się")
 
 
-async def create_account(db: AsyncSession, username: str, password: str) -> User:
-    user = User(username=username, password_hash=hash_password(password))
+async def create_account(db: AsyncSession, username: str, password: str | None) -> User:
+    """`password=None` stores a NULL hash: an account that signs in only
+    through an identity provider."""
+    user = User(
+        username=username,
+        password_hash=hash_password(password) if password is not None else None,
+    )
     db.add(user)
     await db.flush()
     for permission in (Permission.READ, Permission.EDIT):
@@ -55,7 +62,11 @@ async def create_account(db: AsyncSession, username: str, password: str) -> User
 
 
 async def create_account_and_profile(
-    db: AsyncSession, username: str, password: str, display_name: str, email: str | None
+    db: AsyncSession,
+    username: str,
+    password: str | None,
+    display_name: str,
+    email: str | None,
 ) -> tuple[Party, UserProfile]:
     """Bootstraps a brand-new login + `Party(PERSON)` + `UserProfile` +
     the always-granted `UserRole(USER)`, in one flushed (uncommitted) unit
@@ -258,11 +269,60 @@ async def derive_username_from_email(db: AsyncSession, email: str) -> str:
         suffix += 1
 
 
-def _derive_display_name(email: str) -> str:
+def derive_display_name(email: str) -> str:
     """Email local-part, title-cased with separators turned into spaces
     (e.g. `jan.kowalski@example.com` -> `Jan Kowalski`)."""
     local_part = email.split("@", 1)[0]
     return re.sub(r"[._-]+", " ", local_part).strip().title() or local_part
+
+
+async def is_email_registered(db: AsyncSession, email: str) -> bool:
+    """Case-insensitive, like `uq_user_profiles_email_lower`: family-created
+    profiles store the email as typed."""
+    return (
+        await db.execute(
+            select(UserProfile.id)
+            .where(func.lower(UserProfile.email) == normalize_email(email))
+            .limit(1)
+        )
+    ).first() is not None
+
+
+async def bootstrap_person_account(
+    db: AsyncSession, *, email: str, password: str | None, display_name: str | None = None
+) -> tuple[User, Party]:
+    """A new person's login, `Party(PERSON)`, profile, `UserRole(USER)`,
+    READ/EDIT permissions and solo Family, flushed but not committed. Raises
+    `DuplicateEmailException` when the email already has a profile."""
+    if await is_email_registered(db, email):
+        raise DuplicateEmailException()
+
+    username = await derive_username_from_email(db, email)
+    name = display_name or derive_display_name(email)
+    party, profile = await create_account_and_profile(db, username, password, name, email)
+
+    # Deferred import: app.families.bootstrap imports create_account_and_profile
+    # from this module at module load time, so a top-level import here would
+    # trigger a circular-import ImportError while this module is still
+    # mid-initialization.
+    from app.families.service import create_solo_family_for_party
+
+    await create_solo_family_for_party(db, cast(uuid.UUID, party.id), name)
+
+    user = await db.get(User, profile.account_user_id)
+    if user is None:
+        raise EntityNotFoundException("User", profile.account_user_id)
+    return user, party
+
+
+async def _bootstrap_registration(db: AsyncSession, data: RegisterRequest) -> tuple[User, Party]:
+    async with db.begin_nested():
+        user, party = await bootstrap_person_account(db, email=data.email, password=data.password)
+        if data.role == "ORGANIZER":
+            await get_or_create_active_user_role(
+                db, cast(uuid.UUID, party.id), UserRoleType.ORGANIZATOR
+            )
+    return user, party
 
 
 async def register(db: AsyncSession, data: RegisterRequest) -> tuple[User, uuid.UUID]:
@@ -275,34 +335,19 @@ async def register(db: AsyncSession, data: RegisterRequest) -> tuple[User, uuid.
     ensure the new party has a resolvable solo Family (spec.md Core
     Requirements 3-4) — distinct from the removed organizer-role-triggered
     bootstrap, this one is not role-gated and exists purely so the party
-    renders correctly in a group's family-orbit visualization."""
-    existing_profile = (
-        await db.execute(select(UserProfile).where(UserProfile.email == data.email))
-    ).scalar_one_or_none()
-    if existing_profile is not None:
-        raise DuplicateEmailException()
+    renders correctly in a group's family-orbit visualization.
 
-    username = await derive_username_from_email(db, data.email)
-    display_name = _derive_display_name(data.email)
-
-    party, profile = await create_account_and_profile(
-        db, username, data.password, display_name, data.email
-    )
-    if data.role == "ORGANIZER":
-        await get_or_create_active_user_role(
-            db, cast(uuid.UUID, party.id), UserRoleType.ORGANIZATOR
-        )
-
-    # Deferred import: app.families.bootstrap imports create_account_and_profile
-    # from this module at module load time, so a top-level import here would
-    # trigger a circular-import ImportError while this module is still
-    # mid-initialization.
-    from app.families.service import create_solo_family_for_party
-
-    await create_solo_family_for_party(db, cast(uuid.UUID, party.id), display_name)
-
-    await db.commit()
-    user = await db.get(User, profile.account_user_id)
-    if user is None:
-        raise EntityNotFoundException("User", profile.account_user_id)
-    return user, cast(uuid.UUID, party.id)
+    A unique-index race is re-read: a taken email is the Polish 409;
+    anything else (a username taken between the check and the insert) is
+    retried once with a freshly derived username, and a second failure is
+    the same 409."""
+    for _attempt in range(2):
+        try:
+            user, party = await _bootstrap_registration(db, data)
+        except IntegrityError:
+            if await is_email_registered(db, data.email):
+                raise DuplicateEmailException() from None
+            continue
+        await db.commit()
+        return user, cast(uuid.UUID, party.id)
+    raise DuplicateEmailException()

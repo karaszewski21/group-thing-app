@@ -56,6 +56,21 @@ if request.method in _COOKIE_METHODS:
     return request.cookies.get(AUTH_COOKIE_NAME) or None
 ```
 
+### Auth-Flow Cookies: HttpOnly, Purpose-Keyed, Narrow Path, Set by a JSON POST
+The backend sets one cookie of its own, `aj_google_nonce` (Google sign-in, `app/auth/google.py`); a future auth-flow cookie follows the same rules:
+- `HttpOnly`, `SameSite=Lax`, a narrow `Path` (`/api/auth/google`), a short `Max-Age` (600 s), and `Secure` from a setting (`AUTH_COOKIE_SECURE`, default `true`, `false` only over http), never derived from request headers
+- the value is a compact HS256 JWT with its own `aud` (`aj:google-nonce`), signed with a purpose key derived from `JWT_SECRET` (`HMAC-SHA256(key, "aj google-nonce cookie v1")`), so a login token never passes as the cookie or the other way round; reuse PyJWT, no new crypto code
+- set only by a PUBLIC POST that requires a JSON body (`POST /api/auth/google/nonce` takes `{}` with `extra="forbid"`), so a cross-site form or `text/plain` post cannot overwrite it without a CORS preflight; responses carrying it send `Cache-Control: no-store`
+- cleared with `delete_cookie` repeating the same `Path`, `Secure`, `HttpOnly` and `SameSite` (helpers `set_nonce_cookie`/`clear_nonce_cookie` share one attribute set)
+- such routes are auth-flow routes, not data reads: matrix rows 72 (`POST ^/api/auth/google/nonce$`) and 73 (`POST ^/api/auth/google$`) are PUBLIC POSTs outside `/api/public/`, commented as such at the rows, with no route dependency, so a stored Bearer token is not evaluated and they never answer 401. The `/api/public/` rule (anonymous reads) and the GET-side-effect rule above are unchanged: no GET sets a cookie
+```python
+set_nonce_cookie(response, encode_nonce_cookie(nonce))   # nonce route
+clear_nonce_cookie(response)                               # every outcome the sign-in route builds
+```
+
+### Third-Party ID Tokens (Google)
+Verify locally, never through a tokeninfo call: `GoogleTokenVerifier` (`app/auth/google.py`) checks RS256 only against Google's JWKS (cached per instance for 1 h, an unknown `kid` forcing one refresh at most every 60 s), `iss` in {`accounts.google.com`, `https://accounts.google.com`}, `aud` and a present `azp` equal to `GOOGLE_CLIENT_ID`, the required `iss`/`aud`/`sub`/`exp`/`iat`/`nonce`, 30 s leeway, and the `nonce` claim (a `str`) against the cookie's with `hmac.compare_digest`. `email_verified` counts only when it `is True`. Every failure is the same generic 401 with a reason code in one INFO line; a JWKS outage is a 503. Never log or store the credential, the cookie, the nonce or the email; persist only the `sub` (in `user_identities`) and an email snapshot. **No auto-linking by email**: an unlinked Google identity whose email is already registered (case-insensitive) gets a 409, never a login, and an unverified email gets a 403. The issued session is the ordinary login token, with permissions read from the DB.
+
 ### Error Responses for Auth Failures
 
 Custom exception handlers replicate the legacy flat-envelope 401/403 shape (`{"status": ..., "error": ..., "message": ...}`), registered globally via `app.add_exception_handler(...)` in `app/main.py` — analogous to Spring's `AuthenticationEntryPoint`/`AccessDeniedHandler`, but as FastAPI exception handlers rather than filter-chain hooks. `AuthenticationRequiredException` (401, "Authentication required") is raised by `require_any`'s own dependency function before any route body runs; `AccessDeniedException` (403) is raised the same way for an authenticated-but-under-permissioned caller. Both fire before the route handler executes, so a route's own body never needs to check permissions itself — same principle as the JVM-era guidance, applied to dependency injection instead of a filter chain.
@@ -66,7 +81,7 @@ Use **PyJWT** directly (HS256), not a heavier auth framework — `app/core/secur
 
 ### Password Storage
 
-Use **bcrypt** directly (`hash_password`/`verify_password` in `app/core/security.py`), not a Spring-Security-style `PasswordEncoder` abstraction — a thin, direct wrapper is enough here since there is exactly one hashing scheme in use, with no need to support verifying against multiple legacy encodings. Store hashes in a `String(72)`-equivalent column (bcrypt's output is a fixed-length string).
+Use **bcrypt** directly (`hash_password`/`verify_password` in `app/core/security.py`), not a Spring-Security-style `PasswordEncoder` abstraction — a thin, direct wrapper is enough here since there is exactly one hashing scheme in use, with no need to support verifying against multiple legacy encodings. Store hashes in a `String(72)`-equivalent column (bcrypt's output is a fixed-length string). `users.password_hash` is nullable since migration 0108 (accounts created through Google): password login answers the ordinary 401 for a NULL hash in `app/auth/router.py`, while `verify_password` stays strict because the OAuth2 client-secret checks also call it.
 
 ### Token Claims
 
@@ -90,4 +105,4 @@ There is no `@WithMockUser`-style annotation in this codebase (no automated test
 
 This document previously described Spring Security conventions (`SecurityFilterChain`, `@PreAuthorize` avoidance, `BCryptPasswordEncoder`) for the Java/Spring Boot backend. The backend was migrated to Python/FastAPI (see `.maister/tasks/migrations/2026-08-31-java-to-python-fastapi/`); the content above describes the current FastAPI-dependency-based authorization actually implemented in `app/core/auth_deps.py`, `app/core/security.py`, and `app/oauth2/`.
 
-*Last Updated*: 2026-11-02
+*Last Updated*: 2026-11-25

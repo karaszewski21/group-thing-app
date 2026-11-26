@@ -1,0 +1,374 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases:
+  - phase-1
+  - phase-2
+  - phase-4
+  - phase-5
+  - phase-6
+  - phase-7
+  - phase-8
+  - phase-10
+  - phase-11
+  - phase-12
+  - phase-13
+  - phase-14
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    sequential: false
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: '2026-11-25T12:38:30Z'
+  updated: '2026-11-26T12:00:00Z'
+  task_path: .maister/tasks/development/2026-11-25-google-login
+  task_ids: {}
+task:
+  title: Logowanie i rejestracja przez Google
+  description: >-
+    Implement Google sign-in and sign-up in aj (FastAPI + Next.js) per the completed research
+    .maister/tasks/research/2026-11-25-google-login: GIS popup button + ID token + server nonce cookie,
+    POST /api/auth/google returning {token, created, party_id}, user_identities table (0107), nullable
+    users.password_hash (0108, guarded downgrade), no email auto-linking (409), unverified email 403,
+    new accounts GUEST via a shared bootstrap with password registration, pyjwt[crypto] verifier,
+    feature gated on GOOGLE_CLIENT_ID / NEXT_PUBLIC_GOOGLE_CLIENT_ID.
+  status: completed
+  tags:
+  - auth
+  - google
+  - oidc
+  priority: null
+task_context:
+  project_doc_paths:
+  - .maister/docs/project/tech-stack.md
+  - .maister/docs/project/architecture.md
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: false
+  tech_clarified: true
+  architecture_decision: research ADR-001..009 (thin identity-provider adapter in app/auth); technical clarification skipped
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: .maister/tasks/research/2026-11-25-google-login
+    research_question: How should aj implement login and registration with a Google account end to end, consistent with the existing auth architecture?
+    research_type: mixed
+    confidence_level: high
+  design_reference:
+    source: phase-4-mockup-studio
+    product_design_path: null
+    mockup_count: 7
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  design_resources:
+    ran: true
+    standards:
+    - path: .maister/docs/standards/frontend/components.md
+      topic: components
+    - path: .maister/docs/standards/frontend/accessibility.md
+      topic: a11y
+    - path: .maister/docs/standards/frontend/css.md
+      topic: css
+    - path: .maister/docs/standards/frontend/responsive.md
+      topic: responsive
+    design_system:
+    - kind: css-var
+      path: src/frontend/src/app/globals.css
+      note: Tailwind 4 theme tokens (colors, fonts)
+    - kind: component-lib
+      path: src/frontend/src/features/auth/
+      note: AuthLayout, AuthTabs, SocialAuthButtons, authStyles, Login/RegisterForm
+    - kind: component-lib
+      path: src/frontend/src/components/shared/ModalSheet.tsx
+      note: bottom sheet used by AuthSheet
+    skill_hints: []
+    found_any: true
+  phase_summaries:
+    research:
+      summary: Chosen 1A GIS popup + nonce cookie, 2A JSON token handoff, 3A 409 on email collision, 4C always GUEST, 5B lean MVP; 9 ADRs; migrations 0107 user_identities + 0108 nullable password_hash.
+      key_findings:
+      - Flow ends in existing encode_login_token / applyToken; session, proxy, AuthGuard, OAuth2 server unchanged.
+      - Local RS256 verification with pyjwt[crypto] against Google JWKS; nonce bound via signed HttpOnly cookie.
+      - Never auto-link by email (no email verification, no JWT revocation).
+      - Permissions read from DB so admins keep ADMIN.
+      recommended_approach: Thin identity-provider adapter in app/auth with shared bootstrap_person_account in users context.
+      decisions: []
+      risks:
+      - Secure flag rule for the nonce cookie must be decided in the spec (no trusted proxy headers).
+      - GIS iframe inside focus-trapped AuthSheet and popup blocking in in-app browsers untested.
+      - Terms/consent notice parity with password registration not researched.
+      artifacts:
+      - path: analysis/research-context/research-report.md
+        label: Research report
+        html: null
+      - path: analysis/research-context/high-level-design.md
+        label: High-level design
+        html: null
+      - path: analysis/research-context/decision-log.md
+        label: Decision log
+        html: null
+    codebase_analysis:
+      summary: No Google-login code yet (69f36ee was research only). Extend app/auth router, extract bootstrap_person_account from app/users/service.py::register; blockers are the missing cryptography (pyjwt[crypto]) and the NOT NULL password_hash that crashes login on None. Frontend integration is the SocialAuthButtons mock in AuthTabs (/login + 6 AuthSheet surfaces). Alembic head 0106.
+      primary_language: python+typescript
+      key_files:
+      - src/backend/app/auth/router.py
+      - src/backend/app/auth/models.py
+      - src/backend/app/users/service.py
+      - src/backend/app/users/router.py
+      - src/backend/app/core/security.py
+      - src/backend/app/config.py
+      - src/backend/app/core/authorization_matrix.py
+      - src/frontend/src/features/auth/SocialAuthButtons.tsx
+      - src/frontend/src/auth/AuthContext.tsx
+      - src/frontend/src/lib/googleMaps.ts
+      decisions:
+      - decision: Fetch the JWKS with httpx.AsyncClient into a module cache and verify with jwt.PyJWK, not the blocking PyJWKClient
+        rationale: httpx is already a runtime dependency
+      - decision: Gate on google_client_id like photo_storage_configured; 503 via ServiceUnavailableException
+        rationale: existing feature-gate pattern
+      risks:
+      - Registration race has no IntegrityError recovery (begin_nested pattern in app/events/service.py:401-408).
+      - trapFocus.ts lists no iframe, so Tab skips the GIS button inside AuthSheet.
+      - Other password_hash readers must handle None (grep before planning).
+      - architecture.md:535 ("backend calls no Google endpoint") becomes false.
+      artifacts:
+      - path: analysis/codebase-analysis.md
+        label: Codebase analysis
+        html: null
+    clarifications:
+      summary: Secure flag from config (default true, false in dev); Facebook mock removed; user has a real dev client ID in .env.
+      decisions:
+      - decision: Nonce cookie Secure flag from a config setting, default true
+        rationale: uvicorn trusts no proxy headers; explicit and safe by default
+      - decision: Remove the Facebook mock button
+        rationale: no dead button next to a working one
+      - decision: Real Google client ID available locally (never printed)
+        rationale: enables a manual or E2E popup check
+      risks: []
+      artifacts:
+      - path: analysis/clarifications.md
+        label: Clarifications
+        html: null
+    gap_analysis:
+      summary: Additive feature plus register refactor; only app/auth/router.py:70 reads password_hash; no critical decisions; 8 important spec-level decisions all resolved with the recommended option.
+      integration_points:
+      - app/auth/router.py (2 routes, null-hash guard)
+      - app/users/service.py bootstrap_person_account
+      - app/core/authorization_matrix.py (2 PUBLIC rows)
+      - alembic 0107/0108
+      - SocialAuthButtons / AuthTabs / AuthContext
+      - docker-compose, frontend Dockerfile, .env.example
+      decisions:
+      - decision: 'display-name-source: Google name moderated via check_text, email-derived fallback'
+        rationale: User choice at Phase 2 decision gate
+      - decision: 'google-409-copy: own text plus inline Zaloguj sie switch'
+        rationale: User choice at Phase 2 decision gate
+      - decision: 'nonce-client-lifecycle: refresh on failure and TTL lapse, no auto POST retry'
+        rationale: User choice at Phase 2 decision gate
+      - decision: 'backend-unconfigured-ui: hide button and divider'
+        rationale: User choice at Phase 2 decision gate
+      - decision: 'button-layout: responsive pill 200-400 px, signin_with/signup_with by tab, locale pl'
+        rationale: User choice at Phase 2 decision gate
+      - decision: 'jwks-outage-status: Polish 503 plus one WARNING'
+        rationale: User choice at Phase 2 decision gate
+      - decision: 'created-flag-use: nothing special'
+        rationale: User choice at Phase 2 decision gate
+      - decision: 'google-401-copy: one generic Polish message'
+        rationale: User choice at Phase 2 decision gate
+      risks:
+      - Google path must normalize_email before the 409 lookup (register's check is exact-match).
+      - Safari rejects Secure cookies on http://localhost; compose :5174 also needs AUTH_COOKIE_SECURE=false.
+      - google.accounts.id.initialize is page-global; only one SocialAuthButtons may be live.
+      - No image-only rollback past 0108; runbook required.
+      artifacts:
+      - path: analysis/gap-analysis.md
+        label: Gap analysis
+        html: null
+      - path: analysis/scope-clarifications.md
+        label: Scope clarifications
+        html: null
+    scope_clarifications:
+      scope_expanded: false
+      summary: All 8 important decisions resolved with recommended options; scope unchanged.
+      decisions: []
+      risks: []
+      artifacts: []
+    ui_mockups:
+      summary: 7 HTML mockups (login tab, register tab, AuthSheet 375 px, loading placeholder, 409 with switch, 401/403/503 alerts, Google-unavailable email-only) bound to aj tokens and auth components.
+      format_used: html
+      components_designed:
+      - component:google-signin-slot
+      - component:google-error-alert
+      decisions:
+      - decision: Facebook mock removed; GIS pill full width (200-400 px) above the lub emailem divider
+        rationale: Phase 1 and Phase 2 decisions
+      risks:
+      - The 403 copy ("Ten adres w Google nie jest potwierdzony...") is a proposal and needs owner approval.
+      - 503 copy extended with "Zaloguj sie emailem albo sprobuj pozniej."
+      artifacts:
+      - path: analysis/design-context/INDEX.md
+        label: Design context index
+        html: null
+      - path: analysis/design-context/design-resources.md
+        label: Design resources
+        html: null
+      - path: analysis/design-context/mockups/login-tab-google-button.html
+        label: Mockup - login tab
+        html: analysis/design-context/mockups/login-tab-google-button.html
+    design:
+      summary: Design context from Phase 4 mockup-studio; 7 screens and 2 components indexed with stable IDs.
+      screen_count: 7
+      component_count: 2
+      index_path: analysis/design-context/INDEX.md
+      decisions: []
+      risks: []
+      artifacts: []
+    specification:
+      summary: 18 requirements (R1-R11 backend/config, R12-R16 frontend, R17 deploy, R18 docs); settles config names, aj_google_nonce cookie signed with a purpose key, GoogleTokenVerifier dependency with async httpx JWKS cache, re-read race handling, error table, module layout, matrix rows 72/73, 9 test groups.
+      decisions:
+      - decision: Config names GOOGLE_CLIENT_ID, AUTH_COOKIE_SECURE (default true), NEXT_PUBLIC_GOOGLE_CLIENT_ID
+        rationale: settles clarification 1; Secure never from headers
+      - decision: Nonce cookie aj_google_nonce as HS256 JWT signed with HMAC-SHA256(JWT_SECRET, purpose label), cleared on every POST response
+        rationale: reuses PyJWT, a login token can never pass as a nonce cookie
+      - decision: GoogleTokenVerifier behind get_google_verifier dependency; async httpx JWKS, 1 h cache, forced refresh at most every 60 s
+        rationale: testable with a fake JWKS, no blocking urllib
+      - decision: Races handled by savepoint + re-read, not by constraint name
+        rationale: identity race logs in, email race gives 409
+      - decision: Nonce GET imperative, not a TanStack query
+        rationale: each call rotates a cookie and must not be cached or refetched (justified exception)
+      risks:
+      - Popup blocking in in-app browsers is unmeasured (D6 deferred).
+      - GIS iframe in the focus-trapped AuthSheet at 375 px needs a manual check.
+      - No image-only rollback past 0108 (runbook required).
+      - Safari over http needs AUTH_COOKIE_SECURE=false.
+      - 'Assumptions made by the spec: cookie name, 60 s throttle, 1 h JWKS TTL, 5 s timeout, 4096-char credential cap, matrix rows 72/73, nonce refresh at 9 min.'
+      artifacts:
+      - path: analysis/requirements.md
+        label: Requirements
+        html: null
+      - path: implementation/spec.md
+        label: Specification
+        html: implementation/spec.html
+    spec_audit:
+      summary: 'Pass with concerns: 0 critical, 0 high, 7 medium, 9 low; all 16 applied to spec.md/html in place (18 requirements, 9 success criteria).'
+      decisions:
+      - decision: 'M3: pause the 9 min nonce refresh while hidden or a sign-in is in flight; second-tab case accepted'
+        rationale: Owner choice at Phase 6 gate
+      - decision: 'M7: nonce route becomes POST /api/auth/google/nonce with required empty JSON body'
+        rationale: Owner choice; keeps GETs side-effect free per security standard
+      - decision: 'M2: retry the bootstrap once on an unclassified IntegrityError; register second failure maps to DuplicateEmailException'
+        rationale: Owner choice; no English text reaches the UI
+      - decision: Revise spec before planning
+        rationale: Owner choice
+      risks:
+      - 'resolved: M1 case-sensitive email pre-check vs lower(email) unique index (family accounts store un-normalised emails)'
+      - 'resolved: M2 unclassified IntegrityError (username race) surfaces the English 409'
+      - 'resolved: M3 one nonce cookie per browser; other tabs or background refresh break an in-flight sign-in'
+      - 'resolved: M4 JWKS cache at module level contradicts instance-injected test fetchers'
+      - 'resolved: M5 three more typed useAuth mocks break tsc'
+      - 'resolved: M6 R14 contradiction (hidden vs alert visible)'
+      - 'resolved: M7 PUBLIC cookie-setting GET outside /api/public/ is an undocumented security-standard exception'
+      artifacts:
+      - path: verification/spec-audit.md
+        label: Spec audit
+        html: null
+    implementation_planning:
+      summary: 9 task groups, 50 steps, about 38-48 tests; groups 1, 2, 5 and 6 run in parallel; 3 after 1; 4 after 1, 2, 3; 7 after 6; 8 after 4, 5, 7; 9 last. All 9 visual IDs covered by group 7.
+      decisions:
+      - decision: Frontend groups build against the spec contract with mocked modules
+        rationale: groups 6 and 7 do not wait for the backend
+      - decision: Bootstrap and register refactor is its own regression group (3) before the Google service
+        rationale: isolates the contract-preserving refactor
+      - decision: Deploy and docs checks use docker compose config --quiet and key-name greps only
+        rationale: never print secrets
+      risks:
+      - Backend groups 1, 3 and 4 need Docker for testcontainers.
+      - 'Manual checks left for verification: the 375 px AuthSheet Tab/popup check and one real sign-in with the dev client ID.'
+      artifacts:
+      - path: implementation/implementation-plan.md
+        label: Implementation plan
+        html: implementation/implementation-plan.html
+      - path: implementation/visual-coverage.md
+        label: Visual coverage
+        html: null
+    implementation:
+      summary: 9 groups / 50 steps in 5 waves; 205 backend + 51 frontend feature tests pass; full suites match the baseline (backend 2 stale, frontend 33 known); typecheck 0, mypy 15, ruff 64. No commits.
+      decisions:
+      - decision: Standards edited directly by group 8 with INDEX.md kept in sync
+        rationale: a subagent cannot invoke /maister:standards-update
+      - decision: Loading skeleton static bg-line without the mockup shimmer
+        rationale: the spec allows theme tokens only
+      risks:
+      - 'Manual checks open: GIS iframe Tab/popup in AuthSheet at 375 px; one real sign-in with the dev client ID.'
+      - On this machine uv lock/sync need --system-certs and uv sync needs --group ml.
+      artifacts:
+      - path: implementation/work-log.md
+        label: Work log
+        html: null
+    verification:
+      summary: 'Re-verification cycle 1: passed with issues; 14/14 fixes resolved; 0 critical, 5 warning (D12/D13 deferred, W11-W13 pending E2E), 13 optional info; full suites show no regressions; production GO with mitigations (90).'
+      decisions:
+      - decision: Fixed W1, W2, W3, W5, W6, W7, W14 and I1, I2, I3, I7, I9, I11, I12
+        rationale: Owner selection at the Phase 11 fix gate
+      - decision: W4 kept as spec'd; W8 standards edits approved
+        rationale: Owner decisions
+      risks:
+      - 'E2E blocked on setup: client IDs absent from all local env files; containers predate the change'
+      - 'Before enabling in production: D14, production origin, VPS .env presence check, pip-audit'
+      artifacts:
+      - path: verification/implementation-verification.md
+        label: Implementation verification
+        html: verification/implementation-verification.html
+      - path: verification/test-suite-results.md
+        label: Test suite results
+        html: null
+verification_context:
+  last_status: passed_with_issues
+  e2e_setup: owner prepares env (client IDs, origins, pg_dump, rebuild) and signals go-ahead
+  issues_found:
+  - W1 JWKS failure backoff and stale-key grace
+  - W2 overlapping nonce fetches
+  - W3 duplicated Google error copy
+  - W4 per-login snapshot refresh
+  - W5 two retry shapes
+  - W6 missing outcome logs
+  - W7 runbook kill switch and restore note
+  - W8 standards edited by hand
+  - W9 rate limit deferred (D12)
+  - W10 CSP/COOP deferred (D13)
+  - W11 no end-to-end run yet
+  - W12 Cloud Console origins unverified
+  - W13 criterion 8 and manual 375 px check open
+  - W14 static skeleton
+  fixes_applied:
+  - 'W1: JWKS 60 s failure backoff + 24 h stale-key grace (app/auth/google.py), 3 tests'
+  - 'W2: single in-flight nonce request shared across refreshes and StrictMode (useGoogleSignIn.ts), test'
+  - 'W3: one source per Google copy (_GOOGLE_ERRORS + GOOGLE_UNAVAILABLE_COPY); plain exception types'
+  - 'W5: register retry rewritten in the same loop shape as sign_in_with_google'
+  - 'W6: INFO outcome lines without PII (ok created=, email_unverified, email_taken), log test extended'
+  - 'W7: runbook kill switch first; dump restore loses all later writes'
+  - 'W14: animate-pulse on the bg-line skeleton'
+  - 'I1: focus refresh deferred 1 s and re-checked; visibilitychange requires hasFocus'
+  - 'I2: one pending promise per GIS script tag, no listener stacking'
+  - 'I3: unused GIS type members removed; callback ignored after unmount'
+  - 'I7: login always runs one bcrypt verify (dummy hash for missing user or NULL hash)'
+  - 'I9: GOOGLE_CLIENT_ID stripped, whitespace-only counts as unset'
+  - 'I11: 0107 downgrade sets lock_timeout'
+  - 'I12: stale docstring names fixed; runbook notes src/backend/.env for local uvicorn'
+  decisions_made:
+  - 'W4: keep the per-login snapshot refresh as specified (owner)'
+  - 'W8: standards edits approved as written (owner)'
+  - 'Fix selection: W1, W2, W3, W5, W6, W7, W14 plus info I1, I2, I3, I7, I9, I11, I12 (owner)'
+  reverify_count: 1

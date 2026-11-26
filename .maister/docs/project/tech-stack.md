@@ -36,6 +36,8 @@ This document describes the technology choices and rationale for **aj** — a pl
 
 #### PyJWT (2.13.0) + bcrypt (5.0.0)
 - **Purpose**: JWT encode/decode (HS256) and password hashing — hand-rolled, not a Spring-Security-style framework; see `standards/backend/security.md`
+- **`pyjwt[crypto]`**: the `crypto` extra pulls in `cryptography` (50.0.2 in `uv.lock`) for the RS256 verification of Google ID tokens against Google's JWKS (`app/auth/google.py`, fetched with `httpx`); the HS256 login token and the HS256 nonce cookie need no extra
+- **Google sign-in env** (names only, never commit values): `GOOGLE_CLIENT_ID` (backend; empty = feature off, both `/api/auth/google*` routes answer 503), `AUTH_COOKIE_SECURE` (backend, default `true`; the `Secure` flag of the `aj_google_nonce` cookie, set `false` over http — dev `:5173`, compose `:5174` — or Safari drops the cookie) and `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (frontend, see **npm** below); both client IDs hold the same OAuth Web client ID
 
 #### tenacity (9.1.4)
 - **Purpose**: Retry/backoff for the footprint audit pipeline's async persistence task. Note: `wait_exponential`'s signature is `(multiplier=<base wait>, exp_base=<growth factor>, min=...)` — the inverse of what its parameter names might suggest if read too quickly (documented at length in `app/footprint/audit/task.py`).
@@ -107,7 +109,7 @@ pytest + pytest-asyncio against a real PostgreSQL 18 (`pgvector/pgvector:0.8.7-p
 ### npm (frontend)
 - **Lockfile**: `src/frontend/package-lock.json` (`npm ci`); `next` and `eslint-config-next` are pinned to 16.4.4
 - **Scripts** (`src/frontend/package.json`): `dev` = `next dev -p 5173`, `build` = `next build`, `start` = `next start -p 5173` (`predev`/`prebuild` run `build:sdk` first), `build:sdk` = `vite build -c vite.sdk.config.ts`, `typecheck` = `tsc --noEmit`, `lint` = `eslint .`, `test` = `vitest run`. The repo-root `package.json` `web` and `dev:all` scripts call the frontend `dev` script
-- **Env**: `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (build-time, inlined into the client bundle; without it the place picker is manual-only; the place form's draggable pin map (`components/shared/PlaceMapPicker.tsx`, `DEMO_MAP_ID` advanced marker) also needs the Geocoding API and the location map of the shared `PlaceCard` on item, term and event pages (`PlaceMapEmbed`, locality only for item non-owners) the Maps Embed API on the same key) and `BACKEND_INTERNAL_URL` (server-only; `src/proxy.ts` and `src/api/server.ts` read it at runtime, while the `next.config.ts` rewrites are fixed at build time, so the Docker build also takes it as a build arg, default `http://backend:8080`)
+- **Env**: `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (build-time, inlined into the client bundle; without it the place picker is manual-only; the place form's draggable pin map (`components/shared/PlaceMapPicker.tsx`, `DEMO_MAP_ID` advanced marker) also needs the Geocoding API and the location map of the shared `PlaceCard` on item, term and event pages (`PlaceMapEmbed`, locality only for item non-owners) the Maps Embed API on the same key) and `BACKEND_INTERNAL_URL` (server-only; `src/proxy.ts` and `src/api/server.ts` read it at runtime, while the `next.config.ts` rewrites are fixed at build time, so the Docker build also takes it as a build arg, default `http://backend:8080`) and `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (build-time, inlined like the Maps key, so a change needs a rebuild of `web`; empty = no Google button and no script; when set, `src/lib/googleIdentity.ts` loads the Google Identity Services script `https://accounts.google.com/gsi/client` on demand)
 
 ## Infrastructure
 
@@ -145,7 +147,7 @@ Actual pinned versions from `src/backend/pyproject.toml` / `uv.lock`:
 | sqlalchemy | 2.0.44 | ORM + Core query DSL (async) |
 | asyncpg | 0.31.0 | Async Postgres driver |
 | alembic | 1.17.1 | Schema migrations |
-| pyjwt | 2.13.0 | JWT encode/decode |
+| pyjwt[crypto] | 2.13.0 | JWT encode/decode; the `crypto` extra (`cryptography` 50.0.2) verifies Google's RS256 ID tokens |
 | bcrypt | 5.0.0 | Password hashing |
 | pydantic | 2.13.5 | Request/response validation |
 | pydantic-settings | 2.15.0 | Environment-based settings |
@@ -159,7 +161,7 @@ Actual pinned versions from `src/backend/pyproject.toml` / `uv.lock`:
 | numpy (`ml` group) | 2.5.3 | API `runtime` image only: tensor pre/post-processing |
 | ruff (dev) | 0.16.5 | Lint + format |
 | mypy (dev) | 2.3.1 | Static typing (strict) |
-| httpx | 0.28.1 | Used by tests (`AsyncClient`) and verification scripts; no runtime import in `app/` |
+| httpx | 0.28.1 | Runtime: the Google JWKS fetch in `app/auth/google.py` (5 s timeout); also used by tests (`AsyncClient`) and verification scripts |
 
 Database extensions and baked-in models (not uv dependencies):
 

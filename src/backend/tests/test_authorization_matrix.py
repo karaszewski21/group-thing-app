@@ -175,6 +175,21 @@ def test_resolveRequirement_pointsRoutes_configAdminOtherwiseReadWithoutMcpScope
     assert resolve_requirement(method, path) == expected
 
 
+@pytest.mark.parametrize(
+    ("method", "path", "expected"),
+    [
+        ("POST", "/api/auth/google/nonce", "PUBLIC"),
+        ("POST", "/api/auth/google", "PUBLIC"),
+        ("GET", "/api/auth/google/nonce", "AUTHENTICATED"),
+        ("GET", "/api/auth/google", "AUTHENTICATED"),
+    ],
+)
+def test_resolveRequirement_googleSignInRoutes_postPublicGetAuthenticated(
+    method: str, path: str, expected: str
+) -> None:
+    assert resolve_requirement(method, path) == expected
+
+
 async def test_wantRoutes_mcpScopeToken_returns403_loginTokenReaches200(
     client: AsyncClient,
 ) -> None:

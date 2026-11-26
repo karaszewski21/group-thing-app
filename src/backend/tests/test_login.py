@@ -6,6 +6,8 @@ Requirement 6."""
 from __future__ import annotations
 
 from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def test_login_withEmailAndPassword_returns200WithToken(client: AsyncClient) -> None:
@@ -73,3 +75,35 @@ async def test_register_mixedCaseEmail_lowercaseLoginWorks(client: AsyncClient) 
     )
 
     assert response.status_code == 200
+
+
+async def test_login_accountWithoutPassword_returnsSame401(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    register_response = await client.post(
+        "/api/auth/register",
+        json={"role": "GUEST", "email": "login.nohash@example.com", "password": "secret123"},
+    )
+    assert register_response.status_code == 201
+    # A Google-only account has no password hash.
+    await db_session.execute(
+        text(
+            "UPDATE users SET password_hash = NULL WHERE id = ("
+            "SELECT account_user_id FROM user_profiles WHERE party_id = :p)"
+        ),
+        {"p": register_response.json()["party_id"]},
+    )
+    await db_session.commit()
+
+    response = await client.post(
+        "/api/auth/login",
+        json={"email": "login.nohash@example.com", "password": "secret123"},
+    )
+
+    assert response.status_code == 401
+    body = response.json()
+    assert set(body) == {"status", "error", "message", "fieldErrors", "timestamp"}
+    assert body["status"] == 401
+    assert body["error"] == "Unauthorized"
+    assert body["message"] == "Invalid username or password"
+    assert body["fieldErrors"] is None

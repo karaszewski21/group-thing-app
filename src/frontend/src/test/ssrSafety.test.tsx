@@ -219,6 +219,20 @@ describe("SSR safety", () => {
     expect(login.length).toBeGreaterThan(0);
   });
 
+  it("renders the Google slot skeleton on /login with a client ID, without a script or a request", () => {
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_CLIENT_ID", "client-1.apps.googleusercontent.com");
+    try {
+      const login = renderOnServer("/login", "/login", <LoginPage />);
+      expect(login).toContain('aria-hidden="true" class="h-11 w-full max-w-[400px] animate-pulse rounded-full bg-line"');
+      expect(login).toContain('role="status"');
+      expect(login).toContain("lub emailem");
+      expect(login).not.toContain("<script");
+      expect(fetch).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("renders the logged-in PublicLayout chrome with its pending-actions host for a cookie session", () => {
     const html = renderOnServer(
       "/meetings",

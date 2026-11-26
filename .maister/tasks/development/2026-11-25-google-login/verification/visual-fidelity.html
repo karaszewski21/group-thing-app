@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Fidelity — 2026-11-25-google-login</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.verdict { background:var(--warn-soft); color:var(--warn); border:1px solid var(--warn); border-radius:var(--radius); padding:12px 16px; font-weight:700; font-size:16px; }
+.shots { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; margin-top:10px; }
+.shots figure { margin:0; } .shots figcaption { font-size:12px; color:var(--dim); }
+.st-ok { color:var(--ok); } .st-warn { color:var(--warn); } .st-fail { color:var(--crit); }
+
+.pair { display:grid; grid-template-columns:1fr 1fr; gap:10px; } .pair figure { margin:0; } .pair figcaption { font-size:12px; color:var(--dim); }
+@media (max-width:640px) { .pair { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="implementation-verification.html">Verification</a>
+  <a href="e2e-verification-report.html">E2E</a>
+  <span class="here">Visual fidelity</span>
+  <a href="visual-fidelity.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header><span class="badge">visual fidelity · report-only</span><h1>Visual Fidelity — Google sign-in</h1>
+<div style="color:var(--dim)">LLM-judged structural match (not pixel diff) · source analysis/design-context/INDEX.md · 2026-11-26</div></header>
+<div class="tiles">
+  <div class="tile"><b>9</b><span>compared</span></div>
+  <div class="tile"><b class="pass">7</b><span>match ✓</span></div>
+  <div class="tile"><b class="st-warn">2</b><span>minor ⚠</span></div>
+  <div class="tile"><b>0</b><span>drift ✗</span></div>
+</div>
+<section class="tldr card">
+<h2>TL;DR</h2><ul><li>Overall fidelity is high: 7 ✓, 2 ⚠, 0 ✗ across 7 screens and 2 components.</li><li>Layout, field order, the slot/status/divider stack, the alert style and all Polish copy match.</li><li>Deviations: GIS fallback render at this origin (iframe 403) and two-line wrapping of the error copy.</li></ul>
+<h2>Key Decisions</h2><ul><li>Mockups were rendered in Chromium and compared with live captures at the same viewport.</li><li>Error states used a stubbed GIS button (“[stub] …”); only the slot and the alert are compared there.</li></ul>
+<h2>Open Questions / Risks</h2><ul><li>Recapture the login, register and sheet screens after the OAuth origin fix to confirm the real GIS iframe in the 44 px slot.</li></ul>
+</section>
+<main>
+<div class='card'><h3><span class='st-warn'>⚠</span> screen:login-tab-google-button</h3><p>Structure, order and copy match; pill is the GIS fallback render because the origin is not authorised (iframe 403). Recapture after the origin fix.</p><div class='pair'><figure><img class='shot' src='screenshots/mockup-login-tab-google-button.png' alt='Mockup'><figcaption>Mockup — mockup-login-tab-google-button</figcaption></figure><figure><img class='shot' src='screenshots/01-login-tab-desktop.png' alt='Implementation'><figcaption>Implementation — 01-login-tab-desktop</figcaption></figure></div></div>
+<div class='card'><h3><span class='pass'>✓</span> screen:register-tab-google-button</h3><p>Same stack; “Zarejestruj się przez Google” (signup_with).</p><div class='pair'><figure><img class='shot' src='screenshots/mockup-register-tab-google-button.png' alt='Mockup'><figcaption>Mockup — mockup-register-tab-google-button</figcaption></figure><figure><img class='shot' src='screenshots/02-register-tab-desktop.png' alt='Implementation'><figcaption>Implementation — 02-register-tab-desktop</figcaption></figure></div></div>
+<div class='card'><h3><span class='pass'>✓</span> screen:authsheet-mobile-item-page</h3><p>Sheet, tabs, pill above divider and email form at 375 px. Intro copy is the existing context-specific AuthSheet text; org theme colours.</p><div class='pair'><figure><img class='shot' src='screenshots/mockup-authsheet-mobile-item-page.png' alt='Mockup'><figcaption>Mockup — mockup-authsheet-mobile-item-page</figcaption></figure><figure><img class='shot' src='screenshots/09-authsheet-375-login.png' alt='Implementation'><figcaption>Implementation — 09-authsheet-375-login</figcaption></figure></div></div>
+<div class='card'><h3><span class='pass'>✓</span> screen:loading-placeholder</h3><p>44 px bg-line pill skeleton, divider visible, no form shift (y=486). Mockup note says GET /nonce; implementation correctly uses POST.</p><div class='pair'><figure><img class='shot' src='screenshots/mockup-loading-placeholder.png' alt='Mockup'><figcaption>Mockup — mockup-loading-placeholder</figcaption></figure><figure><img class='shot' src='screenshots/03-loading-skeleton.png' alt='Implementation'><figcaption>Implementation — 03-loading-skeleton</figcaption></figure></div></div>
+<div class='card'><h3><span class='pass'>✓</span> screen:conflict-409-register-tab</h3><p>Alert between button and divider, exact copy, underlined inline “Zaloguj się” switch.</p><div class='pair'><figure><img class='shot' src='screenshots/mockup-conflict-409-register-tab.png' alt='Mockup'><figcaption>Mockup — mockup-conflict-409-register-tab</figcaption></figure><figure><img class='shot' src='screenshots/05-error-409-register-switch.png' alt='Implementation'><figcaption>Implementation — 05-error-409-register-switch</figcaption></figure></div></div>
+<div class='card'><h3><span class='st-warn'>⚠</span> screen:google-error-messages</h3><p>401/403/503 copies identical; 401 copy wraps to two lines (one in mockup). Negligible.</p><div class='pair'><figure><img class='shot' src='screenshots/mockup-google-error-messages.png' alt='Mockup'><figcaption>Mockup — mockup-google-error-messages</figcaption></figure><figure><img class='shot' src='screenshots/06-error-401-login.png' alt='Implementation'><figcaption>Implementation — 06-error-401-login</figcaption></figure></div></div>
+<div class='card'><h3><span class='pass'>✓</span> screen:google-unavailable-email-only</h3><p>No button, no divider, form directly under the tabs.</p><div class='pair'><figure><img class='shot' src='screenshots/mockup-google-unavailable-email-only.png' alt='Mockup'><figcaption>Mockup — mockup-google-unavailable-email-only</figcaption></figure><figure><img class='shot' src='screenshots/04-nonce-503-email-only.png' alt='Implementation'><figcaption>Implementation — 04-nonce-503-email-only</figcaption></figure></div></div>
+<div class='card'><h3><span class='pass'>✓</span> component:google-signin-slot</h3><p>mb-4 wrapper; flex min-h-11 justify-center slot; mt-2 min-h-4.5 status; unchanged divider classes.</p><div class='pair'><figure><img class='shot' src='screenshots/mockup-login-tab-google-button.png' alt='Mockup'><figcaption>Mockup — mockup-login-tab-google-button</figcaption></figure><figure><img class='shot' src='screenshots/01-login-tab-desktop.png' alt='Implementation'><figcaption>Implementation — 01-login-tab-desktop</figcaption></figure></div></div>
+<div class='card'><h3><span class='pass'>✓</span> component:google-error-alert</h3><p>role=alert, mt-2 rounded-2xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger; replaces the status line.</p><div class='pair'><figure><img class='shot' src='screenshots/mockup-conflict-409-register-tab.png' alt='Mockup'><figcaption>Mockup — mockup-conflict-409-register-tab</figcaption></figure><figure><img class='shot' src='screenshots/05-error-409-register-switch.png' alt='Implementation'><figcaption>Implementation — 05-error-409-register-switch</figcaption></figure></div></div>
+</main>
+</body>
+</html>

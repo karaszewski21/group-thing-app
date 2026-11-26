@@ -70,3 +70,9 @@ const { data: locations, create } = useMyLocations();   // host: the only subscr
 
 ### Documented staleTime Exception: Categories
 The categories list (`useCategories`, a ~2300-node tree) is the one documented exception to the default `staleTime: 0`: it uses a 5-minute `staleTime` (`CATEGORIES_STALE_TIME_MS`). In exchange, every write that changes categories or product counts must `await queryClient.invalidateQueries({ queryKey: CATEGORIES_KEY })`: `useCategories` create/update/remove/move, the `useProducts` invalidate, and the admin `ProductFormPage` after save. A new write path that affects categories or product counts adds the same invalidation.
+
+### Documented Exception: Imperative Auth-Flow Calls (Google Nonce)
+A call whose every invocation changes server-side state for the browser is not server state, so it is not a TanStack query or mutation hook. The Google nonce is a plain `POST` through `src/api/auth.ts::getGoogleNonce` (`null` on 503, other errors rethrown), called imperatively from `features/auth/useGoogleSignIn.ts` (on mount, on the refresh timer and after a failed sign-in): each call rotates the `aj_google_nonce` cookie, so it must never be cached, deduped, retried behind the hook's back or refetched on focus. The API wrapper still lives in `src/api/`, and the state-bound flow (nonce, timer, GIS lifecycle) in its dedicated hook. A new call of this kind needs the same justification recorded here.
+```ts
+const nonce = await getGoogleNonce();   // in the hook's flow, never inside useQuery/useMutation
+```

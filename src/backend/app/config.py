@@ -12,7 +12,9 @@ tuning knobs (not secrets) and keep the same defaults documented in
 
 from __future__ import annotations
 
-from pydantic import Field
+from typing import Any
+
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -51,10 +53,28 @@ class Settings(BaseSettings):
     embeddings_enabled: bool = False
     # Exported int8 ONNX embed model with its `model_id.txt`.
     embeddings_model_dir: str = "/models/embed"
+    # Google sign-in stays off (both routes 503) until the OAuth Web client ID
+    # is set; an empty or whitespace-only value counts as unset.
+    google_client_id: str | None = None
+    # `Secure` on the auth-flow cookie; false only over plain http (dev, Safari).
+    auth_cookie_secure: bool = True
     # Removed `MODERATION_ENABLED`; read only so startup can warn that it is ignored.
     legacy_moderation_enabled: str | None = Field(
         default=None, validation_alias="MODERATION_ENABLED"
     )
+
+    @field_validator("auth_cookie_secure", mode="before")
+    @classmethod
+    def _empty_cookie_secure_is_default(cls, value: Any) -> Any:
+        """An empty `AUTH_COOKIE_SECURE=` placeholder copied from `.env.example`
+        keeps the secure default instead of failing startup."""
+        return True if value == "" else value
+
+    @field_validator("google_client_id", mode="before")
+    @classmethod
+    def _strip_google_client_id(cls, value: Any) -> Any:
+        """A whitespace-only `GOOGLE_CLIENT_ID` counts as unset."""
+        return value.strip() if isinstance(value, str) else value
 
     @property
     def cors_allowed_origins_list(self) -> list[str]:
@@ -73,6 +93,10 @@ class Settings(BaseSettings):
                 self.spaces_public_base_url,
             )
         )
+
+    @property
+    def google_login_configured(self) -> bool:
+        return bool(self.google_client_id)
 
 
 settings = Settings()

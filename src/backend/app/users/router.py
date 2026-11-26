@@ -8,6 +8,7 @@ from typing import Annotated, cast
 from fastapi import APIRouter, Depends, File, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.service import load_permissions
 from app.config import settings
 from app.core.auth_deps import Principal, require_any
 from app.core.security import encode_login_token
@@ -42,11 +43,12 @@ Storage = Annotated[ObjectStorage | None, Depends(get_storage)]
     "/api/auth/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED
 )
 async def register(body: RegisterRequest, db: DbSession) -> RegisterResponse:
-    """Public — no `principal` dependency. `["READ", "EDIT"]` mirrors
-    exactly what `service.create_account` always grants."""
+    """Public — no `principal` dependency. The token carries the account's
+    permissions as stored, like a login token."""
     user, party_id = await service.register(db, body)
+    permissions = await load_permissions(db, cast(uuid.UUID, user.id))
     token = encode_login_token(
-        user.username, ["READ", "EDIT"], settings.jwt_secret, settings.jwt_expiration_ms
+        user.username, permissions, settings.jwt_secret, settings.jwt_expiration_ms
     )
     return RegisterResponse(token=token, party_id=party_id, role=body.role)
 

@@ -62,7 +62,7 @@ async def test_createMembers_noExistingFamily_autoNamesFamilyFromDisplayName(
     """`POST /api/families/mine/members` with no prior family still
     bootstraps `f"Rodzina {display_name}"` — the Panel inline "Dodaj
     członka" path (R3 acceptance bullet 6). `noexisting.family@example.com`
-    -> display_name "Noexisting Family" via `_derive_display_name`."""
+    -> display_name "Noexisting Family" via `derive_display_name`."""
     token = await _register_guardian(client, "noexisting.family@example.com")
 
     response = await client.post(

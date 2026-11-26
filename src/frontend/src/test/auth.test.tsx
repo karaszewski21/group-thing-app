@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { ApiError } from "../api/client";
 import { getQueryClient } from "../api/queryClient";
 import { sessionFromToken } from "../auth/session";
 import { CATEGORIES_KEY } from "../hooks/useCategories";
@@ -36,6 +37,7 @@ const mockUseAuth = vi.fn((): {
     email: string;
     password: string;
   }) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<{ created: boolean }>;
   logout: () => void;
 } => ({
   token: "test-token",
@@ -44,6 +46,7 @@ const mockUseAuth = vi.fn((): {
   permissions: ["EDIT", "PLUGIN_MANAGEMENT"],
   login: vi.fn(),
   register: vi.fn(),
+  loginWithGoogle: vi.fn(),
   logout: vi.fn(),
 }));
 
@@ -95,6 +98,7 @@ beforeEach(() => {
     permissions: ["EDIT", "PLUGIN_MANAGEMENT"],
     login: vi.fn(),
     register: vi.fn(),
+    loginWithGoogle: vi.fn(),
     logout: vi.fn(),
   });
 });
@@ -157,6 +161,7 @@ describe("LoginPage", () => {
       permissions: [],
       login: mockLogin,
       register: vi.fn(),
+      loginWithGoogle: vi.fn(),
       logout: vi.fn(),
     });
 
@@ -182,6 +187,7 @@ describe("LoginPage", () => {
       permissions: [],
       login: vi.fn(),
       register: vi.fn(),
+      loginWithGoogle: vi.fn(),
       logout: vi.fn(),
     });
 
@@ -210,6 +216,7 @@ describe("RegisterForm", () => {
       permissions: [],
       login: vi.fn(),
       register: mockRegister,
+      loginWithGoogle: vi.fn(),
       logout: vi.fn(),
     });
 
@@ -240,6 +247,7 @@ describe("RegisterForm", () => {
       permissions: [],
       login: vi.fn(),
       register: mockRegister,
+      loginWithGoogle: vi.fn(),
       logout: vi.fn(),
     });
 
@@ -267,6 +275,7 @@ describe("RegisterForm", () => {
       permissions: [],
       login: vi.fn(),
       register: mockRegister,
+      loginWithGoogle: vi.fn(),
       logout: vi.fn(),
     });
 
@@ -379,6 +388,60 @@ describe("AuthContext", () => {
     const init = mockFetch.mock.calls.find(([url]) => url === "/api/auth/register")![1] as RequestInit;
     expect(JSON.parse(init.body as string)).toEqual({ role: "GUEST", email: "new@example.com", password: "pass123" });
   });
+
+  it("loginWithGoogle posts the credential, stores the token and returns created, and throws an ApiError on failure", async () => {
+    const payload = btoa(JSON.stringify({ sub: "google-user", permissions: [], exp: Math.floor(Date.now() / 1000) + 3600 }));
+    const googleToken = `eyJhbGciOiJIUzI1NiJ9.${payload}.signature`;
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url === "/api/auth/google") {
+        return new Response(JSON.stringify({ token: googleToken, created: true }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ display_name: "Google User" }), { status: 200 });
+    });
+    mockUseAuth.mockImplementation(realUseAuth);
+    const results: unknown[] = [];
+
+    function TestConsumer() {
+      const { token, loginWithGoogle } = mockUseAuth();
+      const run = (credential: string) =>
+        loginWithGoogle(credential).then(
+          (result) => results.push(result),
+          (error: unknown) => results.push(error),
+        );
+      return (
+        <div>
+          <span data-testid="token">{token ?? "none"}</span>
+          <button onClick={() => void run("google-id-token")}>Google</button>
+        </div>
+      );
+    }
+
+    render(
+      <RealAuthProvider initialSession={null}>
+        <TestConsumer />
+      </RealAuthProvider>,
+      { wrapper: createQueryWrapper() },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Google" }));
+
+    await waitFor(() => expect(screen.getByTestId("token")).toHaveTextContent(googleToken));
+    expect(results).toEqual([{ created: true }]);
+    expect(localStorage.getItem("auth_token")).toBe(googleToken);
+    const init = mockFetch.mock.calls.find(([url]) => url === "/api/auth/google")![1] as RequestInit;
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ credential: "google-id-token" });
+
+    const conflict = { status: 409, error: "Conflict", message: "Konto z tym adresem już istnieje." };
+    mockFetch.mockImplementation(async () =>
+      new Response(JSON.stringify(conflict), { status: 409, statusText: "Conflict" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Google" }));
+
+    await waitFor(() => expect(results).toHaveLength(2));
+    const error = results[1];
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 409, statusText: "Conflict", body: conflict });
+  });
 });
 
 describe("AuthProvider session change", () => {
@@ -417,6 +480,7 @@ describe("Permission-based UI visibility", () => {
       permissions: [],
       login: vi.fn(),
       register: vi.fn(),
+      loginWithGoogle: vi.fn(),
       logout: vi.fn(),
     });
 

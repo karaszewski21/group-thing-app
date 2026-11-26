@@ -30,6 +30,7 @@ function mockViewer(username: string | null) {
     permissions: [],
     login: vi.fn(),
     register: vi.fn(),
+    loginWithGoogle: vi.fn(),
     logout: vi.fn(),
     expireSession: vi.fn(),
   });

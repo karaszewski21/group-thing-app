@@ -56,7 +56,7 @@ export function AuthTabs({ tab, onSelect }: { tab: AuthTab; onSelect: (tab: Auth
         })}
       </div>
       <div role="tabpanel" id={`${baseId}-panel`} aria-labelledby={`${baseId}-${tab}-tab`}>
-        <SocialAuthButtons />
+        <SocialAuthButtons tab={tab} onSwitchToLogin={() => onSelect("login")} />
         {tab === "login" ? <LoginForm /> : <RegisterForm onSwitchToLogin={() => onSelect("login")} />}
       </div>
     </>

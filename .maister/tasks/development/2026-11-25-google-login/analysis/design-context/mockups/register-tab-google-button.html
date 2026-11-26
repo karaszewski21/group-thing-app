@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register tab - Google button — Product Design</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      color: #222;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1.5rem;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+    }
+    header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+    #status { font-size: 0.8rem; color: #4a4; font-weight: 500; }
+    #status.disconnected { color: #a44; }
+
+    /* Screen navigation */
+    .screen-nav {
+      background: #fafafa;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 0.5rem 1.5rem;
+    }
+    .nav-screens {
+      display: flex;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.25rem;
+    }
+    .nav-screen {
+      padding: 0.3rem 0.7rem;
+      border-radius: 4px;
+      text-decoration: none;
+      color: #555;
+      font-size: 0.8rem;
+      background: #eee;
+      transition: background 0.15s;
+    }
+    .nav-screen:hover { background: #ddd; }
+    .nav-screen.active { background: #333; color: #fff; }
+    .nav-prevnext {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.25rem;
+    }
+    .nav-arrow {
+      font-size: 0.8rem;
+      color: #0066cc;
+      text-decoration: none;
+    }
+    .nav-arrow:hover { text-decoration: underline; }
+
+    /* Gallery */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      padding: 1rem 0;
+    }
+    .gallery-card {
+      display: block;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow 0.2s, transform 0.15s;
+    }
+    .gallery-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+    }
+    .gallery-card-title {
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #eee;
+      background: #fafafa;
+    }
+    .gallery-card-preview {
+      height: 230px;
+      overflow: hidden;
+      position: relative;
+      background: #0e0f11;
+    }
+    /* The screen renders in a private iframe at desktop width, scaled down to a
+       thumbnail. pointer-events off so the whole card stays a single click target. */
+    .gallery-frame {
+      width: 1280px;
+      height: 820px;
+      border: 0;
+      transform: scale(0.27);
+      transform-origin: top left;
+      pointer-events: none;
+    }
+
+    /* Mockup content */
+    main {
+      max-width: 1200px;
+      margin: 1.5rem auto;
+      padding: 1.5rem;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      min-height: 300px;
+      position: relative;
+    }
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      color: #999;
+      font-size: 1rem;
+      text-align: center;
+      line-height: 1.8;
+    }
+    .annotation-tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 3px;
+      pointer-events: none;
+      max-width: 250px;
+      z-index: 1000;
+      line-height: 1.3;
+    }
+    .annotation-tooltip::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: 10px;
+      width: 8px;
+      height: 8px;
+      background: rgba(0, 0, 0, 0.75);
+      transform: rotate(45deg);
+    }
+
+    /* Interactive screen-to-screen navigation */
+    [data-screen] { cursor: pointer; }
+    [data-screen]:hover { outline: 2px solid #0066cc; outline-offset: 2px; border-radius: 2px; }
+
+    /* Annotation toggle */
+    .annotations-hidden .annotation-tooltip { display: none; }
+    #annotation-toggle {
+      font-size: 0.8rem;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      background: #f0f0f0;
+      cursor: pointer;
+      margin-left: 0.75rem;
+    }
+    #annotation-toggle:hover { background: #e0e0e0; }
+    #annotation-toggle.active { background: #333; color: #fff; border-color: #333; }
+    #gallery-link {
+      display: inline-block; margin-right: 0.5rem; padding: 0.35rem 0.75rem;
+      border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem;
+      color: #333; text-decoration: none; background: #f5f5f5;
+    }
+    #gallery-link:hover { background: #e0e0e0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Register tab - Google button</h1>
+    <div>
+      <a href="/" id="gallery-link" title="Back to the gallery of all screens">⊞ Gallery</a>
+      <button id="annotation-toggle" class="active" title="Toggle annotation tooltips">Annotations</button>
+      <span id="status">Connected</span>
+    </div>
+  </header>
+
+  <nav class="screen-nav"><div class="nav-screens"><a href="/screen/login-tab-google-button" class="nav-screen">Login tab - Google button</a><a href="/screen/register-tab-google-button" class="nav-screen active">Register tab - Google button</a></div><div class="nav-prevnext"><a href="/screen/login-tab-google-button" class="nav-arrow">&larr; Login tab - Google button</a><span></span></div></nav>
+
+  <main id="mockup-container">
+    <style>
+:root{--primary:#1b8168;--on-primary:#fff;--primary-fg:#117b63;--primary-soft:#dcf5ec;--focus:#1b8168;--accent:#a9c24f;--cream:#f4f8f0;--stage:#edf1ea;--line:#e2eadf;--line-strong:#cbdac7;--paper:#fff;--ink:#1e2e27;--ink-soft:#5c7069;--teal:#6fb6b8;--danger:#b23b3b;--danger-soft:#f6e4e2;--scrim:rgb(20 28 24 / .55)}
+*{box-sizing:border-box}
+.m-root{font-family:Figtree,"Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--stage);padding:40px 16px;min-height:100%;display:flex;justify-content:center;gap:32px;flex-wrap:wrap;align-items:flex-start}
+.card{position:relative;width:440px;max-width:100%;overflow:hidden;background:var(--cream);border:1px solid var(--line);border-radius:28px;padding:28px 28px 32px;box-shadow:0 30px 60px -30px rgba(30,46,39,.28)}
+.circle{position:absolute;top:-40px;right:-44px;width:150px;height:150px;pointer-events:none}
+.circle .ring{position:absolute;inset:0;border-radius:50%;border:2px dashed var(--primary-soft)}
+.circle .d{position:absolute;width:22px;height:22px;border-radius:50%}
+h1{position:relative;max-width:80%;font-family:"Bricolage Grotesque","Segoe UI",sans-serif;font-size:30px;line-height:1.15;font-weight:800;letter-spacing:-.02em;margin:0}
+.sub{position:relative;max-width:80%;margin:2px 0 16px;font-size:15px;color:var(--ink-soft)}
+.tabs{display:flex;gap:4px;border-radius:999px;background:var(--line);padding:4px;margin-bottom:16px}
+.tab{min-height:44px;flex:1;border-radius:999px;border:0;background:transparent;font:inherit;font-size:15px;font-weight:800;color:var(--ink-soft);cursor:pointer}
+.tab.on{background:var(--paper);color:var(--ink);box-shadow:0 2px 8px -2px rgba(42,35,32,.25)}
+.social{margin-bottom:16px}
+.gis-slot{min-height:44px;display:flex;justify-content:center}
+.gis{display:flex;align-items:center;gap:10px;height:44px;width:100%;max-width:400px;min-width:200px;padding:0 16px;border:1px solid #dadce0;border-radius:999px;background:#fff;font-family:Roboto,"Segoe UI",Arial,sans-serif;font-size:15px;font-weight:500;color:#3c4043;cursor:pointer;justify-content:center;position:relative}
+.gis .g{position:absolute;left:14px;top:50%;transform:translateY(-50%)}
+.gis-ph{height:44px;width:100%;max-width:400px;border-radius:999px;background:linear-gradient(90deg,var(--line) 0%,#eef3ec 50%,var(--line) 100%);background-size:200% 100%;animation:sh 1.4s infinite}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.status{margin-top:8px;min-height:18px;text-align:center;font-size:12px;color:var(--ink-soft)}
+.alert{margin-top:8px;border-radius:16px;background:var(--danger-soft);padding:10px 14px;font-size:14px;color:var(--danger)}
+.alert button{background:none;border:0;padding:0;font:inherit;font-weight:600;color:inherit;text-decoration:underline;cursor:pointer}
+.divider{margin-top:4px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;color:var(--ink-soft)}
+.divider span{height:1px;flex:1;background:var(--line)}
+form{display:flex;flex-direction:column;gap:12px}
+label{display:block;margin-bottom:6px;font-size:14px;font-weight:700}
+input{height:52px;width:100%;border-radius:16px;border:1.5px solid var(--line);background:var(--paper);padding:0 16px;font:inherit;font-size:16px;color:var(--ink)}
+input::placeholder{color:#9aa9a2}
+.submit{margin-top:4px;min-height:54px;width:100%;border-radius:999px;border:0;background:var(--primary);color:var(--on-primary);font:inherit;font-size:17px;font-weight:800;cursor:pointer}
+.submit:disabled{opacity:.6}
+.caption{width:100%;text-align:center;font-size:13px;color:var(--ink-soft);margin:-16px 0 0}
+.phone{width:375px;height:720px;border-radius:36px;border:10px solid #1e2e27;background:#fff;position:relative;overflow:hidden}
+.page{padding:16px;font-size:14px;color:var(--ink)}
+.page .img{height:220px;border-radius:20px;background:linear-gradient(135deg,var(--primary-soft),var(--cream))}
+.page h2{font-family:"Bricolage Grotesque",sans-serif;font-size:22px;margin:14px 0 4px}
+.page p{color:var(--ink-soft);margin:0}
+.scrim{position:absolute;inset:0;background:var(--scrim);display:flex;align-items:flex-end}
+.sheet{width:100%;max-height:88%;overflow:auto;background:var(--paper);border-radius:24px 24px 0 0;padding:20px}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.sheet-h h3{font-family:"Bricolage Grotesque",sans-serif;font-size:18px;font-weight:600;margin:0}
+.x{width:36px;height:36px;border-radius:50%;border:0;background:var(--cream);color:var(--ink-soft);font-size:16px}
+.msg{margin:-4px 0 16px;font-size:13px;color:var(--ink-soft)}
+.errs{display:flex;flex-direction:column;gap:20px;width:440px;max-width:100%}
+.errs .card{padding:20px 24px}
+.errs h4{margin:0 0 8px;font-size:13px;text-transform:none;color:var(--ink-soft);font-weight:700}
+</style>
+<div id="mockup-content"><div class="m-root"><div class="card"><div class="circle" aria-hidden="true"><span class="ring"></span><span class="d" style="top:48px;left:24px;background:var(--accent)"></span><span class="d" style="top:100px;left:60px;background:var(--teal)"></span><span class="d" style="top:112px;left:108px;background:var(--primary-soft)"></span></div><h1>Dołącz do kręgu</h1><p class="sub">Załóż konto — zajmie to minutę.</p><div class="tabs" role="tablist" aria-label="Konto">
+  <button class="tab " data-screen="login-tab-google-button">Zaloguj się</button>
+  <button class="tab on" data-screen="register-tab-google-button">Załóż konto</button></div><div class="social">
+  <div class="gis-slot"><button class="gis" data-screen="conflict-409-register-tab"><svg class="g" width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 6.9-10.1 6.9-17.5z"/><path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.2 0-11.5-4.1-13.4-9.8l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>Zarejestruj się przez Google</button></div>
+  <p class="status" role="status"></p>
+  <div class="divider"><span></span>lub emailem<span></span></div></div><form><div><label>Email</label><input type="email" placeholder="ty@przyklad.pl"></div>
+  <div><label>Hasło</label><input type="password" placeholder="Wpisz hasło"></div>
+  <button class="submit" disabled>Załóż konto</button></form></div>
+      <p class="caption">/login?mode=register · ten sam przycisk z tekstem signup_with</p></div></div>
+  </main>
+
+  <script>
+    // SSE client for live refresh. It must NOT hijack the user's location — during a
+    // multi-screen batch that would repeatedly yank the browser to the newest screen and
+    // make it impossible to browse the gallery. On the gallery/latest we reload in place
+    // (so new cards appear live); on an individual screen we show a dismissible toast so a
+    // reader is never interrupted mid-review.
+    const statusEl = document.getElementById('status');
+    const evtSource = new EventSource('/events');
+    function showRefreshToast() {
+      if (document.getElementById('refresh-toast')) return;
+      const t = document.createElement('button');
+      t.id = 'refresh-toast';
+      t.textContent = '↻ Screens updated — click to refresh';
+      t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;'
+        + 'background:#2563eb;color:#fff;border:0;border-radius:8px;padding:10px 16px;font:600 13px Inter,sans-serif;'
+        + 'cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35)';
+      t.onclick = function(){ window.location.reload(); };
+      document.body.appendChild(t);
+    }
+    evtSource.onmessage = function(e) {
+      if (e.data !== 'refresh') return;
+      if (window.location.pathname === '/' || window.location.pathname === '/latest') {
+        window.location.reload();
+      } else {
+        showRefreshToast();
+      }
+    };
+    evtSource.onopen = function() {
+      statusEl.textContent = 'Connected';
+      statusEl.className = '';
+    };
+    evtSource.onerror = function() {
+      statusEl.textContent = 'Reconnecting...';
+      statusEl.className = 'disconnected';
+    };
+
+    // Annotation overlay rendering
+    const annotations = [{"selector":".gis","text":"GIS text signup_with: „Zarejestruj się przez Google”. New account is always a guest (GUEST)."},{"selector":".status","text":"role=status / alert line sits between button and divider (same slot as today's mock status)"}];
+    function renderAnnotations() {
+      const container = document.getElementById('mockup-container');
+      annotations.forEach(function(ann) {
+        if (!ann.selector) return;
+        const target = container.querySelector(ann.selector);
+        if (!target) return;
+        const text = ann.note || ann.text || '';
+        if (!text) return;
+        const rect = target.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const tooltip = document.createElement('div');
+        tooltip.className = 'annotation-tooltip';
+        tooltip.textContent = text;
+        tooltip.style.top = (rect.bottom - containerRect.top + 6) + 'px';
+        tooltip.style.left = (rect.left - containerRect.left) + 'px';
+        container.appendChild(tooltip);
+      });
+    }
+    if (annotations.length > 0) requestAnimationFrame(renderAnnotations);
+
+    // Annotation toggle with localStorage persistence
+    var toggleBtn = document.getElementById('annotation-toggle');
+    var container = document.getElementById('mockup-container');
+    var annotationsVisible = localStorage.getItem('annotations-visible') !== 'false'; // default: true
+    function updateToggle() {
+      if (annotationsVisible) {
+        container.classList.remove('annotations-hidden');
+        toggleBtn.classList.add('active');
+      } else {
+        container.classList.add('annotations-hidden');
+        toggleBtn.classList.remove('active');
+      }
+    }
+    updateToggle();
+    toggleBtn.addEventListener('click', function() {
+      annotationsVisible = !annotationsVisible;
+      localStorage.setItem('annotations-visible', annotationsVisible);
+      updateToggle();
+    });
+
+    // Screen-to-screen navigation: clicking elements with data-screen="slug" navigates to that screen
+    document.getElementById('mockup-container').addEventListener('click', function(e) {
+      var target = e.target.closest('[data-screen]');
+      if (target) {
+        e.preventDefault();
+        window.location.href = '/screen/' + target.getAttribute('data-screen');
+      }
+    });
+  </script>
+</body>
+</html>

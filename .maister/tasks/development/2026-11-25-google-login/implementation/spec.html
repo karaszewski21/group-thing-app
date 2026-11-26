@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — Google sign-in and sign-up</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:720px){ .grid2 { grid-template-columns:1fr; } }
+.stories { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
+.story { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:var(--radius); padding:12px 14px; }
+.in h3 { color:var(--ok); margin-top:0; font-size:14px; } .out h3 { color:var(--dim); margin-top:0; font-size:14px; }
+ul { margin:6px 0; padding-left:20px; }
+.toc { font-size:13px; color:var(--dim); margin:8px 0 0; }
+.tldr p { margin:4px 0; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Specification</span>
+  <h1>Google sign-in and sign-up</h1>
+  <div style="color:var(--dim);font-size:13px">Generated 2026-11-25 · Twin of <a href="spec.md" target="_blank" rel="noopener">spec.md</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>18</b><span>requirements</span></div>
+  <div class="tile"><b>23</b><span>reused pieces</span></div>
+  <div class="tile"><b>8</b><span>new components</span></div>
+  <div class="tile"><b>9</b><span>visual refs</span></div>
+  <div class="tile"><b>9</b><span>test groups</span></div>
+  <div class="tile"><b>16</b><span>audit fixes</span></div>
+  <div class="tile"><b>Medium</b><span>risk</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul>
+    <li>The Facebook/Google mock in <code>SocialAuthButtons</code> becomes one real Google button, rendered by Google Identity Services (GIS) on <code>/login</code> and on the six <code>AuthSheet</code> surfaces. The ID token carries a server nonce issued by <code>POST /api/auth/google/nonce</code> and held in a signed HttpOnly cookie; the 9-minute refresh pauses while the tab is hidden or a sign-in is in flight.</li>
+    <li><code>POST /api/auth/google</code> verifies the token locally (<code>pyjwt[crypto]</code> + Google JWKS, cached per verifier instance). It logs in the linked <code>user_identities</code> row or creates a GUEST account through the shared <code>bootstrap_person_account</code>, and returns <code>{token, created, party_id}</code>.</li>
+    <li>An email already registered (compared case-insensitively) gets a Polish 409, with no merge. An unverified email gets a 403. An unclassified insert conflict is retried once, then gets the generic Polish 401; register gets the same retry.</li>
+    <li>Migrations 0107 (<code>user_identities</code>) and 0108 (nullable <code>password_hash</code>, guarded downgrade) ship with a runbook. The feature is off unless the client ID is set on both stacks.</li>
+  </ul>
+  <h2>Key Decisions</h2>
+  <ul>
+    <li><b>Config:</b> <code>GOOGLE_CLIENT_ID</code>, <code>AUTH_COOKIE_SECURE</code> (default true), <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code>. Both client IDs hold the same Web client ID. <code>Secure</code> is never derived from headers.</li>
+    <li><b>Nonce route is a POST</b> (owner, M7): <code>POST /api/auth/google/nonce</code> with a required empty JSON body <code>{}</code>, so a cross-site form cannot overwrite the cookie and no GET has a side effect.</li>
+    <li><b>Nonce cookie</b> <code>aj_google_nonce</code>: HttpOnly, Lax, <code>Path=/api/auth/google</code>, 600 s. Its value is an HS256 JWT <code>{nonce, iat, exp, aud:"aj:google-nonce"}</code> signed with <code>HMAC-SHA256(JWT_SECRET bytes, "aj google-nonce cookie v1")</code>. <code>delete_cookie</code> repeats Path, Secure, HttpOnly and SameSite.</li>
+    <li><b>Nonce</b> is <code>token_urlsafe(32)</code>. The claim must be a <code>str</code> and is compared with <code>compare_digest</code> over UTF-8 bytes. The cookie is cleared on every response the route builds (200/201/401/403/409/503), not on the central handlers' 400/500 (accepted). Not single-use (accepted).</li>
+    <li><b>Verifier</b> is a <code>GoogleTokenVerifier(client_id, fetch_jwks, clock)</code>; the JWKS cache, its lock, the expiry and the last-fetch time are instance state, and <code>get_google_verifier()</code> returns one process-wide instance. Async httpx JWKS, a 1 h cache, a forced refresh on an unknown <code>kid</code> (at most once every 60 s), RS256 only, both <code>iss</code> forms, <code>aud</code>/<code>azp</code> equal to the client ID, 30 s leeway, <code>email_verified</code> only when it <code>is True</code>.</li>
+    <li><b>Case-insensitive email</b> (M1): <code>is_email_registered</code> compares <code>func.lower(UserProfile.email) == normalize_email(email)</code> in every pre-check and re-read, for Google and register.</li>
+    <li><b>Races</b> (owner, M2): savepoint and re-read — identity found → log in; email taken → 409; anything else (e.g. a <code>uq_users_username</code> collision) retries the bootstrap once with a fresh username. A second failure → generic Polish 401 (cookie cleared). Register: same retry, second failure → <code>DuplicateEmailException</code> (Polish 409).</li>
+    <li><b>Error envelopes</b> are built in the route (like login's 401), so the cookie-clearing header goes on every outcome the route produces.</li>
+    <li><b>Display name</b>: the Google <code>name</code> goes through <code>check_text(PROFILE_NAME)</code>, falling back to the email-derived name.</li>
+    <li><b>Password-login NULL guard</b> lives in the router. <code>verify_password</code> stays strict for OAuth2 client secrets.</li>
+    <li><b>Matrix rows</b> 72 (POST nonce) and 73 (POST google) are PUBLIC, placed after row 47, with a comment naming them auth-flow routes.</li>
+    <li><b>Frontend</b>: the <code>googleIdentity.ts</code> loader, the <code>useGoogleSignIn</code> hook, and <code>loginWithGoogle</code> throwing <code>ApiError</code>. The UI shows the backend <code>message</code> only when it equals the known Google copy for 401/403/409/503, else the generic copy. The nonce POST is imperative (a recorded data-fetching exception).</li>
+    <li><b>Refresh pause</b> (owner, M3): the 9-minute refresh is skipped while the tab is hidden or a popup/POST is in flight and runs on return if stale; a second tab mid-sign-in is an accepted risk.</li>
+    <li>The Facebook mock, <code>GoogleMark</code> and <code>FacebookMark</code> are removed.</li>
+  </ul>
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li><span class="sev warning">warning</span>Popup blocking in in-app browsers has not been measured (D6 is deferred).</li>
+    <li><span class="sev info">info</span>The GIS iframe in the focus-trapped <code>AuthSheet</code> at 375 px needs a manual check.</li>
+    <li><span class="sev info">info</span>The 409 creates friction for password users until D1.</li>
+    <li><span class="sev warning">warning</span>Accepted: one nonce cookie per browser — a second tab mounting the button mid-sign-in overwrites it; the first tab gets the generic 401 and a second click recovers.</li>
+    <li><span class="sev info">info</span>Accepted: the nonce is not single-use; a captured (cookie, token) pair replays until the earlier of the cookie <code>exp</code> (≤ 10 min) and the token <code>exp</code>.</li>
+    <li><span class="sev info">info</span>Accepted: the 400 and 500 from the central handlers do not clear the cookie (stateless, ≤ 10 min).</li>
+    <li><span class="sev info">info</span>Accepted: JWTs cannot be revoked (1 h); a Google-only account has no recovery path.</li>
+    <li><span class="sev warning">warning</span>There is no image-only rollback past 0108 once Google accounts exist; in compose an old image fails to start (<code>alembic upgrade head</code> cannot locate 0108).</li>
+    <li><span class="sev info">info</span>Safari over http needs <code>AUTH_COOKIE_SECURE=false</code>.</li>
+    <li><span class="sev info">info</span>D14 production prerequisites (domain, privacy policy, brand) are outside the code.</li>
+    <li><span class="sev info">info</span>Assumptions: the cookie name, the empty <code>{}</code> nonce body, the 60 s refresh throttle, the fixed 1 h JWKS TTL, the 5 s timeout, the 4096-character credential cap, rows 72/73, the nonce refresh at 9 min, and <code>document.hasFocus() === false</code> as the popup signal.</li>
+  </ul>
+  <p class="toc">Contents: <a href="#scope">Scope</a> · <a href="#requirements">Requirements</a> · <a href="#errors">Errors</a> · <a href="#stories">User Stories</a> · <a href="#visual">Visual Design</a> · <a href="#reuse">Components</a> · <a href="#tech">Technical Approach</a> · <a href="#tests">Testing</a> · <a href="#success">Success Criteria</a> · <a href="#history">Revision history</a></p>
+</section>
+
+<main>
+<h2 id="scope">Scope</h2>
+<div class="grid2">
+  <div class="card in"><h3>In scope</h3>
+    <ul>
+      <li>The nonce and sign-in endpoints, the verifier and the resolution policy</li>
+      <li>The shared bootstrap; register on DB permissions plus the race mapped to a 409</li>
+      <li>The NULL-hash login guard</li>
+      <li>Migrations 0107/0108 with the runbook</li>
+      <li>Matrix rows 72/73</li>
+      <li>The GIS loader, <code>SocialAuthButtons</code>, <code>loginWithGoogle</code>, SSR safety</li>
+      <li>Config: <code>Settings</code>, compose, Dockerfile, <code>.env.example</code>, <code>pyjwt[crypto]</code> + <code>uv.lock</code></li>
+      <li>Docs: <code>tech-stack.md</code>, <code>architecture.md</code>, <code>INDEX.md</code></li>
+    </ul></div>
+  <div class="card out"><h3>Out of scope</h3>
+    <ul>
+      <li>D1 link/unlink · D2 role param · D3 avatar · D4 set password</li>
+      <li>D5 One Tap/FedCM · D6 code-flow fallback · D7 token cutoff/RISC</li>
+      <li>D8 email verification · D9 Facebook · D10 reset/deletion</li>
+      <li>D11 <code>resolve_base_url</code> · D12 nginx <code>limit_req</code> · D13 CSP · D14 legal/brand</li>
+      <li>New entry points, a welcome toast for <code>created</code>, a <code>trapFocus</code> change</li>
+    </ul></div>
+</div>
+
+<h2 id="requirements">Requirements</h2>
+<div class="card">
+<table>
+<tr><th>ID</th><th>Requirement</th><th>Area</th><th>Priority</th></tr>
+<tr><td>R1</td><td><code>POST /api/auth/google/nonce</code> with a required <code>{}</code> body returns <code>{nonce}</code> and a signed cookie with <code>no-store</code>; 400 and no cookie without a JSON body; 503 when unconfigured; never 401</td><td>Backend</td><td>Must</td></tr>
+<tr><td>R2</td><td><code>POST /api/auth/google {credential}</code> (JSON, 1–4096 characters) verifies the cookie and clears it (same Path/Secure/HttpOnly/SameSite) on every response the route builds; 400/500 from the central handlers do not clear it</td><td>Backend</td><td>Must</td></tr>
+<tr><td>R3</td><td>ID-token verification: RS256, JWKS cache/refresh, iss/aud/azp/exp/iat/nonce (str claim, UTF-8 <code>compare_digest</code>), <code>email_verified is True</code>; 401 on failure, 503 + WARNING on a JWKS outage; no secrets in logs</td><td>Backend</td><td>Must</td></tr>
+<tr><td>R4</td><td>Resolution: linked → 200 (snapshot refresh; <code>StaleDataError</code> → 401); unverified → 403; email in profile (case-insensitive) → 409; else create → 201; races resolved by re-read, then one retry with a fresh username, then the generic 401</td><td>Backend</td><td>Must</td></tr>
+<tr><td>R5</td><td>Response <code>{token, created, party_id}</code>, token with the DB permissions</td><td>Backend</td><td>Must</td></tr>
+<tr><td>R6</td><td><code>bootstrap_person_account</code> with an optional password and the case-insensitive <code>is_email_registered</code>; families callers unchanged</td><td>Backend</td><td>Must</td></tr>
+<tr><td>R7</td><td>Register on the bootstrap with DB permissions; race re-read, one retry, second failure → Polish 409 (today: the English 409 "Data integrity violation"); contract unchanged</td><td>Backend</td><td>Must</td></tr>
+<tr><td>R8</td><td>A NULL-hash password login returns the existing 401 body</td><td>Backend</td><td>Must</td></tr>
+<tr><td>R9</td><td>0107 <code>user_identities</code>; 0108 nullable hash with a guarded downgrade; <code>SET LOCAL lock_timeout = '5s'</code> in 0107 upgrade and 0108 upgrade/downgrade; ORM updates</td><td>Data</td><td>Must</td></tr>
+<tr><td>R10</td><td>Matrix rows 72 (POST nonce) / 73 (POST google) PUBLIC, with an auth-flow comment</td><td>Backend</td><td>Must</td></tr>
+<tr><td>R11</td><td>Settings <code>google_client_id</code>, <code>auth_cookie_secure</code>, <code>google_login_configured</code>; <code>pyjwt[crypto]</code> + <code>uv.lock</code></td><td>Config</td><td>Must</td></tr>
+<tr><td>R12</td><td>GIS loader <code>src/lib/googleIdentity.ts</code> (memoized, 10 s, forgets failures, stale tag)</td><td>Frontend</td><td>Must</td></tr>
+<tr><td>R13</td><td><code>AuthContext.loginWithGoogle</code> through <code>applyToken</code>, throwing <code>ApiError</code>; every full-shape typed <code>useAuth</code> mock gains it</td><td>Frontend</td><td>Must</td></tr>
+<tr><td>R14</td><td><code>SocialAuthButtons({tab, onSwitchToLogin})</code> + <code>useGoogleSignIn</code>: states (incl. hidden-with-alert), reserved empty <code>role="status"</code> line, GIS options, nonce re-fetch, 9-minute timer paused while hidden or in flight, alert with the known-copy match and the 409 switch</td><td>Frontend</td><td>Must</td></tr>
+<tr><td>R15</td><td><code>src/api/auth.ts::getGoogleNonce</code> via <code>api.post("/auth/google/nonce", {})</code> (<code>null</code> on 503)</td><td>Frontend</td><td>Must</td></tr>
+<tr><td>R16</td><td>SSR-safe: identical server and first client render, effects only</td><td>Frontend</td><td>Must</td></tr>
+<tr><td>R17</td><td>Compose, Dockerfile and <code>.env.example</code> placeholders (Safari/http note, rebuild <code>web</code>)</td><td>Deploy</td><td>Must</td></tr>
+<tr><td>R18</td><td>Docs: <code>tech-stack.md</code>, <code>architecture.md</code> (<code>:535</code> fix, 0107–0108 runbook incl. the old image failing to start), the data-fetching exception and the auth-flow cookie in the standards, the matrix comment, <code>INDEX.md</code></td><td>Docs</td><td>Must</td></tr>
+</table>
+</div>
+
+<h2 id="errors">Error codes and messages</h2>
+<div class="card">
+<table>
+<tr><th>Status</th><th>When</th><th>Message</th></tr>
+<tr><td>200 / 201</td><td>Linked identity / new GUEST account</td><td><code>{token, created, party_id}</code></td></tr>
+<tr><td>400</td><td>Non-JSON or invalid body on either route (existing handler; cookie not cleared)</td><td>Validation failed (UI shows the generic 401 copy)</td></tr>
+<tr><td>401</td><td>Any token or cookie check failed; the bootstrap failed twice; a concurrent snapshot refresh</td><td>Nie udało się zalogować przez Google. Spróbuj ponownie.</td></tr>
+<tr><td>403</td><td>Unlinked identity, unverified email</td><td>Ten adres w Google nie jest potwierdzony. Potwierdź go w Google albo załóż konto emailem.</td></tr>
+<tr><td>409</td><td>Unlinked identity, email in a profile (case-insensitive), or the email race</td><td>Konto z tym adresem już istnieje — zaloguj się hasłem.</td></tr>
+<tr><td>503</td><td>Unconfigured (both routes) or JWKS unavailable</td><td>Logowanie przez Google jest chwilowo niedostępne. Zaloguj się emailem albo spróbuj później.</td></tr>
+</table>
+<p style="color:var(--dim);font-size:13px">The frontend shows <code>message</code> only when it equals the copy for its status; anything else shows the generic 401 copy.</p>
+</div>
+
+<h2 id="stories">User Stories</h2>
+<div class="stories">
+  <div class="story">An <b>anonymous visitor</b> on an AuthSheet surface signs up with Google and stays on the page.</div>
+  <div class="story">A <b>returning Google user</b> signs in on <code>/login</code> and lands on <code>returnTo</code>, including OAuth2 consent.</div>
+  <div class="story">An <b>existing password user</b> gets a clear Polish message to use their password; their account cannot be taken over.</div>
+  <div class="story">A <b>Google-created admin</b> keeps their DB permissions (ADMIN) in the token.</div>
+  <div class="story">An <b>operator</b> sees the feature stay inert until the client ID is configured.</div>
+</div>
+
+<h2 id="visual">Visual Design</h2>
+<div class="card">
+<p>Mockups in <code>analysis/design-context/</code> are binding inputs. The implementation-planner will attach <code>Visual References</code> to the UI task groups.</p>
+<table>
+<tr><th>ID</th><th>Mockup</th><th>Implemented by</th><th>Key elements</th></tr>
+<tr><td><code>screen:login-tab-google-button</code></td><td><a href="../analysis/design-context/mockups/login-tab-google-button.html">login-tab-google-button.html</a></td><td><code>SocialAuthButtons tab="login"</code></td><td>Centered GIS pill <code>signin_with</code>, empty <code>role="status"</code> line (18 px), divider, Facebook gone</td></tr>
+<tr><td><code>screen:register-tab-google-button</code></td><td><a href="../analysis/design-context/mockups/register-tab-google-button.html">register-tab-google-button.html</a></td><td><code>SocialAuthButtons tab="register"</code></td><td><code>signup_with</code> "Zarejestruj się przez Google"</td></tr>
+<tr><td><code>screen:authsheet-mobile-item-page</code></td><td><a href="../analysis/design-context/mockups/authsheet-mobile-item-page.html">authsheet-mobile-item-page.html</a></td><td><code>AuthSheet</code> → <code>AuthTabs</code></td><td>375 px; the sheet closes on success; one live instance</td></tr>
+<tr><td><code>screen:loading-placeholder</code></td><td><a href="../analysis/design-context/mockups/loading-placeholder.html">loading-placeholder.html</a></td><td><code>loading</code> state</td><td>44 px skeleton (<code>aria-hidden</code>), status line and divider, no form shift</td></tr>
+<tr><td><code>screen:conflict-409-register-tab</code></td><td><a href="../analysis/design-context/mockups/conflict-409-register-tab.html">conflict-409-register-tab.html</a></td><td>Alert + <code>onSwitchToLogin</code></td><td>409 copy with the inline "Zaloguj się" (register tab only)</td></tr>
+<tr><td><code>screen:google-error-messages</code></td><td><a href="../analysis/design-context/mockups/google-error-messages.html">google-error-messages.html</a></td><td>Alert</td><td>401 / 403 / 503 copy</td></tr>
+<tr><td><code>screen:google-unavailable-email-only</code></td><td><a href="../analysis/design-context/mockups/google-unavailable-email-only.html">google-unavailable-email-only.html</a></td><td><code>hidden</code> state</td><td>No button, no divider, no script</td></tr>
+<tr><td><code>component:google-signin-slot</code></td><td><a href="../analysis/design-context/mockups/login-tab-google-button.html">login-tab-google-button.html</a></td><td><code>SocialAuthButtons.tsx</code></td><td>Slot of 200–400 px, the status line or the alert, divider</td></tr>
+<tr><td><code>component:google-error-alert</code></td><td><a href="../analysis/design-context/mockups/conflict-409-register-tab.html">conflict-409-register-tab.html</a></td><td>Alert markup</td><td><code>rounded-2xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger</code></td></tr>
+</table>
+<p>Layout: the wrapper keeps <code>mb-4</code>, the slot is <code>flex min-h-11 justify-center</code>, under it either the empty status line (<code>mt-2 min-h-4.5 text-center text-xs text-ink-soft</code>, <code>role="status"</code>) or the alert, and the divider is unchanged. <b>Hidden with an error</b> (no mockup): the alert alone in the <code>mb-4</code> wrapper, no slot, status line or divider. Theme tokens only, no hex colours.</p>
+</div>
+
+<h2 id="reuse">Reusable vs new components</h2>
+<div class="grid2">
+<div class="card"><h3 style="margin-top:0;font-size:14px">Reused</h3>
+<table>
+<tr><td><code>encode_login_token</code></td><td>app/core/security.py</td></tr>
+<tr><td><code>_load_permissions</code> → <code>load_permissions</code></td><td>app/auth/router.py → app/auth/service.py</td></tr>
+<tr><td>Hand-built 401 / <code>ErrorResponse</code></td><td>app/auth/router.py:70-81, app/core/errors.py</td></tr>
+<tr><td><code>normalize_email</code>; <code>uq_user_profiles_email_lower</code></td><td>app/users/schemas.py; alembic 0016</td></tr>
+<tr><td><code>create_account*</code>, <code>derive_username_from_email</code>, <code>_derive_display_name</code>, <code>DuplicateEmailException</code></td><td>app/users/service.py</td></tr>
+<tr><td><code>create_solo_family_for_party</code></td><td>app/families/bootstrap.py</td></tr>
+<tr><td><code>check_text(PROFILE_NAME)</code></td><td>app/moderation/text_guard.py</td></tr>
+<tr><td>Savepoint + IntegrityError</td><td>app/events/service.py:401-408</td></tr>
+<tr><td>Typed exceptions</td><td>app/core/errors.py</td></tr>
+<tr><td>Settings gate</td><td>app/config.py <code>photo_storage_configured</code></td></tr>
+<tr><td><code>httpx</code>, <code>_enum_column</code></td><td>dependency; app/events/models.py:35</td></tr>
+<tr><td>Migration helpers and guard</td><td>0103 <code>_id/_timestamps</code>; 0076</td></tr>
+<tr><td>Migration and matrix tests</td><td>tests/test_item_visibility_migration.py, tests/test_authorization_matrix.py</td></tr>
+<tr><td>Script loader + test</td><td>src/lib/googleMaps.ts, src/test/googleMaps.test.ts</td></tr>
+<tr><td><code>applyToken</code>, raw-fetch login</td><td>src/auth/AuthContext.tsx</td></tr>
+<tr><td><code>ApiError</code>, <code>api.post</code>, <code>hasStatus</code></td><td>src/api/client.ts, src/api/problem.ts</td></tr>
+<tr><td>Alert, switch and divider styles</td><td>LoginForm, RegisterForm, SocialAuthButtons</td></tr>
+<tr><td>SSR check</td><td>src/test/ssrSafety.test.tsx</td></tr>
+</table></div>
+<div class="card"><h3 style="margin-top:0;font-size:14px">New (and why)</h3>
+<table>
+<tr><td><code>UserIdentity</code> + 0107</td><td>No external-identity store; email is not a safe key</td></tr>
+<tr><td>0108 nullable hash</td><td>Google-only accounts have no password</td></tr>
+<tr><td><code>app/auth/google.py</code></td><td>No RS256/JWKS capability (per-instance cache); first backend cookie</td></tr>
+<tr><td><code>app/auth/service.py</code></td><td>New resolution policy; shared <code>load_permissions</code></td></tr>
+<tr><td><code>bootstrap_person_account</code>, <code>is_email_registered</code></td><td>Extracted from <code>register</code>, not copied; the exact-match check misses mixed-case emails</td></tr>
+<tr><td><code>src/lib/googleIdentity.ts</code></td><td>Different script and API from Maps</td></tr>
+<tr><td><code>features/auth/useGoogleSignIn.ts</code></td><td>State-bound nonce/timer/visibility-pause/GIS flow</td></tr>
+<tr><td><code>src/api/auth.ts</code></td><td>No auth API module; 503 → <code>null</code></td></tr>
+</table></div>
+</div>
+
+<h2 id="tech">Technical Approach</h2>
+<details class="card"><summary>Backend module layout</summary>
+<ul>
+<li><code>app/config.py</code>: <code>google_client_id</code>, <code>auth_cookie_secure</code>, <code>google_login_configured</code>.</li>
+<li><code>app/auth/models.py</code>: nullable <code>password_hash</code>, <code>IdentityProvider</code>, <code>UserIdentity</code>.</li>
+<li><code>app/auth/google.py</code>: nonce helpers and cookie, <code>GoogleClaims</code>, <code>GoogleTokenInvalid</code>, <code>GoogleKeysUnavailable</code>, <code>GoogleTokenVerifier(client_id, fetch_jwks, clock)</code>, <code>fetch_google_jwks</code>, <code>get_google_verifier</code> (one process-wide instance).</li>
+<li><code>app/auth/service.py</code>: <code>load_permissions</code>, <code>sign_in_with_google</code>, <code>GoogleEmailTaken</code>, <code>GoogleEmailUnverified</code>, <code>GoogleSignInFailed</code>, and the moderated display name with its fallback.</li>
+<li><code>app/auth/router.py</code>: login (NULL guard), <code>POST /google/nonce</code> (empty body model), <code>POST /google</code>.</li>
+<li><code>app/users/service.py</code>: optional password, <code>is_email_registered</code> (case-insensitive), <code>derive_display_name</code>, <code>bootstrap_person_account</code>, the <code>register</code> refactor. <code>app/users/router.py</code>: <code>load_permissions</code>.</li>
+</ul></details>
+<details class="card"><summary>POST flow and error mapping</summary>
+<p>Gate (503) → cookie read (401) → <code>verify</code> (401/503) → <code>sign_in_with_google</code>. The new-account path runs the moderated name first, then the savepoint (bootstrap + identity + flush) and the commit; on <code>IntegrityError</code> a re-read (identity → 200, email → 409), else one retry with a fresh username, else <code>GoogleSignInFailed</code> → 401. Then <code>load_permissions</code> → <code>encode_login_token</code> → 200/201. The route maps the typed exceptions (and <code>StaleDataError</code> → 401) to <code>ErrorResponse</code> JSON; every outcome it builds carries <code>delete_cookie</code> with the full attribute set. The 400 and unexpected 500 from the central handlers do not clear the cookie (accepted).</p></details>
+<details class="card"><summary>JWKS cache and security notes</summary>
+<ul>
+<li>Instance state of the verifier: a dict <code>kid → PyJWK</code>, the expiry (1 h), the last-fetch time and an <code>asyncio.Lock</code>, timed by the injected clock. A <code>kid</code> missing from the keys forces one refresh if the last fetch is older than 60 s. The fetch result is validated and non-RS256 keys are skipped.</li>
+<li><code>SameSite=Lax</code> plus a required JSON body on both POSTs; the nonce binds the token to the browser; the purpose-keyed cookie cannot be forged; no auto-linking; the credential is never stored or logged (one INFO reason line, no email, nonce or token). The nonce is not single-use: replay window ≤ the earlier of the cookie <code>exp</code> (10 min) and the token <code>exp</code> (accepted).</li>
+</ul></details>
+<details class="card"><summary>Frontend flow</summary>
+<p><code>useGoogleSignIn(tab)</code>: configured? → <code>getGoogleNonce()</code> → <code>loadGoogleIdentity()</code> → <code>initialize({client_id, nonce, callback, ux_mode:"popup", auto_select:false})</code> → <code>renderButton(slot, {standard, outline, pill, large, logo_alignment:left, locale:"pl", text: signin_with|signup_with, width: clamp(200–400)})</code>. It returns <code>{status: hidden|loading|ready, slotRef, error}</code>. A failure re-fetches the nonce and re-initializes (no automatic POST retry). A 9-minute timer refreshes the nonce, but only marks it stale while <code>visibilityState</code> is hidden, a POST is in flight or <code>document.hasFocus()</code> is false (popup open); <code>visibilitychange</code>/<code>focus</code> then refresh a stale nonce. The alert shows <code>message</code> only for the known Google copies. Only one live instance per page. <code>session.ts</code>, <code>proxy.ts</code>, <code>AuthGuard</code>, <code>AuthSheet</code>, <code>LoginForm</code>, <code>RegisterForm</code> and the OAuth2 server are unchanged.</p></details>
+<details class="card"><summary>Deploy and docs</summary>
+<ul>
+<li>Compose backend: <code>GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}</code>, <code>AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}</code>. Web build arg <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code>, Dockerfile <code>ARG</code>/<code>ENV</code>. Placeholders only in both <code>.env.example</code> files.</li>
+<li><code>architecture.md</code>: the auth flow, the <code>:535</code> fix, <code>:157</code>/<code>:159</code>/<code>:532</code>/<code>:619</code>, and the 0107–0108 runbook (<code>pg_dump</code>, the guard count of NULL hashes, the downgrade refused while it is &gt; 0, no image-only rollback past 0108: in compose an old image fails to start on <code>alembic upgrade head</code>, which cannot locate 0108; without migrations it would 500 on NULL-hash login). <code>SET LOCAL lock_timeout = '5s'</code> in 0107 upgrade and 0108 both ways. The data-fetching exception and the auth-flow cookie recorded in the standards via <code>/maister:standards-update</code>; the matrix comment above rows 72/73. Also <code>tech-stack.md</code> and <code>INDEX.md</code>.</li>
+</ul></details>
+
+<h2 id="tests">Testing Approach</h2>
+<div class="card">
+<p>2–8 focused tests per step group (a parametrized table counts as one). Verification runs only the new and touched tests. Baseline (33 vitest failures, typecheck 0, 2 backend, mypy 15, ruff 65) is not a regression; typecheck stays 0. No network: locally signed RS256 tokens and a fake <code>fetch_jwks</code> on a fresh verifier through <code>dependency_overrides</code>. Backend flows monkeypatch <code>auth_cookie_secure=False</code>, because httpx does not send a Secure cookie to <code>http://test</code>.</p>
+<table>
+<tr><th>Group</th><th>File</th><th>Focus</th></tr>
+<tr><td>Migrations</td><td><code>tests/test_user_identities_migration.py</code></td><td>Round trip; 0108 downgrade refusal with head restored</td></tr>
+<tr><td>Bootstrap/register</td><td><code>test_registration.py</code>, <code>test_login.py</code>, <code>test_families_bootstrap.py</code></td><td>DB permissions, race → Polish 409, mixed-case email → Polish 409, username race → retry → 201, second failure → Polish 409, NULL-hash 401</td></tr>
+<tr><td>Verifier and nonce</td><td><code>tests/test_google_token_verifier.py</code></td><td>Valid claims; the 401 table (incl. non-str and non-ASCII nonce); <code>email_verified: "true"</code> → false; kid refresh and 60 s throttle on the injected clock; no state shared between instances; JWKS outage WARNING; cookie tamper, expiry and purpose separation</td></tr>
+<tr><td>Endpoints</td><td><code>tests/test_google_login.py</code></td><td>Nonce <code>POST {}</code> cookie attributes; no body / form type → 400, no cookie; 201/200/409 (incl. mixed case)/403/401/503; cleared cookie attributes; ADMIN kept; name fallback; identity race; username race → retry → 201; two failures → 401</td></tr>
+<tr><td>Matrix</td><td><code>tests/test_authorization_matrix.py</code></td><td>POST nonce and POST google PUBLIC; GET nonce and GET google AUTHENTICATED</td></tr>
+<tr><td>GIS loader and nonce API</td><td><code>src/test/googleIdentity.test.ts</code>, <code>src/test/authApi.test.ts</code></td><td>Null without an ID, memo, retry, stale tag; <code>getGoogleNonce</code> POSTs <code>{}</code>, 503 → null</td></tr>
+<tr><td>AuthContext and typed mocks</td><td><code>auth.test.tsx</code>, <code>CategoryListPage.test.tsx</code>, <code>Sidebar.test.tsx</code>, <code>useItemActions.test.tsx</code></td><td><code>loginWithGoogle: vi.fn()</code> in every full-shape typed <code>useAuth</code> mock (grep found no others); success and <code>ApiError</code></td></tr>
+<tr><td>Google slot</td><td><code>src/test/SocialAuthButtons.test.tsx</code></td><td>States incl. hidden-with-alert (alert only); empty status line; options per tab; callback; 409 switch; foreign 409 message → generic copy; re-fetch; timer; refresh paused while hidden or in flight and run on <code>visibilitychange</code></td></tr>
+<tr><td>SSR</td><td><code>src/test/ssrSafety.test.tsx</code></td><td>Configured <code>/login</code> renders the skeleton, no script</td></tr>
+</table>
+<p>Manual: Tab and the popup through the GIS iframe in <code>AuthSheet</code> at 375 px; a real sign-in with the dev client ID (never printed).</p>
+</div>
+
+<h2>Standards Compliance</h2>
+<div class="card"><p>Backend: models, migrations (<code>lock_timeout</code> both ways), security (POST-only auth-flow routes, the new auth-flow cookie recorded in the standard), api, queries. Global: error-handling, validation, minimal-implementation. Frontend: components, accessibility, data-fetching (nonce exception recorded in the standard), css. Testing: backend-testing and frontend-testing. <code>CLAUDE.md</code> secrets rule (placeholders and presence checks only; no commits).</p></div>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card"><ol>
+<li>A first sign-in creates exactly one user (NULL hash), one identity, a profile, a role and a family → 201. A repeat → 200 with the same username. Identity and username races give no 500, no English message and no duplicate rows.</li>
+<li>Every failed token or cookie check → the generic Polish 401 (table tests, no network); malformed nonce claims never raise.</li>
+<li>No email collision creates an identity, whatever the stored case: 409 for a matching email, 403 for an unverified one.</li>
+<li>Google tokens carry the DB permissions and work for <code>/api/people/me</code> and OAuth2 consent.</li>
+<li>Login and register contracts are kept; a NULL hash → 401; a duplicate race → Polish 409 instead of today's English 409 "Data integrity violation".</li>
+<li>No client ID → no script, button or divider; no backend ID → 503 on both routes and the block hidden.</li>
+<li>The 0107/0108 round trip and the refusal tests pass; the runbook is documented.</li>
+<li>The UI matches the seven binding mockups; the reserved status line keeps the form in place.</li>
+<li><code>npm run typecheck</code> stays at 0 failures.</li>
+</ol></div>
+
+<h2 id="history">Revision history</h2>
+<div class="card">
+<p><b>2026-11-25, after the spec audit</b> (<a href="../verification/spec-audit.md">spec-audit.md</a>). Resolved: M1–M7, L1–L9.</p>
+<ul>
+<li><b>M2 (owner)</b>: retry the bootstrap once; second failure → generic Polish 401 (Google) or <code>DuplicateEmailException</code>/Polish 409 (register, chosen here); the frontend shows only the known Google copies. The register race is corrected from "a 500" to the English 409 "Data integrity violation" (also in ADR-008's context).</li>
+<li><b>M3 (owner)</b>: pause the refresh while hidden or in flight, refresh on return; the second-tab case is an accepted risk.</li>
+<li><b>M7 (owner)</b>: <code>POST /api/auth/google/nonce</code> with an empty JSON body; matrix row 72 is POST.</li>
+<li>Spec choices within those decisions: the <code>{}</code> body, <code>document.hasFocus() === false</code> as the popup signal, register's second failure → <code>DuplicateEmailException</code>.</li>
+</ul>
+</div>
+</main>
+</body>
+</html>

@@ -43,6 +43,8 @@ services:
       MODERATION_TEXT_ENABLED: "true"
       MODERATION_IMAGE_ENABLED: ${MODERATION_IMAGE_ENABLED:-false}
       EMBEDDINGS_ENABLED: ${EMBEDDINGS_ENABLED:-false}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,6 +75,7 @@ services:
       dockerfile: src/frontend/Dockerfile
       args:
         NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
     environment:
       BACKEND_INTERNAL_URL: http://backend:8080
     depends_on:

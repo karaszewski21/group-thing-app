@@ -61,7 +61,7 @@ async def _grant_admin_and_relogin(
     client: AsyncClient, db_session: AsyncSession, email: str, password: str
 ) -> dict[str, str]:
     """Permissions are baked into the JWT at issuance time
-    (`app.auth.router.login`/`register` both call `_load_permissions` once
+    (`app.auth.router.login`/`register` both call `app.auth.service.load_permissions` once
     and encode the result) — granting `ADMIN` via direct SQL doesn't retroactively
     change an already-issued token, so a fresh login is required to obtain
     one carrying the new permission."""

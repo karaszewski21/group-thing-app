@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E2E Verification — 2026-11-25-google-login</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.verdict { background:var(--warn-soft); color:var(--warn); border:1px solid var(--warn); border-radius:var(--radius); padding:12px 16px; font-weight:700; font-size:16px; }
+.shots { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; margin-top:10px; }
+.shots figure { margin:0; } .shots figcaption { font-size:12px; color:var(--dim); }
+.st-ok { color:var(--ok); } .st-warn { color:var(--warn); } .st-fail { color:var(--crit); }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="implementation-verification.html">Verification</a>
+  <span class="here">E2E</span>
+  <a href="visual-fidelity.html">Visual fidelity</a>
+  <a href="e2e-verification-report.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <span class="badge">e2e verification</span>
+  <h1>E2E Verification — Google sign-in / sign-up</h1>
+  <div style="color:var(--dim)">2026-11-26 · base URL http://localhost:5174 · Chromium (Playwright MCP) · git 6f3645a + uncommitted Google login changes</div>
+</header>
+<div class="tiles">
+  <div class="tile"><b>⚠️</b><span>GO WITH CAVEATS</span></div>
+  <div class="tile"><b>10 / 11</b><span>passed</span></div>
+  <div class="tile"><b>0</b><span>failed</span></div>
+  <div class="tile"><b>1</b><span>blocked (manual)</span></div>
+  <div class="tile"><b>0 · 1 · 1 · 1</b><span>crit · major · minor · cosm</span></div>
+</div>
+<section class="tldr card">
+  <div class="verdict">⚠️ GO WITH CAVEATS</div>
+  <h2>TL;DR</h2>
+  <ul>
+    <li>11 scenarios planned and executed: 10 passed (2 with issues), 0 failed, 1 blocked (real Google popup: manual check pending, owner).</li>
+    <li>The Google slot works as R12–R16 describe on <code>/login</code> (both tabs) and in the 375 px AuthSheet: skeleton, ready button, the four Polish alerts, the inline 409 switch, hidden-with-error and the email-only fallback.</li>
+    <li><b>Headline (environment):</b> the Google Web client does not authorise <code>http://localhost:5174</code>. The GIS iframe gets a 403 ("origin is not allowed"), so the real popup cannot run on this host.</li>
+    <li>Minor: GIS warns "initialize() is called multiple times" on every tab switch.</li>
+  </ul>
+  <h2>Key Decisions</h2>
+  <ul>
+    <li>Error states were driven with a stubbed <code>window.google.accounts.id</code> and mocked <code>POST /api/auth/google</code> responses. No accounts.google.com automation.</li>
+    <li>The real backend was hit only with a garbage credential (gets the 401 and the cookie is cleared). The success path is a manual check for the owner.</li>
+    <li>Only cookie and header names and attributes are recorded. No values, tokens or client IDs.</li>
+  </ul>
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li><span class="sev warning">major</span>Authorise the localhost:5174, localhost:5173 and production origins in Google Cloud Console, then run the manual popup check (201 → 200 → 409).</li>
+    <li><span class="sev info">risk</span>The nonce cookie is <code>Secure</code> over http. Chromium accepts it on localhost; Safari and non-localhost http need <code>AUTH_COOKIE_SECURE=false</code>.</li>
+    <li><span class="sev info">risk</span>Tabbing through the real GIS iframe was not verifiable (the iframe is 0×0 here). Recheck after the origin fix.</li>
+  </ul>
+</section>
+<p style="font-size:13px">Contents: <a href="#scenarios">Scenarios</a> · <a href="#disc">Discrepancies</a> · <a href="#console">Console</a> · <a href="#align">Spec alignment</a> · <a href="#exit">Exit criteria</a> · <a href="#rec">Recommendations</a></p>
+<main>
+<h2 id="scenarios">Verification scenarios</h2>
+
+<div class="card"><h3><span class="st-warn">⚠️</span> 4.1 Login tab renders the GIS button</h3>
+<table><tr><th>#</th><th>Check</th><th>Result</th><th></th></tr>
+<tr><td>1</td><td>Pill above “lub emailem”, slot 382×44</td><td>As specified</td><td>✅</td></tr>
+<tr><td>2</td><td>GIS options signin_with / pill / outline / large / pl / width 382</td><td>As specified</td><td>✅</td></tr>
+<tr><td>3</td><td>Empty role=status line, 18 px</td><td>Present</td><td>✅</td></tr>
+<tr><td>4</td><td>No Facebook; 1 GIS script tag</td><td>As specified</td><td>✅</td></tr>
+<tr><td>5</td><td>Console clean</td><td>GIS iframe 403, “origin is not allowed” (M1)</td><td>❌</td></tr></table>
+<div class="shots"><figure><img class="shot" src="screenshots/01-login-tab-desktop.png" alt="Login tab"><figcaption>01-login-tab-desktop</figcaption></figure></div></div>
+
+<div class="card"><h3><span class="st-ok">✅</span> 4.2 Register tab shows signup_with</h3>
+<p>“Zarejestruj się przez Google”, <code>text=signup_with</code>. No new nonce across two tab switches. GIS console warning (m1).</p>
+<div class="shots"><figure><img class="shot" src="screenshots/02-register-tab-desktop.png" alt="Register tab"><figcaption>02-register-tab-desktop</figcaption></figure></div></div>
+
+<div class="card"><h3><span class="st-ok">✅</span> 4.3 Nonce request and cookie</h3>
+<p>POST body <code>{}</code> (JSON) → 200 <code>{nonce}</code>, <code>Cache-Control: no-store</code>. Set-Cookie <code>aj_google_nonce</code>; HttpOnly; Max-Age=600; Path=/api/auth/google; SameSite=lax; Secure (value not recorded). Extra field or no body → 400.</p></div>
+
+<div class="card"><h3><span class="st-ok">✅</span> 4.4 Loading skeleton</h3>
+<p>44 px <code>animate-pulse rounded-full bg-line</code>, <code>aria-hidden</code>, divider visible. Email field at y=486 while loading and when ready. The SSR HTML contains the skeleton, the status line and the divider, and no GIS script.</p>
+<div class="shots"><figure><img class="shot" src="screenshots/03-loading-skeleton.png" alt="Skeleton"><figcaption>03-loading-skeleton</figcaption></figure></div></div>
+
+<div class="card"><h3><span class="st-ok">✅</span> 4.5 409 with inline “Zaloguj się” switch</h3>
+<p>Exact copy, with a <code>type="button"</code> switch on the register tab only. The switch moves to the login tab and clears the alert. An English 409 message falls back to the generic copy. After a failure: 1 nonce re-fetch, a re-initialize, and no POST retry.</p>
+<div class="shots"><figure><img class="shot" src="screenshots/05-error-409-register-switch.png" alt="409"><figcaption>05-error-409-register-switch</figcaption></figure>
+<figure><img class="shot" src="screenshots/05b-after-409-switch-login-tab.png" alt="After switch"><figcaption>05b-after-409-switch-login-tab</figcaption></figure></div></div>
+
+<div class="card"><h3><span class="st-ok">✅</span> 4.6 401 / 403 / 503 / other statuses</h3>
+<p>All three copies match the spec table exactly; 400 and 500 show the generic copy. <code>ux_mode: popup</code>, <code>auto_select: false</code>, no <code>prompt()</code>. The form shifts +21 px under a 60 px alert, which is within SC8.</p>
+<div class="shots"><figure><img class="shot" src="screenshots/06-error-401-login.png" alt="401"><figcaption>06-error-401-login</figcaption></figure>
+<figure><img class="shot" src="screenshots/07-error-403-register.png" alt="403"><figcaption>07-error-403-register</figcaption></figure>
+<figure><img class="shot" src="screenshots/08-error-503-login.png" alt="503"><figcaption>08-error-503-login</figcaption></figure></div></div>
+
+<div class="card"><h3><span class="st-ok">✅</span> 4.7 Hidden-with-error and in-flight guard</h3>
+<p>Two synchronous callbacks send 1 POST. A 401 followed by a nonce 503 leaves the <code>mb-4</code> wrapper with just the alert.</p>
+<div class="shots"><figure><img class="shot" src="screenshots/12-hidden-with-error.png" alt="Hidden with error"><figcaption>12-hidden-with-error</figcaption></figure></div></div>
+
+<div class="card"><h3><span class="st-ok">✅</span> 4.8 Email-only fallback</h3>
+<p>Nonce 503 and an aborted GIS script both put the form directly under the tabs, with no divider, status line or alert. The no-client-ID build was not run (needs a rebuild).</p>
+<div class="shots"><figure><img class="shot" src="screenshots/04-nonce-503-email-only.png" alt="Email only"><figcaption>04-nonce-503-email-only</figcaption></figure></div></div>
+
+<div class="card"><h3><span class="st-warn">⚠️</span> 4.9 AuthSheet at 375 px — focus and Esc</h3>
+<p>Tab order: Zamknij → tab → Google control → Email → Hasło, then back to the start; Shift+Tab goes the reverse way. Esc closes the sheet and returns focus to “Napisz o przedmiocie”. On the register tab: signup_with and no new nonce. The control that took focus was the GIS fallback <code>div[role=button]</code>; the iframe is 0×0 here (M1).</p>
+<div class="shots"><figure><img class="shot" src="screenshots/09-authsheet-375-login.png" alt="Sheet"><figcaption>09-authsheet-375-login</figcaption></figure>
+<figure><img class="shot" src="screenshots/10-authsheet-375-focus-google.png" alt="Focus"><figcaption>10-authsheet-375-focus-google</figcaption></figure>
+<figure><img class="shot" src="screenshots/11-authsheet-375-register.png" alt="Register"><figcaption>11-authsheet-375-register</figcaption></figure></div></div>
+
+<div class="card"><h3><span class="st-ok">✅</span> 4.10 Real backend rejection</h3>
+<p><code>{"credential":"not-a-jwt"}</code> → 401 with the generic Polish copy; the nonce cookie is cleared; a repeat without the cookie also gets 401.</p></div>
+
+<div class="card"><h3><span class="st-fail">❌</span> 4.11 Real Google popup sign-in (blocked — manual, pending owner)</h3>
+<p>Not executed: accounts.google.com automation is out of scope, and the origin is not authorised.</p></div>
+
+<h2 id="disc">Discrepancies</h2>
+<table><tr><th>Severity</th><th>ID</th><th>Finding</th><th>Fix</th></tr>
+<tr><td><span class="sev warning">major</span></td><td>M1</td><td>OAuth client does not authorise <code>http://localhost:5174</code>; GIS iframe 403 (environment, not code)</td><td>Add the origins in Google Cloud Console; run the manual popup check</td></tr>
+<tr><td><span class="sev info">minor</span></td><td>m1</td><td>“initialize() is called multiple times” on each tab switch (<code>useGoogleSignIn.ts:171-197</code>)</td><td>Separate the <code>renderButton</code>-on-tab effect from <code>initialize</code></td></tr>
+<tr><td><span class="sev info">cosmetic</span></td><td>c1</td><td>Error copy wraps to 2 lines (1 line in the mockup)</td><td>None needed</td></tr></table>
+
+<h2 id="console">Console &amp; network</h2>
+<table><tr><th>Source</th><th>Message</th><th>Frequency</th><th>Severity</th></tr>
+<tr><td>accounts.google.com/gsi/button</td><td>403 Failed to load resource</td><td>every render</td><td>Major (M1)</td></tr>
+<tr><td>gsi credential_button_library:88</td><td>The given origin is not allowed for the given client ID.</td><td>every render</td><td>Major (M1)</td></tr>
+<tr><td>gsi/client:88</td><td>initialize() is called multiple times</td><td>every tab switch</td><td>Minor (m1)</td></tr></table>
+<p>No first-party console errors.</p>
+
+<h2 id="align">Spec alignment</h2>
+<div class="card"><b>Fully implemented:</b> R12, R13, R14 (all states, options, guard, alert rule, 409 switch), R15, R16; R1/R2 runtime behaviour.<br>
+<b>Partially:</b> R14 success path not observed (needs a real Google credential).<br><b>Not implemented:</b> none. <b>Extra:</b> none.</div>
+
+<h2 id="exit">Exit criteria</h2>
+<table><tr><th>Criterion</th><th>Status</th><th>Evidence</th></tr>
+<tr><td>SC6 — no client / 503 hides the block</td><td>✅</td><td>4.8 (no-client-ID build not run)</td></tr>
+<tr><td>SC8 — UI matches the seven mockups; alert shift bounded</td><td>✅</td><td>4.1–4.9, <a href="visual-fidelity.html">visual fidelity</a></td></tr>
+<tr><td>SC2 (runtime slice) — generic Polish 401</td><td>✅</td><td>4.10</td></tr>
+<tr><td>SC1/3/4 — real Google token paths</td><td>❌</td><td>4.11 blocked, manual</td></tr></table>
+
+<h2 id="rec">Recommendations</h2>
+<ul><li><b>Must fix before merge:</b> none in code. Before release: M1 (origin config) and the owner's manual popup check.</li>
+<li><b>Should fix soon:</b> m1.</li><li><b>Nice-to-have:</b> c1 (no action).</li></ul>
+<div class="card"><b>Conclusion:</b> ⚠️ GO WITH CAVEATS. Merge after the code review, authorise the origins, and have the owner run the manual Google popup check.</div>
+</main>
+</body>
+</html>

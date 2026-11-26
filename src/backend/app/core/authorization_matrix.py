@@ -181,6 +181,11 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # appended here rather than inserted next to row 6, to avoid renumbering
     # rows 7-22's original spec.md sequence.
     (_methods("POST"), r"^/api/auth/register$", "PUBLIC"),  # 47
+    # 72-73: Google sign-in, appended after register like row 47. Auth-flow
+    # POSTs, not data reads: the nonce route sets the `aj_google_nonce`
+    # cookie and the sign-in route clears it; neither returns stored data.
+    (_methods("POST"), r"^/api/auth/google/nonce$", "PUBLIC"),  # 72
+    (_methods("POST"), r"^/api/auth/google$", "PUBLIC"),  # 73
     (_methods("GET"), r"^/api/organizations(/.*)?$", ("READ", "mcp:read")),  # 49
     (  # 50
         _methods("POST", "PATCH", "DELETE"),

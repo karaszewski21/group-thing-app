@@ -23,6 +23,10 @@ COPY plugins/server-sdk.ts ./plugins/server-sdk.ts
 # time; empty = manual mode.
 ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
 ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+# Google OAuth Web client ID for "Zaloguj przez Google", inlined at build
+# time like the Maps key; empty = no Google button. Rebuild after a change.
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
 ENV NEXT_TELEMETRY_DISABLED=1
 # next.config rewrites are fixed at build time (fallback when nginx is not in
 # front); proxy.ts and server fetches read the runtime value from compose.

@@ -126,7 +126,7 @@ class RegisterRequest(BaseModel):
     """Public self-registration: bootstraps a login + `Party(PERSON)` +
     `UserProfile` only. `username`/`display_name` are derived server-side
     from `email` (never accepted from the client — see `service.py`'s
-    `derive_username_from_email`/`_derive_display_name`); no `Family`/`Circle` is
+    `derive_username_from_email`/`derive_display_name`); no `Family`/`Circle` is
     created here (see spec.md Core Requirement 3)."""
 
     role: Literal["GUEST", "ORGANIZER"]

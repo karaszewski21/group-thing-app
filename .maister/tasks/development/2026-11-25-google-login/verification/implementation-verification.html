@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Verification &mdash; Google sign-in</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.banner { border-radius:var(--radius); padding:14px 18px; background:var(--warn-soft); color:var(--warn);
+  font-weight:700; font-size:16px; border:1px solid var(--border); }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">&larr; Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a>
+  <span class="here">Verification</span>
+  <a href="implementation-verification.md" target="_blank" rel="noopener" class="md">md twin &#8599;</a>
+</nav>
+<header>
+  <span class="badge">implementation verification &middot; re-verification cycle 1</span>
+  <h1>Google sign-in and sign-up</h1>
+  <div class="banner">&#9888;&#65039; Passed with Issues: 0 critical &middot; 5 warning (deferred or pending E2E) &middot; 13 info</div>
+</header>
+<div class="tiles">
+  <div class="tile"><b>100%</b><span>plan (50/50)</span></div>
+  <div class="tile"><b>14/14</b><span>fixes resolved</span></div>
+  <div class="tile"><b>1792/1794</b><span>backend full</span></div>
+  <div class="tile"><b>2084/2117</b><span>frontend full</span></div>
+  <div class="tile"><b>GO*</b><span>production (90)</span></div>
+</div>
+<section class="tldr card">
+  <h2>TL;DR</h2>
+  <ul>
+    <li>All 14 applied fixes are confirmed resolved and introduced no bugs. W4 was kept as spec'd and W8 was approved by the owner.</li>
+    <li>Full suites after the fixes show no regressions; every remaining failure predates this change. tsc 0, mypy 15, ruff 64.</li>
+    <li>None of the 5 remaining warnings are code defects: D12 and D13 are deferred, and W11&ndash;W13 are pending Phase 12 E2E.</li>
+    <li>Production: GO with mitigations. Ship with the client IDs empty, enable after D14.</li>
+  </ul>
+  <h2>Key Decisions</h2>
+  <ul><li>The full suite was re-run after the fixes.</li><li>All new re-check findings are info-level and optional.</li><li>W11&ndash;W13 are marked pending, not failures.</li></ul>
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li>E2E is blocked on setup. The client IDs are absent from the root <code>.env</code>, <code>src/backend/.env</code> and <code>src/frontend/.env.local</code>, and the containers predate the change. Set the IDs, register the localhost origins, run <code>pg_dump</code>, then rebuild backend and web.</li>
+    <li>Before enabling in production: D14, the production origin, a VPS <code>.env</code> presence check, and pip-audit.</li>
+  </ul>
+</section>
+<h2>Per-check status (re-check)</h2>
+<div class="card"><table>
+<tr><th>Check</th><th>Status</th><th>C / W / I</th><th>Report</th></tr>
+<tr><td>Test suite</td><td class="pass">no regressions</td><td>&mdash;</td><td><a href="test-suite-results.md" target="_blank" rel="noopener">test-suite-results.md</a></td></tr>
+<tr><td>Completeness</td><td class="pass">passed</td><td>0 / 0 / 2</td><td><a href="completeness-report.md" target="_blank" rel="noopener">completeness-report.md</a></td></tr>
+<tr><td>Code review</td><td class="pass">fixes resolved, no new bugs</td><td>0 / 0 / 3</td><td><a href="code-review-report.md" target="_blank" rel="noopener">code-review-report.md</a></td></tr>
+<tr><td>Pragmatic review</td><td class="pass">appropriate</td><td>0 / 0 / 4</td><td><a href="pragmatic-review.md" target="_blank" rel="noopener">pragmatic-review.md</a></td></tr>
+<tr><td>Production readiness</td><td>GO with mitigations (90)</td><td>0 / 2 / 6</td><td><a href="production-readiness-report.md" target="_blank" rel="noopener">production-readiness-report.md</a></td></tr>
+<tr><td>Reality check</td><td>wiring intact, E2E pending</td><td>0 / 3 pending / 4</td><td><a href="reality-check.md" target="_blank" rel="noopener">reality-check.md</a></td></tr>
+<tr><td>Visual fidelity</td><td>pending (Phase 12)</td><td>&mdash;</td><td>&mdash;</td></tr>
+</table></div>
+<h2>Remaining findings</h2>
+<div class="card"><table>
+<tr><th>#</th><th>Severity</th><th>Issue</th><th>Location</th><th>Status</th></tr>
+<tr><td>W9</td><td><span class="sev warning">warning</span></td><td>No rate limit on Google, login and register routes</td><td><code>nginx.conf</code></td><td>deferred (D12)</td></tr><tr><td>W10</td><td><span class="sev warning">warning</span></td><td>CSP/COOP not set (GIS sources + same-origin-allow-popups when added)</td><td><code>headers</code></td><td>deferred (D13)</td></tr><tr><td>W11</td><td><span class="sev warning">warning</span></td><td>No live end-to-end run with a real client ID</td><td><code>dev stack</code></td><td>pending Phase 12</td></tr><tr><td>W12</td><td><span class="sev warning">warning</span></td><td>Cloud Console JS origins unverified</td><td><code>operator</code></td><td>pending (operator)</td></tr><tr><td>W13</td><td><span class="sev warning">warning</span></td><td>Criterion 8 (visual) + manual 375 px Tab/popup check</td><td><code>SocialAuthButtons / AuthSheet</code></td><td>pending Phase 12</td></tr><tr><td>I4</td><td><span class="sev info">info</span></td><td>loginWithGoogle returns an unused {created}</td><td><code>AuthContext.tsx:31,157</code></td><td>optional</td></tr><tr><td>I5</td><td><span class="sev info">info</span></td><td>Extra party_id query per linked login (spec R5)</td><td><code>app/auth/service.py</code></td><td>optional</td></tr><tr><td>I6</td><td><span class="sev info">info</span></td><td>About 4 duplicated route tests</td><td><code>tests/test_google_login.py</code></td><td>optional</td></tr><tr><td>I8</td><td><span class="sev info">info</span></td><td>.scalar_one() returns 500 if a profile is missing (theoretical)</td><td><code>app/auth/service.py</code></td><td>optional</td></tr><tr><td>I10</td><td><span class="sev info">info</span></td><td>GIS warning when re-initialized on each tab switch or refresh</td><td><code>useGoogleSignIn.ts</code></td><td>optional</td></tr><tr><td>N1</td><td><span class="sev info">info</span></td><td>Nonce ref is per instance; reopening AuthSheet mid-fetch can cost one 401</td><td><code>useGoogleSignIn.ts:82</code></td><td>optional</td></tr><tr><td>N2</td><td><span class="sev info">info</span></td><td>Frontend does not trim NEXT_PUBLIC_GOOGLE_CLIENT_ID</td><td><code>googleIdentity.ts:45-47, useGoogleSignIn.ts:176</code></td><td>optional</td></tr><tr><td>N3</td><td><span class="sev info">info</span></td><td>A grace-period refetch holds the lock for up to 5 s during an outage</td><td><code>app/auth/google.py:264-292</code></td><td>optional</td></tr><tr><td>N4</td><td><span class="sev info">info</span></td><td>Unknown kid during backoff returns 503 instead of 401 (still fails closed)</td><td><code>app/auth/google.py:258-286</code></td><td>optional</td></tr><tr><td>N5</td><td><span class="sev info">info</span></td><td>Post-failure refresh can reuse a nonce request started before the POST (narrow race)</td><td><code>useGoogleSignIn.ts requestNonce</code></td><td>optional</td></tr><tr><td>N6</td><td><span class="sev info">info</span></td><td>Dummy bcrypt hash is computed at import (~0.2-0.3 s per start)</td><td><code>app/auth/router.py:60</code></td><td>optional</td></tr><tr><td>N7</td><td><span class="sev info">info</span></td><td>No test checks that the dummy-hash path calls bcrypt</td><td><code>tests/test_login.py</code></td><td>optional</td></tr><tr><td>N8</td><td><span class="sev info">info</span></td><td>get_google_verifier is cached before the 503 gate (harmless)</td><td><code>app/auth/google.py</code></td><td>optional</td></tr>
+</table></div>
+<h2>Fix &amp; Re-Verification History (cycle 1)</h2>
+<div class="card"><table>
+<tr><th>Issue</th><th>Fix applied</th><th>Re-check outcome</th></tr>
+<tr><td>W1</td><td>60 s failure backoff + 24 h stale-key grace, injected clock, 3 tests</td><td class="pass">&#10003; resolved</td></tr><tr><td>W2</td><td>Single in-flight nonce request in a ref (StrictMode-safe), test</td><td class="pass">&#10003; resolved (N1/N5 residual info)</td></tr><tr><td>W3</td><td>Plain exceptions; _GOOGLE_ERRORS + GOOGLE_UNAVAILABLE_COPY as single sources</td><td class="pass">&#10003; resolved</td></tr><tr><td>W4</td><td>Owner decision: kept as spec&#x27;d (R4.1)</td><td class="">&#10003; accepted</td></tr><tr><td>W5</td><td>register uses the same retry loop shape</td><td class="pass">&#10003; resolved</td></tr><tr><td>W6</td><td>INFO outcome logs without PII; 5-outcome test</td><td class="pass">&#10003; resolved</td></tr><tr><td>W7</td><td>Runbook: kill switch first; restoring a dump loses later writes</td><td class="pass">&#10003; resolved</td></tr><tr><td>W8</td><td>Owner approved the hand-made standards edits</td><td class="pass">&#10003; resolved</td></tr><tr><td>W14</td><td>animate-pulse on bg-line skeleton</td><td class="pass">&#10003; resolved</td></tr><tr><td>I1</td><td>1 s deferred focus refresh with re-check</td><td class="pass">&#10003; resolved</td></tr><tr><td>I2</td><td>One pending promise per script tag</td><td class="pass">&#10003; resolved</td></tr><tr><td>I3</td><td>Unused GIS members removed; callback ignored after unmount</td><td class="pass">&#10003; resolved</td></tr><tr><td>I7</td><td>Login always runs one bcrypt verify (dummy hash)</td><td class="pass">&#10003; resolved (N6/N7 optional)</td></tr><tr><td>I9</td><td>Backend strips client ID</td><td class="pass">&#10003; resolved backend (N2 frontend)</td></tr><tr><td>I11</td><td>lock_timeout in 0107 downgrade</td><td class="pass">&#10003; resolved</td></tr><tr><td>I12</td><td>Docstrings fixed; runbook names src/backend/.env</td><td class="pass">&#10003; resolved</td></tr>
+</table></div>
+<h2>Recommendations</h2>
+<div class="card"><ol>
+<li>Prepare and run Phase 12: set both client IDs locally (never print them), register the localhost origins, run pg_dump, rebuild backend and web.</li>
+<li>Optional cleanup later: N2, N6/N7, N1/N5, I10.</li>
+<li>Before enabling in production: D14, the production origin, a VPS .env presence check, pip-audit and ideally D12.</li>
+</ol></div>
+</body>
+</html>

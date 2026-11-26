@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { ApiError } from "../api/client";
 import { getMyProfile } from "../api/people";
 import { getQueryClient } from "../api/queryClient";
 import { CATEGORIES_KEY } from "../hooks/useCategories";
@@ -26,6 +27,8 @@ interface AuthContextValue {
   permissions: string[];
   login: (email: string, password: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
+  /** Signs in with a Google ID token; throws `ApiError` (e.g. 409) on failure. */
+  loginWithGoogle: (credential: string) => Promise<{ created: boolean }>;
   logout: () => void;
   /** Clears an expired session without leaving the page (`AuthGuard`). */
   expireSession: () => void;
@@ -150,6 +153,26 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
     [applyToken],
   );
 
+  const loginWithGoogle = useCallback(
+    async (credential: string): Promise<{ created: boolean }> => {
+      const response = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential }),
+      });
+
+      if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null);
+        throw new ApiError(response.status, response.statusText, body);
+      }
+
+      const { token: jwt, created }: { token: string; created: boolean } = await response.json();
+      applyToken(jwt);
+      return { created };
+    },
+    [applyToken],
+  );
+
   const logout = useCallback(() => {
     resetAuth();
     window.location.href = "/login";
@@ -163,10 +186,11 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
       permissions,
       login,
       register,
+      loginWithGoogle,
       logout,
       expireSession: resetAuth,
     }),
-    [token, username, displayName, permissions, login, register, logout, resetAuth],
+    [token, username, displayName, permissions, login, register, loginWithGoogle, logout, resetAuth],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

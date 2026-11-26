@@ -76,6 +76,7 @@ function mockAuth(permissions: string[]) {
     permissions,
     login: vi.fn(),
     register: vi.fn(),
+    loginWithGoogle: vi.fn(),
     logout: vi.fn(),
     expireSession: vi.fn(),
   });
