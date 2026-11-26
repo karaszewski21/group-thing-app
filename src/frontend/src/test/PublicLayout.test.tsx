@@ -18,8 +18,8 @@ vi.mock("../api/notifications", () => ({
   markAllNotificationsRead: vi.fn(),
 }));
 
-let mockAuth: { token: string | null; username?: string };
-vi.mock("../auth/AuthContext", () => ({ useAuth: () => mockAuth }));
+let mockAuth: { token: string | null; username?: string; permissions?: string[] };
+vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ permissions: [], ...mockAuth }) }));
 
 function inLayout(page: ReactNode) {
   return <PublicLayout>{page}</PublicLayout>;
@@ -95,6 +95,20 @@ describe("PublicLayout", () => {
 
     const nav = screen.getByRole("navigation", { name: "Nawigacja główna" });
     expect(within(nav).getByRole("button", { name: tab })).toHaveAttribute("aria-current", "true");
+  });
+
+  it("logged in as admin: the top bar links to the admin panel; other users get no such link", () => {
+    mockAuth = { token: "tok", permissions: ["READ", "ADMIN"] };
+    const { unmount } = renderPublicPage("/");
+
+    const bar = screen.getByRole("navigation", { name: "Menu konta" });
+    expect(within(bar).getByRole("link", { name: "Panel admina" })).toHaveAttribute("href", "/admin/products");
+    unmount();
+
+    mockAuth = { token: "tok", permissions: ["READ", "EDIT"] };
+    renderPublicPage("/");
+    const guestBar = screen.getByRole("navigation", { name: "Menu konta" });
+    expect(within(guestBar).queryByRole("link", { name: "Panel admina" })).not.toBeInTheDocument();
   });
 
   it("a page outside the panel sections highlights no tab", () => {

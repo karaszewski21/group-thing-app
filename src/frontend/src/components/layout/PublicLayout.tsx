@@ -10,6 +10,8 @@ import { viewPath } from "../../routing/paths";
 import { INBOX_PATH } from "../../routing/messagesPaths";
 import { authPath } from "../../auth/authPaths";
 import { BottomNav } from "./BottomNav";
+import { homePath } from "../../auth/homePath";
+import { ShieldCheck } from "lucide-react";
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
@@ -22,7 +24,8 @@ const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus
  * bottom tab bar (Czat, Konto). Logged in, the app-wide pending-actions
  * prompt is mounted too. */
 export function PublicLayout({ children }: { children: ReactNode }) {
-  const { token } = useAuth();
+  const { token, permissions } = useAuth();
+  const isBackOffice = token !== null && homePath(permissions) !== "/";
   const pathname = useAppPathname();
   const showSearchField = pathname !== viewPath("search") && !pathname.startsWith(`${INBOX_PATH}/`);
 
@@ -46,6 +49,16 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             </Link>
           )}
           <div className="ml-auto flex flex-none items-center gap-2">
+            {isBackOffice && (
+              <Link
+                to="/admin/products"
+                aria-label="Panel admina"
+                className={`${HEADER_BUTTON} md:w-auto md:gap-2 md:px-4 md:text-[15px] md:font-extrabold`}
+              >
+                <ShieldCheck size={20} aria-hidden="true" className="text-primary-fg" />
+                <span className="sr-only md:not-sr-only">Panel admina</span>
+              </Link>
+            )}
             <Link
               to={viewPath("meetings")}
               className={`${HEADER_BUTTON} md:w-auto md:gap-2 md:px-4 md:text-[15px] md:font-extrabold`}

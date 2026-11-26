@@ -7,8 +7,8 @@ import {
   DrawerPositioner,
   DrawerRoot,
   Flex,
-  Text,
 } from "@chakra-ui/react";
+import { AdminBrand } from "./AdminBrand";
 import { Link, useAppPathname } from "../../routing/navigation";
 import { Coins as PointsIcon, type LucideIcon } from "lucide-react";
 import { ProductsIcon, PluginsIcon, KragIcon, CategoriesIcon, GroupsIcon, TermsIcon, PhotosIcon } from "../shared/Icons";
@@ -74,10 +74,7 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
       <DrawerPositioner>
         <DrawerContent bg="brand.900" color="white" maxW="220px">
           <DrawerHeader borderBottom="none" px="24px" pt="24px" pb="0">
-            <Text fontSize="15px" fontWeight="700" letterSpacing="-0.3px" whiteSpace="nowrap">
-              <Text as="span" color="brand.400">Group</Text>
-              <Text as="span" color="white" fontWeight="800">Thing</Text>
-            </Text>
+            <AdminBrand onClick={onClose} />
           </DrawerHeader>
           <DrawerBody px="0" pt="16px">
             <Flex as="nav" direction="column" gap="2px" role="navigation" aria-label="Mobile navigation">

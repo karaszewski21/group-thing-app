@@ -1,4 +1,5 @@
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex } from "@chakra-ui/react";
+import { AdminBrand } from "./AdminBrand";
 import { Link, useAppPathname } from "../../routing/navigation";
 import { Coins as PointsIcon, type LucideIcon } from "lucide-react";
 import { ProductsIcon, PluginsIcon, KragIcon, CategoriesIcon, GroupsIcon, TermsIcon, PhotosIcon, resolveIcon } from "../shared/Icons";
@@ -77,17 +78,9 @@ export function Sidebar() {
       flexShrink={0}
       display={{ base: "none", md: "block" }}
     >
-      <Text
-        fontSize="15px"
-        fontWeight="700"
-        px="24px"
-        pb="32px"
-        letterSpacing="-0.3px"
-        whiteSpace="nowrap"
-      >
-        <Text as="span" color="brand.400">Group</Text>
-        <Text as="span" color="white" fontWeight="800">Thing</Text>
-      </Text>
+      <Box px="20px" pb="28px">
+        <AdminBrand />
+      </Box>
       <Flex as="nav" direction="column" gap="2px" role="navigation" aria-label="Main navigation">
         <NavItem to="/admin/products" label="Products" icon={ProductsIcon} />
         {isAdmin && <NavItem to="/admin/categories" label="Categories" icon={CategoriesIcon} />}
