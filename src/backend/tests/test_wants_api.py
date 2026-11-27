@@ -26,7 +26,7 @@ from app.wants.application import reads
 from app.wants.domain.limits import MAX_ACTIVE_WANTS, VALIDITY
 from app.wants.domain.status import WantStatus
 from app.wants.models import Want, WantMatch
-from tests.conftest import _Owner, count_queries, leaf_category_ids, seed_want_matches
+from tests.conftest import _Owner, count_queries, leaf_category_ids, pg_error, seed_want_matches
 from tests.test_search_location import KETY
 from tests.test_term_item_listings import _auth, _register
 from tests.test_text_guard import FakeTextClassifier
@@ -109,15 +109,9 @@ async def _matched_items(db: AsyncSession, want_id: str) -> set[uuid.UUID]:
     return set(result.scalars().all())
 
 
-class _PgError(Exception):
-    def __init__(self, sqlstate: str) -> None:
-        super().__init__("canceling statement")
-        self.sqlstate = sqlstate
-
-
 def _failing_load(sqlstate: str) -> Any:
     async def load_want(*args: Any, **kwargs: Any) -> Any:
-        raise OperationalError("SELECT", {}, _PgError(sqlstate))
+        raise pg_error(sqlstate, "SELECT")
 
     return load_want
 

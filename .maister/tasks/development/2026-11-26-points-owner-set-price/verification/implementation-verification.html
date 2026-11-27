@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Verification — POINTS mode (stage 2, part 1)</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.tile.ok b { color:var(--ok); } .tile.warn b { color:var(--warn); }
+
+header .meta { color:var(--dim); font-size:13px; }
+.verdict { background:var(--ok-soft); border:1px solid var(--ok); border-left-width:5px;
+  border-radius:var(--radius); padding:14px 18px; margin:14px 0; }
+.verdict .big { font-size:19px; font-weight:700; color:var(--ok); }
+.verdict .sub { color:var(--text); margin-top:2px; }
+.risk { background:var(--warn-soft); border:1px solid var(--warn); border-left-width:5px;
+  border-radius:var(--radius); padding:14px 18px; margin:14px 0; }
+.risk h2 { margin-top:0; color:var(--warn); }
+.tldr ul, .card ul { margin:6px 0; padding-left:20px; }
+.tldr h3 { font-size:13.5px; margin:14px 0 4px; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0 4px; }
+.st-ok { color:var(--ok); font-weight:600; }
+.st-partial { color:var(--warn); font-weight:600; }
+.st-open { color:var(--dim); font-weight:600; }
+.check-list { list-style:none; padding-left:0; }
+.check-list li::before { content:"✓ "; color:var(--ok); font-weight:700; }
+.check-list li.todo::before { content:"☐ "; color:var(--dim); }
+.scroll { overflow-x:auto; }
+@media (max-width:640px) { body { padding:16px 16px 48px; } th, td { padding:6px 6px; } }
+</style>
+</head>
+<body>
+
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a>
+  <a href="../implementation/implementation-plan.html">Plan</a>
+  <span class="here">Verification</span>
+  <a href="implementation-verification.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Implementation Verification</span>
+  <h1>POINTS mode (stage 2, part 1)</h1>
+  <div class="meta">Source: <a href="implementation-verification.md" target="_blank" rel="noopener">implementation-verification.md</a></div>
+</header>
+
+<div class="verdict">
+  <div class="big">✅ Passed — after 2 fix cycles</div>
+  <div class="sub">One fix and re-verification cycle, plus a minor-fix pass (cycle 2). Remaining: <b>0 critical</b>, <b>0 warning</b>, plus N2, I6, I9 and M4 (deferred) and one observed test flake.</div>
+</div>
+
+<div class="tiles">
+  <div class="tile ok"><b>0</b><span>critical</span></div>
+  <div class="tile ok"><b>0</b><span>warning</span></div>
+  <div class="tile ok"><b>11/11</b><span>warnings resolved</span></div>
+  <div class="tile"><b>8/9</b><span>info items fixed</span></div>
+  <div class="tile ok"><b>GO 95%</b><span>production readiness</span></div>
+  <div class="tile"><b>1897</b><span>backend passed</span></div>
+</div>
+
+<section class="risk" id="flake">
+  <h2>⚠ Watch in CI: race-test flake</h2>
+  <p style="margin:0"><code>test_confirmAndCancelPoints_parallel_settleOrReleaseNeverBoth</code> failed once in a combined run after cycle 2, then passed 12/12. The failing assertion was not captured. If it was the SALE+RELEASE count rather than the status codes, that would be a ledger defect, so watch this test in CI.</p>
+</section>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <p><b>✅ Passed, after one fix and re-verification cycle plus a minor-fix pass.</b></p>
+  <ul>
+    <li>All 11 original warnings are resolved and 8 of the 9 info items are fixed (I6 and I9 were deferred by decision).</li>
+    <li>The cycle-2 pass resolved the INDEX.md warning and the fixable residuals. Remaining: 0 critical, 0 warning, plus N2, I6, I9 and M4 (deferred) and one observed test flake.</li>
+    <li>Full suites are at baseline, with backend 1897 passed. Production readiness is GO (95%).</li>
+    <li>Code review and the reality check both say clean / ready.</li>
+  </ul>
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li>Race-test flake — see the <a href="#flake">banner above</a>.</li>
+  </ul>
+  <p style="margin:8px 0 2px">Product decisions to settle before the follow-up task (SALE_REFUND, the reminder):</p>
+  <ul>
+    <li>A buyer can cancel after receiving the item and get the points back.</li>
+    <li>A seller has no remedy when the buyer never confirms. Held points can stay locked indefinitely; this was accepted earlier and is now visible through the runbook step 3a queries.</li>
+    <li>An owner can switch a reserved POINTS item to GIFT or delist it. This is accepted: settlement uses the HOLD amount.</li>
+    <li>Who runs runbook step 3a (monitoring) each week?</li>
+  </ul>
+</section>
+
+<nav class="toc">Contents:
+  <a href="#summary">Executive Summary</a> ·
+  <a href="#plan">Plan</a> ·
+  <a href="#tests">Test Suite</a> ·
+  <a href="#standards">Standards &amp; Docs</a> ·
+  <a href="#reviews">Optional Reviews</a> ·
+  <a href="#history">Fix History</a> ·
+  <a href="#remaining">Remaining Issues</a> ·
+  <a href="#cycle2">Cycle 2</a> ·
+  <a href="#recs">Recommendations</a> ·
+  <a href="#checklist">Checklist</a>
+</nav>
+
+<main>
+
+<h2 id="summary">Executive Summary</h2>
+<div class="card">POINTS offers are fully implemented: migration 0109, the ledger with HOLD, a 4-entry SALE and RELEASE, owner pricing, listing, take/confirm/cancel, the read models and all 8 screens. The first verification found 11 warnings, all fixed in one cycle. Re-verification confirms the fixes, including a real lock-order change: every settling path now locks the <b>reservation → accounts → item → preference</b>. Only small documentation and UX residuals remain.</div>
+
+<h2 id="plan">Implementation Plan Verification</h2>
+<div class="card"><span class="pass">126/126 checkboxes (100%)</span>. Spot checks in <a href="completeness-report.md" target="_blank" rel="noopener">completeness-report.md</a> and <a href="completeness-reverify.md" target="_blank" rel="noopener">completeness-reverify.md</a> found no issues.</div>
+
+<h2 id="tests">Test Suite Results <span class="badge">after fixes</span></h2>
+<div class="card scroll">
+  <p style="margin-top:0">Source: <a href="test-suite-results.md" target="_blank" rel="noopener">verification/test-suite-results.md</a></p>
+  <table>
+    <tr><th>Suite</th><th>Result</th><th>Baseline</th></tr>
+    <tr><td>Backend pytest</td><td>1897 passed / 2 failed (known stale tests: owner_items nearest-term, 0053 round trip)</td><td>2</td></tr>
+    <tr><td>Backend mypy / ruff</td><td>15 / 64</td><td>15 / 64</td></tr>
+    <tr><td>Matcher pytest / mypy / ruff</td><td>125 passed / 0 / clean</td><td>green</td></tr>
+    <tr><td>Vitest</td><td>2190 passed / 32 failed (same files)</td><td>32</td></tr>
+    <tr><td>Typecheck</td><td>0</td><td>0</td></tr>
+    <tr><td>Lint</td><td>10 errors / 29 warnings</td><td>10 / 28</td></tr>
+  </table>
+  <p style="margin-bottom:0;color:var(--dim)">The extra lint warning comes from the <code>setGroupForm</code> effect, which was moved below its <code>useState</code> to fix a new <code>react-hooks/immutability</code> error. Its warning is <code>set-state-in-effect</code>, the same as the three neighbouring effects in that file.</p>
+</div>
+
+<h2 id="standards">Standards Compliance &amp; Documentation</h2>
+<div class="card">
+  <p style="margin-top:0"><span class="pass">Standards: Compliant.</span> The previous gaps are resolved: duplicated helpers, the settlement prefix, the spec ID in a docstring, and the <code>_PgError</code> duplication.</p>
+  <p style="margin-bottom:0"><span class="pass">Documentation: Complete, with one residual.</span> architecture.md (lock order, the 0109 runbook with step 2 deploy-together and step 3a monitoring), the ledger.py docstring and security.md all match the code. <b>Residual:</b> INDEX.md still describes the lock order as "accounts → item → preference" <span style="color:var(--dim)">(updated in <a href="#cycle2">Cycle 2</a>)</span>.</p>
+</div>
+
+<h2 id="reviews">Optional Reviews</h2>
+<div class="card scroll">
+  <table>
+    <tr><th>Review</th><th>First run</th><th>After fixes</th></tr>
+    <tr><td>Code review</td><td>0 critical / 4 warning / 8 info</td><td><span class="pass">clean</span>: 0 warning / 3 new info</td></tr>
+    <tr><td>Pragmatic</td><td>0 high / 4 medium / 7 low</td><td><span class="pass">appropriate</span>: residual L2/L3/L6 nits, M4 deferred</td></tr>
+    <tr><td>Production readiness</td><td>GO with mitigations, 89%</td><td><span class="pass">GO</span>, 95%, 5 optional recommendations</td></tr>
+    <tr><td>Reality check</td><td>issues found, 6 gaps</td><td><span class="pass">ready</span>: 5/6 resolved, G4 partial (Low)</td></tr>
+    <tr><td>Completeness</td><td>3 warning / 6 info</td><td>1 warning / 2 info</td></tr>
+  </table>
+</div>
+
+<h2 id="history">Fix &amp; Re-Verification History <span class="badge">cycle 1</span></h2>
+<div class="card scroll">
+  <table>
+    <tr><th>ID</th><th>Issue</th><th>Fix applied</th><th>Re-check</th></tr>
+    <tr><td><span class="sev warning">W1</span></td><td>duplicated price helpers</td><td>domain <code>is_valid_price</code>/<code>clamp_price</code> exported via service → points_acl; the frontend has a shared <code>clampPointsPrice</code></td><td><span class="st-ok">✓ resolved</span> (parity rows in appHelpers.test)</td></tr>
+    <tr><td><span class="sev warning">W2</span></td><td><code>clamp_price</code> ignored the step</td><td>snaps to the step, then clamps</td><td><span class="st-ok">✓ resolved</span> (<code>test_clampPrice_offStep…</code>)</td></tr>
+    <tr><td><span class="sev warning">W3</span></td><td>settlement did not refresh points</td><td><code>useReservationSettlement</code> invalidates <code>[POINTS_KEY]</code> on confirm/cancel</td><td><span class="st-partial">partial</span>: MyItemsView and PendingActionsHost use their own paths (G4, Low, harmless with staleTime 0)</td></tr>
+    <tr><td><span class="sev warning">W4</span></td><td>My Items price chip appeared only after a reload</td><td><code>setItemMode</code> stores <code>points_price</code></td><td><span class="st-ok">✓ resolved</span> (AppDataContextItemMode.test)</td></tr>
+    <tr><td><span class="sev warning">W5</span></td><td>/add could create a duplicate after a remount</td><td><code>itemCreated</code> kept in AppDataContext; LocationPicker disabled</td><td><span class="st-ok">✓ resolved</span> (remount test)</td></tr>
+    <tr><td><span class="sev warning">W6</span></td><td>default price invalid under a custom config</td><td>default clamped and step-aligned</td><td><span class="st-ok">✓ resolved</span></td></tr>
+    <tr><td><span class="sev warning">W7</span></td><td>photo check ran on every POINTS PUT</td><td>photo rule and cap only when the item becomes POINTS</td><td><span class="st-ok">✓ resolved</span> (<code>test_putPreference_existingPointsAfterPhotoRejected…</code>)</td></tr>
+    <tr><td><span class="sev warning">W8</span></td><td>delete_event ↔ cancel deadlock cycle</td><td><code>lock_reservations</code> before the accounts in cancel and confirm</td><td><span class="st-ok">✓ resolved</span> (order test; parallel tests green)</td></tr>
+    <tr><td><span class="sev warning">W9</span></td><td><code>lock_owner_accounts</code> without an eligibility check</td><td>documented as a mutex only</td><td><span class="st-ok">✓ resolved</span></td></tr>
+    <tr><td><span class="sev warning">W10</span></td><td>version skew breaks the config save</td><td>runbook step 2: deploy together, don't save before web is up</td><td><span class="st-ok">✓ resolved</span> (R2: add "reload the tab")</td></tr>
+    <tr><td><span class="sev warning">W11</span></td><td>no monitoring of holds</td><td>runbook step 3a: log grep, open-holds and reconciliation SQL</td><td><span class="st-ok">✓ resolved</span> (SQL checked against 0103/0109)</td></tr>
+    <tr><td><span class="sev info">I1</span></td><td>ChooseContextSheet label</td><td>„Dalej: zablokuj punkty”</td><td><span class="st-ok">✓ resolved</span></td></tr>
+    <tr><td><span class="sev info">I2</span></td><td><code>_PgError</code> in 4 files</td><td><code>tests/conftest.py</code> pg_error/deadlock</td><td><span class="st-ok">✓ resolved</span></td></tr>
+    <tr><td><span class="sev info">I3</span></td><td>spec ID in a docstring</td><td>rewritten</td><td><span class="st-ok">✓ resolved</span></td></tr>
+    <tr><td><span class="sev info">I4</span></td><td>duplicated hold query</td><td><code>hold_credits_select</code></td><td><span class="st-ok">✓ resolved</span></td></tr>
+    <tr><td><span class="sev info">I5</span></td><td><code>can_confirm</code> ignored the login rule</td><td>now honours <code>_is_login_principal</code></td><td><span class="st-ok">✓ resolved</span></td></tr>
+    <tr><td><span class="sev info">I7</span></td><td>stepper alert on mount</td><td>alert only after an edit</td><td><span class="st-ok">✓ resolved</span></td></tr>
+    <tr><td><span class="sev info">I8</span></td><td>style nits</td><td>renames, enum, TypeGuard, flat hint</td><td><span class="st-ok">✓ resolved</span> (the L3 string kept for the module boundary)</td></tr>
+    <tr><td>new lint error</td><td>AppDataContext effect before its <code>useState</code></td><td>effect moved</td><td><span class="st-ok">✓ resolved</span> (10 errors)</td></tr>
+    <tr><td><span class="sev info">I6, I9</span></td><td>product re-point skips the photo rule; file size</td><td>deferred by decision</td><td><span class="st-open">open</span></td></tr>
+  </table>
+</div>
+
+<h2 id="remaining">Remaining Issues <span class="badge">before cycle 2</span></h2>
+<div class="card scroll">
+  <p style="margin-top:0;color:var(--dim)">The list as it stood after re-verification. The rows addressed by the <a href="#cycle2">Cycle 2</a> pass are marked.</p>
+  <table>
+    <tr><th>Severity</th><th>Item</th><th>Location</th><th>Fixable</th><th>Cycle 2</th></tr>
+    <tr><td><span class="sev warning">warning</span></td><td>INDEX.md lock-order phrase is out of date</td><td><code>.maister/docs/INDEX.md</code> points paragraph</td><td>yes</td><td><span class="st-ok">✓ fixed</span></td></tr>
+    <tr><td><span class="sev info">info</span></td><td>G4: MyItemsView and PendingActionsHost confirm/cancel do not invalidate <code>[POINTS_KEY]</code></td><td><code>MyItemsView.tsx:279-307</code>, <code>PendingActionsHost.tsx:108-111</code></td><td>yes</td><td><span class="st-ok">✓ fixed</span></td></tr>
+    <tr><td><span class="sev info">info</span></td><td>N1: the <code>_release</code> docstring claims every caller has locked the reservation (true only for SWAP callers)</td><td><code>reservation_transitions.py</code></td><td>yes</td><td><span class="st-ok">✓ fixed</span></td></tr>
+    <tr><td><span class="sev info">info</span></td><td>N2: a failed PUT because all photos were rejected gives no hint about the way out</td><td><code>ItemCreateView.tsx</code></td><td>UX choice</td><td><span class="st-open">remains</span></td></tr>
+    <tr><td><span class="sev info">info</span></td><td>N3: <code>itemCreated</code> is not cleared when the retry PUT returns 404</td><td><code>ItemCreateView.tsx</code></td><td>yes</td><td><span class="st-ok">✓ fixed</span></td></tr>
+    <tr><td><span class="sev info">info</span></td><td><code>useCreateItem</code> returns a <code>createdItemId</code> nobody reads</td><td><code>useCreateItem.ts</code></td><td>yes</td><td><span class="st-ok">✓ fixed</span></td></tr>
+    <tr><td><span class="sev info">info</span></td><td><code>_take</code> / <code>set_item_listing_preference</code> docstrings carry the old lock-order wording</td><td><code>term_item_listings.py</code></td><td>yes</td><td><span class="st-ok">✓ fixed</span></td></tr>
+    <tr><td><span class="sev info">info</span></td><td><code>awards.py:1-2</code> cites „spec R2/R6”</td><td><code>points/application/awards.py</code></td><td>yes</td><td><span class="st-ok">✓ fixed</span></td></tr>
+    <tr><td><span class="sev info">info</span></td><td>runbook R1 (write out the 30-day query), R2 (reload /admin/points), R3 (logs reset on recreate), R5 (delisting wording); step 2 repeats <code>up -d</code></td><td>architecture.md</td><td>yes</td><td><span class="st-ok">✓ R1/R2/R3/R5</span></td></tr>
+    <tr><td><span class="sev info">info</span></td><td>I6, I9, M4 split of term_item_listings.py</td><td>—</td><td>follow-up</td><td><span class="st-open">deferred</span></td></tr>
+  </table>
+</div>
+
+<h2 id="cycle2">Cycle 2 <span class="badge">minor fixes, no re-verification</span></h2>
+<div class="card scroll">
+  <table>
+    <tr><th>Item</th><th>Fix</th><th>Evidence</th></tr>
+    <tr><td>INDEX.md lock order</td><td>phrase updated to reservation → accounts → items → preference</td><td>grep</td></tr>
+    <tr><td>G4</td><td>MyItemsView and PendingActionsHost invalidate <code>[POINTS_KEY]</code></td><td>new MyItemsView test; PendingActionsHost test updated</td></tr>
+    <tr><td>N1</td><td><code>_release</code> docstring narrowed</td><td>review of the callers</td></tr>
+    <tr><td>N3</td><td><code>itemCreated</code> cleared on a 404 retry</td><td>new ItemCreateView test</td></tr>
+    <tr><td>unused <code>createdItemId</code></td><td>removed</td><td>typecheck 0</td></tr>
+    <tr><td>docstring drift, awards.py comment</td><td>rewritten</td><td>—</td></tr>
+    <tr><td>runbook R1/R2/R3/R5</td><td>30-day query, reload note, logs note, delisting wording</td><td>—</td></tr>
+  </table>
+  <p style="margin-bottom:0"><b>After cycle 2:</b> backend targeted <span class="pass">44/44 (×3)</span> plus the race test <span class="pass">6/6</span> standalone; frontend 99 passed / 1 baseline; typecheck 0; lint 10 errors. <span style="color:var(--warn)">See the <a href="#flake">race-test flake</a> note.</span></p>
+</div>
+
+<h2 id="recs">Recommendations</h2>
+<div class="card">
+  <ol style="margin:0;padding-left:20px">
+    <li>Optional quick pass (about 45 min): INDEX.md phrase, G4, N1, N3, unused <code>createdItemId</code>, docstring drift, awards.py comment, runbook R1/R2/R3/R5.</li>
+    <li>Follow-up task: SALE_REFUND / condition correction / 3-correction block, the 30-day reminder, the open product questions above, auto-release of held points, the term_item_listings split.</li>
+  </ol>
+</div>
+
+<h2 id="checklist">Verification Checklist</h2>
+<div class="card">
+  <ul class="check-list" style="margin:0">
+    <li>Completeness, code review, pragmatic, production, reality (first run + re-verification)</li>
+    <li>Full test suite after fixes</li>
+    <li>All reports on disk: <a href="completeness-report.md" target="_blank" rel="noopener">completeness-report</a>, <a href="code-review-report.md" target="_blank" rel="noopener">code-review-report</a>, <a href="pragmatic-review.md" target="_blank" rel="noopener">pragmatic-review</a>, <a href="production-readiness-report.md" target="_blank" rel="noopener">production-readiness-report</a>, <a href="reality-check.md" target="_blank" rel="noopener">reality-check</a>, <a href="test-suite-results.md" target="_blank" rel="noopener">test-suite-results</a>, plus the *-reverify side files</li>
+    <li class="todo">Visual fidelity: pending Phase 12 (E2E)</li>
+  </ul>
+</div>
+
+</main>
+</body>
+</html>

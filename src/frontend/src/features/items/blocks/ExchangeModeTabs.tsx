@@ -21,7 +21,7 @@ interface ExchangeModeTabsProps {
   panelId: string;
 }
 
-/** Wszystkie / Chcę oddać / Chcę się zamienić (/ Zarezerwowane) tabs with
+/** Wszystkie / Chcę oddać / Chcę się zamienić / Za punkty (/ Zarezerwowane) tabs with
  * counts; empty ones are disabled and the arrow keys move between the
  * enabled ones. The strip wraps so every tab stays visible on a phone. */
 export function ExchangeModeTabs({ counts, selected, onSelect, allLabel, ariaLabel, tabId, panelId }: ExchangeModeTabsProps) {

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raport badawczy — moduł wysyłki e-maili</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+/* extensions */
+.tldr { background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--accent);
+  border-radius:var(--radius); padding:14px 18px; }
+.tldr h3 { font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); margin:14px 0 6px; }
+.tldr h3:first-child { margin-top:0; }
+.tldr ul { margin:0; padding-left:20px; }
+.toc { font-size:13px; margin:14px 0; color:var(--dim); }
+.grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; }
+.grid3 { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
+.card.rec { border:2px solid var(--accent); }
+.card h3 { margin:0 0 6px; font-size:15px; }
+.conf { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; padding:1.5px 7px; border-radius:99px; }
+.conf.high { background:var(--ok-soft); color:var(--ok); }
+.conf.med { background:var(--warn-soft); color:var(--warn); }
+.conf.low { background:var(--crit-soft); color:var(--crit); }
+.t { display:inline-block; font-size:11px; font-weight:700; padding:1px 7px; border-radius:6px; }
+.t.T { background:var(--crit-soft); color:var(--crit); }
+.t.P { background:var(--info-soft); color:var(--info); }
+.t.D { background:var(--warn-soft); color:var(--warn); }
+.t.X { background:var(--border); color:var(--dim); }
+.prio-mvp { font-weight:700; color:var(--ok); }
+.prio-mvpp { font-weight:700; color:var(--accent); }
+pre { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px; overflow-x:auto; font-size:12px; }
+.swot > div { border-radius:var(--radius); padding:12px 14px; border:1px solid var(--border); }
+.swot .s { background:var(--ok-soft); } .swot .w { background:var(--crit-soft); }
+.swot .o { background:var(--info-soft); } .swot .th { background:var(--warn-soft); }
+.swot h4 { margin:0 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:.04em; }
+.swot ul { margin:0; padding-left:18px; }
+.tablewrap { overflow-x:auto; }
+@media (max-width:600px) { body { padding:16px 16px 48px; } }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Raport</span>
+  <a href="research-report.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">research report</span>
+  <h1>Moduł wysyłki e-maili w aj: dostawca, integracja, triggery</h1>
+  <div style="color:var(--dim);font-size:13px">Typ: mixed · Data: 2026-11-26 · Wykonawca: research-synthesizer · <a href="research-report.md" target="_blank" rel="noopener">research-report.md</a> · <a href="../analysis/synthesis.md" target="_blank" rel="noopener">synthesis.md</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>14</b><span>ustaleń</span></div>
+  <div class="tile"><b>10</b><span>plików ustaleń</span></div>
+  <div class="tile"><b>90+</b><span>źródeł zewn.</span></div>
+  <div class="tile"><b>13/13</b><span>NotificationKind</span></div>
+  <div class="tile"><b>10</b><span>maili w MVP</span></div>
+  <div class="tile"><b>średnio-wysoka</b><span>pewność</span></div>
+</div>
+
+<section class="tldr">
+  <h3>TL;DR</h3>
+  <ul>
+    <li>Rekomendowany dostawca to <b>Mailgun z regionem EU</b>, jeśli dane muszą zostać w UE ($0 przy ≤100 dziennie, $15 przy 10k, $35 przy 50k, webhooki HMAC, API suppression). Alternatywa: <b>Resend</b>, jeśli wystarczy DPA z SCC/DPF (dane w USA).</li>
+    <li>Wpięcie w <code>notifications.service.create_notification(s)</code>, a nie w istniejące zdarzenia outboxa, do tego osobne kolejkowanie maili auth. Wysyłka z własnej kolejki <code>email_messages</code> (klucz idempotencji) przez job z backoffem, za portem <code>EmailSender</code> z <code>httpx</code>. ADR-009 potwierdzony co do kierunku; zmieniają się punkt wpięcia i model zgody.</li>
+    <li>W MVP 3 maile transakcyjne, których dziś nie ma (weryfikacja, reset, „hasło zmienione”), plus 7 rodzajów bell. Zaraz po nich dwa nowe bell: zmiana terminu i anulowanie przez drugą stronę.</li>
+    <li>Warunki wstępne: weryfikacja adresu, preferencje, suppression, <code>APP_PUBLIC_BASE_URL</code>, polityka prywatności, SPF/DKIM/DMARC na <code>mail.&lt;domena&gt;</code>.</li>
+  </ul>
+  <h3>Key Decisions</h3>
+  <ul>
+    <li>Dostawca: Mailgun EU, a przy miękkiej rezydencji Resend — najwyższy wynik ważony (81/100), dane wiadomości, logi i suppression w regionie EU. Resend ma lepszy DX, ale metadane w USA.</li>
+    <li>Punkt wpięcia: <code>notifications.service</code> + ACL-e z <code>users</code>/<code>auth</code> — 9 z 13 rodzajów bell nie przechodzi przez outbox.</li>
+    <li>Własna kolejka <code>email_messages</code> + job <code>_run_email_send</code> — dispatcher ma 5 prób bez backoffu i przy błędzie jednego handlera powtarza wszystkie, więc zdublowałby bell.</li>
+    <li>Zasada „najpierw bell”: każdy mail-powiadomienie ma swój <code>NotificationKind</code> — jedna ścieżka, a luka znika też w aplikacji.</li>
+    <li>Mail serwisowy bez zgody z PKE, z preferencją per kategoria i List-Unsubscribe — art. 398 PKE dotyczy tylko informacji handlowej (pewność średnia).</li>
+    <li>HTTP przez <code>httpx</code> bez SDK, szablony Jinja2 w repo — minimalne zależności, testowalność, wymiana dostawcy to jeden adapter.</li>
+    <li>Tokeny weryfikacji i resetu losowe, jednorazowe, hashowane. Link wypisu podpisany osobnym <code>EMAIL_LINK_SIGNING_SECRET</code>.</li>
+  </ul>
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li><span class="sev critical">decyzja</span>Twarda czy miękka rezydencja danych w UE (Mailgun/Brevo/Scaleway vs Resend)?</li>
+    <li><span class="sev warning">decyzja</span>Kategorie powiadomień domyślnie włączone po weryfikacji czy opt-in. Brak wytycznych UODO. MATCH to szara strefa, SUGGESTION/SIMILAR zostają tylko w aplikacji.</li>
+    <li><span class="sev warning">ryzyko</span>Brak polityki prywatności i regulaminu (D14). Art. 13 musi wskazać procesora, a przy Resend transfer do USA.</li>
+    <li><span class="sev info">luka</span>Party Organization jako odbiorca bell nie ma adresu. Reguła nieustalona, na razie SKIPPED.</li>
+    <li><span class="sev info">decyzja</span>Reset dla konta tylko-Google to „ustaw pierwsze hasło” (D4).</li>
+    <li><span class="sev info">ryzyko</span>Darmowy plan Mailgun ma limit 100 dziennie. Przy awarii między 2xx a commitem możliwe duplikaty (brak idempotencji).</li>
+    <li><span class="sev info">ryzyko</span>Ceny Brevo, Scaleway i MailerSend niepewne. Brak benchmarku deliverability 2026, potrzebny test seed.</li>
+  </ul>
+</section>
+
+<nav class="toc">Spis: <a href="#findings">Ustalenia</a> · <a href="#provider">Dostawca</a> · <a href="#module">Moduł</a> · <a href="#triggers">Triggery</a> · <a href="#pre">Warunki wstępne</a> · <a href="#prefs">Preferencje i wypis</a> · <a href="#dns">DNS</a> · <a href="#recs">Rekomendacje</a> · <a href="#analysis">Analiza</a> · <a href="#answer">Odpowiedź</a> · <a href="#appendix">Załączniki</a></nav>
+
+<main>
+<h2 id="findings">Ustalenia</h2>
+<div class="card tablewrap">
+<table>
+<tr><th>#</th><th>Ustalenie</th><th>Kategoria</th><th>Pewność</th><th>Źródła</th></tr>
+<tr><td>F1</td><td>Outbox: 5 prób bez backoffu (~5 min do FAILED), commit po błędzie, powtórka wszystkich handlerów wpisu, brak purge</td><td>infrastruktura</td><td><span class="conf high">wysoka</span></td><td>3</td></tr>
+<tr><td>F2</td><td><code>notifications.service</code> jako jedyny wspólny punkt wszystkich 13 bell (9 synchronicznych)</td><td>infrastruktura</td><td><span class="conf high">wysoka</span></td><td>3</td></tr>
+<tr><td>F3</td><td>Brak weryfikacji, resetu, zmiany hasła i e-maila. Konta Google jedynymi zweryfikowanymi</td><td>użytkownicy</td><td><span class="conf high">wysoka</span></td><td>4</td></tr>
+<tr><td>F4</td><td>Odbiorcy bez adresu: dzieci, goście RSVP, część opiekunów</td><td>użytkownicy</td><td><span class="conf high">wysoka</span></td><td>3</td></tr>
+<tr><td>F5</td><td>Wzorce config (<code>*_configured</code>) i portu <code>set_x()</code>. <code>httpx</code> jest, Jinja2 nie</td><td>config</td><td><span class="conf high">wysoka</span></td><td>2</td></tr>
+<tr><td>F6</td><td>ADR-009 aktualny w kierunku, nieaktualny w dwóch przesłankach. Fazy 1–3 niezbudowane</td><td>decyzje</td><td><span class="conf high">wysoka</span></td><td>3</td></tr>
+<tr><td>F7</td><td>Ok. 20 cichych zmian stanu (zmiana terminu, anulowanie transakcji, czat, …)</td><td>triggery</td><td><span class="conf high">wysoka</span></td><td>1</td></tr>
+<tr><td>F8</td><td>Zwijanie bell MATCH (1 nieprzeczytany na want), <code>WANT_EXPIRING</code> ignoruje wyciszenie</td><td>triggery</td><td><span class="conf high">wysoka</span></td><td>3</td></tr>
+<tr><td>F9</td><td>Rezydencja ≠ region wysyłki (Resend). Idempotencja tylko Resend i Brevo. HMAC w Mailgun</td><td>dostawcy</td><td><span class="conf high">wysoka</span> / ceny <span class="conf med">średnia</span></td><td>2</td></tr>
+<tr><td>F10</td><td>Reguły „wszystkich nadawców”, mimo to SPF+DKIM+DMARC. One-click tylko dla „subscribed”. RFC 9989</td><td>deliverability</td><td><span class="conf high">wysoka</span></td><td>2</td></tr>
+<tr><td>F11</td><td>Art. 398 PKE tylko dla informacji handlowej. Serwis na 6(1)(b). Art. 10 UŚUDE uchylony</td><td>prawo</td><td><span class="conf med">średnia</span></td><td>1</td></tr>
+<tr><td>F12</td><td>Idempotentny konsument, Jinja2 z autoescape i <code>StrictUndefined</code>, digest dla niepilnych, cisza nocna</td><td>inżynieria</td><td><span class="conf high">wysoka</span> / <span class="conf med">średnia</span></td><td>2</td></tr>
+<tr><td>F13</td><td>Brak ekranu ustawień. Reserved slugs na obu stosach. Strony z maila poza <code>PROTECTED_PREFIXES</code> i guardami</td><td>frontend</td><td><span class="conf high">wysoka</span></td><td>2</td></tr>
+<tr><td>F14</td><td>Brak bazowego URL dla linków (D11), potrzebny <code>APP_PUBLIC_BASE_URL</code></td><td>config</td><td><span class="conf high">wysoka</span></td><td>2</td></tr>
+</table>
+<details style="margin-top:10px"><summary>Dowody kluczowe (file:line)</summary>
+<ul>
+<li>F1: <code>outbox/dispatcher.py:20, 44-88</code>, <code>scheduler.py:16, 28-36</code>, <code>wants/application/bells_due.py:9-11, 85</code></li>
+<li>F2: <code>notifications/models.py:37-65</code>, <code>notifications/service.py:48-104</code>, <code>term_item_listings.py:699…1116</code>, <code>terms.py:449</code>, <code>event_reservations.py:127</code></li>
+<li>F3: <code>users/models.py:62</code>, <code>auth/models.py:91-92</code>, <code>auth/service.py:127-128</code>, <code>RegisterForm.tsx:7-30</code>, <code>architecture.md:541</code></li>
+<li>F4: <code>families/members.py:36-44</code>, <code>families/schemas.py:65-69</code>, <code>users/service.py:280-281</code></li>
+<li>F5: <code>config.py:21-102</code>, <code>pyproject.toml:21</code>, <code>storage/service.py:25-37</code>, <code>main.py:223-233</code>, <code>docker-compose.yml:31-46</code></li>
+<li>F8: <code>match_notifications.py:162-170, 197-205</code></li>
+<li>F13: <code>AccountView.tsx:124-135</code>, <code>WantNotificationToggle.tsx:40</code>, <code>routing/reservedSlugs.ts</code>, <code>organizations/slugs.py</code>, <code>routing/paths.ts:142-160</code></li>
+<li>F14: <code>oauth2/metadata_router.py:32</code>, <code>notifications/models.py:80-82</code></li>
+</ul></details>
+</div>
+
+<h2 id="provider">Rekomendacja dostawcy</h2>
+<div class="card" style="font-size:13px"><b>Założenia:</b> od setek do ~10k maili miesięcznie (później ~50k), tylko transakcyjne i serwisowe. RODO, aj jako administrator. Jeden operator VPS, sekrety w <code>.env</code>. Wysyłka at-least-once z kolejki. Domyślnie dane wiadomości i logi w UE.</div>
+<div class="grid3">
+  <div class="card rec"><span class="badge">rekomendacja</span><h3>Mailgun EU — 81/100</h3>
+    <ul><li>Wiadomości, logi i suppression w regionie EU</li><li>$0 przy ≤100 dziennie / $15 przy 10k / $35 przy 50k</li><li>Webhooki HMAC-SHA256, API suppression</li><li>Domenę zakładamy w EU (nie da się jej przenieść)</li><li>Brak idempotencji, logi u dostawcy 1–5 dni, DPA Sinch niepobrane</li></ul></div>
+  <div class="card"><span class="badge">alternatywa</span><h3>Resend — 76 (1. przy miękkiej rezydencji)</h3>
+    <ul><li>Warunek: akceptacja metadanych w USA (DPA + SCC + DPF)</li><li><code>Idempotency-Key</code> 24 h, webhooki Svix</li><li>$20 do 50k, 10 żądań na sekundę</li><li>Darmowy plan 100 dziennie, transfer w polityce prywatności</li></ul></div>
+  <div class="card"><span class="badge">dostawca z UE</span><h3>Brevo (80) / Scaleway TEM (72)</h3>
+    <ul><li>Brevo: 300 dziennie za darmo, <code>idempotencyKey</code> 30 min. Cennik i ścieżka US do sprawdzenia</li><li>Scaleway: najtańszy (€0.25/1k), suwerenny stack. Webhooki w becie przez SNS</li></ul></div>
+</div>
+<details class="card"><summary>Pełna macierz (skrót)</summary>
+<div class="tablewrap"><table>
+<tr><th>Dostawca</th><th>Dane w UE</th><th>Darmowy plan</th><th>10k</th><th>50k</th><th>Idempotencja</th><th>Webhook</th><th>Tarcie</th><th>Wynik</th></tr>
+<tr><td><b>Mailgun EU</b></td><td>✅</td><td>100/dzień</td><td>$15</td><td>$35</td><td>❌</td><td>HMAC</td><td>średnie</td><td><b>81</b></td></tr>
+<tr><td>Brevo</td><td>✅ (teza US niepotwierdzona)</td><td>300/dzień</td><td>$0 przy ≤300/dzień</td><td>niezweryf.</td><td>✅ 30 min</td><td>niezweryf.</td><td>niskie</td><td>80</td></tr>
+<tr><td>Resend</td><td>❌ metadane w US</td><td>3000/mies.</td><td>$20</td><td>$20</td><td>✅ 24 h</td><td>Svix</td><td>niskie</td><td>76</td></tr>
+<tr><td>Scaleway TEM</td><td>✅✅</td><td>300/mies.</td><td>~€2.4</td><td>~€12.4</td><td>❌</td><td>beta/SNS</td><td>średnie</td><td>72</td></tr>
+<tr><td>Mailjet</td><td>✅</td><td>6000/mies.</td><td>~$17</td><td>niezweryf.</td><td>❌</td><td>niezweryf.</td><td>niskie</td><td>72</td></tr>
+<tr><td>MailerSend</td><td>◐</td><td>500/mies.</td><td>~$14.5</td><td>$35/$25</td><td>❌</td><td>secret key</td><td>niskie</td><td>70</td></tr>
+<tr><td>EmailLabs</td><td>✅</td><td>9000/mies. (testowe)</td><td>€29</td><td>€29?</td><td>—</td><td>PRO</td><td>średnie</td><td>66</td></tr>
+<tr><td>SES eu-central-1</td><td>✅</td><td>—</td><td>$1</td><td>$5</td><td>❌</td><td>SNS</td><td>wysokie</td><td>65</td></tr>
+<tr><td>Postmark</td><td>❌</td><td>100/mies.</td><td>$15</td><td>$66–87</td><td>❌</td><td>brak HMAC</td><td>średnie</td><td>58</td></tr>
+<tr><td>SendGrid</td><td>◐ Pro+</td><td>trial 60 dni</td><td>$19.95+</td><td>niezweryf.</td><td>❌</td><td>podpisane</td><td>średnie</td><td>52</td></tr>
+<tr><td>SMTP2GO</td><td>niezweryf.</td><td>1000/mies.</td><td>$10</td><td>~$50</td><td>❌</td><td>—</td><td>niskie</td><td>—</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim)">Wyniki to ocena syntezy oparta na dowodach z macierzy. Ceny z 2026-11-26, bez VAT. Odradzane: SES (sandbox, SNS, IAM), SendGrid (EU dopiero od Pro), Postmark (USA, brak HMAC).</p>
+</details>
+
+<h2 id="module">Szkic modułu i integracji</h2>
+<div class="card tablewrap"><b>Relacja do ADR-009</b>
+<table>
+<tr><th>Element</th><th>Werdykt</th><th>Uzasadnienie</th></tr>
+<tr><td>Port <code>EmailSender</code> + adapter <code>httpx</code> (+ log)</td><td class="pass">potwierdzony</td><td>Wzorzec <code>set_x()</code>. Dochodzi SMTP tylko dla dev/Mailpit</td></tr>
+<tr><td>Brak wysyłki w requeście</td><td class="pass">potwierdzony</td><td>Kolejka + job</td></tr>
+<tr><td>Handler na istniejących zdarzeniach outboxa, bez zmian domeny</td><td class="fail">zmieniony</td><td>9/13 bell poza outboxem, dublowanie bell przy retry. Nowy punkt: <code>notifications.service</code></td></tr>
+<tr><td>Dedupe <code>(outbox entry, recipient)</code></td><td>zmieniony w formie</td><td><code>idempotency_key</code>: <code>notification:&lt;id&gt;</code>, <code>auth:&lt;token_id&gt;</code>, <code>want_match:&lt;want&gt;:&lt;dzień&gt;</code></td></tr>
+<tr><td>Tylko zweryfikowane adresy</td><td class="pass">potwierdzony + doprecyzowany</td><td>Google zweryfikowany, hasło wymaga flow, brak adresu = SKIPPED</td></tr>
+<tr><td>Opt-in default false + <code>email_consent_at</code></td><td class="fail">zmieniony</td><td>Mail serwisowy bez zgody PKE, preferencja per kategoria</td></tr>
+<tr><td>Podpisany wypis + List-Unsubscribe</td><td class="pass">potwierdzony + RFC 8058</td><td>Tylko strumień powiadomień</td></tr>
+<tr><td>7 nazw ustawień</td><td class="pass">potwierdzone + uzupełnione</td><td>Niżej</td></tr>
+<tr><td>Moderation worker nie może przejąć zdarzeń email</td><td>nieaktualne</td><td>Maile nie idą przez <code>outbox_entries</code> (wraca w wariancie z outboxem)</td></tr>
+</table></div>
+
+<div class="grid2">
+<div class="card"><b>Przepływ</b>
+<pre>domena ─► notifications.service.create_notification(s)
+             │ (ta sama transakcja)
+             ▼
+   notifications/infrastructure/email_acl.py
+             ─► app.email.service.enqueue_*
+                INSERT email_messages ON CONFLICT DO NOTHING
+users/auth (verify/reset) ─► users|auth/infrastructure/email_acl.py ─┘
+             ▼
+_run_email_send (co 1 min, SKIP LOCKED, send_after &lt;= now)
+  ├ users_acl: party → adres, weryfikacja
+  ├ preferencje, suppression, EMAIL_DAILY_CAP,
+  │ cisza nocna 22–07 (clock.local_now)
+  ├ render Jinja2 html + txt, nagłówki strumienia
+  └ EmailSender: Mailgun | SMTP(dev) | Log | Fake
+             ▼
+dostawca ─► POST /api/email/webhooks/mailgun (HMAC)
+          ─► status + email_suppressions</pre></div>
+<div class="card"><b>Struktura <code>app/email/</code></b>
+<pre>models.py      email_messages, email_suppressions,
+               email_preferences
+service.py     enqueue_for_notifications(),
+               enqueue_transactional()
+rules.py       kind → kategoria/strumień/szablon/
+               opóźnienie/throttling
+sending.py     run_send_batch()
+rendering.py   Jinja2 (autoescape html.j2,
+               StrictUndefined)
+templates/     base.html.j2, *.html.j2 + *.txt.j2
+senders/       base.py (Protocol), mailgun.py,
+               smtp.py, log.py
+tokens.py      podpis tokenu wypisu
+router.py      unsubscribe, webhook, preferencje
+infrastructure/users_acl.py, notifications_acl.py</pre>
+<p style="font-size:12.5px">Importowany tylko przez <code>main.py</code> i ACL-e konsumentów. Dopisać do <code>test_module_boundaries.py</code> i <code>test_domain_clock_guard.py</code>.</p></div>
+</div>
+
+<div class="grid2">
+<div class="card tablewrap"><b>Retry i błędy</b>
+<table>
+<tr><th>Wynik</th><th>Akcja</th></tr>
+<tr><td>2xx</td><td>SENT + <code>provider_message_id</code></td></tr>
+<tr><td>4xx (poza 429)</td><td>FAILED bez retry, WARNING bez adresu</td></tr>
+<tr><td>429 / 5xx / timeout</td><td>PENDING, backoff 1, 5, 15, 60, 240 min</td></tr>
+<tr><td><code>attempts &gt;= MAX</code></td><td>FAILED + jedna linia ERROR <code>FAILED after</code></td></tr>
+<tr><td>SENDING &gt; ~10 min</td><td>P/D → PENDING (możliwy duplikat), T → FAILED</td></tr>
+<tr><td><code>40P01</code>/<code>40001</code></td><td>WARNING, ponowienie w kolejnym przebiegu</td></tr>
+<tr><td>inny wyjątek joba</td><td><code>logger.exception</code> raz, bez re-raise</td></tr>
+</table></div>
+<div class="card"><b>Konfiguracja (tylko nazwy)</b>
+<p>ADR-009: <code>EMAIL_ENABLED</code> <code>EMAIL_PROVIDER_API_URL</code> <code>EMAIL_PROVIDER_API_KEY</code> <code>EMAIL_FROM_ADDRESS</code> <code>EMAIL_FROM_NAME</code> <code>EMAIL_LINK_SIGNING_SECRET</code> <code>APP_PUBLIC_BASE_URL</code></p>
+<p>Uzupełnienia: <code>EMAIL_BACKEND</code> <code>EMAIL_REPLY_TO_ADDRESS</code> <code>EMAIL_WEBHOOK_SIGNING_KEY</code> <code>EMAIL_DAILY_CAP</code> <code>EMAIL_SMTP_HOST</code> <code>EMAIL_SMTP_PORT</code></p>
+<p style="font-size:12.5px">Dodać do <code>config.py</code> (<code>email_configured</code>, bramka 503 jak Google), <code>.env.example</code> (puste) i <code>docker-compose.yml</code>. Wartości tylko w <code>.env</code>. Nigdy nie logować adresów, tokenów ani treści.</p>
+<p><b>Zegar:</b> <code>clock.local_now()</code> dla ciszy nocnej i throttlingu, <code>format_term_when</code> w treści, audyt w naiwnym UTC.</p></div>
+</div>
+
+<details class="card"><summary>Testy, idempotencja, wariant przez outbox</summary>
+<ul>
+<li><b>Testy:</b> <code>FakeEmailSender</code> przez <code>set_sender()</code>. Integracyjne: bell → PENDING; duplikat klucza; SKIPPED (brak adresu, niezweryfikowany, suppression, wyłączona kategoria); backoff → FAILED + ERROR; webhook HMAC poprawny i błędny; unsubscribe idempotentny bez auth; reset zawsze 202; render <code>StrictUndefined</code> i autoescape, polskie znaki; <code>count_queries</code>.</li>
+<li><b>Dev:</b> Mailpit <code>axllent/mailpit:&lt;wersja&gt;</code> z <code>profiles: ["dev"]</code>, UI 8025, SMTP 1025, <code>EMAIL_BACKEND=smtp</code>. Zmienne Mailpit niezweryfikowane. Przed produkcją test seed.</li>
+<li><b>Okno duplikatu:</b> Resend i Brevo dostają <code>Idempotency-Key = email_messages.id</code>. Na Mailgun duplikat P/D jest akceptowalny.</li>
+<li><b>Auth:</b> surowy token tylko w <code>payload</code> do wysłania, potem zerowany.</li>
+<li><b>Wariant dopuszczalny:</b> <code>outbox.append("email.notification_requested")</code> + jeden handler robiący tylko INSERT w <code>begin_nested()</code>. Koszt: trzeci przeskok, wzrost <code>outbox_entries</code>, ryzyko filtrów pollera. Rekomendowany wariant bezpośredni (pewność średnia).</li>
+</ul></details>
+
+<h2 id="triggers">Tabela triggerów</h2>
+<p style="font-size:13px"><span class="t T">T</span> transakcyjny, bez wypisu · <span class="t P">P</span> powiadomienie z preferencją + List-Unsubscribe · <span class="t D">D</span> digest opt-in · <span class="t X">X</span> bez maila. Priorytet: <span class="prio-mvp">MVP</span> · <span class="prio-mvpp">MVP+</span> (najpierw nowy bell) · Później.</p>
+
+<div class="card tablewrap"><b>Auth i konto (bez bell)</b>
+<table>
+<tr><th>#</th><th>Zdarzenie</th><th>Kod</th><th>Odbiorca</th><th>Typ</th><th>Priorytet</th><th>Uwagi</th></tr>
+<tr><td>A1</td><td>Weryfikacja adresu</td><td>nowe; po <code>users/service.py:328</code></td><td>nowy użytkownik z hasłem</td><td><span class="t T">T</span></td><td class="prio-mvp">MVP</td><td>Warunek dla P i D</td></tr>
+<tr><td>A2</td><td>Reset hasła</td><td>nowe w <code>app/auth</code></td><td>właściciel</td><td><span class="t T">T</span></td><td class="prio-mvp">MVP</td><td>Neutralne 202, token ~1 h, D4</td></tr>
+<tr><td>A3</td><td>Hasło zmienione lub ustawione</td><td>nowe</td><td>właściciel</td><td><span class="t T">T</span></td><td class="prio-mvp">MVP</td><td>Alert bezpieczeństwa</td></tr>
+<tr><td>A4</td><td>Powitanie</td><td><code>users/service.py:328</code></td><td>nowy użytkownik</td><td><span class="t T">T</span></td><td>MVP-opcj.</td><td>Razem z A1</td></tr>
+<tr><td>A5</td><td>Powitanie po Google</td><td><code>auth/service.py:146</code></td><td>nowy użytkownik</td><td><span class="t T">T</span></td><td>Później</td><td></td></tr>
+<tr><td>A6</td><td>Google na zajęty adres (409)</td><td><code>auth/service.py:136-137</code></td><td>właściciel adresu</td><td><span class="t T">T</span></td><td>Później</td><td>Rate limit (D12)</td></tr>
+<tr><td>A7</td><td>Zmiana adresu</td><td>nowe</td><td>stary i nowy adres</td><td><span class="t T">T</span></td><td>Później</td><td></td></tr>
+<tr><td>A8</td><td>Konto opiekuna od opiekuna</td><td><code>families/guardians.py:28-53</code></td><td>nowy opiekun</td><td><span class="t T">T</span></td><td>Później</td><td>Zaproszenie z ustawieniem hasła</td></tr>
+</table></div>
+
+<div class="card tablewrap"><b>Wszystkie 13 <code>NotificationKind</code></b>
+<table>
+<tr><th>#</th><th>Bell</th><th>Kod</th><th>Odbiorca</th><th>Typ</th><th>Priorytet</th><th>Uwagi</th></tr>
+<tr><td>B1</td><td><code>TERM_ITEM_LISTING_TAKEN</code></td><td><code>term_item_listings.py:699-705</code></td><td>właściciel</td><td><span class="t P">P</span></td><td class="prio-mvp">MVP</td><td>Właściciel-Organization: SKIPPED</td></tr>
+<tr><td>B2</td><td><code>ITEM_RESERVED_FOR_PICKUP</code></td><td><code>:706-712</code></td><td>biorący (aktor)</td><td><span class="t X">X</span></td><td>— / Później</td><td>Własna akcja</td></tr>
+<tr><td>B3</td><td><code>SWAP_PROPOSED</code></td><td><code>:856-863</code></td><td>właściciel</td><td><span class="t P">P</span></td><td class="prio-mvp">MVP</td><td>Wymaga decyzji</td></tr>
+<tr><td>B4</td><td><code>SWAP_ACCEPTED</code></td><td><code>:990-996</code></td><td>proponujący</td><td><span class="t P">P</span></td><td class="prio-mvp">MVP</td><td></td></tr>
+<tr><td>B5</td><td><code>SWAP_REJECTED</code></td><td><code>:1062-1068</code>, <code>:1015-1021</code></td><td>proponujący</td><td><span class="t P">P</span></td><td class="prio-mvp">MVP</td><td>Ręczne i automatyczne</td></tr>
+<tr><td>B6</td><td><code>TERM_CONFIRMATION_NEEDED</code></td><td><code>term_end_scan.py:142,197,274</code> → <code>outbox_listener.py:87-143</code></td><td>biorący / obie strony</td><td><span class="t P">P</span></td><td class="prio-mvp">MVP</td><td>+2 h, cisza nocna → 07:00</td></tr>
+<tr><td>B7</td><td><code>TERM_ALREADY_RESOLVED</code></td><td><code>:1116-1122</code></td><td>klikający</td><td><span class="t X">X</span></td><td>—</td><td>Reakcja na własne kliknięcie</td></tr>
+<tr><td>B8</td><td><code>RESERVATION_CANCELLED</code></td><td><code>event_reservations.py:122-158</code></td><td>obie strony</td><td><span class="t P">P</span></td><td class="prio-mvp">MVP</td><td></td></tr>
+<tr><td>B9</td><td><code>WANT_MATCH_FOUND</code></td><td><code>bells_due.py:82</code> → <code>match_notifications.py:183-193</code></td><td>szukający</td><td><span class="t P">P</span></td><td class="prio-mvp">MVP</td><td>Najwyżej 1 dziennie na want, tylko MATCH, szara strefa</td></tr>
+<tr><td>B10</td><td><code>WANT_EXPIRING</code></td><td><code>match_notifications.py:196-203</code></td><td>szukający</td><td><span class="t P">P</span></td><td>Później</td><td>Czy respektować wyciszenie?</td></tr>
+<tr><td>B11</td><td><code>PLEDGE_CREATED</code></td><td><code>pledges.py:94</code> → <code>outbox_listener.py:53-62</code></td><td>organizator</td><td><span class="t D">D</span></td><td>Później</td><td></td></tr>
+<tr><td>B12</td><td><code>PLEDGE_WITHDRAWN</code></td><td><code>pledges.py:130</code> → <code>:65-74</code></td><td>organizator</td><td><span class="t D">D</span></td><td>Później</td><td></td></tr>
+<tr><td>B13</td><td><code>NEEDED_ITEM_REMOVED</code></td><td><code>terms.py:447-456</code></td><td>zgłaszający</td><td><span class="t P">P</span></td><td>Później</td><td>Rzadkie</td></tr>
+</table></div>
+
+<details class="card" open><summary>Zdarzenia bez bell (zasada „najpierw bell”)</summary>
+<div class="tablewrap"><table>
+<tr><th>#</th><th>Zdarzenie</th><th>Kod</th><th>Odbiorca</th><th>Typ</th><th>Priorytet</th></tr>
+<tr><td>C1</td><td>Druga strona anulowała transakcję</td><td><code>term_item_listings.py:1193-1206</code></td><td>druga strona</td><td><span class="t P">P</span></td><td class="prio-mvpp">MVP+</td></tr>
+<tr><td>C2</td><td>Zmiana daty lub miejsca terminu</td><td><code>terms.py:249-296</code></td><td>RSVP + strony rezerwacji</td><td><span class="t P">P</span></td><td class="prio-mvpp">MVP+</td></tr>
+<tr><td>C3</td><td>Zmiana wydarzenia</td><td><code>events/service.py:228</code></td><td>uczestnicy + rezerwacje</td><td><span class="t P">P</span></td><td>Później / MVP+</td></tr>
+<tr><td>C4</td><td>Przypomnienie dzień przed</td><td>nowy job</td><td>uczestnicy, rezerwacje</td><td><span class="t P">P</span></td><td>Później</td></tr>
+<tr><td>C5</td><td>Druga strona potwierdziła + punkty</td><td><code>:1149-1190</code>, <code>:1171</code></td><td>druga strona</td><td><span class="t D">D</span></td><td>Później</td></tr>
+<tr><td>C6</td><td>Nowa wiadomość czatu</td><td><code>messages.py:89-139</code></td><td>uczestnicy</td><td><span class="t P">P</span> opóźniony</td><td>Później</td></tr>
+<tr><td>C7</td><td>Nowy termin w kręgu</td><td><code>terms.py:56</code></td><td>członkowie</td><td><span class="t D">D</span></td><td>Później</td></tr>
+<tr><td>C8</td><td>RSVP lub wypis dla organizatora</td><td><code>public_view.py:408</code>, <code>attendance.py:49</code></td><td>organizator</td><td><span class="t D">D</span></td><td>Później</td></tr>
+<tr><td>C9</td><td>Płatność PAID</td><td><code>attendance_points.py:149</code></td><td>uczestnik</td><td><span class="t T">T</span></td><td>Później</td></tr>
+<tr><td>C10</td><td>Zamknięcie obecności + punkty</td><td><code>attendance_points.py:201,259</code></td><td>obecni</td><td><span class="t D">D</span></td><td>Później</td></tr>
+<tr><td>C11</td><td>Zapis lub wypis z wydarzenia</td><td><code>events/service.py:383,413</code></td><td>autor</td><td><span class="t D">D</span></td><td>Później</td></tr>
+<tr><td>C12</td><td>Dołączenie kodem</td><td><code>join_code.py:112-148</code></td><td>organizator</td><td><span class="t D">D</span></td><td>Później</td></tr>
+<tr><td>C13</td><td>Współorganizatorstwo</td><td><code>circles.py:322,341</code></td><td>osoba</td><td><span class="t P">P</span></td><td>Później</td></tr>
+<tr><td>C14</td><td>Koniec członkostwa lub usunięcie kręgu</td><td><code>memberships.py:42</code>, <code>circles.py:208</code></td><td>członkowie</td><td><span class="t P">P</span></td><td>Później</td></tr>
+<tr><td>C15</td><td>Odrzucenie mediów przez moderację</td><td><code>moderation/service.py:301-342</code></td><td>autor</td><td><span class="t T">T</span></td><td>Później</td></tr>
+<tr><td>C16</td><td>Want wygasł</td><td><code>window.py:48-50</code></td><td>szukający</td><td><span class="t X">X</span></td><td>—</td></tr>
+<tr><td>C17</td><td>SUGGESTION / SIMILAR</td><td>matcher</td><td>szukający</td><td><span class="t X">X</span></td><td>—</td></tr>
+<tr><td>C18</td><td>Własne akcje</td><td>różne</td><td>aktor</td><td><span class="t X">X</span></td><td>—</td></tr>
+<tr><td>C19</td><td>Synchroniczna odmowa moderacji tekstu</td><td><code>messages.py:115-121</code></td><td>aktor</td><td><span class="t X">X</span></td><td>—</td></tr>
+</table></div>
+<p style="font-size:12.5px">MVP: A1–A3 (+A4), B1, B3, B4, B5, B6, B8, B9 · MVP+: C1, C2 · 13/13 rodzajów z decyzją (7 MVP, 2 później jako P, 2 digest później, 2 X: B2 i B7).</p>
+</details>
+
+<h2 id="pre">Warunki wstępne</h2>
+<div class="card tablewrap"><table>
+<tr><th>Warunek</th><th>Stan dziś</th><th>Co trzeba</th></tr>
+<tr><td>Weryfikacja adresu</td><td>brak (Google zweryfikowany)</td><td><code>email_verified_at</code> + backfill Google, tokeny hashowane, endpointy, <code>/verify-email</code>, baner</td></tr>
+<tr><td>Reset hasła</td><td>brak (D10)</td><td>tokeny, neutralne 202, <code>/reset-password</code>, link w <code>LoginForm</code>, decyzja D4</td></tr>
+<tr><td>Preferencje i zgody</td><td>tylko <code>wants.notifications_enabled</code></td><td><code>email_preferences</code> + „wszystkie”. Zgody tylko przy marketingu</td></tr>
+<tr><td>Token wypisu</td><td>brak</td><td>HMAC/JWT z <code>EMAIL_LINK_SIGNING_SECRET</code>, idempotentny</td></tr>
+<tr><td>Adresy nullable i rodzinne</td><td>dzieci i goście bez adresu</td><td>SKIPPED, <code>lower(email)</code>, routing <code>is_primary_contact</code> później</td></tr>
+<tr><td>Konta tylko-Google</td><td>brak odzyskiwania</td><td>D4. Ogłoszenie w aplikacji, nie mailem masowym</td></tr>
+<tr><td>Party Organization</td><td>niezweryfikowane</td><td>reguła albo SKIPPED</td></tr>
+<tr><td>Bazowy URL</td><td>brak (D11)</td><td><code>APP_PUBLIC_BASE_URL</code></td></tr>
+<tr><td>Polityka prywatności</td><td>brak (D14)</td><td>strony, link przy rejestracji, art. 13</td></tr>
+<tr><td>DNS, suppression, webhook</td><td>brak</td><td>sekcja DNS, <code>email_suppressions</code></td></tr>
+<tr><td>Retencja</td><td>brak purge outboxa</td><td>purge <code>email_messages</code> po 90 dniach + <code>outbox_entries</code></td></tr>
+</table></div>
+
+<h2 id="prefs">Preferencje i wypis</h2>
+<div class="grid2">
+<div class="card tablewrap"><b>Kategorie</b>
+<table>
+<tr><th>Kategoria</th><th>Rodzaje</th><th>Domyślnie</th></tr>
+<tr><td>Rezerwacje i wymiany</td><td>B1, B3–B6, B8, C1, C5</td><td>wł. (decyzja właściciela)</td></tr>
+<tr><td>Spotkania i wydarzenia</td><td>B13, C2–C4</td><td>wł.</td></tr>
+<tr><td>Szukam</td><td>B9, B10</td><td>wł. + przełącznik per want</td></tr>
+<tr><td>Wiadomości</td><td>C6</td><td>do decyzji</td></tr>
+<tr><td>Podsumowania organizatora</td><td>B11, B12, C8, C11, C12</td><td>wył. (opt-in)</td></tr>
+<tr><td>Transakcyjne</td><td>A1–A8, C9, C15</td><td>nie da się wyłączyć</td></tr>
+</table></div>
+<div class="card"><b>Mechanika</b>
+<ul>
+<li>Tylko P i D: <code>List-Unsubscribe: &lt;https://&lt;app-domain&gt;/api/email/unsubscribe/&lt;signed-token&gt;&gt;</code> + <code>List-Unsubscribe-Post: List-Unsubscribe=One-Click</code>. DKIM obejmuje oba nagłówki.</li>
+<li>PUBLIC POST, form-encoded, bez auth i cookies, 200 bez redirectu, idempotentny, natychmiastowy. Nowy wiersz macierzy (jak 72/73).</li>
+<li><code>/unsubscribe</code> w <code>(public)</code>: GET tylko pokazuje, przycisk robi POST (skanery linków).</li>
+<li><code>/settings</code> w <code>(panel)</code> + <code>PROTECTED_PREFIXES</code>, przełączniki jak <code>WantNotificationToggle</code>, wiersz w <code>AccountView</code>. Naprawia test parytetu.</li>
+<li>Slugi <code>verify-email</code>, <code>reset-password</code>, <code>unsubscribe</code> na obu stosach.</li>
+<li>Suppression blokuje P i D. T tylko na wyraźne żądanie. Skarga wyłącza też kategorię.</li>
+<li>Prawo (pewność średnia): bez bloków promocyjnych, bez checkboxa zgody przy rejestracji. Marketing i SUGGESTION/SIMILAR poza MVP.</li>
+</ul></div>
+</div>
+
+<h2 id="dns">Checklista DNS i deliverability</h2>
+<div class="card tablewrap"><table>
+<tr><th>#</th><th>Host</th><th>Typ</th><th>Wartość (placeholder)</th><th>Uwagi</th></tr>
+<tr><td>1</td><td><code>mail.&lt;domena&gt;</code></td><td>TXT</td><td><code>v=spf1 include:&lt;provider-spf-include&gt; ~all</code></td><td>≤10 lookupów, później <code>-all</code></td></tr>
+<tr><td>2</td><td><code>&lt;selector&gt;._domainkey.mail.&lt;domena&gt;</code></td><td>TXT/CNAME</td><td><code>k=rsa; p=&lt;provider-public-key&gt;</code></td><td>2048 bit, <code>d=</code> własnej domeny</td></tr>
+<tr><td>3</td><td><code>mail.&lt;domena&gt;</code></td><td>MX</td><td><code>&lt;provider-mx-1&gt;</code>, <code>&lt;provider-mx-2&gt;</code></td><td>Mailgun: bounce</td></tr>
+<tr><td>4</td><td><code>&lt;tracking&gt;.mail.&lt;domena&gt;</code></td><td>CNAME</td><td><code>&lt;provider-tracking-host&gt;</code></td><td>opcjonalny, tracking wył.</td></tr>
+<tr><td>5</td><td><code>_dmarc.mail.&lt;domena&gt;</code></td><td>TXT</td><td>A: <code>p=none; rua=mailto:&lt;…&gt;; adkim=r; aspf=r</code></td><td>≥48 h po SPF/DKIM, ≥1 tydzień</td></tr>
+<tr><td>5b</td><td>jw.</td><td>TXT</td><td>B: <code>p=quarantine; pct=25; t=y</code> → 100</td><td>co tydzień</td></tr>
+<tr><td>5c</td><td>jw.</td><td>TXT</td><td>C: <code>p=reject</code></td><td>docelowo</td></tr>
+<tr><td>6</td><td><code>_dmarc.&lt;domena&gt;</code></td><td>TXT</td><td><code>p=none; sp=&lt;…&gt;; np=reject; rua=…</code></td><td><code>sp</code> nie może podważać subdomeny</td></tr>
+<tr><td>7</td><td>domena raportów</td><td>TXT</td><td><code>&lt;domena&gt;._report._dmarc.&lt;report-domain&gt;</code></td><td>gdy <code>rua</code> wskazuje inną domenę</td></tr>
+<tr><td>8</td><td>Postmaster Tools</td><td>TXT</td><td><code>google-site-verification=&lt;token&gt;</code></td><td>spam rate &lt;0.1%</td></tr>
+<tr><td>9</td><td>PTR i TLS</td><td>—</td><td>po stronie dostawcy</td><td>test seed</td></tr>
+</table>
+<p style="font-size:12.5px">Domena Mailgun w regionie <b>EU</b>. Klucz webhooka tylko w <code>.env</code>. <code>From</code> na <code>mail.&lt;domena&gt;</code>, <code>Reply-To</code> na monitorowaną skrzynkę, <code>Auto-Submitted</code>, tag strumienia. Warm-up: tydzień 1 tylko T, potem kategorie P, <code>EMAIL_DAILY_CAP</code> ~100 dziennie. Przed startem: Mailpit, potem mail-tester i konta Gmail/Outlook (<code>spf=pass dkim=pass dmarc=pass</code>).</p></div>
+
+<h2 id="recs">Rekomendacje i etapy</h2>
+<div class="card tablewrap"><table>
+<tr><th>#</th><th>Rekomendacja</th><th>Priorytet</th><th>Nakład</th><th>Ryzyka</th></tr>
+<tr><td>R1</td><td>Decyzje właściciela: rezydencja, domena, domyślny stan kategorii</td><td><span class="sev critical">P0</span></td><td>niski</td><td>opóźnienie</td></tr>
+<tr><td>R2</td><td>Polityka prywatności i regulamin (D14)</td><td><span class="sev critical">P0</span></td><td>niski–średni</td><td>wymaga prawnika</td></tr>
+<tr><td>R3</td><td><b>Etap 1:</b> moduł, DNS, webhook i suppression, A1–A3, <code>/verify-email</code>, <code>/reset-password</code>, <code>APP_PUBLIC_BASE_URL</code></td><td><span class="sev warning">wysoki</span></td><td>średni–wysoki</td><td>duplikaty (Mailgun), D4</td></tr>
+<tr><td>R4</td><td><b>Etap 2:</b> preferencje, <code>/settings</code>, RFC 8058, hook w <code>notifications.service</code>, B1, B3–B6, B8, B9</td><td><span class="sev warning">wysoki</span></td><td>średni</td><td>prawna zgodność domyślnych kategorii</td></tr>
+<tr><td>R5</td><td><b>Etap 3:</b> nowe bell C1, C2 (C3)</td><td><span class="sev warning">wysoki</span></td><td>niski–średni</td><td>wolumen przy dużych terminach</td></tr>
+<tr><td>R6</td><td>Później: C4, C6, digest organizatora, B10, B13, C9, C15</td><td><span class="sev info">średni</span></td><td>średni</td><td>spam, skargi</td></tr>
+<tr><td>R7</td><td>Purge <code>email_messages</code> i <code>outbox_entries</code>, guard <code>run_forever</code></td><td><span class="sev info">średni</span></td><td>niski</td><td>—</td></tr>
+<tr><td>R8</td><td>Aktualizacja <code>architecture.md</code> (L411/L480) i decision log, propozycja standardu „mail tylko przez <code>app.email</code> + ACL”</td><td><span class="sev info">niski</span></td><td>niski</td><td>—</td></tr>
+</table></div>
+
+<h2 id="analysis">Analiza</h2>
+<div class="grid3">
+  <div class="card"><span class="sev critical">krytyczny</span><h3>Jeden choke point</h3>Hook w <code>notifications.service</code> daje pełne pokrycie 13 bell bez zmian w domenach.</div>
+  <div class="card"><span class="sev critical">krytyczny</span><h3>HTTP poza dispatcherem</h3>Własna kolejka z backoffem, <code>send_after</code>, późnym wiązaniem preferencji i throttlingiem.</div>
+  <div class="card"><span class="sev warning">wysoki</span><h3>Najpierw flow auth</h3>Pierwsze maile to weryfikacja i reset, których dziś nie ma. Zamykają też ryzyko kont Google.</div>
+  <div class="card"><span class="sev warning">wysoki</span><h3>Najpierw bell</h3>Nowe triggery jako <code>NotificationKind</code>: jedna ścieżka, a luka znika też w aplikacji.</div>
+  <div class="card"><span class="sev info">średni</span><h3>Serwis vs marketing</h3>Powiadomienia bez zgody, ale bez bloków promocyjnych. SUGGESTION/SIMILAR tylko w aplikacji.</div>
+  <div class="card"><span class="sev info">średni</span><h3>Rezydencja jako oś decyzji</h3>Region wysyłki ≠ przechowywanie danych. To decyduje między Mailgun EU a Resend.</div>
+</div>
+<div class="grid2 swot" style="margin-top:12px">
+  <div class="s"><h4>Mocne strony</h4><ul><li>Dojrzały outbox, port i ACL-e</li><li>Joby, zegar Warsaw, polskie teksty</li><li><code>httpx</code> w zależnościach</li></ul></div>
+  <div class="w"><h4>Słabe strony</h4><ul><li>Brak weryfikacji, resetu i preferencji</li><li>Adres nullable, brak bazowego URL i polityki</li><li>Retry bez backoffu, brak purge</li></ul></div>
+  <div class="o"><h4>Szanse</h4><ul><li>Domknięcie wymian (confirm → punkty)</li><li>Odzyskiwanie kont Google, auto-linking (D8)</li><li>Przypomnienia</li></ul></div>
+  <div class="th"><h4>Zagrożenia</h4><ul><li>Deliverability nowej subdomeny, limity darmowych planów</li><li>Duplikaty na Mailgun, szara strefa MATCH</li><li>Zmienne ceny, brak wytycznych UODO</li></ul></div>
+</div>
+
+<h2 id="answer">Odpowiedź na pytanie badawcze</h2>
+<div class="card">
+<p><b>Jak wdrożyć?</b> Moduł <code>app/email</code> za portem <code>EmailSender</code> z adapterem <code>httpx</code> (Mailgun EU albo Resend). Kolejkowanie w transakcji bell w <code>notifications.service</code> i bezpośrednio z flow auth. Job z backoffem i kluczem idempotencji, późne sprawdzanie adresu, suppression i preferencji. Webhook zasila suppression. Jinja2 PL z HTML i tekstem. Testy na fake senderze, w dev Mailpit. <span class="conf high">wysoka</span> dla wpięcia, <span class="conf med">średnia</span> dla kształtu kolejki i dostawcy.</p>
+<p><b>Kiedy wysyłać?</b> Zawsze maile konta. W MVP zdarzenia, które wymagają reakcji albo zmieniają zobowiązanie (B1, B3–B6, B8, B9). Zaraz po nich zmiana terminu i anulowanie przez drugą stronę. Później przypomnienia, czat i digesty. Nigdy własne akcje ani treści promocyjne. <span class="conf high">wysoka</span> dla inwentarza, <span class="conf med">średnia</span> dla priorytetów.</p>
+</div>
+
+<h2 id="appendix">Załączniki</h2>
+<details class="card"><summary>Pewność per obszar</summary>
+<table>
+<tr><th>Obszar</th><th>Pewność</th></tr>
+<tr><td>Infrastruktura i punkt wpięcia</td><td><span class="conf high">wysoka</span></td></tr>
+<tr><td>Inwentarz triggerów</td><td><span class="conf high">wysoka</span></td></tr>
+<tr><td>Priorytety MVP</td><td><span class="conf med">średnia</span></td></tr>
+<tr><td>Wybór dostawcy</td><td><span class="conf high">średnio-wysoka</span></td></tr>
+<tr><td>Ceny</td><td><span class="conf med">średnia</span></td></tr>
+<tr><td>DNS i nagłówki</td><td><span class="conf high">wysoka</span></td></tr>
+<tr><td>Prawo (PKE, RODO)</td><td><span class="conf med">średnia</span></td></tr>
+<tr><td>Kształt kolejki</td><td><span class="conf med">średnia</span></td></tr>
+</table></details>
+<details class="card"><summary>Luki i niepewności</summary>
+<table>
+<tr><th>Luka</th><th>Wpływ</th><th>Jak domknąć</th></tr>
+<tr><td>Party Organization jako odbiorca</td><td>Brak maila dla właścicieli rzeczy organizacji</td><td>Prześledzić <code>owner_party_id</code></td></tr>
+<tr><td>Brak wytycznych UODO/UKE</td><td>6(1)(b) z pewnością średnią</td><td>Konsultacja prawna, pismo UKE z 23.09.2025</td></tr>
+<tr><td>Ceny Brevo, Scaleway, MailerSend</td><td>Koszty alternatyw</td><td>Sprawdzić w panelu</td></tr>
+<tr><td>Brak benchmarku deliverability</td><td>Słabe dane</td><td>Test seed</td></tr>
+<tr><td>Zmienne Mailpit</td><td>Konfiguracja dev</td><td>Domyślne porty</td></tr>
+<tr><td>Soft-delete z otwartymi rezerwacjami</td><td>Możliwe ciche anulowania</td><td>Prześledzić przy C1</td></tr>
+<tr><td><code>WANT_EXPIRING</code> ignoruje wyciszenie</td><td>Niespójność kanałów</td><td>Decyzja produktowa</td></tr>
+<tr><td>Data odrzucania przez Microsoft</td><td>Brak wpływu poniżej 5k dziennie</td><td>—</td></tr>
+</table></details>
+<details class="card"><summary>Źródła</summary>
+<ul>
+<li>Ustalenia: <a href="../analysis/findings/codebase-infra-outbox-notifications.md" target="_blank" rel="noopener">codebase-infra-outbox-notifications</a>, <a href="../analysis/findings/codebase-infra-users-config.md" target="_blank" rel="noopener">codebase-infra-users-config</a>, <a href="../analysis/findings/codebase-infra-adr009-fit.md" target="_blank" rel="noopener">codebase-infra-adr009-fit</a>, <a href="../analysis/findings/codebase-triggers-inventory.md" target="_blank" rel="noopener">codebase-triggers-inventory</a>, <a href="../analysis/findings/external-providers-matrix.md" target="_blank" rel="noopener">external-providers-matrix</a>, <a href="../analysis/findings/external-providers-recommendation.md" target="_blank" rel="noopener">external-providers-recommendation</a>, <a href="../analysis/findings/external-practices-deliverability-dns.md" target="_blank" rel="noopener">external-practices-deliverability-dns</a>, <a href="../analysis/findings/external-practices-compliance-engineering.md" target="_blank" rel="noopener">external-practices-compliance-engineering</a>, <a href="../analysis/findings/prior-decisions-email-adrs.md" target="_blank" rel="noopener">prior-decisions-email-adrs</a>, <a href="../analysis/findings/prior-decisions-frontend-surfaces.md" target="_blank" rel="noopener">prior-decisions-frontend-surfaces</a></li>
+<li>Wcześniejsze decyzje: ADR-004/009/010 (handover 2026-10-13), ADR-002/004/005 i D1–D14 (Google login 2026-11-25)</li>
+<li>Dokumentacja: <code>architecture.md</code> (L62, L411, L480, L534–541), <code>INDEX.md</code> i standardy</li>
+<li>Zewnętrzne (2026-11-26): dokumentacja i cenniki 11 dostawców, RFC 8058/2369/7489/9989/3463, Gmail, Yahoo, Microsoft, PKE art. 398, UŚUDE, RODO, Jinja2, MJML, <code>email.policy</code>, Mailpit. Pełne URL-e w plikach ustaleń</li>
+</ul></details>
+</main>
+</body>
+</html>

@@ -1,0 +1,198 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: [phase-1, phase-2, phase-4, phase-5, phase-6, phase-7, phase-8, phase-10, phase-11, phase-12, phase-13, phase-14]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    sequential: false
+    html_output: true
+    mockup_format: html
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: "2026-11-26T12:07:25Z"
+  updated: "2026-11-26T20:08:17Z"
+  task_path: .maister/tasks/development/2026-11-26-points-owner-set-price
+  task_ids: {}
+task:
+  title: "POINTS price set by the owner within suggested bounds"
+  description: "Owner-set points_price within [max(10, round10(suggested*min_ratio)), min(cap, round10(suggested*max_ratio))] step 10, server 400 with range; form +/-10 with suggestion; condition correction at pickup scales price by multiplier ratio (min 10), buyer SALE_REFUND of difference, seller SALE = new_price; config price_min_ratio, price_max_ratio, price_cap, price_step. Replaces the stage-2 'owner may only lower by a level' rule."
+  status: completed
+  tags: [points, pricing, stage-2]
+  priority: null
+task_context:
+  risk_level: high
+  clarifications_resolved: true
+  scope_expanded: false
+  tech_clarified: true
+  architecture_decision: "GIFT-path reuse; points_price on item_listing_preferences; HOLD/SALE(4 entries)/RELEASE with debit/credit rules; POINTS listing only via PUT preference (draft -> photos -> PUT); no new routes"
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: phase-4
+    product_design_path: null
+    mockup_count: 8
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  project_context:
+    project_doc_paths:
+      - .maister/docs/project/tech-stack.md
+      - .maister/docs/project/architecture.md
+  phase_summaries:
+    codebase_analysis:
+      summary: "Stage 2 (POINTS mode) does not exist: no POINTS mode, points_price, SALE/SALE_REFUND, hold/burn, pickup correction, reminder; ledger contract (no PARTY debit, one account per party, one source key per reservation) must change in migration 0109; R8 and the badge-without-price decision conflict with points_price on cards."
+      key_files:
+        - src/backend/app/points/infrastructure/ledger.py
+        - src/backend/app/points/models.py
+        - src/backend/app/points/application/config.py
+        - src/backend/app/points/domain/valuation.py
+        - src/backend/app/points/application/awards.py
+        - src/backend/app/groups/application/term_item_listings.py
+        - src/backend/app/groups/models.py
+        - src/backend/app/inventory/models.py
+        - src/frontend/src/features/items/ItemCreateView.tsx
+        - src/frontend/src/components/shared/ItemCard.tsx
+      primary_language: python+typescript
+      decisions: []
+      risks:
+        - "round10 must use Decimal ROUND_HALF_UP (45 -> 50); Python round() gives 40"
+        - "points_price on cards breaks the R8 probe test_points_valuation.py::test_itemResponses_valuedListedItem_carryNoPointsField"
+      artifacts:
+        - {path: analysis/codebase-analysis.md, label: "Codebase analysis", html: null}
+    gap_analysis:
+      summary: "All of stage 2 is new; hazards: _may_confirm lets the seller confirm non-GIFT, hand-over queries are GIFT-only, photo rule needs a definition (shared products), ledger contract + R8 rewrite; 4 critical + 11 important decisions."
+      integration_points: [ledger.py, term_item_listings.py, inventory cancel transition, inventory repository hand-over queries, search offer_type, wants OfferMode, ItemCard]
+      decisions: []
+      risks:
+        - "_may_confirm returns True for non-GIFT: seller could burn buyer points"
+        - "term/event hand-over queries filter GIFT only"
+        - "held points may stay locked until the term/event date or indefinitely (no auto-confirm)"
+        - "max_points_offers check under account lock after item lock reverses lock order"
+      artifacts:
+        - {path: analysis/gap-analysis.md, label: "Gap analysis", html: null}
+        - {path: analysis/scope-clarifications.md, label: "Scope clarifications", html: null}
+    scope_clarifications:
+      scope_expanded: false
+      summary: "All 15 decisions resolved with recommended options: owner photo rule, price consent 409, checks at take with SALE = HOLD, buyer-only confirm, HOLD/SALE(4 entries)/RELEASE, price_step generalised, POINTS in wants/search/counters, balance in the reservation sheet."
+      decisions: []
+      risks: []
+      artifacts:
+        - {path: analysis/scope-clarifications.md, label: "Scope clarifications", html: null}
+    ui_mockups:
+      summary: "8 HTML mockups: create/edit price stepper, cards, item page, reservation sheet with balance, search filter, admin config, account points with held."
+      components_designed: [price-stepper, points-badge]
+      format_used: html
+      gallery_url: "http://localhost:3847"
+      decisions: []
+      risks: []
+      artifacts:
+        - {path: analysis/design-context/INDEX.md, label: "Design index", html: null}
+        - {path: analysis/design-context/design-resources.md, label: "Design resources", html: null}
+    design:
+      summary: "8 screens + 2 components indexed in analysis/design-context/INDEX.md; panel uses globals.css tokens, admin Chakra/slate."
+      screen_count: 8
+      component_count: 2
+      index_path: analysis/design-context/INDEX.md
+      decisions: []
+      risks: []
+      artifacts: []
+    specification:
+      summary: "12 requirements, 8 screens; migration 0109 (accounts widening, BURN seed, points_price CHECKs, guarded downgrade); ledger rules with debit/credit; buyer-only confirm; RELEASE in inventory _release; R8 allowlist; no new routes."
+      decisions: []
+      risks:
+        - "First change to the ledger contract (PARTY debits allowed); a bug here loses user balances"
+        - "Every account read keyed by party_id must also filter account_type"
+        - "No image-only rollback past 0109"
+      artifacts:
+        - {path: implementation/spec.md, label: "Specification", html: implementation/spec.html}
+        - {path: analysis/requirements.md, label: "Requirements", html: null}
+    spec_audit:
+      summary: "pass-with-concerns (0 critical, 1 high, 6 medium, 11 low); spec revised: login-only POINTS take/confirm, owner item-value?item_id bounds from stored points_value, /add retries only the PUT, single lock order accounts -> item -> preference, M4 re-read under item lock; pair-limit non-strict accepted."
+      decisions:
+        - {decision: "POINTS take/confirm require a login token (mcp:edit gets 403)", rationale: "user decision; matches row 69"}
+        - {decision: "Existing-item bounds from stored points_value via GET /api/points/item-value?item_id", rationale: "user decision; Phase 2 suggestion-source"}
+        - {decision: "/add retries only the PUT after a failed POINTS listing", rationale: "user decision; no duplicate items"}
+        - {decision: "Non-strict pair limit accepted", rationale: "user decision; known risk"}
+      risks:
+        - "RFC 8693 bridge token maps mcp:edit to EDIT and passes the login check"
+      artifacts:
+        - {path: verification/spec-audit.md, label: "Spec audit", html: null}
+    implementation_planning:
+      summary: "16 groups / 110 steps; backend chain 1-7 (migration, ledger, pricing, purchases, listing, take/confirm/cancel, read models) and frontend chain 8-14 independent; 15 test gap review; 16 docs + full suites; all 10 design IDs covered."
+      task_groups: 16
+      total_steps: 110
+      decisions: []
+      risks:
+        - "term_item_listings.py touched by groups 5, 6, 7 -> strictly sequential"
+        - "Lock order is the main correctness risk"
+      artifacts:
+        - {path: implementation/implementation-plan.md, label: "Implementation plan", html: implementation/implementation-plan.html}
+        - {path: implementation/visual-coverage.md, label: "Visual coverage", html: null}
+    implementation:
+      summary: "16/16 groups, 110 steps done; full suites at baseline or better: backend 1889 passed / 2 known stale, mypy 15, ruff 64; matcher 125 green; vitest 32 baseline failures, typecheck 0, lint baseline."
+      decisions: []
+      risks:
+        - "Private _is_valid_price/_clamp_price copies in term_item_listings (service does not export the domain helpers)"
+        - "useReservationSettlement does not invalidate [POINTS_KEY] outside the item page"
+        - "My Items price chip after a mode switch appears only after reload"
+      artifacts:
+        - {path: implementation/work-log.md, label: "Work log", html: null}
+    e2e:
+      summary: "8/8 flows passed live on :5174 at 0109 (dump at scratchpad pre-0109.dump); 1 minor (Zakup row squeezed at 390px, PointsHistoryRow.tsx:32), 2 cosmetic; visual fidelity 5 match / 3 minor / 0 drift."
+      decisions: []
+      risks:
+        - "Not exercised live: 409 sheet messages, 6th-offer limit, mcp 403, /add retry, term/event contexts, event-delete release"
+        - "Potwierdź odbiór spends held points without a confirm dialog (product question)"
+      artifacts:
+        - {path: verification/e2e-verification-report.md, label: "E2E report", html: verification/e2e-verification-report.html}
+        - {path: verification/visual-fidelity.md, label: "Visual fidelity", html: verification/visual-fidelity.html}
+    user_docs:
+      summary: "Polish user guide (8 sections) with 21 screenshots (20 reused from E2E, 1 new 390px /points capture confirming the M1 fix)."
+      decisions: []
+      risks:
+        - "Potwierdź odbiór settles immediately without a confirm dialog"
+      artifacts:
+        - {path: documentation/user-guide.md, label: "User guide", html: null}
+  design_resources:
+    ran: true
+    standards:
+      - {path: .maister/docs/standards/frontend/components.md, topic: components}
+      - {path: .maister/docs/standards/frontend/accessibility.md, topic: a11y}
+      - {path: .maister/docs/standards/global/validation.md, topic: validation}
+    design_system:
+      - {kind: css-var, path: src/frontend/src/app/globals.css, note: "Tailwind 4 tokens"}
+      - {kind: component-lib, path: "@chakra-ui/react", note: admin}
+    skill_hints: []
+    found_any: true
+verification_context:
+  last_status: passed
+  issues_found: []
+  fixes_applied:
+    - "W1 price helpers deduplicated (backend via points_acl, frontend clampPointsPrice)"
+    - "W2 clamp_price snaps to price_step"
+    - "W3 settlement invalidates [POINTS_KEY]"
+    - "W4 setItemMode stores points_price"
+    - "W5 /add keeps created item in AppDataContext; LocationPicker disabled"
+    - "W6 clamped default price on /add"
+    - "W7 photo rule + cap only when becoming POINTS"
+    - "W8 lock_reservations before accounts in cancel/confirm"
+    - "W9 lock_owner_accounts documented as mutex"
+    - "W10/W11 runbook: deploy both images together; monitoring SQL + log grep"
+    - "I1 I2 I3 I4 I5 I7 I8 minor fixes"
+  decisions_made:
+    - "Run code review, pragmatic review, reality check, production readiness; E2E on; user docs on"
+  reverify_count: 1

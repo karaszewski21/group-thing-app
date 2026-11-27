@@ -4,17 +4,17 @@ import { EXCHANGE_MODE_TONE, INTENT_LABELS } from "../../terms/components/termLa
 import { itemStatsOf } from "../layouts/layoutData";
 import type { BlockProps, OrganizerPageData } from "../layouts/types";
 
-const MODES: ExchangeMode[] = ["GIFT", "SWAP"];
+const MODES: ExchangeMode[] = ["GIFT", "SWAP", "POINTS"];
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
 // eslint-disable-next-line react-refresh/only-export-components -- the renderer reads each block's isEmpty next to it
 export function isItemStatsEmpty(data: OrganizerPageData): boolean {
   const stats = itemStatsOf(data.directory);
-  return !stats || stats.GIFT + stats.SWAP === 0;
+  return !stats || stats.GIFT + stats.SWAP + stats.POINTS === 0;
 }
 
-/** "N Chcę oddać · N Chcę się zamienić": the owner's available items per
- * mode, both leading to the owner's items page. */
+/** "N Chcę oddać · N Chcę się zamienić · N Za punkty": the owner's available
+ * items per mode, each leading to the owner's items page. */
 export function ItemStatsBlock({ data }: BlockProps) {
   const stats = itemStatsOf(data.directory);
   if (!stats) return null;
@@ -23,7 +23,7 @@ export function ItemStatsBlock({ data }: BlockProps) {
   return (
     <section className="px-6 pt-6">
       <h2 className="mb-3 font-serif text-xl font-semibold text-ink">Wymiana rzeczy</h2>
-      <ul className="grid grid-cols-2 gap-2">
+      <ul className="grid grid-cols-3 gap-2">
         {MODES.map((mode) => (
           <li key={mode}>
             <Link

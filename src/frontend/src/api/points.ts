@@ -3,7 +3,8 @@ import type { ItemCondition } from "./inventories";
 import { pageParams, type Page } from "./pagination";
 
 /** The admin-tunable point thresholds (`points_config`), as the backend's
- * `PointsConfigResponse` has them; multipliers are plain numbers. */
+ * `PointsConfigResponse` has them; multipliers and price ratios are plain
+ * numbers. */
 export interface PointsConfigValues {
   base_small: number;
   base_medium: number;
@@ -23,6 +24,13 @@ export interface PointsConfigValues {
   pair_reward_limit: number;
   pair_window_days: number;
   max_points_offers: number;
+  /** A POINTS price's lower bound as a share of the item's value, 0.01–1.00. */
+  price_min_ratio: number;
+  /** A POINTS price's upper bound as a multiple of the item's value, 1.00–3.00. */
+  price_max_ratio: number;
+  /** No POINTS price above this; a multiple of `price_step`. */
+  price_cap: number;
+  price_step: number;
 }
 
 /** `updated_at` is the token the PUT sends back; a stale one is a 409. */
@@ -39,21 +47,32 @@ export function updatePointsConfig(request: PointsConfig): Promise<PointsConfig>
   return api.put("/points/config", request);
 }
 
-/** The caller's own points; 0 and 0 before the first award. */
+/** The caller's own points, all 0 before the first award. `balance` is
+ * what they can spend; `held` is blocked by their open POINTS reservations. */
 export interface PointsSummary {
   balance: number;
+  held: number;
   reputation: number;
 }
 
-export type PointTransactionType = "GIVE_FREE" | "WISHLIST_MATCH" | "EXCHANGE" | "ATTENDANCE";
+export type PointTransactionType =
+  | "GIVE_FREE"
+  | "WISHLIST_MATCH"
+  | "EXCHANGE"
+  | "ATTENDANCE"
+  | "HOLD"
+  | "SALE"
+  | "RELEASE";
 
-/** The caller's entry in one point transaction. `reputation` is non-zero
- * only for GIVE_FREE; `counterparty_name` is null for ATTENDANCE.
- * `occurred_at` is naive UTC. */
+/** The caller's part in one point transaction. `amount` changes the
+ * balance, `held_amount` the held points (a buyer's SALE: 0 and −p);
+ * `reputation` is non-zero only for GIVE_FREE; `counterparty_name` is null
+ * for ATTENDANCE. `occurred_at` is naive UTC. */
 export interface PointHistoryEntry {
   id: string;
   type: PointTransactionType;
   amount: number;
+  held_amount: number;
   reputation: number;
   description: string;
   counterparty_name: string | null;
@@ -82,12 +101,30 @@ export function getAttendanceRules(): Promise<AttendanceRules> {
   return api.get("/points/attendance-rules");
 }
 
-/** What an item in this category and condition is worth if saved now. */
+/** An item's value and the POINTS price bounds around it. */
 export interface ItemPointsValue {
   points_value: number;
+  price_min: number;
+  price_max: number;
+  price_step: number;
 }
 
+/** What an item in this category and condition is worth if saved now. */
 export function getItemPointsValue(categoryId: string, condition: ItemCondition): Promise<ItemPointsValue> {
   const params = new URLSearchParams({ category_id: categoryId, condition });
+  return api.get(`/points/item-value?${params}`);
+}
+
+/** The stored value of one of the caller's items; all four fields are
+ * `null` for an item not valued yet. */
+export interface OwnedItemPointsValue {
+  points_value: number | null;
+  price_min: number | null;
+  price_max: number | null;
+  price_step: number | null;
+}
+
+export function getOwnedItemPointsValue(itemId: string): Promise<OwnedItemPointsValue> {
+  const params = new URLSearchParams({ item_id: itemId });
   return api.get(`/points/item-value?${params}`);
 }

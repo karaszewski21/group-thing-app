@@ -9,6 +9,7 @@ import {
   NEW_LEVEL_MESSAGE,
   parseConfigForm,
   parseLevel,
+  priceExampleText,
   type PointsConfigField,
   type PointsConfigForm,
 } from "./pointsConfigForm";
@@ -81,6 +82,7 @@ function PointsConfigEditor({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const { value, errors } = parseConfigForm(form);
+  const priceExample = priceExampleText(form);
 
   function edit(patch: Partial<PointsConfigForm>) {
     setForm((current) => ({ ...current, ...patch }));
@@ -231,8 +233,19 @@ function PointsConfigEditor({
         </FieldGrid>
       </Section>
 
-      <Section legend="Oferty „za punkty” (etap 2)" dimmed>
-        <FieldGrid>{field("max_points_offers", "Maks. aktywnych ofert na osobę")}</FieldGrid>
+      <Section legend="Oferty „za punkty”">
+        <FieldGrid>
+          {field("max_points_offers", "Limit ofert za punkty")}
+          {field("price_min_ratio", "Minimum ceny (× sugestia)", true)}
+          {field("price_max_ratio", "Maksimum ceny (× sugestia)", true)}
+          {field("price_cap", "Cena maksymalna")}
+          {field("price_step", "Krok ceny")}
+        </FieldGrid>
+        {priceExample && (
+          <Text bg="#F1F5F9" borderRadius="8px" px="14px" py="10px" fontSize="13px" color="#334155" mt="12px">
+            {priceExample}
+          </Text>
+        )}
       </Section>
 
       <PrimaryButton type="submit" loading={saving} disabled={value === null}>
@@ -252,7 +265,7 @@ function PointsConfigEditor({
   );
 }
 
-function Section({ legend, dimmed = false, children }: { legend: string; dimmed?: boolean; children: ReactNode }) {
+function Section({ legend, children }: { legend: string; children: ReactNode }) {
   return (
     <Box
       as="fieldset"
@@ -263,7 +276,6 @@ function Section({ legend, dimmed = false, children }: { legend: string; dimmed?
       pt="8px"
       pb="16px"
       mb="20px"
-      opacity={dimmed ? 0.6 : undefined}
     >
       <Box as="legend" fontWeight="700" fontSize="15px" color="#0F172A" px="6px">
         {legend}

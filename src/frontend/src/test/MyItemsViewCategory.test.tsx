@@ -114,6 +114,7 @@ const item: MyInventoryItemResponse = {
   updated_at: "2026-01-01T00:00:00Z",
   listing_mode: null,
   listing_visibility: null,
+  points_price: null,
   listing_status: "DRAFT",
   photos_moderation_pending: false,
   location_id: "loc-1",

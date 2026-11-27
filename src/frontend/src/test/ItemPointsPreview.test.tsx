@@ -24,6 +24,9 @@ describe("ItemPointsPreview", () => {
   it("shows the value and recomputes when the condition changes", async () => {
     vi.mocked(pointsApi.getItemPointsValue).mockImplementation(async (_category, condition) => ({
       points_value: condition === "NEW" ? 60 : 40,
+      price_min: condition === "NEW" ? 30 : 20,
+      price_max: condition === "NEW" ? 90 : 60,
+      price_step: 10,
     }));
     const { rerender } = render(<ItemPointsPreview categoryId="cat-1" condition="GOOD" />, {
       wrapper: createQueryWrapper(),

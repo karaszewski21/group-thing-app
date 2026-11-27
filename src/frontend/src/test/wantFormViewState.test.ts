@@ -114,6 +114,13 @@ describe("initialFromPrefill", () => {
     expect(initialFromPrefill(new URLSearchParams("locality=0937730&radius=7")).radius).toBeNull();
   });
 
+  it("accepts the POINTS offer type", () => {
+    expect(initialFromPrefill(new URLSearchParams("offer_type=POINTS"))).toMatchObject({
+      offerMode: "POINTS",
+      refined: true,
+    });
+  });
+
   it("a name alone keeps the disclosure collapsed but leads back to the search", () => {
     const initial = initialFromPrefill(new URLSearchParams("name=tv"));
 

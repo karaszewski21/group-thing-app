@@ -24,7 +24,9 @@ from app.inventory.models import BalanceStatus, MovementType, Reservation, Reser
 SELF_LABEL = "Ty"
 OTHER_FAMILY_LABEL = "inna rodzina"
 
-_TERM_DATED_MOVEMENTS = frozenset({MovementType.GIFT, MovementType.LEND, MovementType.SWAP})
+_TERM_DATED_MOVEMENTS = frozenset(
+    {MovementType.GIFT, MovementType.LEND, MovementType.SWAP, MovementType.POINTS}
+)
 
 
 class ItemStatusCode(enum.StrEnum):
@@ -75,7 +77,7 @@ def label(
     participants: Collection[uuid.UUID | None],
     display_name: str | None,
 ) -> str:
-    """"Ty" for the viewer themself; the subject's name when the viewer took
+    """ "Ty" for the viewer themself; the subject's name when the viewer took
     part (falling back to "inna rodzina" without a profile); otherwise
     "inna rodzina"."""
     if viewer is None:
@@ -111,7 +113,7 @@ def history_description(movement_type: MovementType, from_label: str, to_label: 
 def history_term_occurs_on(
     movement_type: MovementType, occurs_on: datetime | None
 ) -> datetime | None:
-    """Only GIFT/LEND/SWAP carry their term date: a RETURN inherits its
+    """Only GIFT/LEND/SWAP/POINTS carry their term date: a RETURN inherits its
     LEND's `term_id`, so its date would mislead."""
     return occurs_on if movement_type in _TERM_DATED_MOVEMENTS else None
 

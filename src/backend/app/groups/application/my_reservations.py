@@ -1,11 +1,12 @@
 """`GET /api/reservations/mine`: the items the caller is about to receive —
-their open GIFT reservations and accepted swap legs, plus their swap offers
+their open GIFT and POINTS reservations and accepted swap legs, plus their swap offers
 still awaiting the owner. An unpaired SWAP leg reserved by the caller is an
 offer made TO them on their own listing, so it is left out.
 
 The statement count does not depend on the number of rows: reservations,
 proposals with their proposer legs, products, owners, terms, circles,
-events and thumbnails are one statement each, plus one organization lookup
+events, POINTS holds and thumbnails are one statement each (the holds
+none without a POINTS row), plus one organization lookup
 per distinct owner (as `slug_resolver.resolve_organizer_slugs`)."""
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from ..infrastructure import (
     events_acl,
     inventory_bridge,
     organizations_acl,
+    points_acl,
     product_bridge,
     repository,
 )
@@ -34,6 +36,7 @@ from ..schemas import ExchangeMode, MyReservationResponse
 _MODES: dict[inventory_bridge.ReservationType, ExchangeMode] = {
     inventory_bridge.ReservationType.GIFT: "GIFT",
     inventory_bridge.ReservationType.SWAP: "SWAP",
+    inventory_bridge.ReservationType.POINTS: "POINTS",
 }
 
 
@@ -153,6 +156,15 @@ async def _build_responses(
     events = await events_acl.get_events_by_ids(
         db, {row.event_id for row in rows if row.event_id is not None}
     )
+    held = await points_acl.hold_amounts(
+        db,
+        {
+            row.reservation_id
+            for row in rows
+            if row.mode == inventory_bridge.ReservationType.POINTS.value
+            and row.reservation_id is not None
+        },
+    )
 
     photos = (
         await product_bridge.first_approved_photo_by_product(
@@ -193,6 +205,9 @@ async def _build_responses(
                 context_name=context_name,
                 occurs_at=occurs_at,
                 reserved_at=row.reserved_at,
+                held_points=(
+                    held.get(row.reservation_id) if row.reservation_id is not None else None
+                ),
             )
         )
     responses.sort(key=lambda response: response.reserved_at, reverse=True)

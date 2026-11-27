@@ -33,6 +33,7 @@ ROW_KEYS = {
     "context_name",
     "occurs_at",
     "reserved_at",
+    "held_points",
 }
 
 

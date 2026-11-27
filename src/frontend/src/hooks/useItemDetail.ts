@@ -5,6 +5,7 @@ import {
   getItemDetails,
   type ItemDetailsResponse,
 } from "../api/items";
+import { setItemListingPreference } from "../api/itemListingPreferences";
 import { extractProblemMessage, hasStatus, serverMessageOr } from "../api/problem";
 import {
   addProductPhoto,
@@ -15,6 +16,7 @@ import {
 } from "../api/products";
 import { useAuth } from "../auth/AuthContext";
 import { ITEM_ACTIONS_KEY } from "./useItemActions";
+import { POINTS_KEY } from "./usePointsConfig";
 
 export const ITEM_DETAILS_KEY = "itemDetails";
 
@@ -101,7 +103,9 @@ export interface ProductDetailsState {
  * `photoBusy` covers a photo call through its follow-up refetch. A place
  * change also re-reads the item page's actions (its location block and
  * pickup) and then `reloadMyItems` (the panel's list, the create page's
- * place suggestion). */
+ * place suggestion). A POINTS price save re-reads the actions (the price)
+ * and the points prefix (the stored value and its bounds), on failure too,
+ * so the form re-checks against the server's bounds after a 400. */
 export function useItemEditing(
   itemId: string,
   details: ProductDetailsState,
@@ -173,6 +177,25 @@ export function useItemEditing(
     [mutate, itemId, queryClient, reloadMyItems],
   );
 
+  const savePointsPrice = useCallback(
+    async (price: number) => {
+      const invalidate = () =>
+        Promise.all([
+          queryClient.invalidateQueries({ queryKey: [ITEM_ACTIONS_KEY] }),
+          queryClient.invalidateQueries({ queryKey: [POINTS_KEY] }),
+        ]);
+      try {
+        await setItemListingPreference(itemId, "POINTS", undefined, price);
+      } catch (err) {
+        await invalidate();
+        throw new Error(serverMessageOr(err, SAVE_FALLBACK));
+      }
+      await invalidate();
+      await reloadMyItems?.();
+    },
+    [queryClient, itemId, reloadMyItems],
+  );
+
   const saveDescription = useCallback(
     (text: string) =>
       mutateProduct((id) => updateProductDescription(id, text.trim() || null), SAVE_FALLBACK),
@@ -206,6 +229,7 @@ export function useItemEditing(
     saveNameCategory,
     saveCondition,
     saveLocation,
+    savePointsPrice,
     saveDescription,
     addPhoto,
     removePhoto,

@@ -72,6 +72,7 @@ function details(overrides: Partial<ItemDetailsResponse> = {}): ItemDetailsRespo
 function itemActions(overrides: Partial<ItemActionsResponse> = {}): ItemActionsResponse {
   return {
     mode: "GIFT",
+    points_price: null,
     visibility: null,
     available: true,
     reservation: null,

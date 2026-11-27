@@ -4,6 +4,7 @@ import { getInventoryItemBalance, getMyInventoryItems } from "../../api/inventor
 import { proposeItemSwap, takeItem, type ReservationContextRef } from "../../api/itemReservations";
 import { serverMessageOr } from "../../api/problem";
 import type { ListingMode } from "../../api/itemListingPreferences";
+import { POINTS_KEY } from "../../hooks/usePointsConfig";
 import { RESERVATION_STATE_KEYS } from "../../hooks/useReservationSettlement";
 import type { AvailableItem } from "./SwapProposeDialog";
 import { useAccountGate, type TermActionDeps } from "../auth/useAccountGate";
@@ -47,7 +48,11 @@ async function fetchMySwapItems(): Promise<AvailableItem[]> {
  * first `take(itemId, "SWAP", target)` opens the swap picker (`swap`), and
  * its `confirm` submits in that target. The viewer's swap items load lazily
  * on the first swap attempt. A term or event take opens `takeSuccess`; a
- * personal one only toasts, as it has no date or place to show.
+ * personal one only toasts, as it has no date or place to show. A POINTS
+ * take, like a SWAP, first opens its own step (`points`: the reservation
+ * sheet with the balance) in the chosen target; its `confirm` holds the
+ * price, and a refusal stays in the sheet as the server's message until
+ * `refresh` reloads the actions and the points.
  * `takenItemId` is the item of the last successful take (never a swap
  * proposal), cleared when the next take starts. */
 export function useItemTake({ isLoggedIn, refetch, showToast }: TermActionDeps) {
@@ -55,6 +60,8 @@ export function useItemTake({ isLoggedIn, refetch, showToast }: TermActionDeps) 
   const gate = useAccountGate(isLoggedIn);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
   const [swapPick, setSwapPick] = useState<{ itemId: string; target: TakeTarget } | null>(null);
+  const [pointsPick, setPointsPick] = useState<{ itemId: string; target: TakeTarget } | null>(null);
+  const [pointsError, setPointsError] = useState<string | null>(null);
   const [offeredItemId, setOfferedItemId] = useState<string | null>(null);
   const [myAvailableItems, setMyAvailableItems] = useState<AvailableItem[] | null>(null);
   const [takeSuccess, setTakeSuccess] = useState<{
@@ -76,9 +83,22 @@ export function useItemTake({ isLoggedIn, refetch, showToast }: TermActionDeps) 
     setOfferedItemId(null);
   }
 
-  async function refresh() {
-    await Promise.all(RESERVATION_STATE_KEYS.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
+  function closePointsSheet() {
+    setPointsPick(null);
+    setPointsError(null);
+  }
+
+  async function refresh(withPoints = false) {
+    const keys: readonly (readonly unknown[])[] = withPoints
+      ? [...RESERVATION_STATE_KEYS, [POINTS_KEY]]
+      : RESERVATION_STATE_KEYS;
+    await Promise.all(keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
     await refetch();
+  }
+
+  async function refreshPoints() {
+    setPointsError(null);
+    await refresh(true);
   }
 
   async function openSwapPicker(itemId: string, target: TakeTarget) {
@@ -106,22 +126,53 @@ export function useItemTake({ isLoggedIn, refetch, showToast }: TermActionDeps) 
     }
   }
 
+  function takeSucceeded(itemId: string, productName: string, target: TakeTarget) {
+    if (target.kind === "PERSONAL") showToast("Zarezerwowano!");
+    else setTakeSuccess({ itemId, itemName: productName, target });
+    setTakenItemId(itemId);
+  }
+
   async function performTake(itemId: string, reservationType: ListingMode, target: TakeTarget) {
     if (reservationType === "SWAP") {
       await openSwapPicker(itemId, target);
+      return;
+    }
+    if (reservationType === "POINTS") {
+      setPointsError(null);
+      setPointsPick({ itemId, target });
       return;
     }
     setBusyItemId(itemId);
     setTakenItemId(null);
     try {
       const taken = await takeItem(itemId, { context: contextRef(target), reservation_type: reservationType });
-      if (target.kind === "PERSONAL") showToast("Zarezerwowano!");
-      else setTakeSuccess({ itemId: taken.item_id, itemName: taken.product_name, target });
-      setTakenItemId(taken.item_id);
+      takeSucceeded(taken.item_id, taken.product_name, target);
       closeSwapPicker();
       await refresh();
     } catch (err) {
       showToast(serverMessageOr(err, "Nie udało się wziąć tej rzeczy"));
+    } finally {
+      setBusyItemId(null);
+    }
+  }
+
+  async function confirmPoints(itemId: string, pointsPrice: number) {
+    if (pointsPick === null || pointsPick.itemId !== itemId) return;
+    const { target } = pointsPick;
+    setBusyItemId(itemId);
+    setTakenItemId(null);
+    setPointsError(null);
+    try {
+      const taken = await takeItem(itemId, {
+        context: contextRef(target),
+        reservation_type: "POINTS",
+        points_price: pointsPrice,
+      });
+      closePointsSheet();
+      takeSucceeded(taken.item_id, taken.product_name, target);
+      await refresh(true);
+    } catch (err) {
+      setPointsError(serverMessageOr(err, "Nie udało się zarezerwować tej rzeczy"));
     } finally {
       setBusyItemId(null);
     }
@@ -143,6 +194,17 @@ export function useItemTake({ isLoggedIn, refetch, showToast }: TermActionDeps) 
       setOfferedItemId,
       confirm: (itemId: string) => void confirmSwap(itemId),
       cancel: closeSwapPicker,
+    },
+    points: {
+      /** The item whose points sheet is open, if any, and where it is picked up. */
+      itemId: pointsPick?.itemId ?? null,
+      target: pointsPick?.target ?? null,
+      /** The server's refusal of the last attempt, shown in the sheet. */
+      error: pointsError,
+      confirm: (itemId: string, pointsPrice: number) => void confirmPoints(itemId, pointsPrice),
+      /** Reloads the actions and the points, clearing the refusal. */
+      refresh: refreshPoints,
+      cancel: closePointsSheet,
     },
   };
 }

@@ -47,7 +47,7 @@ SUGGESTION_KEYS = {
     "reserved_by_me",
     "proposed_by_me",
 }
-META_KEYS = {"mode", "condition", "thumb_url", "reserved", "reserved_until"}
+META_KEYS = {"mode", "points_price", "condition", "thumb_url", "reserved", "reserved_until"}
 MATCH_NOT_FOUND_MESSAGE = "Nie znaleziono dopasowania."
 
 
@@ -142,6 +142,7 @@ async def test_listMatches_storedMatch_returnsExactCardKeySet_foreignOrWithdrawn
         "href": f"/{owner_party}/product/{sledge}",
         "meta": {
             "mode": "GIFT",
+            "points_price": None,
             "condition": "GOOD",
             "thumb_url": None,
             "reserved": False,
@@ -524,6 +525,7 @@ async def test_listSuggestions_suggestionPairs_exactKeySetBestTenAndApartFromMat
         "href": f"/{owner_party}/product/{suggested[11]}",
         "meta": {
             "mode": "GIFT",
+            "points_price": None,
             "condition": "GOOD",
             "thumb_url": None,
             "reserved": False,

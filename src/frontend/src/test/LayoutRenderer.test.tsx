@@ -325,7 +325,7 @@ describe("LayoutRenderer", () => {
   });
 
   it("shows the SCHEDULE item stats as two linked mode tiles", () => {
-    renderLayout("SCHEDULE", pageData(scheduleLayout({ item_stats: { GIFT: 3, SWAP: 1 } })));
+    renderLayout("SCHEDULE", pageData(scheduleLayout({ item_stats: { GIFT: 3, SWAP: 1, POINTS: 0 } })));
 
     expect(screen.getByRole("heading", { name: "Wymiana rzeczy" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "3 Chcę oddać" })).toHaveAttribute("href", `/${SLUG}/items`);

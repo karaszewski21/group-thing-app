@@ -13,6 +13,7 @@ export function SimilarCard({ similar, onOpen }: { similar: WantSimilarResponse;
         condition={similar.meta.condition}
         thumbUrl={similar.meta.thumb_url}
         mode={similar.meta.mode}
+        pointsPrice={similar.meta.points_price}
         reservation={null}
         reservedCaption={reservedCaption(similar)}
         onOpen={onOpen}

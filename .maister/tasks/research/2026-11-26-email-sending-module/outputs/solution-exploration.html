@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eksploracja rozwiązań — moduł wysyłki e-maili</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+/* extensions */
+.alts { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px; }
+.alt { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; font-size:13px; }
+.alt.rec { border:2px solid var(--accent); }
+.alt h4 { margin:0 0 6px; font-size:13.5px; }
+.alt p { margin:4px 0; }
+.alt .k { font-weight:600; color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+.area { margin-top:30px; }
+.recbox { background:var(--accent-soft); border-radius:var(--radius); padding:10px 14px; margin:10px 0; }
+.wrap { overflow-x:auto; }
+.tldr ul { margin:6px 0; padding-left:20px; }
+.hi { color:var(--ok); font-weight:600; } .mid { color:var(--warn); font-weight:600; } .lo { color:var(--crit); font-weight:600; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="research-report.html">Report</a>
+  <span class="here">Exploration</span>
+  <a href="high-level-design.html">Design</a>
+  <a href="decision-log.html">Decision Log</a>
+  <a href="solution-exploration.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">solution exploration</span>
+  <h1>Eksploracja rozwiązań — moduł wysyłki e-maili w aj</h1>
+  <div style="color:var(--dim);font-size:12.5px">Wygenerowano 2026-11-26 · <a href="solution-exploration.md" target="_blank" rel="noopener">solution-exploration.md</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>8</b><span>obszarów decyzyjnych</span></div>
+  <div class="tile"><b>32</b><span>alternatywy</span></div>
+  <div class="tile"><b>8</b><span>pytań HMW</span></div>
+  <div class="tile"><b>13</b><span>pomysłów odłożonych</span></div>
+  <div class="tile"><b>śr.-wysoka</b><span>pewność</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul>
+    <li>8 obszarów decyzyjnych, 32 alternatywy (po 4 na obszar). Siedem tematów, w których badanie daje już jasną odpowiedź (port i adapter, tokeny, sekret wypisu, strony z maila, bazowy URL, DNS, brak wysyłki w requeście), opisano tylko jako ustalone założenia.</li>
+    <li>Rekomendowany zestaw: <b>Mailgun EU</b> (Resend przy miękkiej rezydencji) · <b>hook w <code>notifications.service</code> + własna kolejka <code>email_messages</code> w tej samej transakcji + job <code>_run_email_send</code></b> · <b>opt-out per kategoria, domyślnie włączone po weryfikacji</b> · <b>weryfikacja jako warunek dla P/D, backfill kont Google, baner zamiast masowej wysyłki</b> · <b>Organization = SKIPPED w MVP, reset dla kont tylko-Google jako „ustaw hasło”</b> · <b>Jinja2 w repo</b> · <b>natychmiast + klucze throttlingu + cisza nocna, bez digestów w MVP</b> · <b>webhook tylko dla twardych bounce i skarg</b>.</li>
+    <li>Pewność ogólna: średnio-wysoka. Najsłabsze ogniwa to rezydencja danych (decyzja właściciela) i domyślny stan kategorii (prawo, pewność średnia).</li>
+  </ul>
+  <h2>Key Decisions</h2>
+  <ul>
+    <li>Dostawca: Mailgun EU, a Resend tylko przy świadomie miękkiej rezydencji — dane wiadomości, logi i suppression Mailgun EU zostają w regionie. Brak natywnej idempotencji kompensuje klucz w <code>email_messages</code>.</li>
+    <li>Punkt wpięcia: bezpośredni INSERT do <code>email_messages</code> w <code>create_notification(s)</code>, bez przeskoku przez <code>outbox_entries</code> — rekord kolejki zapisany w transakcji domeny sam jest transactional outboxem. Dispatcher nie ma backoffu i powtarza wszystkie handlery wpisu.</li>
+    <li>Zgoda i preferencje: mail serwisowy bez zgody z PKE, opt-out per kategoria, domyślnie włączone po weryfikacji adresu (poza podsumowaniami organizatora) — art. 398 PKE dotyczy informacji handlowej, a zgoda wpleciona w rejestrację byłaby niedobrowolna.</li>
+    <li>Weryfikacja: wymagana dla P i D, backfill <code>email_verified_at</code> z tożsamości Google, istniejące konta z hasłem zachęcane banerem w panelu — bez masowej wysyłki na start (warm-up).</li>
+    <li>Odbiorca Organization: SKIPPED z <code>skip_reason</code> w MVP — reguła „założyciel/liderzy” wymaga osobnej decyzji produktowej i prześledzenia <code>owner_party_id</code>.</li>
+    <li>Reset dla konta tylko-Google: pozwolić ustawić pierwsze hasło linkiem z maila — zamyka zaakceptowane ryzyko braku odzyskiwania. Kontrola nad skrzynką i tak daje dziś kontrolę nad kontem Google.</li>
+    <li>Szablony: Jinja2 (<code>select_autoescape</code>, <code>StrictUndefined</code>) w repo, pary <code>html.j2</code>/<code>txt.j2</code> — teksty PL przechodzą code review, a zmiana dostawcy to tylko nowy adapter.</li>
+    <li>Batching: wysyłka natychmiastowa z kluczami throttlingu (<code>want_match:&lt;want&gt;:&lt;dzień&gt;</code>) i ciszą nocną 22–07, bez digestów w MVP — wszystkie rodzaje z MVP wymagają reakcji albo zmieniają zobowiązanie, a <code>send_after</code> zostawia drogę do koalescencji później.</li>
+    <li>Webhooki w MVP: tylko <code>failed</code>/permanent i <code>complained</code> (HMAC) zasilające <code>email_suppressions</code>, bez śledzenia <code>delivered</code> — to minimum potrzebne do ochrony reputacji. Status dostarczenia nie zmienia żadnej decyzji w aplikacji.</li>
+  </ul>
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li><span class="sev critical">critical</span>Twarda czy miękka rezydencja danych w UE (R1). Od niej zależy wybór Mailgun EU lub Resend. Przy wymogu „dostawca z UE” w grę wchodzą Brevo albo Scaleway, z niezweryfikowanymi cenami i webhookami.</li>
+    <li><span class="sev warning">warning</span>Domyślne włączenie kategorii (zwłaszcza „Szukam”/MATCH, szara strefa prawna). Jeśli prawnik oceni MATCH jako bliższe marketingowi, kategoria „Szukam” przechodzi na opt-in (alternatywa 3D).</li>
+    <li><span class="sev warning">warning</span>Okno duplikatu na Mailgun (crash między 2xx a commitem). Akceptowane dla P, a dla T zamieniane na FAILED. Jeśli okaże się nieakceptowalne, to argument za Resend (<code>Idempotency-Key</code>).</li>
+    <li><span class="sev info">info</span>Darmowy limit Mailgun 100 dziennie. <code>EMAIL_DAILY_CAP</code> może przy większej grupie zacząć odrzucać (SKIPPED) powiadomienia. Wtedy plan Basic ($15).</li>
+    <li><span class="sev warning">warning</span>Rzeczy należące do Organization (<code>owner_party_id</code>) nie dostaną maila o przejęciu lub propozycji. To realna luka, jeśli organizacje wystawiają dużo rzeczy.</li>
+    <li><span class="sev critical">critical</span>Polityka prywatności (D14) jest warunkiem wstępnym każdego wariantu. Przy Resend musi wskazać transfer do USA.</li>
+    <li><span class="sev info">info</span><code>WANT_EXPIRING</code> ignoruje <code>wants.notifications_enabled</code>. Mail powinien respektować wyciszenie (rekomendacja), ale to rozjazd z bell.</li>
+  </ul>
+</section>
+
+<nav class="toc" style="font-size:13px">Spis treści: <a href="#reframe">Przeformułowanie</a> · <a href="#d1">D1</a> · <a href="#d2">D2</a> · <a href="#d3">D3</a> · <a href="#d4">D4</a> · <a href="#d5">D5</a> · <a href="#d6">D6</a> · <a href="#d7">D7</a> · <a href="#d8">D8</a> · <a href="#matrix">Zbiorcza macierz</a> · <a href="#rec">Rekomendacja</a> · <a href="#whynot">Dlaczego nie</a> · <a href="#scope">Zakres i odłożone</a></nav>
+
+<main>
+<h2 id="reframe">1. Przeformułowanie problemu</h2>
+<div class="card"><b>Pytanie badawcze:</b> Jak wdrożyć moduł wysyłki e-maili w aj (FastAPI + Next.js) z użyciem zewnętrznego dostawcy i w jakich momentach aplikacji maile powinny być wysyłane?</div>
+<div class="card wrap"><table>
+<tr><th>#</th><th>HMW</th><th>Obszar</th><th>Źródło</th></tr>
+<tr><td>H1</td><td>Jak moglibyśmy wybrać dostawcę, który spełnia RODO i nie dokłada pracy jednemu operatorowi?</td><td>D1</td><td>F9, raport §5</td></tr>
+<tr><td>H2</td><td>Jak moglibyśmy dowiedzieć się o każdym powiadomieniu bez zmian w domenach i bez dublowania bell przy awarii dostawcy?</td><td>D2</td><td>F1, F2, Insight 1–2</td></tr>
+<tr><td>H3</td><td>Jak moglibyśmy wysyłać powiadomienia, które ludzie chcą dostawać, zgodnie z PKE/RODO i bez zgody wymuszonej przy rejestracji?</td><td>D3</td><td>F11, raport §9</td></tr>
+<tr><td>H4</td><td>Jak moglibyśmy mieć pewne adresy, nie blokując istniejących użytkowników i nie psując reputacji nowej subdomeny?</td><td>D4</td><td>F3, F10, Insight 4</td></tr>
+<tr><td>H5</td><td>Jak moglibyśmy ustalić adresata, gdy party nie ma adresu (Organization, dziecko) albo nie ma hasła (konto tylko-Google)?</td><td>D5</td><td>F4, Insight 5</td></tr>
+<tr><td>H6</td><td>Jak moglibyśmy utrzymywać polskie szablony bezpiecznie (escaping), testowalnie i niezależnie od dostawcy?</td><td>D6</td><td>F12</td></tr>
+<tr><td>H7</td><td>Jak moglibyśmy nie zasypać ludzi mailami (MATCH co 60 s, noc), nie opóźniając rzeczy pilnych?</td><td>D7</td><td>F8, F12</td></tr>
+<tr><td>H8</td><td>Jak moglibyśmy chronić reputację nadawcy (bounce, skargi) najmniejszym możliwym kodem?</td><td>D8</td><td>F10, raport §6.3</td></tr>
+</table></div>
+<details class="card"><summary>Obszary scalone lub pominięte (odpowiedź wynika z badania)</summary>
+<table>
+<tr><th>Temat</th><th>Przyjęte założenie</th><th>Dlaczego bez alternatyw</th></tr>
+<tr><td>Port i adapter</td><td><code>EmailSender</code> (Protocol) + <code>set_sender()</code> w lifespanie; adapter HTTP przez <code>httpx</code>, bez SDK; <code>SmtpSender</code> tylko dla dev (Mailpit), <code>LogSender</code>, <code>FakeEmailSender</code> w testach</td><td>Trzy działające precedensy. ADR-009 potwierdzony (F5, F6)</td></tr>
+<tr><td>Tokeny weryfikacji i resetu</td><td>Losowe, jednorazowe, hashowane w DB, <code>expires_at</code>/<code>used_at</code>. Nie JWT</td><td>JWT nie da się unieważnić</td></tr>
+<tr><td>Token wypisu</td><td>HMAC osobnym <code>EMAIL_LINK_SIGNING_SECRET</code></td><td>Rotacja <code>JWT_SECRET</code> zepsułaby linki w starych mailach</td></tr>
+<tr><td>Wysyłka w requeście</td><td>Nigdy</td><td>ADR-009 i standard (R8)</td></tr>
+<tr><td>Strony z maila</td><td><code>/verify-email</code>, <code>/reset-password</code>, <code>/unsubscribe</code> w obu listach reserved slugs, poza <code>PROTECTED_PREFIXES</code>; GET bez efektów, akcja przez POST</td><td>F13, skanery linków</td></tr>
+<tr><td>Bazowy URL</td><td><code>APP_PUBLIC_BASE_URL</code></td><td>F14. Job w tle nie ma requestu</td></tr>
+<tr><td>DNS</td><td>Subdomena <code>mail.&lt;domena&gt;</code>, SPF + DKIM 2048 + DMARC <code>none → quarantine → reject</code>, bez trackingu</td><td>Raport §10, pewność wysoka</td></tr>
+</table></details>
+
+<p style="color:var(--dim);font-size:12.5px">Skala ocen: wysoka / średnia / niska. Przy „Ryzyku” wysoka = źle. Karta z ramką = rekomendacja.</p>
+
+<!-- D1 -->
+<section class="area" id="d1"><h2>D1. Dostawca</h2>
+<div class="alts">
+<div class="alt rec"><h4>1A — Mailgun (region EU) <span class="badge">rekomendacja</span></h4>
+<p>HTTP API <code>api.eu.mailgun.net</code> (POST form przez <code>httpx</code>), domena w regionie EU, webhooki HMAC-SHA256, API suppression. $0 (100/dzień), $15 (10k), $35 (50k).</p>
+<p><span class="k">Mocne</span> wiadomości, logi i suppression w regionie; najwyższy wynik (81/100); dojrzałe webhooki z ochroną przed replay; liniowy cennik.</p>
+<p><span class="k">Słabe</span> brak natywnej idempotencji; logi 1–5 dni; karta przy własnej domenie; spółka z USA (Sinch), teoretyczny CLOUD Act; DPA nieprzeczytane.</p>
+<p><span class="k">Najlepsza gdy</span> rezydencja w UE jest twarda.</p>
+<p><span class="k">Dowody</span> raport §5.2–5.3, F9.</p></div>
+<div class="alt"><h4>1B — Resend</h4>
+<p>HTTP API z Bearer, <code>Idempotency-Key</code> (24 h), webhooki Svix. Wysyłka z eu-west-1, metadane i logi w USA (DPA + SCC + DPF). $20 do 50k.</p>
+<p><span class="k">Mocne</span> natywna idempotencja; najlepszy DX; samoobsługowa rejestracja; płaski plan do 50k.</p>
+<p><span class="k">Słabe</span> transfer poza UE w polityce prywatności; darmowy plan 100/dzień, 3000/mies.; zależność od DPF.</p>
+<p><span class="k">Najlepsza gdy</span> rezydencja miękka, liczy się prostota.</p>
+<p><span class="k">Dowody</span> raport §5.4, F9.</p></div>
+<div class="alt"><h4>1C — Brevo</h4>
+<p>Dostawca z UE (FR), OVH/GCP w UE, idempotencja 30 min, 300/dzień za darmo.</p>
+<p><span class="k">Mocne</span> dostawca europejski; najwyższy darmowy limit dzienny; idempotencja.</p>
+<p><span class="k">Słabe</span> cennik, podpis webhooków i ścieżka transakcyjna niezweryfikowane; platforma marketingowa.</p>
+<p><span class="k">Najlepsza gdy</span> wymagany dostawca z siedzibą w UE, po weryfikacji podprocesorów.</p>
+<p><span class="k">Dowody</span> raport §5.2 (80/100), §3.2 pkt 5.</p></div>
+<div class="alt"><h4>1D — Scaleway TEM</h4>
+<p>Suwerenny, tylko fr-par, bez podprocesorów spoza UE. ~€2.4 (10k), ~€12.4 (50k).</p>
+<p><span class="k">Mocne</span> najsilniejsza rezydencja; najtańszy przy wzroście.</p>
+<p><span class="k">Słabe</span> webhooki w becie przez SNS (odpytywanie); 300/mies. za darmo; brak idempotencji.</p>
+<p><span class="k">Najlepsza gdy</span> suwerenność jest wymogiem, a odpytywanie jest akceptowalne.</p>
+<p><span class="k">Dowody</span> raport §5.2 (72/100), §5.4.</p></div>
+</div>
+<div class="card wrap"><table>
+<tr><th>Perspektywa</th><th>1A Mailgun EU</th><th>1B Resend</th><th>1C Brevo</th><th>1D Scaleway</th></tr>
+<tr><td>Wykonalność</td><td class="hi">wysoka</td><td class="hi">wysoka</td><td class="mid">średnia</td><td class="mid">średnia</td></tr>
+<tr><td>Wpływ na użytk.</td><td class="hi">wysoki (EU)</td><td class="mid">średni (transfer US)</td><td class="hi">wysoki</td><td class="hi">wysoki</td></tr>
+<tr><td>Prostota</td><td class="mid">średnia (dedupe w aplikacji)</td><td class="hi">wysoka</td><td class="mid">średnia</td><td class="lo">niska</td></tr>
+<tr><td>Ryzyko</td><td class="hi">niskie–średnie (duplikaty)</td><td class="mid">średnie (DPF)</td><td class="mid">średnie</td><td class="mid">średnie (beta)</td></tr>
+<tr><td>Skalowalność</td><td class="hi">wysoka</td><td class="hi">wysoka</td><td class="mid">niezweryfikowana</td><td class="hi">wysoka</td></tr>
+</table></div>
+<div class="recbox"><b>Rekomendacja D1:</b> 1A Mailgun EU, warunkowo. Przy miękkiej rezydencji 1B. Adapter za portem, więc zmiana to jeden plik plus DNS. <b>Co odwróci:</b> SCC/DPF wystarczające → 1B; wymagany dostawca z UE → 1C po weryfikacji; okno duplikatu nieakceptowalne → 1B.</div>
+</section>
+
+<!-- D2 -->
+<section class="area" id="d2"><h2>D2. Punkt wpięcia i kształt kolejki</h2>
+<div class="alts">
+<div class="alt rec"><h4>2A — Hook w <code>notifications.service</code> + INSERT do <code>email_messages</code> + job <span class="badge">rekomendacja</span></h4>
+<p><code>create_notification(s)</code> wywołuje <code>email_acl.enqueue_for_notifications</code>: <code>INSERT … ON CONFLICT (idempotency_key) DO NOTHING</code> w tej samej transakcji. Maile auth przez ACL z <code>users</code>/<code>auth</code>. <code>_run_email_send</code> (~1 min, <code>SKIP LOCKED</code>) z późnym wiązaniem i backoffem.</p>
+<p><span class="k">Mocne</span> 13/13 rodzajów bez zmian w domenach; 2 przeskoki; backoff, <code>send_after</code>, throttling przez klucz; awaria dostawcy nie dotyka bell.</p>
+<p><span class="k">Słabe</span> nowa tabela i job; <code>notifications</code> wywołuje moduł e-mail synchronicznie; okno duplikatu na Mailgun.</p>
+<p><span class="k">Najlepsza gdy</span> pełne pokrycie i kontrola czasu przy minimum przeskoków.</p>
+<p><span class="k">Dowody</span> Insight 1–2, raport §6.3–6.5, synteza §3.2 pkt 6.</p></div>
+<div class="alt"><h4>2B — Przez <code>outbox_entries</code> → handler INSERT → job</h4>
+<p><code>outbox.append("email.notification_requested")</code>; jedyny handler w <code>begin_nested()</code> wstawia <code>email_messages</code>. HTTP tylko w jobie.</p>
+<p><span class="k">Mocne</span> jedna ścieżka asynchroniczności; <code>notifications</code> nie zna tabel e-mail; błąd e-mail nie blokuje bell.</p>
+<p><span class="k">Słabe</span> trzeci przeskok (+do 60 s); wzrost outboxa bez purge; ryzyko przejęcia <code>email.*</code> przez poller filtrów; więcej kodu.</p>
+<p><span class="k">Najlepsza gdy</span> cała asynchroniczność ma iść przez outbox.</p>
+<p><span class="k">Dowody</span> raport §6.9, F1.</p></div>
+<div class="alt"><h4>2C — Handler outboxa wywołujący dostawcę (ADR-009)</h4>
+<p>Dodatkowy handler na istniejących typach zdarzeń wysyła mail przez HTTP, dedupe <code>(outbox entry, recipient)</code>.</p>
+<p><span class="k">Mocne</span> najmniej nowych tabel; zgodność z ADR.</p>
+<p><span class="k">Słabe</span> 4/13 rodzajów; błąd dostawcy dubluje bell; FAILED po ~5 min; brak opóźnień i ciszy nocnej.</p>
+<p><span class="k">Najlepsza gdy</span> wszystkie bell szłyby przez outbox z backoffem — dziś niespełnione.</p>
+<p><span class="k">Dowody</span> F1, F2, F6.</p></div>
+<div class="alt"><h4>2D — Sweeper czytający <code>notifications</code></h4>
+<p>Job co minutę czyta wiersze nowsze niż znacznik (wzór okna matchera) i wstawia <code>email_messages</code>. Auth osobno.</p>
+<p><span class="k">Mocne</span> zero zmian w <code>notifications.service</code>; naturalna koalescencja; luźne powiązanie.</p>
+<p><span class="k">Słabe</span> znacznik i wyścigi commitów; zwinięte/usunięte bell mogą zniknąć przed skanem; trzeci mechanizm; trudniejsze testy.</p>
+<p><span class="k">Najlepsza gdy</span> <code>notifications.service</code> jest nietykalny.</p>
+<p><span class="k">Dowody</span> wzór matchera, <code>match_notifications.py:162-170</code>.</p></div>
+</div>
+<div class="card wrap"><table>
+<tr><th>Perspektywa</th><th>2A</th><th>2B</th><th>2C</th><th>2D</th></tr>
+<tr><td>Wykonalność</td><td class="hi">wysoka</td><td class="hi">wysoka</td><td class="mid">wysoka, niepełna</td><td class="mid">średnia</td></tr>
+<tr><td>Wpływ na użytk.</td><td class="hi">wysoki</td><td class="hi">wysoki (+60 s)</td><td class="lo">niski (4/13, duplikaty)</td><td class="mid">średni</td></tr>
+<tr><td>Prostota</td><td class="hi">wysoka</td><td class="mid">średnia</td><td class="lo">wysoka lokalnie, niska systemowo</td><td class="mid">średnia</td></tr>
+<tr><td>Ryzyko</td><td class="hi">niskie</td><td class="hi">niskie–średnie</td><td class="lo">wysokie</td><td class="mid">średnie</td></tr>
+<tr><td>Skalowalność</td><td class="hi">wysoka</td><td class="mid">średnia</td><td class="lo">niska</td><td class="mid">średnia</td></tr>
+</table></div>
+<div class="recbox"><b>Rekomendacja D2:</b> 2A. INSERT w <code>email_acl</code> jako jedno zapytanie bez odczytu adresu i preferencji, pokryte testem. <b>Co odwróci:</b> zapis bell odporny na każdą awarię e-mail → 2B; zakaz zmian w <code>notifications.service</code> → 2D.</div>
+</section>
+
+<!-- D3 -->
+<section class="area" id="d3"><h2>D3. Model zgody i preferencji</h2>
+<div class="alts">
+<div class="alt rec"><h4>3A — Opt-out per kategoria, domyślnie włączone po weryfikacji <span class="badge">rekomendacja</span></h4>
+<p><code>email_preferences(party_id, category, enabled)</code> + „wszystkie”. Kategorie: Rezerwacje, Spotkania, Szukam, Wiadomości (później), Podsumowania organizatora (wył.), Transakcyjne (bez wyłączania). List-Unsubscribe na P i D.</p>
+<p><span class="k">Mocne</span> maile docierają; zgodne z 6(1)(b) i art. 398 PKE w interpretacji badania; brak wymuszonej zgody (art. 7(4)); prosty model.</p>
+<p><span class="k">Słabe</span> pewność prawna średnia; MATCH szara strefa; ryzyko skarg.</p>
+<p><span class="k">Najlepsza gdy</span> prawnik akceptuje kwalifikację „serwisowe”.</p>
+<p><span class="k">Dowody</span> F11, raport §9.1–9.4.</p></div>
+<div class="alt"><h4>3B — Opt-in per kategoria (ADR-009)</h4>
+<p>Domyślnie wyłączone, włączenie zapisuje <code>email_consent_at</code> (i wersję tekstu).</p>
+<p><span class="k">Mocne</span> najniższe ryzyko prawne; zero skarg; łagodny warm-up.</p>
+<p><span class="k">Słabe</span> mało kto włączy; traktuje serwis jak marketing; więcej UI.</p>
+<p><span class="k">Najlepsza gdy</span> prawnik wymaga zgody.</p>
+<p><span class="k">Dowody</span> ADR-009, raport §6.1.</p></div>
+<div class="alt"><h4>3C — Jeden globalny przełącznik</h4>
+<p>Jedna flaga (domyślnie wł. po weryfikacji) + istniejące <code>wants.notifications_enabled</code>.</p>
+<p><span class="k">Mocne</span> najmniej kodu i UI; jeden token wypisu.</p>
+<p><span class="k">Słabe</span> wypis z MATCH wyłącza rezerwacje; trudno później dodać kategorie.</p>
+<p><span class="k">Najlepsza gdy</span> MVP ma jedną kategorię.</p>
+<p><span class="k">Dowody</span> minimal-implementation, <code>WantNotificationToggle.tsx:40</code>.</p></div>
+<div class="alt"><h4>3D — Hybryda: domyślnie tylko kategorie wymagające reakcji</h4>
+<p>Rezerwacje i Spotkania domyślnie wł.; Szukam i Wiadomości opt-in z jawnym przełącznikiem.</p>
+<p><span class="k">Mocne</span> szara strefa MATCH poza domyślną wysyłką; wartość wymian zachowana; mniejszy wolumen.</p>
+<p><span class="k">Słabe</span> MATCH tylko do zainteresowanych; dwa rodzaje domyślnych wartości.</p>
+<p><span class="k">Najlepsza gdy</span> prawnik ma wątpliwości tylko co do MATCH.</p>
+<p><span class="k">Dowody</span> raport §9.4.</p></div>
+</div>
+<div class="card wrap"><table>
+<tr><th>Perspektywa</th><th>3A</th><th>3B</th><th>3C</th><th>3D</th></tr>
+<tr><td>Wykonalność</td><td class="hi">wysoka</td><td class="hi">wysoka</td><td class="hi">wysoka</td><td class="hi">wysoka</td></tr>
+<tr><td>Wpływ na użytk.</td><td class="hi">wysoki</td><td class="lo">niski</td><td class="mid">średni</td><td class="hi">wysoki–średni</td></tr>
+<tr><td>Prostota</td><td class="mid">średnia</td><td class="mid">średnia (+zgody)</td><td class="hi">wysoka</td><td class="mid">średnia</td></tr>
+<tr><td>Ryzyko</td><td class="mid">średnie (prawo)</td><td class="hi">niskie</td><td class="mid">średnie</td><td class="hi">niskie–średnie</td></tr>
+<tr><td>Skalowalność</td><td class="hi">wysoka</td><td class="hi">wysoka</td><td class="lo">niska</td><td class="hi">wysoka</td></tr>
+</table></div>
+<div class="recbox"><b>Rekomendacja D3:</b> 3A, z gotowością przejścia na 3D tylko dla „Szukam” (stała domyślna w <code>rules.py</code>). <b>Co odwróci:</b> opinia, że powiadomienia wymagają zgody → 3B; MATCH oceniony jako marketing → 3D.</div>
+</section>
+
+<!-- D4 -->
+<section class="area" id="d4"><h2>D4. Weryfikacja adresu i wdrożenie dla istniejących kont</h2>
+<div class="alts">
+<div class="alt rec"><h4>4A — Wymagana dla P/D, backfill Google, baner <span class="badge">rekomendacja</span></h4>
+<p><code>user_profiles.email_verified_at</code>; backfill z tożsamości Google <code>email_verified=true</code> i zgodnego adresu (<code>lower</code>). Konta z hasłem: A1 przy rejestracji + baner z przyciskiem w panelu i <code>/settings</code>. T (reset) niezależnie od weryfikacji.</p>
+<p><span class="k">Mocne</span> nikt nie jest blokowany; organiczny warm-up; zgodne z ADR-009; odblokowuje D8.</p>
+<p><span class="k">Słabe</span> część kont nigdy nie zweryfikuje; konta Google dostają maile bez akcji (ogłosić w aplikacji).</p>
+<p><span class="k">Najlepsza gdy</span> istniejąca baza i nowa subdomena.</p>
+<p><span class="k">Dowody</span> Insight 4, raport §8, F10.</p></div>
+<div class="alt"><h4>4B — Twarda bramka</h4>
+<p>Panel dopiero po kliknięciu linku; istniejące konta z hasłem weryfikują przy logowaniu.</p>
+<p><span class="k">Mocne</span> 100% zweryfikowanych; mniej fałszywych kont.</p>
+<p><span class="k">Słabe</span> tarcie i blokada; rejestracja zależna od dostarczalności; poza zakresem; dotyka <code>AuthGuard</code>, proxy i sesji.</p>
+<p><span class="k">Najlepsza gdy</span> spam-konta są problemem.</p>
+<p><span class="k">Dowody</span> F3, F13.</p></div>
+<div class="alt"><h4>4C — Kampania weryfikacyjna</h4>
+<p>Jak 4A + w dniu startu mail weryfikacyjny do każdego konta z hasłem i adresem.</p>
+<p><span class="k">Mocne</span> szybko podnosi odsetek zweryfikowanych.</p>
+<p><span class="k">Słabe</span> masowa wysyłka z zimnej subdomeny; bounce z adresów „jak wpisano”; limit 100/dzień; mail niezamówiony.</p>
+<p><span class="k">Najlepsza gdy</span> baza bardzo mała, adresy dobre.</p>
+<p><span class="k">Dowody</span> raport §10, F4.</p></div>
+<div class="alt"><h4>4D — Weryfikacja „w locie”</h4>
+<p>P na niezweryfikowane adresy, w mailu link „to mój adres”, bounce/skarga = zły adres.</p>
+<p><span class="k">Mocne</span> najszybsza wartość; najmniej flow.</p>
+<p><span class="k">Słabe</span> maile do cudzych adresów (RODO, skargi); łamie ADR-009; blokuje D8.</p>
+<p><span class="k">Najlepsza gdy</span> nigdy w tym projekcie (porównanie).</p>
+<p><span class="k">Dowody</span> ADR-005 Google, F3.</p></div>
+</div>
+<div class="card wrap"><table>
+<tr><th>Perspektywa</th><th>4A</th><th>4B</th><th>4C</th><th>4D</th></tr>
+<tr><td>Wykonalność</td><td class="hi">wysoka</td><td class="mid">średnia</td><td class="hi">wysoka</td><td class="hi">wysoka</td></tr>
+<tr><td>Wpływ na użytk.</td><td class="hi">wysoki</td><td class="lo">niski</td><td class="mid">średni</td><td class="mid">średni</td></tr>
+<tr><td>Prostota</td><td class="hi">wysoka</td><td class="lo">niska</td><td class="mid">średnia</td><td class="hi">wysoka</td></tr>
+<tr><td>Ryzyko</td><td class="hi">niskie</td><td class="lo">wysokie</td><td class="lo">średnie–wysokie</td><td class="lo">wysokie</td></tr>
+<tr><td>Skalowalność</td><td class="hi">wysoka</td><td class="mid">średnia</td><td class="lo">niska</td><td class="lo">niska</td></tr>
+</table></div>
+<div class="recbox"><b>Rekomendacja D4:</b> 4A. <b>Co odwróci:</b> spam-konta → 4B tylko dla nowych rejestracji; bardzo mała baza z dobrymi adresami → jednorazowe 4C rozłożone na tydzień, po fazie maili transakcyjnych.</div>
+</section>
+
+<!-- D5 -->
+<section class="area" id="d5"><h2>D5. Rozwiązanie odbiorcy (Organization, rodzina, konto tylko-Google)</h2>
+<div class="alts">
+<div class="alt rec"><h4>5A — SKIPPED bez własnego zweryfikowanego adresu <span class="badge">rekomendacja</span></h4>
+<p>Odbiorca = party bella. Organization, dziecko, gość RSVP, adres niezweryfikowany → <code>SKIPPED</code> z <code>skip_reason</code> (<code>no_address</code>, <code>unverified</code>, <code>organization</code>). Bell zostaje.</p>
+<p><span class="k">Mocne</span> zero nowych reguł; nigdy do niewłaściwej osoby; pomiar luki.</p>
+<p><span class="k">Słabe</span> właściciele rzeczy organizacji bez maili.</p>
+<p><span class="k">Najlepsza gdy</span> udział rzeczy organizacji mały lub nieznany.</p>
+<p><span class="k">Dowody</span> F4, raport §8, <code>codebase-infra-users-config.md:15</code>.</p></div>
+<div class="alt"><h4>5B — Organization → aktywni liderzy</h4>
+<p>ACL zwraca zweryfikowane adresy liderów, klucz <code>notification:&lt;id&gt;:&lt;party_lidera&gt;</code>.</p>
+<p><span class="k">Mocne</span> zamyka lukę; trafia do tych, którzy wydają rzeczy.</p>
+<p><span class="k">Słabe</span> reguła nieprześledzona; fan-out; osobne wyłączanie maili organizacji.</p>
+<p><span class="k">Najlepsza gdy</span> wielu współprowadzących i dużo rzeczy.</p>
+<p><span class="k">Dowody</span> raport §14.2, <code>membership.py</code>.</p></div>
+<div class="alt"><h4>5C — Organization → założyciel</h4>
+<p>Jeden odbiorca, założyciel organizacji.</p>
+<p><span class="k">Mocne</span> reguła 1:1, bez fan-outu.</p>
+<p><span class="k">Słabe</span> założyciel może nie prowadzić już organizacji; trzeba sprawdzić, czy jest trwale zapisany.</p>
+<p><span class="k">Najlepsza gdy</span> organizacje są jednoosobowe.</p>
+<p><span class="k">Dowody</span> <code>organizations/service.py:155</code>.</p></div>
+<div class="alt"><h4>5D — Własny adres kontaktowy organizacji</h4>
+<p>Nowe pole adresu (z weryfikacją) w profilu organizacji.</p>
+<p><span class="k">Mocne</span> czytelne, oddzielone od osób; skrzynka zespołu.</p>
+<p><span class="k">Słabe</span> nowe pole, flow i UI; rozszerza zakres; dwa źródła adresu.</p>
+<p><span class="k">Najlepsza gdy</span> organizacje to instytucje z biurem.</p>
+<p><span class="k">Dowody</span> wniosek z F4.</p></div>
+</div>
+<div class="card">
+<p><b>Podpytanie: rodzina.</b> (i) SKIPPED; (ii) przekierowanie do opiekuna <code>is_primary_contact</code>. <b>Rekomendacja:</b> (i) w MVP, (ii) przy pierwszym triggerze o dziecku.</p>
+<p><b>Podpytanie: reset dla konta tylko-Google.</b> (i) ustawienie pierwszego hasła linkiem (D4); (ii) neutralna odpowiedź bez maila; (iii) mail informacyjny bez linku. <b>Rekomendacja:</b> (i), z tekstem wspominającym logowanie przez Google; API zawsze neutralne (202). Kontrola nad skrzynką i tak daje kontrolę nad kontem Google, a (i) zamyka ryzyko braku odzyskiwania. <b>Co odwróci:</b> konta Google mają pozostać wyłącznie Google → (iii).</p>
+</div>
+<div class="card wrap"><table>
+<tr><th>Perspektywa</th><th>5A</th><th>5B</th><th>5C</th><th>5D</th></tr>
+<tr><td>Wykonalność</td><td class="hi">wysoka</td><td class="mid">średnia</td><td class="mid">średnia</td><td class="mid">średnia</td></tr>
+<tr><td>Wpływ na użytk.</td><td class="mid">średni (luka)</td><td class="hi">wysoki</td><td class="mid">średni</td><td class="hi">wysoki</td></tr>
+<tr><td>Prostota</td><td class="hi">wysoka</td><td class="lo">niska</td><td class="hi">wysoka</td><td class="lo">niska</td></tr>
+<tr><td>Ryzyko</td><td class="hi">niskie</td><td class="mid">średnie</td><td class="mid">średnie</td><td class="mid">średnie (zakres)</td></tr>
+<tr><td>Skalowalność</td><td class="hi">wysoka</td><td class="mid">średnia</td><td class="hi">wysoka</td><td class="hi">wysoka</td></tr>
+</table></div>
+<div class="recbox"><b>Rekomendacja D5:</b> 5A w MVP z pomiarem <code>skip_reason='organization'</code>, potem decyzja 5B/5C (osobne zadanie). <b>Co odwróci:</b> organizacje wystawiają znaczną część rzeczy → 5B w etapie 2.</div>
+</section>
+
+<!-- D6 -->
+<section class="area" id="d6"><h2>D6. Szablony</h2>
+<div class="alts">
+<div class="alt rec"><h4>6A — Jinja2 w repo <span class="badge">rekomendacja</span></h4>
+<p>Nowa zależność <code>jinja2</code>; <code>select_autoescape(("html","html.j2"))</code>, <code>StrictUndefined</code>; pary <code>*.html.j2</code> + <code>*.txt.j2</code>; tabelkowy layout z inline CSS; daty przez <code>clock.format_term_when</code>.</p>
+<p><span class="k">Mocne</span> escaping; code review i testy; niezależność od dostawcy; dojrzałość.</p>
+<p><span class="k">Słabe</span> nowa zależność; ręczny responsywny HTML wymaga testów.</p>
+<p><span class="k">Najlepsza gdy</span> 5–15 szablonów, podglądy w Mailpit.</p>
+<p><span class="k">Dowody</span> F12, raport §6.7.</p></div>
+<div class="alt"><h4>6B — Szablony u dostawcy</h4>
+<p>Aplikacja wysyła nazwę szablonu i zmienne, treść w panelu dostawcy.</p>
+<p><span class="k">Mocne</span> zero zależności; edycja bez wdrożenia.</p>
+<p><span class="k">Słabe</span> treść poza code review; lock-in; trudne testy; escaping i daty u dostawcy; dwa źródła prawdy.</p>
+<p><span class="k">Najlepsza gdy</span> treści zmienia osoba nietechniczna.</p>
+<p><span class="k">Dowody</span> F12, ADR-009.</p></div>
+<div class="alt"><h4>6C — MJML prekompilowany</h4>
+<p>Layout w MJML kompilowany w Node do HTML z placeholderami Jinja2.</p>
+<p><span class="k">Mocne</span> najlepsza responsywność (Outlook).</p>
+<p><span class="k">Słabe</span> krok w Node; porty Pythona nieoficjalne; nieuzasadnione przy kilku szablonach.</p>
+<p><span class="k">Najlepsza gdy</span> kilkadziesiąt złożonych szablonów.</p>
+<p><span class="k">Dowody</span> compliance-engineering §4.2.</p></div>
+<div class="alt"><h4>6D — Stdlib</h4>
+<p><code>string.Template</code> + ręczne <code>html.escape</code>, bez zależności.</p>
+<p><span class="k">Mocne</span> zero zależności.</p>
+<p><span class="k">Słabe</span> ręczny escaping; brak pętli i warunków; brak <code>StrictUndefined</code>.</p>
+<p><span class="k">Najlepsza gdy</span> 2–3 proste szablony.</p>
+<p><span class="k">Dowody</span> F12, standard conventions.</p></div>
+</div>
+<div class="card wrap"><table>
+<tr><th>Perspektywa</th><th>6A</th><th>6B</th><th>6C</th><th>6D</th></tr>
+<tr><td>Wykonalność</td><td class="hi">wysoka</td><td class="hi">wysoka</td><td class="mid">średnia</td><td class="hi">wysoka</td></tr>
+<tr><td>Wpływ na użytk.</td><td class="hi">wysoki</td><td class="hi">wysoki</td><td class="hi">wysoki</td><td class="mid">średni</td></tr>
+<tr><td>Prostota</td><td class="hi">wysoka</td><td class="mid">średnia</td><td class="lo">niska</td><td class="mid">średnia</td></tr>
+<tr><td>Ryzyko</td><td class="hi">niskie</td><td class="mid">średnie (lock-in)</td><td class="mid">średnie</td><td class="mid">średnie (escaping)</td></tr>
+<tr><td>Skalowalność</td><td class="hi">wysoka</td><td class="mid">średnia</td><td class="hi">wysoka</td><td class="lo">niska</td></tr>
+</table></div>
+<div class="recbox"><b>Rekomendacja D6:</b> 6A. <b>Co odwróci:</b> edycja treści przez osobę nietechniczną bez wdrożeń → 6B tylko dla treści, z layoutem w repo.</div>
+</section>
+
+<!-- D7 -->
+<section class="area" id="d7"><h2>D7. Batching, digesty i czas wysyłki</h2>
+<div class="alts">
+<div class="alt rec"><h4>7A — Natychmiast + klucze throttlingu + cisza nocna <span class="badge">rekomendacja</span></h4>
+<p>Jeden bell = jeden mail. MATCH dławiony kluczem <code>want_match:&lt;want_id&gt;:&lt;dzień Warsaw&gt;</code>. P/D w ciszy nocnej 22–07 → <code>send_after = 07:00</code>. T zawsze natychmiast. <code>EMAIL_DAILY_CAP</code>.</p>
+<p><span class="k">Mocne</span> najmniej kodu; pilne na czas; throttling z klucza; <code>send_after</code> pod koalescencję później.</p>
+<p><span class="k">Słabe</span> aktywny wymieniacz dostaje kilka maili dziennie; MATCH dla wielu wantów.</p>
+<p><span class="k">Najlepsza gdy</span> niski wolumen na osobę, zdarzenia wymagają reakcji.</p>
+<p><span class="k">Dowody</span> raport §6.4, F8, F12.</p></div>
+<div class="alt"><h4>7B — Dzienny digest wszystkich P</h4>
+<p>Jeden mail dziennie na osobę rano (Warsaw).</p>
+<p><span class="k">Mocne</span> najmniej maili i skarg.</p>
+<p><span class="k">Słabe</span> propozycja/przejęcie przed terminem za późno; B6 traci sens; szablon zbiorczy i job.</p>
+<p><span class="k">Najlepsza gdy</span> zdarzenia informacyjne.</p>
+<p><span class="k">Dowody</span> F12.</p></div>
+<div class="alt"><h4>7C — Okno koalescencji per osoba (~10 min)</h4>
+<p>Pierwszy P → <code>send_after = now + 10 min</code>, kolejne dołączają; przed wysyłką sprawdzany <code>read_at</code>.</p>
+<p><span class="k">Mocne</span> mniej maili przy seriach; pomija przeczytane; fundament pod czat.</p>
+<p><span class="k">Słabe</span> logika łączenia już w MVP; 10 min opóźnienia; <code>notifications_acl</code>.</p>
+<p><span class="k">Najlepsza gdy</span> serie zdarzeń u aktywnych.</p>
+<p><span class="k">Dowody</span> F12, raport §6.2.</p></div>
+<div class="alt"><h4>7D — Digest tylko dla MATCH</h4>
+<p>Rezerwacje natychmiast, MATCH w jednym dziennym mailu przez wszystkie wanty.</p>
+<p><span class="k">Mocne</span> najczęstszy strumień jednym mailem; pilne bez opóźnień.</p>
+<p><span class="k">Słabe</span> job digestu w MVP; MATCH traci świeżość.</p>
+<p><span class="k">Najlepsza gdy</span> wiele aktywnych wantów na osobę.</p>
+<p><span class="k">Dowody</span> compliance-engineering §6.</p></div>
+</div>
+<div class="card wrap"><table>
+<tr><th>Perspektywa</th><th>7A</th><th>7B</th><th>7C</th><th>7D</th></tr>
+<tr><td>Wykonalność</td><td class="hi">wysoka</td><td class="mid">średnia</td><td class="mid">średnia</td><td class="mid">średnia</td></tr>
+<tr><td>Wpływ na użytk.</td><td class="hi">wysoki</td><td class="lo">niski</td><td class="hi">wysoki–średni</td><td class="hi">wysoki</td></tr>
+<tr><td>Prostota</td><td class="hi">wysoka</td><td class="mid">średnia</td><td class="lo">niska</td><td class="mid">średnia</td></tr>
+<tr><td>Ryzyko</td><td class="hi">niskie–średnie</td><td class="mid">średnie</td><td class="hi">niskie</td><td class="hi">niskie</td></tr>
+<tr><td>Skalowalność</td><td class="mid">średnia</td><td class="hi">wysoka</td><td class="hi">wysoka</td><td class="hi">wysoka</td></tr>
+</table></div>
+<div class="recbox"><b>Rekomendacja D7:</b> 7A, po pomiarze w etapie 2 rozważyć 7D lub 7C. <b>Co odwróci:</b> &gt;3 maile dziennie na aktywną osobę albo skargi → 7C; mediana aktywnych wantów &gt;3 → 7D.</div>
+</section>
+
+<!-- D8 -->
+<section class="area" id="d8"><h2>D8. Webhooki, bounce i suppression w MVP</h2>
+<div class="alts">
+<div class="alt"><h4>8A — Pełny webhook</h4>
+<p><code>POST /api/email/webhooks/mailgun</code> z HMAC i ochroną przed replay; DELIVERED/BOUNCED/COMPLAINED po <code>provider_message_id</code>; bounce i skarga → <code>email_suppressions</code>.</p>
+<p><span class="k">Mocne</span> pełna widoczność we własnym logu; diagnoza „nie dostałem”.</p>
+<p><span class="k">Słabe</span> dużo zdarzeń <code>delivered</code> bez wpływu na decyzje; więcej kodu.</p>
+<p><span class="k">Najlepsza gdy</span> wsparcie często diagnozuje dostarczenie.</p>
+<p><span class="k">Dowody</span> raport §6.3 pkt 4, §5.3.</p></div>
+<div class="alt rec"><h4>8B — Tylko <code>failed</code>/permanent i <code>complained</code> <span class="badge">rekomendacja</span></h4>
+<p>Ten sam endpoint i HMAC, subskrypcja tylko twardych bounce i skarg → suppression, skarga wyłącza kategorię. <code>email_messages</code> kończy na SENT.</p>
+<p><span class="k">Mocne</span> minimum chroniące reputację; mały ruch; minimal-implementation.</p>
+<p><span class="k">Słabe</span> brak statusu „dostarczono” (panel dostawcy, 1–5 dni).</p>
+<p><span class="k">Najlepsza gdy</span> jeden operator, mały wolumen.</p>
+<p><span class="k">Dowody</span> F10, raport §9.3.</p></div>
+<div class="alt"><h4>8C — Bez webhooków</h4>
+<p>Suppression po stronie dostawcy, aplikacja widzi tylko wynik API.</p>
+<p><span class="k">Mocne</span> zero kodu, endpointu i sekretu.</p>
+<p><span class="k">Słabe</span> aplikacja nie wie o skargach; lista ginie przy zmianie dostawcy; job wysyła maile odrzucane po cichu.</p>
+<p><span class="k">Najlepsza gdy</span> wczesny pilot (etap 1, tylko T).</p>
+<p><span class="k">Dowody</span> providers-matrix, raport §9.3.</p></div>
+<div class="alt"><h4>8D — Odpytywanie API zdarzeń</h4>
+<p>Job co kilka minut pobiera <code>failed</code>/<code>complained</code> od znacznika.</p>
+<p><span class="k">Mocne</span> brak publicznego endpointu; działa przy webhookach w becie.</p>
+<p><span class="k">Słabe</span> znacznik, stronicowanie; retencja 1–5 dni gubi zdarzenia; kod zależny od dostawcy.</p>
+<p><span class="k">Najlepsza gdy</span> wybrano 1D.</p>
+<p><span class="k">Dowody</span> raport §5.4.</p></div>
+</div>
+<div class="card wrap"><table>
+<tr><th>Perspektywa</th><th>8A</th><th>8B</th><th>8C</th><th>8D</th></tr>
+<tr><td>Wykonalność</td><td class="hi">wysoka</td><td class="hi">wysoka</td><td class="hi">wysoka</td><td class="mid">średnia</td></tr>
+<tr><td>Wpływ na użytk.</td><td class="hi">wysoki</td><td class="hi">wysoki</td><td class="lo">niski</td><td class="mid">średni</td></tr>
+<tr><td>Prostota</td><td class="mid">średnia</td><td class="hi">wysoka</td><td class="hi">wysoka</td><td class="lo">niska</td></tr>
+<tr><td>Ryzyko</td><td class="hi">niskie</td><td class="hi">niskie</td><td class="mid">średnie</td><td class="mid">średnie</td></tr>
+<tr><td>Skalowalność</td><td class="mid">średnia</td><td class="hi">wysoka</td><td class="hi">wysoka</td><td class="mid">średnia</td></tr>
+</table></div>
+<div class="recbox"><b>Rekomendacja D8:</b> 8B. W etapie 1 (tylko T) dopuszczalne 8C przejściowo, ale 8B musi działać przed pierwszą kategorią P. <b>Co odwróci:</b> częste „nie doszło” → 8A; wybór 1D → 8D.</div>
+</section>
+
+<h2 id="matrix">3. Zbiorcza analiza kompromisów</h2>
+<div class="card wrap"><table>
+<tr><th>Obszar</th><th>Rekomendacja</th><th>Wyk.</th><th>Użytk.</th><th>Prostota</th><th>Ryzyko</th><th>Skal.</th><th>Główny kompromis</th></tr>
+<tr><td>D1 Dostawca</td><td>1A Mailgun EU (warunkowo)</td><td class="hi">wysoka</td><td class="hi">wysoki</td><td class="mid">średnia</td><td class="hi">niskie–śr.</td><td class="hi">wysoka</td><td>dedupe w aplikacji zamiast <code>Idempotency-Key</code></td></tr>
+<tr><td>D2 Wpięcie</td><td>2A bezpośrednio do <code>email_messages</code></td><td class="hi">wysoka</td><td class="hi">wysoki</td><td class="hi">wysoka</td><td class="hi">niskie</td><td class="hi">wysoka</td><td><code>notifications</code> zna ACL modułu e-mail</td></tr>
+<tr><td>D3 Zgoda</td><td>3A opt-out (3D dla „Szukam” w odwodzie)</td><td class="hi">wysoka</td><td class="hi">wysoki</td><td class="mid">średnia</td><td class="mid">średnie</td><td class="hi">wysoka</td><td>pewność prawna średnia</td></tr>
+<tr><td>D4 Weryfikacja</td><td>4A baner + backfill Google</td><td class="hi">wysoka</td><td class="hi">wysoki</td><td class="hi">wysoka</td><td class="hi">niskie</td><td class="hi">wysoka</td><td>część kont nigdy nie zweryfikuje</td></tr>
+<tr><td>D5 Odbiorca</td><td>5A SKIPPED + pomiar; reset Google = ustaw hasło</td><td class="hi">wysoka</td><td class="mid">średni</td><td class="hi">wysoka</td><td class="hi">niskie</td><td class="hi">wysoka</td><td>luka dla rzeczy organizacji</td></tr>
+<tr><td>D6 Szablony</td><td>6A Jinja2 w repo</td><td class="hi">wysoka</td><td class="hi">wysoki</td><td class="hi">wysoka</td><td class="hi">niskie</td><td class="hi">wysoka</td><td>nowa zależność</td></tr>
+<tr><td>D7 Batching</td><td>7A natychmiast + klucze + cisza nocna</td><td class="hi">wysoka</td><td class="hi">wysoki</td><td class="hi">wysoka</td><td class="hi">niskie–śr.</td><td class="mid">średnia</td><td>możliwa seria maili u aktywnych</td></tr>
+<tr><td>D8 Webhooki</td><td>8B bounce + skargi</td><td class="hi">wysoka</td><td class="hi">wysoki</td><td class="hi">wysoka</td><td class="hi">niskie</td><td class="hi">wysoka</td><td>brak statusu „dostarczono”</td></tr>
+</table></div>
+<div class="card"><b>Spójność zestawu:</b> 2A daje <code>send_after</code> i klucz idempotencji, na których opierają się 7A (cisza nocna, throttling) i 1A (kompensacja braku idempotencji). 4A i 3A razem sprawiają, że domyślne włączenie dotyczy tylko adresów potwierdzonych przez właściciela. 8B zasila <code>email_suppressions</code>, które job sprawdza w ramach tego samego późnego wiązania co preferencje.</div>
+
+<h2 id="rec">4. Rekomendowane podejście</h2>
+<div class="card" style="border:2px solid var(--accent)">
+<p><b>Zestaw:</b> Mailgun EU za portem <code>EmailSender</code> (adapter <code>httpx</code>) · moduł <code>app/email</code> z kolejką <code>email_messages</code> zapisywaną w transakcji bell (<code>notifications.service</code>) i flow auth, wysyłaną przez <code>_run_email_send</code> z backoffem i późnym wiązaniem · preferencje opt-out per kategoria, domyślnie włączone po weryfikacji · weryfikacja wymagana dla P/D, backfill kont Google, baner w panelu · odbiorcy bez adresu i Organization = SKIPPED z <code>skip_reason</code>, reset dla kont tylko-Google jako „ustaw pierwsze hasło” · szablony Jinja2 w repo · wysyłka natychmiastowa z throttlingiem MATCH i ciszą nocną · webhook HMAC tylko dla twardych bounce i skarg.</p>
+<p><b>Uzasadnienie:</b> pokrywa wszystkie istniejące bell bez zmian w domenach. Używa tylko wzorców, które już działają w aj (port + <code>set_x()</code>, job + <code>SKIP LOCKED</code>, ACL z testem granic, bramkowanie ustawieniem). Wszystko, co można odłożyć (digesty, statusy dostarczenia, reguła Organization), zostało odłożone, a ścieżka rozbudowy (<code>send_after</code>, <code>skip_reason</code>, subskrypcja <code>delivered</code>) jest wbudowana.</p>
+<p><b>Etapy:</b> 1 — moduł, kolejka, Mailgun + SMTP-dev + log + fake, DNS, A1–A3, <code>/verify-email</code>, <code>/reset-password</code>, backfill Google, 8C przejściowo · 2 — <code>email_preferences</code>, <code>/settings</code>, RFC 8058, hook w <code>notifications.service</code>, 8B, B1/B3–B6/B8/B9 · 3 — nowe bell C1, C2.</p>
+</div>
+<div class="alts">
+<div class="alt"><h4>Przyjęte kompromisy</h4><ul style="padding-left:18px;margin:0">
+<li>Możliwy duplikat P po crashu między 2xx a commitem (Mailgun). Dla T FAILED.</li>
+<li><code>notifications.service</code> wywołuje ACL e-mail w tej samej transakcji.</li>
+<li>Rzeczy organizacji i niezweryfikowane adresy bez powiadomień w MVP.</li>
+<li>Brak statusu dostarczenia we własnym logu.</li>
+<li>Aktywni mogą dostać kilka maili dziennie.</li></ul></div>
+<div class="alt"><h4>Kluczowe założenia</h4><ol style="padding-left:18px;margin:0">
+<li>Rezydencja w UE jest twarda (inaczej Resend).</li>
+<li>Prawnik akceptuje kwalifikację „serwisowe” (inaczej 3B/3D).</li>
+<li>Start mieści się w ~100 dziennie albo $15/mies. jest akceptowalne.</li>
+<li>Rzeczy organizacji to mniejszość (inaczej 5B w etapie 2).</li>
+<li>Niska mediana maili na aktywną osobę (inaczej 7C/7D).</li>
+<li>Polityka prywatności (D14) przed etapem 2.</li></ol></div>
+<div class="alt"><h4>Pewność</h4><p>Średnio-wysoka. Wysoka: D2, D4, D6. Średnio-wysoka: D1, D7, D8. Średnia: D3, D5.</p></div>
+</div>
+
+<h2 id="whynot">5. Dlaczego nie pozostałe</h2>
+<details class="card"><summary>Uzasadnienia odrzucenia (24 alternatywy)</summary>
+<table>
+<tr><th>Alternatywa</th><th>Dlaczego nie</th></tr>
+<tr><td>1B Resend</td><td>Metadane i logi w USA. Wybór tylko przy miękkiej rezydencji, wtedy wygrywa idempotencją</td></tr>
+<tr><td>1C Brevo</td><td>Remis z Mailgun, ale cennik, podpis webhooków i ścieżka transakcyjna niezweryfikowane</td></tr>
+<tr><td>1D Scaleway</td><td>Webhooki w becie przez SNS, odpytywanie. Za dużo pracy dla jednego operatora</td></tr>
+<tr><td>2B przez outbox</td><td>Trzeci przeskok, wzrost outboxa bez purge, ryzyko przejęcia <code>email.*</code>, bez nowej funkcji</td></tr>
+<tr><td>2C handler HTTP</td><td>4/13 rodzajów, dubluje bell, FAILED po ~5 min</td></tr>
+<tr><td>2D sweeper</td><td>Znacznik i wyścigi commitów, zwinięte bell mogą zniknąć przed skanem, trzeci mechanizm</td></tr>
+<tr><td>3B opt-in</td><td>Kanał nie spełniłby celu, a prawo w interpretacji badania tego nie wymaga</td></tr>
+<tr><td>3C globalny</td><td>Wypis z MATCH wyłącza rezerwacje. Trudno dodać kategorie później</td></tr>
+<tr><td>3D hybryda</td><td>Dobra rezerwa, ale bez opinii prawnej odcina „Szukam” od głównej wartości. W odwodzie</td></tr>
+<tr><td>4B twarda bramka</td><td>Blokuje istniejących, uzależnia rejestrację od dostarczalności, poza zakresem</td></tr>
+<tr><td>4C kampania</td><td>Masowa wysyłka z zimnej subdomeny</td></tr>
+<tr><td>4D w locie</td><td>Maile na niezweryfikowane, potencjalnie cudze adresy. Blokuje D8</td></tr>
+<tr><td>5B liderzy</td><td>Reguła nieprześledzona, fan-out. Najpierw pomiar</td></tr>
+<tr><td>5C założyciel</td><td>Może być nieaktualny. Ta sama potrzeba pomiaru</td></tr>
+<tr><td>5D adres organizacji</td><td>Nowe pole i flow, rozszerzenie zakresu</td></tr>
+<tr><td>6B u dostawcy</td><td>Treść poza code review, lock-in, trudne testy</td></tr>
+<tr><td>6C MJML</td><td>Krok budowania w Node dla kilku szablonów</td></tr>
+<tr><td>6D stdlib</td><td>Ręczny escaping, brak pętli</td></tr>
+<tr><td>7B dzienny digest</td><td>Pilne zdarzenia za późno</td></tr>
+<tr><td>7C okno 10 min</td><td>Logika łączenia przed pomiarem potrzeby</td></tr>
+<tr><td>7D digest MATCH</td><td>Job digestu przed pomiarem. Klucz dzienny per want daje podobny efekt taniej</td></tr>
+<tr><td>8A pełny webhook</td><td>Ruch <code>delivered</code> bez wpływu na decyzje</td></tr>
+<tr><td>8C bez webhooków</td><td>Skargi niewidoczne, lista ginie przy zmianie dostawcy. Tylko etap 1</td></tr>
+<tr><td>8D odpytywanie</td><td>Znacznik, stronicowanie, utrata zdarzeń. Tylko przy 1D</td></tr>
+</table></details>
+
+<h2 id="scope">6. Granice zakresu i pomysły odłożone</h2>
+<div class="card wrap"><table>
+<tr><th>Element</th><th>Klasa</th><th>Uzasadnienie</th></tr>
+<tr><td>Moduł <code>app/email</code>, kolejka, job, port, adaptery, DNS</td><td><span class="pass">w zakresie</span></td><td>Rdzeń pytania „jak wdrożyć”</td></tr>
+<tr><td>A1–A3 (weryfikacja, reset, hasło zmienione)</td><td><span class="pass">w zakresie</span></td><td>Warunek dla P, pierwsze maile</td></tr>
+<tr><td>B1, B3–B6, B8, B9</td><td><span class="pass">w zakresie</span></td><td>Pytanie „w jakich momentach”</td></tr>
+<tr><td>Preferencje, <code>/settings</code>, RFC 8058, suppression</td><td><span class="pass">w zakresie</span></td><td>Deliverability i prawo</td></tr>
+<tr><td>C1, C2 (nowe bell)</td><td><span class="sev warning">stretch</span></td><td>Nowy <code>NotificationKind</code>, luka także w aplikacji</td></tr>
+<tr><td>A4 powitanie (z A1)</td><td><span class="sev warning">stretch</span></td><td>Opcjonalne</td></tr>
+<tr><td>Reguła odbiorcy Organization (5B/5C)</td><td><span class="sev warning">stretch</span></td><td>Po pomiarze <code>skip_reason</code></td></tr>
+<tr><td>Purge <code>email_messages</code> (90 dni)</td><td><span class="sev warning">stretch</span></td><td>Retencja RODO przed dużym wolumenem</td></tr>
+<tr><td>Purge <code>outbox_entries</code>, guard <code>run_forever</code></td><td><span class="fail">poza zakresem</span></td><td>Problem outboxa, nie maila</td></tr>
+<tr><td>Marketing, newslettery, re-engagement, SUGGESTION/SIMILAR mailem</td><td><span class="fail">poza zakresem</span></td><td>Zgoda z art. 398 PKE, wykluczone briefem</td></tr>
+<tr><td>SMS, push</td><td><span class="fail">poza zakresem</span></td><td>Wykluczone briefem</td></tr>
+</table></div>
+<details class="card"><summary>Pomysły odłożone (13)</summary>
+<table>
+<tr><th>Pomysł</th><th>Dlaczego wrócić</th></tr>
+<tr><td>Przypomnienie wieczorem przed terminem (C4)</td><td>Największa wartość po MVP (research handover)</td></tr>
+<tr><td>Mail o wiadomości czatu, opóźniony i tylko gdy nieprzeczytana (C6)</td><td>Częsta prośba. Wymaga 7C</td></tr>
+<tr><td>Digest organizatora (B11, B12, C8, C11, C12)</td><td>Opt-in, mniej wchodzenia do aplikacji</td></tr>
+<tr><td>Digest MATCH (7D)</td><td>Gdy wiele aktywnych wantów</td></tr>
+<tr><td>Status <code>delivered</code> (8A)</td><td>Gdy wsparcie diagnozuje dostarczenie</td></tr>
+<tr><td>Zmiana adresu e-mail (A7)</td><td>Następny krok po weryfikacji</td></tr>
+<tr><td>Auto-linking Google po weryfikacji (D8 Google)</td><td>Osobna decyzja bezpieczeństwa</td></tr>
+<tr><td>Zaproszenie opiekuna z ustawieniem hasła (A8)</td><td>Bezpieczeństwo rodzin</td></tr>
+<tr><td>Mail po odrzuceniu mediów (C15), potwierdzenie płatności (C9)</td><td>Najpierw bell</td></tr>
+<tr><td><code>mailto:</code> w List-Unsubscribe, poczta przychodząca</td><td>Wymaga routingu przychodzącego</td></tr>
+<tr><td>Podgląd szablonów i log wysyłek w panelu admina</td><td>Wygoda operatora. Dziś Mailpit i SQL</td></tr>
+<tr><td>Wersje językowe szablonów</td><td>Aplikacja tylko po polsku</td></tr>
+<tr><td>Usuwanie konta (D10) z obsługą <code>email_suppressions</code></td><td>Wymóg RODO, osobny temat</td></tr>
+</table></details>
+</main>
+</body>
+</html>

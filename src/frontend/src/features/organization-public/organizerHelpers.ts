@@ -8,5 +8,5 @@ export function organizerTermPath(slug: string, groupId: string, termId: string)
 /** Items offered across every exchange mode, plus the organizer's separately
  * counted reserved ones (owner counts already include them in each mode). */
 export function exchangeTotal(counts: Record<ExchangeMode, number> & { RESERVED?: number }): number {
-  return counts.GIFT + counts.SWAP + (counts.RESERVED ?? 0);
+  return counts.GIFT + counts.SWAP + counts.POINTS + (counts.RESERVED ?? 0);
 }

@@ -68,13 +68,15 @@ async def _stats(
         db, owner_party_id, owner_pages.listed_items()
     )
     item_stats = OrganizationItemStatsResponse(
-        GIFT=available.get("GIFT", 0), SWAP=available.get("SWAP", 0)
+        GIFT=available.get("GIFT", 0),
+        SWAP=available.get("SWAP", 0),
+        POINTS=available.get("POINTS", 0),
     )
     terms = await groups_acl.count_owner_public_terms(db, owner_party_id, now)
     events = await groups_acl.count_upcoming_authored_events(db, owner_party_id, now)
     stats = OrganizationStatsResponse(
         group_count=await groups_acl.count_owner_public_groups(db, owner_party_id),
-        item_count=item_stats.GIFT + item_stats.SWAP,
+        item_count=item_stats.GIFT + item_stats.SWAP + item_stats.POINTS,
         meeting_count=terms + events,
     )
     return stats, item_stats

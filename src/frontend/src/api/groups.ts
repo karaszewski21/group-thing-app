@@ -321,7 +321,7 @@ export function createRsvp(groupId: string, request: CreateRsvpRequest): Promise
   return api.post(`/groups/${groupId}/rsvp`, request);
 }
 
-export type ExchangeMode = "GIFT" | "SWAP";
+export type ExchangeMode = "GIFT" | "SWAP" | "POINTS";
 
 /* ------------------------------------------------------------------ */
 /*  A term's attendee list (authenticated organizer read)               */

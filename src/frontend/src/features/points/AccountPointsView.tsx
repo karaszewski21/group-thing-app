@@ -51,8 +51,8 @@ function History() {
   );
 }
 
-/** „Twoje punkty” (/points): the owner's balance, reputation and
- * history. Nobody else sees these numbers. */
+/** „Twoje punkty” (/points): the owner's available, held and reputation
+ * points and their history. Nobody else sees these numbers. */
 export function AccountPointsView() {
   const { data: summary, error } = useMyPoints();
   return (
@@ -67,12 +67,9 @@ export function AccountPointsView() {
         </p>
       ) : (
         <div className="mt-3">
-          <PointsTiles balance={summary?.balance} reputation={summary?.reputation} />
+          <PointsTiles withHeld balance={summary?.balance} held={summary?.held} reputation={summary?.reputation} />
         </div>
       )}
-      <p className="mt-3 rounded-[14px] bg-lime-soft px-[13px] py-2.5 text-[12.5px] font-semibold text-accent-fg">
-        Wydawanie punktów — wkrótce. Będzie można je wymienić na nieliczne przedmioty oznaczone „za punkty”.
-      </p>
       <h3 id="points-history" className="mt-[18px] text-sm font-extrabold text-ink">
         Historia
       </h3>

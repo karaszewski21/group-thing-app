@@ -32,6 +32,7 @@ function entry(overrides: Partial<PointHistoryEntry> = {}): PointHistoryEntry {
     id: "tx-1",
     type: "GIVE_FREE",
     amount: 40,
+    held_amount: 0,
     reputation: 40,
     description: "Wózek spacerowy",
     counterparty_name: "Marta Nowak",
@@ -44,7 +45,7 @@ function page(items: PointHistoryEntry[], pageNumber = 1, total = items.length, 
   return { items, total, page: pageNumber, size };
 }
 
-const SUMMARY: PointsSummary = { balance: 130, reputation: 80 };
+const SUMMARY: PointsSummary = { balance: 130, held: 60, reputation: 80 };
 
 function renderPoints() {
   return render(withQueryClient(<AccountPointsView />));
@@ -62,17 +63,20 @@ describe("AccountPointsView", () => {
     vi.useRealTimers();
   });
 
-  it("shows the balance and reputation tiles under the owner-only header", async () => {
+  it("shows the available, held and reputation tiles under the owner-only header", async () => {
     vi.mocked(pointsApi.getMyPointsHistory).mockResolvedValue(page([entry()]));
     renderPoints();
 
     expect(screen.getByRole("heading", { level: 2, name: "Twoje punkty" })).toBeInTheDocument();
     expect(screen.getByText("Widzisz to tylko Ty.")).toBeInTheDocument();
     expect(await screen.findByText("130")).toBeInTheDocument();
-    expect(screen.getByText("80")).toBeInTheDocument();
-    expect(screen.getByText("punktów")).toBeInTheDocument();
-    expect(screen.getByText("reputacji")).toBeInTheDocument();
-    expect(screen.getByText(/Wydawanie punktów — wkrótce\./)).toBeInTheDocument();
+    const tiles = screen.getByText("130").closest("div")!.parentElement!;
+    expect(Array.from(tiles.children).map((tile) => tile.textContent)).toEqual([
+      "130 dostępne",
+      "60 zablokowane",
+      "80 reputacja",
+    ]);
+    expect(screen.queryByText(/wkrótce/)).not.toBeInTheDocument();
     expect(screen.getByText(/^Jak zdobywać punkty:/)).toBeInTheDocument();
   });
 
@@ -114,6 +118,56 @@ describe("AccountPointsView", () => {
     expect(within(row).getByText(amount)).toBeInTheDocument();
     if (type === "GIVE_FREE") expect(row).toHaveTextContent(`${subtitle} · +40 reputacji`);
     else expect(row).not.toHaveTextContent("reputacji");
+  });
+
+  it.each<[string, Partial<PointHistoryEntry>, string, string, string, string, string]>([
+    [
+      "HOLD",
+      { type: "HOLD", amount: -60, held_amount: 60, reputation: 0, description: "Rower 16″", counterparty_name: "Marek" },
+      "🔒",
+      "Blokada: Rower 16″",
+      "18 lis · Sprzedawca: Marek",
+      "−60",
+      "text-danger",
+    ],
+    [
+      "RELEASE",
+      { type: "RELEASE", amount: 30, held_amount: -30, reputation: 0, description: "Lego", counterparty_name: "Marek" },
+      "🔓",
+      "Zwolnienie blokady: Lego",
+      "18 lis · Sprzedawca: Marek",
+      "+30",
+      "text-mint",
+    ],
+    [
+      "buyer SALE",
+      { type: "SALE", amount: 0, held_amount: -20, reputation: 0, description: "Książki", counterparty_name: "Ola" },
+      "🛒",
+      "Zakup: Książki",
+      "18 lis · Sprzedawca: Ola",
+      "zablokowane 20 → wydane",
+      "text-ink-soft",
+    ],
+    [
+      "seller SALE",
+      { type: "SALE", amount: 40, held_amount: 0, reputation: 0, description: "Kurtka zimowa", counterparty_name: "Ania" },
+      "🛒",
+      "Sprzedaż: Kurtka zimowa",
+      "18 lis · Kupujący: Ania",
+      "+40",
+      "text-mint",
+    ],
+  ])("renders a %s history row", async (_case, overrides, icon, title, subtitle, amount, tone) => {
+    vi.mocked(pointsApi.getMyPointsHistory).mockResolvedValue(page([entry(overrides)]));
+    renderPoints();
+
+    const list = await screen.findByRole("list", { name: "Historia" });
+    const row = within(list).getByRole("listitem");
+    expect(within(row).getByText(icon)).toHaveAttribute("aria-hidden", "true");
+    expect(within(row).getByText(title)).toBeInTheDocument();
+    expect(row).toHaveTextContent(subtitle);
+    expect(within(row).getByText(amount)).toHaveClass(tone);
+    expect(row).not.toHaveTextContent("reputacji");
   });
 
   it("loads page 2 with „Pokaż starsze” and appends its rows", async () => {

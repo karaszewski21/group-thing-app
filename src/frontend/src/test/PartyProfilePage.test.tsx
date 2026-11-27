@@ -26,6 +26,7 @@ function card(id: string): OwnerItemCard {
     product_name: `Rzecz ${id}`,
     condition: "GOOD",
     mode: "GIFT",
+    points_price: null,
     thumb_url: null,
     added_at: "2026-10-30T09:00:00",
     reservation: null,
@@ -46,7 +47,7 @@ function profile(overrides: Partial<PartyProfileResponse> = {}): PartyProfileRes
     cover: null,
     gallery: [],
     nearest: null,
-    counts: { GIFT: 5, SWAP: 2 },
+    counts: { GIFT: 5, SWAP: 2, POINTS: 0 },
     recent_items: [],
     is_me: false,
     ...overrides,
@@ -57,7 +58,7 @@ function itemsPage(page: number, ids: string[], total: number): OwnerItemsPageRe
   return {
     owner: OWNER,
     nearest: null,
-    counts: { GIFT: 5, SWAP: 2 },
+    counts: { GIFT: 5, SWAP: 2, POINTS: 0 },
     items: ids.map(card),
     total,
     page,
@@ -171,7 +172,7 @@ describe("PartyProfilePage", () => {
   });
 
   it("tells a visitor in two boxes that the person has added no terms and no items", async () => {
-    vi.mocked(ownerItemsApi.getPartyProfile).mockResolvedValue(profile({ counts: { GIFT: 0, SWAP: 0 }, bio: null }));
+    vi.mocked(ownerItemsApi.getPartyProfile).mockResolvedValue(profile({ counts: { GIFT: 0, SWAP: 0, POINTS: 0 }, bio: null }));
 
     await renderAt(`/${PARTY_ID}`);
     await screen.findByRole("heading", { level: 1, name: "Ania Kowalska" });
@@ -184,7 +185,7 @@ describe("PartyProfilePage", () => {
 
   it("gives a new owner one box with a '+' to /add while they have neither terms nor items", async () => {
     vi.mocked(ownerItemsApi.getPartyProfile).mockResolvedValue(
-      profile({ counts: { GIFT: 0, SWAP: 0 }, is_me: true }),
+      profile({ counts: { GIFT: 0, SWAP: 0, POINTS: 0 }, is_me: true }),
     );
 
     await renderAt(`/${PARTY_ID}`);
@@ -207,7 +208,7 @@ describe("PartyProfilePage", () => {
 
   it("asks an owner with a term but no items to add an item", async () => {
     vi.mocked(ownerItemsApi.getPartyProfile).mockResolvedValue(
-      profile({ counts: { GIFT: 0, SWAP: 0 }, nearest: {
+      profile({ counts: { GIFT: 0, SWAP: 0, POINTS: 0 }, nearest: {
         kind: "TERM",
         id: "t-1",
         name: "Wymianka",

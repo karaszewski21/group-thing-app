@@ -336,6 +336,24 @@ async def product_ids_with_unmoderated_photos(
     return set(result.scalars().all())
 
 
+async def has_own_unrejected_photo(
+    db: AsyncSession, product_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    """Whether `user_id` uploaded a photo of `product_id` that moderation has
+    not REJECTED (PENDING counts): the rule for listing an item for points."""
+    return bool(
+        await db.scalar(
+            select(
+                exists().where(
+                    ProductPhoto.product_id == product_id,
+                    ProductPhoto.uploaded_by_user_id == user_id,
+                    ProductPhoto.status != ModerationStatus.REJECTED,
+                )
+            )
+        )
+    )
+
+
 async def first_approved_photo_by_product(
     db: AsyncSession, product_ids: Collection[uuid.UUID]
 ) -> dict[uuid.UUID, ProductPhoto]:

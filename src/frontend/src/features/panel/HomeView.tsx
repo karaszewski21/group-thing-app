@@ -53,6 +53,7 @@ export function HomeView() {
   const itemCounts = {
     oddam: items.filter((i) => itemModes[i.id] === "oddam").length,
     zamienię: items.filter((i) => itemModes[i.id] === "zamienię").length,
+    "za punkty": items.filter((i) => itemModes[i.id] === "za punkty").length,
   };
 
   if (!profile) return null;
@@ -88,7 +89,7 @@ export function HomeView() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-3 gap-2.5">
             {ITEM_MODES.map((m) => (
               <button
                 key={m}

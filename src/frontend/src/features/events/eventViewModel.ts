@@ -7,6 +7,7 @@ function toPreviewItem(item: EventParticipantItem): ParticipantPreviewItem {
     itemId: item.item_id,
     name: item.product_name,
     modes: [item.mode],
+    pointsPrice: item.points_price,
     thumbUrl: item.thumb_url,
     addedAt: item.added_at,
     reservation: item.reservation,

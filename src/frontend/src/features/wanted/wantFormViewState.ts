@@ -64,7 +64,7 @@ export function initialFromPrefill(params: URLSearchParams): WantFormInitial {
   const category = params.get("category");
   const categoryId = category !== null && CATEGORY_ID.test(category) ? category : null;
   const offerType = params.get("offer_type");
-  const offerMode = offerType === "GIFT" || offerType === "SWAP" ? offerType : null;
+  const offerMode = offerType === "GIFT" || offerType === "SWAP" || offerType === "POINTS" ? offerType : null;
   const locality = params.get("locality");
   const localityId = locality !== null && LOCALITY_ID.test(locality) ? locality : null;
   const radius = (localityId && RADII_KM.find((km) => String(km) === params.get("radius"))) || null;

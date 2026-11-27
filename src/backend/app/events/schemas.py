@@ -73,6 +73,8 @@ class EventParticipantItemResponse(BaseModel):
     item_id: uuid.UUID
     product_name: str
     mode: str
+    # The price of a POINTS offer, `None` for any other mode.
+    points_price: int | None
     thumb_url: str | None
     added_at: datetime
     reservation: ReservedByResponse | None

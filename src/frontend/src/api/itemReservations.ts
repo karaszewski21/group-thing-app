@@ -7,10 +7,14 @@ import type { SwapProposalResponse } from "./termItemListings";
  * at the owner's place, which carries no id. */
 export type ReservationContextRef = { kind: "PERSONAL" } | { kind: "TERM" | "EVENT"; id: string };
 
-/** Only `GIFT` is taken directly; a SWAP goes through `proposeItemSwap`. */
+/** `GIFT` and `POINTS` are taken directly; a SWAP goes through
+ * `proposeItemSwap`. `points_price` is the price the buyer saw: the server
+ * requires it for POINTS (a different current price is a 409) and refuses it
+ * otherwise. */
 export interface ItemTakeRequest {
   context: ReservationContextRef;
   reservation_type: ListingMode;
+  points_price?: number;
 }
 
 export interface ItemProposeRequest {

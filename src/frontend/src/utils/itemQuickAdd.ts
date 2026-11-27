@@ -72,6 +72,9 @@ export interface ItemEditDraft {
   condition: ItemCondition;
   description: string;
   locationId: string | null;
+  /** The POINTS price as typed; `null` until the owner edits it, so the form
+   * shows the listing's current price (which loads separately). */
+  pointsPrice: string | null;
 }
 
 /** The edit form seeded from the item's details; a `null` place (none, or a
@@ -83,5 +86,6 @@ export function itemEditDraftFrom(item: ItemDetailsResponse): ItemEditDraft {
     condition: item.condition,
     description: item.description ?? "",
     locationId: item.location_id,
+    pointsPrice: null,
   };
 }

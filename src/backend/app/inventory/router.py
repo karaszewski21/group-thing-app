@@ -175,7 +175,9 @@ async def get_item(item_id: uuid.UUID, db: DbSession, principal: ReadPrincipal) 
 async def update_item(
     item_id: uuid.UUID, body: UpdateInventoryItemRequest, db: DbSession, principal: EditPrincipal
 ) -> InventoryItemResponse:
-    item = await service.update_item(db, item_id, principal, body)
+    item = await service.update_item(
+        db, item_id, principal, body, on_revalued=term_item_listings.clamp_points_price
+    )
     product = await product_service.get_product(db, item.product_id)
     return _item_response(item, product.name)
 

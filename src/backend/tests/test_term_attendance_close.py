@@ -18,11 +18,16 @@ from app.groups.application.attendance_points import close_due_attendance
 from app.groups.models import Group, Term
 from app.points.infrastructure.ledger import (
     PointLine,
-    emission_account_id,
     lock_accounts,
     post_points,
+    system_account_id,
 )
-from app.points.models import PointsConfig, PointTransaction, PointTransactionType
+from app.points.models import (
+    PointAccountType,
+    PointsConfig,
+    PointTransaction,
+    PointTransactionType,
+)
 from tests.conftest import create_location
 from tests.point_ledger_assertions import (
     assert_point_transactions_balanced,
@@ -160,7 +165,7 @@ async def test_close_monthlyCap_clipsCappedPersonAndPaysOthersInFull(
         await _rsvp(client, token, group_id, term_id)
     capped_party = uuid.UUID(people[0][1])
     close_on = occurs_on + timedelta(hours=1)
-    accounts = await lock_accounts(db_session, [capped_party])
+    accounts = await lock_accounts(db_session, [(capped_party, PointAccountType.PARTY)])
     await post_points(
         db_session,
         transaction_type=PointTransactionType.ATTENDANCE,
@@ -171,8 +176,8 @@ async def test_close_monthlyCap_clipsCappedPersonAndPaysOthersInFull(
         description="Wcześniejszy termin",
         occurred_at=datetime.utcnow(),
         entries=[
-            PointLine(await emission_account_id(db_session), -30),
-            PointLine(accounts[capped_party], 30),
+            PointLine(await system_account_id(db_session, PointAccountType.EMISSION), -30),
+            PointLine(accounts[(capped_party, PointAccountType.PARTY)], 30),
         ],
     )
     await db_session.commit()

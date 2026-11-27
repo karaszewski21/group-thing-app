@@ -30,6 +30,7 @@ from sqlalchemy import (
     Index,
     Integer,
     Numeric,
+    SmallInteger,
     String,
     Text,
     func,
@@ -449,6 +450,16 @@ class ItemListingPreference(BaseEntity):
     sets their own mode."""
 
     __tablename__ = "item_listing_preferences"
+    __table_args__ = (
+        CheckConstraint(
+            "(mode = 'POINTS') = (points_price IS NOT NULL)",
+            name="ck_item_listing_preferences_points_price",
+        ),
+        CheckConstraint(
+            "points_price IS NULL OR points_price > 0",
+            name="ck_item_listing_preferences_points_price_positive",
+        ),
+    )
 
     # Loose cross-BC pointer into `app.inventory.InventoryItem` — no FK.
     # Unique: at most one standing preference per item.
@@ -460,7 +471,7 @@ class ItemListingPreference(BaseEntity):
         ForeignKey("parties.id", name="fk_item_listing_preferences_owner_party_id_parties"),
         nullable=False,
     )
-    # One of `ReservationType`'s GIFT/SWAP values (validated in
+    # One of `ReservationType`'s GIFT/SWAP/POINTS values (validated in
     # schemas.py against `_OFFERABLE_RESERVATION_TYPES`) — plain string, not
     # the inventory enum type itself, per the module-boundary rule.
     mode: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -470,6 +481,8 @@ class ItemListingPreference(BaseEntity):
         server_default="PUBLIC",
         default=ItemVisibility.PUBLIC,
     )
+    # The owner-set price in points, set exactly for a POINTS listing.
+    points_price: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
 
 
 class SwapProposal(BaseEntity):

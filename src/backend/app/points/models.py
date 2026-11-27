@@ -50,7 +50,9 @@ def _enum_column(enum_cls: type[enum.StrEnum], length: int) -> Enum:
 
 class PointAccountType(enum.StrEnum):
     PARTY = "PARTY"
+    HELD = "HELD"
     EMISSION = "EMISSION"
+    BURN = "BURN"
 
 
 class PointTransactionType(enum.StrEnum):
@@ -58,6 +60,9 @@ class PointTransactionType(enum.StrEnum):
     EXCHANGE = "EXCHANGE"
     WISHLIST_MATCH = "WISHLIST_MATCH"
     ATTENDANCE = "ATTENDANCE"
+    HOLD = "HOLD"
+    SALE = "SALE"
+    RELEASE = "RELEASE"
 
 
 class PointSourceType(enum.StrEnum):
@@ -66,15 +71,20 @@ class PointSourceType(enum.StrEnum):
 
 
 class PointAccount(BaseEntity):
-    """A person's PARTY account, created lazily on the first award, or the
-    single EMISSION account (`party_id IS NULL`) seeded by 0105."""
+    """A person's PARTY (available) or HELD (blocked by open POINTS
+    reservations) account, one per `(party_id, account_type)`, created
+    lazily; or one of the two system accounts (`party_id IS NULL`): the
+    single EMISSION account seeded by 0105 and the single BURN account
+    seeded by 0109."""
 
     __tablename__ = "point_accounts"
     __table_args__ = (
-        UniqueConstraint("party_id", name="uq_point_accounts_party_id"),
+        UniqueConstraint(
+            "party_id", "account_type", name="uq_point_accounts_party_id_account_type"
+        ),
         CheckConstraint(
-            "(account_type = 'PARTY' AND party_id IS NOT NULL) "
-            "OR (account_type = 'EMISSION' AND party_id IS NULL)",
+            "(account_type IN ('PARTY', 'HELD') AND party_id IS NOT NULL) "
+            "OR (account_type IN ('EMISSION', 'BURN') AND party_id IS NULL)",
             name="ck_point_accounts_party_id_account_type",
         ),
         Index(
@@ -82,6 +92,12 @@ class PointAccount(BaseEntity):
             "account_type",
             unique=True,
             postgresql_where=text("account_type = 'EMISSION'"),
+        ),
+        Index(
+            "uq_point_accounts_account_type_burn",
+            "account_type",
+            unique=True,
+            postgresql_where=text("account_type = 'BURN'"),
         ),
     )
 
@@ -206,8 +222,9 @@ class PointEntry(BaseEntity):
 class PointsConfig(BaseEntity):
     """The single row of admin-tunable thresholds (`uq_points_config_singleton`
     on `((true))`), read at award, close and job time. `updated_at` doubles
-    as the compare token of the admin PUT. `max_points_offers` is stored for
-    stage 2 and not enforced."""
+    as the compare token of the admin PUT. `price_min_ratio` /
+    `price_max_ratio`, `price_cap` and `price_step` bound an owner-set POINTS
+    price; `max_points_offers` caps an owner's POINTS listings."""
 
     __tablename__ = "points_config"
     __table_args__ = (Index("uq_points_config_singleton", text("(true)"), unique=True),)
@@ -230,3 +247,7 @@ class PointsConfig(BaseEntity):
     pair_reward_limit: Mapped[int] = mapped_column(Integer, nullable=False)
     pair_window_days: Mapped[int] = mapped_column(Integer, nullable=False)
     max_points_offers: Mapped[int] = mapped_column(Integer, nullable=False)
+    price_min_ratio: Mapped[Decimal] = mapped_column(Numeric(4, 2), nullable=False)
+    price_max_ratio: Mapped[Decimal] = mapped_column(Numeric(4, 2), nullable=False)
+    price_cap: Mapped[int] = mapped_column(Integer, nullable=False)
+    price_step: Mapped[int] = mapped_column(Integer, nullable=False)

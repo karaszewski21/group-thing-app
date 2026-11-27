@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -85,6 +86,26 @@ def engine(database_url: str) -> Generator[AsyncEngine, None, None]:
 
 
 _SAVEPOINT_PREFIXES = ("SAVEPOINT", "RELEASE", "ROLLBACK TO")
+
+
+class PgError(Exception):
+    """A stand-in driver error carrying a Postgres SQLSTATE, the `orig` of a
+    faked failing statement (`pg_error`)."""
+
+    def __init__(self, sqlstate: str) -> None:
+        super().__init__(f"SQLSTATE {sqlstate}")
+        self.sqlstate = sqlstate
+
+
+def pg_error(sqlstate: str, statement: str = "UPDATE") -> OperationalError:
+    """The `OperationalError` SQLAlchemy raises for a statement Postgres
+    failed with `sqlstate` (`40P01` deadlock, `40001`, `57014`, ...)."""
+    return OperationalError(statement, {}, PgError(sqlstate))
+
+
+def deadlock(*args: Any, **kwargs: Any) -> Any:
+    """A monkeypatch stand-in for any write: fails as a deadlock (`40P01`)."""
+    raise pg_error("40P01")
 
 
 @contextmanager

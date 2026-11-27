@@ -51,7 +51,15 @@ DETAIL_KEYS = {
 }
 ORGANIZATION_KEYS = {"name", "primary_color", "accent_color", "palette_preset"}
 PARTICIPANT_KEYS = {"party_id", "display_name", "is_author", "is_me", "items", "items_total"}
-ITEM_KEYS = {"item_id", "product_name", "mode", "thumb_url", "added_at", "reservation"}
+ITEM_KEYS = {
+    "item_id",
+    "product_name",
+    "mode",
+    "points_price",
+    "thumb_url",
+    "added_at",
+    "reservation",
+}
 
 
 @pytest.fixture(autouse=True)
@@ -405,6 +413,7 @@ async def test_getEvent_participantItems_listedLiveItemsIncludingReserved(
             "item_id": str(author_item),
             "product_name": "Pi Zabawka autora",
             "mode": "GIFT",
+            "points_price": None,
             "thumb_url": None,
             "reservation": None,
         }
@@ -414,6 +423,7 @@ async def test_getEvent_participantItems_listedLiveItemsIncludingReserved(
             "item_id": str(auto),
             "product_name": "Pi Auto",
             "mode": "SWAP",
+            "points_price": None,
             "thumb_url": None,
             "reservation": None,
         },
@@ -421,6 +431,7 @@ async def test_getEvent_participantItems_listedLiveItemsIncludingReserved(
             "item_id": str(rower),
             "product_name": "Pi Rower",
             "mode": "SWAP",
+            "points_price": None,
             "thumb_url": None,
             "reservation": {"by_name": None, "by_me": False},
         },
@@ -428,6 +439,7 @@ async def test_getEvent_participantItems_listedLiveItemsIncludingReserved(
             "item_id": str(klocki),
             "product_name": "Pi Klocki",
             "mode": "GIFT",
+            "points_price": None,
             "thumb_url": "https://cdn.test/pi-klocki/w400.webp",
             "reservation": None,
         },

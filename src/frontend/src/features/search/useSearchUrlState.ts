@@ -6,7 +6,7 @@ import { useAppSearchParams } from "../../routing/navigation";
 import { RADII_KM } from "../../utils/appHelpers";
 
 const CONDITIONS: readonly ItemCondition[] = ["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"];
-const OFFER_TYPES: readonly ExchangeMode[] = ["GIFT", "SWAP"];
+const OFFER_TYPES: readonly ExchangeMode[] = ["GIFT", "SWAP", "POINTS"];
 const FILTER_KEYS = ["category", "condition", "offer_type", "date_from", "date_to"] as const;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const LOCALITY_ID = /^\d{7}$/;

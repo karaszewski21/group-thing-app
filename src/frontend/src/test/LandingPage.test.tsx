@@ -22,7 +22,7 @@ function product(id: string, title: string): SearchResult {
     title,
     subtitle: null,
     href: `/ania/product/${id}`,
-    meta: { mode: "GIFT", condition: "GOOD", thumb_url: null, reserved: false, reserved_until: null },
+    meta: { mode: "GIFT", points_price: null, condition: "GOOD", thumb_url: null, reserved: false, reserved_until: null },
   };
 }
 

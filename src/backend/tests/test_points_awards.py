@@ -26,11 +26,16 @@ from app.points.infrastructure.ledger import (
     PointLine,
     account_balance,
     account_reputation,
-    emission_account_id,
     lock_accounts,
     post_points,
+    system_account_id,
 )
-from app.points.models import PointAccount, PointTransaction, PointTransactionType
+from app.points.models import (
+    PointAccount,
+    PointAccountType,
+    PointTransaction,
+    PointTransactionType,
+)
 from app.wants.domain.status import WantStatus
 from app.wants.models import Want, WantMatchTier
 from tests.conftest import _want, create_location, seed_want_matches
@@ -149,8 +154,17 @@ async def _points_value(db: AsyncSession, item_id: uuid.UUID) -> int:
 
 async def _account_id(db: AsyncSession, party_id: uuid.UUID) -> uuid.UUID:
     return (
-        await db.execute(select(PointAccount.id).where(PointAccount.party_id == party_id))
+        await db.execute(
+            select(PointAccount.id).where(
+                PointAccount.party_id == party_id,
+                PointAccount.account_type == PointAccountType.PARTY,
+            )
+        )
     ).scalar_one()
+
+
+async def _emission_account_id(db: AsyncSession) -> uuid.UUID:
+    return await system_account_id(db, PointAccountType.EMISSION)
 
 
 async def _gift_confirmed(
@@ -185,7 +199,7 @@ async def test_confirmGift_eligibleParties_postsGiveFreeAndRaisesBalanceAndReput
     )
     assert gift.description == "Rowerek biegowy"
     assert _lines(gift) == sorted(
-        [(await emission_account_id(db_session), -value), (giver_account, value)]
+        [(await _emission_account_id(db_session), -value), (giver_account, value)]
     )
     assert await account_balance(db_session, giver_account) == value
     assert await account_reputation(db_session, giver_account) == value
@@ -240,7 +254,7 @@ async def test_confirmSwap_eligibleParties_postsOneExchangeWithSwapAwardEach(
     assert exchange.description == " ↔ ".join(names[item_id] for _leg, item_id in legs)
     assert _lines(exchange) == sorted(
         [
-            (await emission_account_id(db_session), -2 * swap_award),
+            (await _emission_account_id(db_session), -2 * swap_award),
             (await _account_id(db_session, setup.giver.party_id), swap_award),
             (await _account_id(db_session, setup.taker.party_id), swap_award),
         ]
@@ -422,8 +436,10 @@ async def _seed_pair_awards(
 ) -> list[uuid.UUID]:
     """GIVE_FREE awards between the pair, in alternating directions, posted
     `ages_days` ago; returns their transaction ids."""
-    accounts = await lock_accounts(db, [giver, taker])
-    emission = await emission_account_id(db)
+    accounts = await lock_accounts(
+        db, [(giver, PointAccountType.PARTY), (taker, PointAccountType.PARTY)]
+    )
+    emission = await _emission_account_id(db)
     ids = []
     for index, age in enumerate(ages_days):
         beneficiary, counterparty = (giver, taker) if index % 2 == 0 else (taker, giver)
@@ -436,7 +452,10 @@ async def _seed_pair_awards(
             cap_month=None,
             description="Wcześniejsze oddanie",
             occurred_at=datetime.utcnow() - timedelta(days=age),
-            entries=[PointLine(emission, -20), PointLine(accounts[beneficiary], 20)],
+            entries=[
+                PointLine(emission, -20),
+                PointLine(accounts[(beneficiary, PointAccountType.PARTY)], 20),
+            ],
         )
         ids.append(cast(uuid.UUID, transaction.id))
     await db.commit()

@@ -105,6 +105,16 @@ MOVEMENT_RULES: dict[MovementType, MovementRule] = {
         clears_location=True,
         crossing_swap=True,
     ),
+    # A sale for points moves the item exactly like a gift; the points
+    # settle in `app.points`.
+    MovementType.POINTS: MovementRule(
+        legs=1,
+        source=Side.INVENTORY,
+        target=Side.INVENTORY,
+        transfers_ownership=True,
+        requires_item_at_owner=True,
+        clears_location=True,
+    ),
     MovementType.LEND: MovementRule(
         legs=1,
         source=Side.INVENTORY,

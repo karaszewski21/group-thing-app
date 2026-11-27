@@ -27,6 +27,8 @@ class OwnerItemCardResponse(BaseModel):
     product_name: str
     condition: str
     mode: ExchangeMode
+    # The price of a POINTS offer, `None` for any other mode.
+    points_price: int | None
     thumb_url: str | None
     # The listing preference's `created_at`, naive UTC like every audit timestamp.
     added_at: datetime
@@ -57,6 +59,7 @@ class OrganizationItemStatsResponse(BaseModel):
     # Available (not reserved) PUBLIC listed items per mode.
     GIFT: int
     SWAP: int
+    POINTS: int
 
 
 class OrganizationNextTermResponse(BaseModel):

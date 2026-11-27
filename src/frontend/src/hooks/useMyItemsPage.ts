@@ -14,7 +14,7 @@ const MY_ITEMS_PAGE_SIZE = 5;
 const SEARCH_DEBOUNCE_MS = 300;
 
 const NO_ITEMS: MyInventoryItemResponse[] = [];
-const NO_COUNTS: MyInventoryItemCounts = { ALL: 0, GIFT: 0, SWAP: 0 };
+const NO_COUNTS: MyInventoryItemCounts = { ALL: 0, GIFT: 0, SWAP: 0, POINTS: 0 };
 
 export interface UseMyItemsPageResult {
   items: MyInventoryItemResponse[];

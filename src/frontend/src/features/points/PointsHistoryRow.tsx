@@ -1,11 +1,14 @@
 import type { PointHistoryEntry } from "../../api/points";
 import dayjs from "../../utils/dayjs";
-import { POINTS_ICON, pointsSubtitle, pointsTitle, signedAmount } from "./pointsLabels";
+import { POINTS_ICON, pointsAmount, pointsSubtitle, pointsTitle } from "./pointsLabels";
+
+const AMOUNT_TONE = { plus: "text-mint", minus: "text-danger", neutral: "text-ink-soft" } as const;
 
 /** One history entry: icon, title, „{date} · {subtitle}” with the optional
- * reputation pill, and the signed amount. `occurred_at` is naive UTC. */
+ * reputation pill, and the amount (`pointsAmount`). `occurred_at` is naive UTC. */
 export function PointsHistoryRow({ entry }: { entry: PointHistoryEntry }) {
   const subtitle = pointsSubtitle(entry);
+  const amount = pointsAmount(entry);
   return (
     <li className="flex items-center gap-3 rounded-2xl border border-line bg-cream px-[15px] py-3.5">
       <span aria-hidden="true" className="text-xl">
@@ -26,7 +29,7 @@ export function PointsHistoryRow({ entry }: { entry: PointHistoryEntry }) {
           )}
         </span>
       </div>
-      <b className={entry.amount < 0 ? "text-danger" : "text-mint"}>{signedAmount(entry.amount)}</b>
+      <b className={`max-w-[45%] text-right ${AMOUNT_TONE[amount.tone]}`}>{amount.text}</b>
     </li>
   );
 }

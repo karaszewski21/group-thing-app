@@ -41,6 +41,8 @@ export interface ProductSearchResult extends SearchResultBase {
   kind: "product";
   meta: {
     mode: ExchangeMode;
+    /** The owner's price; set exactly for a POINTS listing. */
+    points_price: number | null;
     condition: ItemCondition;
     thumb_url: string | null;
     reserved: boolean;

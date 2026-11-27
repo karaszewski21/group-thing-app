@@ -52,7 +52,7 @@ async def test_myItemsPage_pagesOfFive_newestFirstWithCounts(
     assert [item["id"] for item in first["items"] + second["items"]] == list(reversed(ids))
     assert (first["total"], first["page"], first["size"]) == (7, 1, 5)
     assert len(second["items"]) == 2
-    assert first["counts"] == {"ALL": 7, "GIFT": 3, "SWAP": 2}
+    assert first["counts"] == {"ALL": 7, "GIFT": 3, "SWAP": 2, "POINTS": 0}
     assert first["items"][0]["listing_mode"] == "GIFT"
 
 
@@ -86,7 +86,7 @@ async def test_myItemsPage_modeAndNameFilters_narrowItemsButNotCounts(
     assert [item["product_name"] for item in both["items"]] == ["Książeczki MIP"]
     assert [item["product_name"] for item in percent["items"]] == ["Książka 100% MIP"]
     assert literal_wildcard["total"] == 1
-    assert both["counts"] == {"ALL": 4, "GIFT": 2, "SWAP": 1}
+    assert both["counts"] == {"ALL": 4, "GIFT": 2, "SWAP": 1, "POINTS": 0}
 
 
 async def test_myItems_reservedItem_carriesBalanceStatusAndReservationId(
@@ -126,7 +126,7 @@ async def test_myItemsPage_invalidParams_return400(
             "/api/inventory-items/mine/page", params=params, headers=_auth(token)
         )
         assert response.status_code == 400, (params, response.text)
-    assert (await _page(client, token))["counts"] == {"ALL": 0, "GIFT": 0, "SWAP": 0}
+    assert (await _page(client, token))["counts"] == {"ALL": 0, "GIFT": 0, "SWAP": 0, "POINTS": 0}
 
 
 async def test_myItemsPage_queryCount_doesNotGrowWithItems(

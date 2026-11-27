@@ -12,12 +12,13 @@ import { ItemStatusPill } from "./ItemStatus";
 /** The top of the sheet: the create-page notice, the deleted banner, the
  * listing badges ("Chcę oddać" / "Chcę się zamienić", the reservation, the
  * owner's "Prywatny", a bare "Dostępna" status), the category with the
- * condition, and the name. */
+ * condition, the name and, for a POINTS listing, its price. */
 export function ItemHeader() {
   const { item, actions, view, statusAsPill } = useItemPage();
   const mode = view.kind === "hidden" ? null : (actions.data?.mode ?? null);
   const reservation = view.kind === "loading" || view.kind === "hidden" ? null : (actions.data?.reservation ?? null);
   const isPrivate = view.kind === "own" && view.visibility === "PRIVATE";
+  const pointsPrice = mode === "POINTS" ? (actions.data?.points_price ?? null) : null;
   return (
     <>
       <FailedPhotosNotice />
@@ -47,6 +48,12 @@ export function ItemHeader() {
       <h2 className="mt-1 font-serif text-[30px] leading-tight font-extrabold tracking-tight wrap-break-word text-ink">
         {item.name}
       </h2>
+      {pointsPrice !== null && (
+        <p className="mt-3 rounded-2xl border border-line bg-cream px-3.5 py-3">
+          <span className="block text-[12.5px] text-ink-soft">Cena</span>{" "}
+          <b className="font-serif text-[28px] leading-tight font-extrabold text-ink">{`${pointsPrice} pkt`}</b>
+        </p>
+      )}
     </>
   );
 }

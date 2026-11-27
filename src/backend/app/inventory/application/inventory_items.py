@@ -17,6 +17,7 @@ from app.core.errors import (
     BusinessConflictException,
     EntityNotFoundException,
 )
+from app.db import mapped_transaction_conflicts
 from app.inventory.application.identity import get_user_id_by_principal
 from app.inventory.application.inventory import get_inventory
 from app.inventory.infrastructure import locations_acl, points_acl, repository
@@ -259,32 +260,48 @@ async def _require_item_owner(
     return item
 
 
+OnItemRevalued = Callable[[AsyncSession, uuid.UUID, int], Awaitable[None]]
+
+
 async def update_item(
     db: AsyncSession,
     item_id: uuid.UUID,
     principal: Principal,
     data: UpdateInventoryItemRequest,
+    *,
+    on_revalued: OnItemRevalued | None = None,
 ) -> InventoryItem:
     """PATCH an item's `condition`, `location_id` and/or re-point it to
     another `product_id`. Allowed regardless of the item's `InventoryBalance`
     status — a reserved item can still be corrected, and an open personal
-    pickup follows the item's current place without a notification."""
-    item = await _require_item_owner(db, item_id, principal)
-    revalue = False
-    if data.product_id is not None and data.product_id != item.product_id:
-        await product_service.get_product(db, data.product_id)
-        item.product_id = data.product_id
-        revalue = True
-    if data.condition is not None and data.condition != item.condition:
-        item.condition = data.condition
-        revalue = True
-    if revalue:
-        item.points_value = await points_acl.item_points_value(db, item.product_id, item.condition)
-    if data.location_id is not None:
-        acting_user_id = await get_user_id_by_principal(db, principal)
-        await _require_owned_location(db, acting_user_id, data.location_id)
-        item.location_id = data.location_id
-    await db.commit()
+    pickup follows the item's current place without a notification.
+
+    A product or condition change locks the item row before any attribute
+    is assigned, recomputes `points_value` and hands it to `on_revalued`
+    (the router injects `app.groups`' POINTS price clamp, which then locks
+    the preference: item before preference). A deadlock or serialization
+    failure is a 409."""
+    async with mapped_transaction_conflicts(db):
+        item = await _require_item_owner(db, item_id, principal)
+        product_changes = data.product_id is not None and data.product_id != item.product_id
+        condition_changes = data.condition is not None and data.condition != item.condition
+        if product_changes or condition_changes:
+            item = await get_item_for_update(db, item_id)
+            if data.product_id is not None and data.product_id != item.product_id:
+                await product_service.get_product(db, data.product_id)
+                item.product_id = data.product_id
+            if data.condition is not None and data.condition != item.condition:
+                item.condition = data.condition
+            item.points_value = await points_acl.item_points_value(
+                db, item.product_id, item.condition
+            )
+            if on_revalued is not None:
+                await on_revalued(db, item_id, item.points_value)
+        if data.location_id is not None:
+            acting_user_id = await get_user_id_by_principal(db, principal)
+            await _require_owned_location(db, acting_user_id, data.location_id)
+            item.location_id = data.location_id
+        await db.commit()
     await db.refresh(item)
     return item
 

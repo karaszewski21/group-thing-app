@@ -12,7 +12,8 @@ import * as termItemListingsApi from "../api/termItemListings";
 import type { AcceptedSwapProposalResponse, SwapProposalOfferResponse } from "../api/termItemListings";
 import { api } from "../api/client";
 import { setItemListingPreference } from "../api/itemListingPreferences";
-import { createQueryWrapper } from "./queryClient";
+import { POINTS_KEY } from "../hooks/usePointsConfig";
+import { createQueryWrapper, createTestQueryClient } from "./queryClient";
 import { myItemsPageMock, pageResult, resetMyItemsPageMock } from "./myItemsPageMock";
 
 vi.mock("../hooks/useMyItemsPage", async (importOriginal) => {
@@ -53,6 +54,7 @@ const item: MyInventoryItemResponse = {
   updated_at: "2026-01-01T00:00:00Z",
   listing_mode: null,
   listing_visibility: null,
+  points_price: null,
   listing_status: "ACTIVE",
   photos_moderation_pending: false,
   location_id: "loc-1",
@@ -117,8 +119,8 @@ function setup({
   vi.mocked(termItemListingsApi.getSwapProposalsForItem).mockResolvedValue([]);
 }
 
-function renderWithProviders() {
-  return renderWithRoute(<MyItemsView />, { url: "/", wrapper: createQueryWrapper() });
+function renderWithProviders(client = createTestQueryClient()) {
+  return renderWithRoute(<MyItemsView />, { url: "/", wrapper: createQueryWrapper(client) });
 }
 
 describe("MyItemsView — no inventory location card", () => {
@@ -180,6 +182,59 @@ describe("MyItemsView — personal reservations confirm/cancel immediately", () 
     expect(await screen.findByRole("status")).toHaveTextContent("czeka na potwierdzenie");
     expect(screen.queryByRole("button", { name: "Odebrał" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Anuluj wymianę" })).not.toBeInTheDocument();
+  });
+});
+
+describe("MyItemsView — POINTS listings", () => {
+  const bike: MyInventoryItemResponse = { ...item, listing_mode: "POINTS", points_price: 40, points_value: 40 };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    resetMyItemsPageMock();
+  });
+
+  it("offers the seller of a POINTS reservation only 'Anuluj wymianę' — the buyer confirms", async () => {
+    setup({ items: [bike], itemModes: { [item.id]: "za punkty" }, reservation: personalReservation("POINTS") });
+    renderWithProviders();
+
+    expect(await screen.findByRole("button", { name: "Anuluj wymianę" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Odebrał" })).not.toBeInTheDocument();
+  });
+
+  it("shows the price chip, read as „Za punkty: N pkt”, beside the system value", async () => {
+    setup({ items: [bike], itemModes: { [item.id]: "za punkty" } });
+    renderWithProviders();
+
+    const hidden = await screen.findByText("Za punkty:");
+    expect(hidden).toHaveClass("sr-only");
+    expect(hidden.parentElement).toHaveClass("bg-orange", "text-ink");
+    expect(hidden.parentElement).toHaveTextContent(/^Za punkty: 40 pkt$/);
+  });
+
+  it("filters by „Za punkty” with its count", async () => {
+    setup({ items: [bike], itemModes: { [item.id]: "za punkty" } });
+    myItemsPageMock.result = pageResult([bike], { counts: { ALL: 5, GIFT: 1, SWAP: 1, POINTS: 3 } });
+    renderWithProviders();
+
+    const select = await screen.findByRole("combobox", { name: "Tryb" });
+    expect(within(select).getByRole("option", { name: "Za punkty (3)" })).toBeInTheDocument();
+    fireEvent.change(select, { target: { value: "za punkty" } });
+
+    expect(myItemsPageMock.calls.at(-1)).toEqual(["POINTS", ""]);
+  });
+
+  it("the „Za punkty” mode option saves the mode alone, without a price", async () => {
+    setup();
+    renderWithProviders();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Za punkty" }));
+    const { setItemMode } = vi.mocked(appDataStore.useAppData)();
+    expect(setItemMode).toHaveBeenCalledWith(item.id, "za punkty");
+
+    const put = vi.spyOn(api, "put").mockResolvedValue(null);
+    await setItemListingPreference(item.id, "POINTS");
+    expect(put).toHaveBeenLastCalledWith(`/item-listing-preferences/${item.id}`, { mode: "POINTS" });
+    put.mockRestore();
   });
 });
 
@@ -356,6 +411,23 @@ describe("MyItemsView — cancelling a personal reservation", () => {
     const { load } = vi.mocked(appDataStore.useAppData).mock.results[0].value as AppDataContextValue;
     await waitFor(() => expect(load).toHaveBeenCalledWith({ silent: true }));
   });
+
+  it("'Anuluj wymianę' on a personal POINTS sale also refreshes the points queries", async () => {
+    setup({ itemModes: { [item.id]: "za punkty" }, reservation: personalReservation("POINTS") });
+    vi.mocked(reservationsApi.cancelTransaction).mockResolvedValue({
+      reservation_id: "res-1",
+      status: "CANCELLED",
+      already_resolved: false,
+    });
+    const client = createTestQueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    renderWithProviders(client);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Anuluj wymianę" }));
+
+    await waitFor(() => expect(reservationsApi.cancelTransaction).toHaveBeenCalledWith("res-1"));
+    await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: [POINTS_KEY] }));
+  });
 });
 
 describe("MyItemsView — filter bar", () => {
@@ -368,7 +440,7 @@ describe("MyItemsView — filter bar", () => {
 
   it("the select shows the server counts and asks for one mode", async () => {
     setup({ items: [item, scooter], itemModes: { [scooter.id]: "zamienię" } });
-    myItemsPageMock.result = pageResult([item, scooter], { counts: { ALL: 12, GIFT: 4, SWAP: 7 } });
+    myItemsPageMock.result = pageResult([item, scooter], { counts: { ALL: 12, GIFT: 4, SWAP: 7, POINTS: 0 } });
     renderWithProviders();
 
     const select = await screen.findByRole("combobox", { name: "Tryb" });
@@ -398,7 +470,7 @@ describe("MyItemsView — filter bar", () => {
 
   it("an empty filtered page keeps the bar and says nothing matches", async () => {
     setup();
-    myItemsPageMock.result = pageResult([], { counts: { ALL: 3, GIFT: 0, SWAP: 3 } });
+    myItemsPageMock.result = pageResult([], { counts: { ALL: 3, GIFT: 0, SWAP: 3, POINTS: 0 } });
     renderWithProviders();
 
     expect(await screen.findByText("Brak rzeczy pasujących do filtra.")).toBeInTheDocument();

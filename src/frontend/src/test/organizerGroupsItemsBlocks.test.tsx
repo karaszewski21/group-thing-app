@@ -137,7 +137,7 @@ describe("MeetingLinksBlock", () => {
 
 describe("ItemStatsBlock", () => {
   it("shows the available item count per mode, both tiles leading to the items page", () => {
-    renderWithRouter(<ItemStatsBlock data={pageData(scheduleLayout({ item_stats: { GIFT: 0, SWAP: 2 } }))} mode="visitor" />);
+    renderWithRouter(<ItemStatsBlock data={pageData(scheduleLayout({ item_stats: { GIFT: 0, SWAP: 2, POINTS: 0 } }))} mode="visitor" />);
 
     expect(screen.getByRole("link", { name: "0 Chcę oddać" })).toHaveAttribute("href", `/${SLUG}/items`);
     expect(screen.getByRole("link", { name: "2 Chcę się zamienić" })).toHaveAttribute("href", `/${SLUG}/items`);
@@ -152,7 +152,7 @@ describe("group and item isEmpty predicates", () => {
     expect(isGroupsGridEmpty(pageData(classicLayout()))).toBe(true);
 
     expect(isItemStatsEmpty(pageData(scheduleLayout()))).toBe(true);
-    expect(isItemStatsEmpty(pageData(scheduleLayout({ item_stats: { GIFT: 1, SWAP: 0 } })))).toBe(false);
+    expect(isItemStatsEmpty(pageData(scheduleLayout({ item_stats: { GIFT: 1, SWAP: 0, POINTS: 0 } })))).toBe(false);
     expect(isItemStatsEmpty(pageData(exchangeLayout()))).toBe(true);
 
     expect(isMeetingLinksEmpty(pageData(exchangeLayout()))).toBe(true);
@@ -163,7 +163,7 @@ describe("group and item isEmpty predicates", () => {
 });
 
 describe("ExchangeModeTabs", () => {
-  function renderTabs(counts: { GIFT: number; SWAP: number; RESERVED?: number }, onSelect = vi.fn()) {
+  function renderTabs(counts: { GIFT: number; SWAP: number; POINTS: number; RESERVED?: number }, onSelect = vi.fn()) {
     renderWithRouter(
       <ExchangeModeTabs
         counts={counts}
@@ -180,16 +180,18 @@ describe("ExchangeModeTabs", () => {
 
   it("wraps the tab strip, adds the reserved tab only with its count and disables empty modes", () => {
     const onSelect = vi.fn();
-    const tablist = renderTabs({ GIFT: 0, SWAP: 2, RESERVED: 1 }, onSelect);
+    const tablist = renderTabs({ GIFT: 0, SWAP: 2, POINTS: 0, RESERVED: 1 }, onSelect);
 
     expect(screen.getByRole("tablist")).toHaveClass("flex", "flex-wrap");
     expect(tablist.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Wszystkie 3",
       "Chcę oddać 0",
       "Chcę się zamienić 2",
+      "Za punkty 0",
       "Zarezerwowane 1",
     ]);
     expect(tablist.getByRole("tab", { name: /Chcę oddać/ })).toBeDisabled();
+    expect(tablist.getByRole("tab", { name: /Za punkty/ })).toBeDisabled();
     fireEvent.click(tablist.getByRole("tab", { name: /Chcę się zamienić/ }));
     expect(onSelect).toHaveBeenCalledWith("SWAP");
   });

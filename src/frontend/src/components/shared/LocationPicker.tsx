@@ -43,6 +43,8 @@ interface LocationPickerProps {
   helperText?: string;
   /** Runs before "+" navigates to /places/new (e.g. to close a modal). */
   onAddClick?: () => void;
+  /** Locks the select and "+" (a disabled button instead of the link). */
+  disabled?: boolean;
 }
 
 export function LocationPicker({
@@ -57,6 +59,7 @@ export function LocationPicker({
   fallbackLocation,
   helperText,
   onAddClick,
+  disabled = false,
 }: LocationPickerProps) {
   const { data: locations, loading, error } = useMyLocations();
   const selectRef = useRef<HTMLSelectElement>(null);
@@ -105,6 +108,7 @@ export function LocationPicker({
           aria-invalid={showError || undefined}
           aria-describedby={showError ? errorId : undefined}
           value={value ?? ""}
+          disabled={disabled}
           onChange={(e) => onChange(e.target.value || null)}
           className={`${INPUT_CLASS} w-full min-w-0 flex-1 ${showError ? "border-danger" : ""}`}
         >
@@ -126,15 +130,21 @@ export function LocationPicker({
             </option>
           )}
         </select>
-        <Link
-          to={placeCreatePath(returnTo, idPrefix)}
-          replace
-          onClick={() => onAddClick?.()}
-          aria-label="Dodaj nowe miejsce"
-          className={ADD_BUTTON}
-        >
-          +
-        </Link>
+        {disabled ? (
+          <button type="button" disabled aria-label="Dodaj nowe miejsce" className={`${ADD_BUTTON} opacity-60`}>
+            +
+          </button>
+        ) : (
+          <Link
+            to={placeCreatePath(returnTo, idPrefix)}
+            replace
+            onClick={() => onAddClick?.()}
+            aria-label="Dodaj nowe miejsce"
+            className={ADD_BUTTON}
+          >
+            +
+          </Link>
+        )}
       </div>
       {detail && <p className={NOTE_CLASS}>{detail}</p>}
       {empty && <p className={NOTE_CLASS}>Dodaj miejsce przyciskiem „+”. Wrócisz tu z zachowanymi danymi i zdjęciami.</p>}

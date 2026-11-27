@@ -1,5 +1,7 @@
-"""Posting the awards of a confirmed exchange (spec R2) and of a closed
-term's attendance (spec R6), flush-only, inside the caller's commit."""
+"""Posting the awards of a confirmed exchange (GIVE_FREE with reputation,
+EXCHANGE, WISHLIST_MATCH) — or the SALE that settles a POINTS hold — and
+the attendance points of a closed term, flush-only, inside the caller's
+commit."""
 
 from __future__ import annotations
 
@@ -8,12 +10,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
 from app.points.application.config import load_config
+from app.points.application.purchases import settle_sale, used_pair_slots
 from app.points.domain.awards import (
+    POINTS,
     AwardLeg,
     ExchangeRules,
     attendance_cap_month,
@@ -22,15 +26,15 @@ from app.points.domain.awards import (
 )
 from app.points.infrastructure import families_acl, inventory_acl, users_acl, wants_acl
 from app.points.infrastructure.ledger import (
-    TRANSACTION_RULES,
     PointLine,
-    emission_account_id,
     existing_source_ids,
     lock_accounts,
     post_points,
     source_key_exists,
+    system_account_id,
 )
 from app.points.models import (
+    PointAccountType,
     PointEntry,
     PointSourceType,
     PointTransaction,
@@ -40,7 +44,7 @@ from app.points.models import (
 
 @dataclass(frozen=True)
 class ExchangeLeg:
-    """One reservation of a confirmed GIFT (one leg) or SWAP (two legs);
+    """One reservation of a confirmed GIFT or POINTS (one leg) or SWAP (two legs);
     `recipient_user_id` is the user who reserved the item."""
 
     reservation_id: uuid.UUID
@@ -54,8 +58,13 @@ class ExchangeLeg:
 async def award_exchange(db: AsyncSession, legs: Sequence[ExchangeLeg]) -> None:
     """Posts what the exchange earns; nothing when either side is not an
     eligible person, both sides are the same party, or they share a family.
-    The two accounts are locked in party-id order before the pair slots are
-    counted, ahead of any item row lock taken by the caller."""
+    The two PARTY accounts are locked in party-id order before the pair slots are
+    counted, ahead of any item row lock taken by the caller. A POINTS leg
+    is settled as SALE instead and earns no award."""
+    if any(leg.reservation_type == POINTS for leg in legs):
+        for leg in legs:
+            await settle_sale(db, leg.reservation_id)
+        return
     parties = await users_acl.eligible_party_ids(
         db, {user for leg in legs for user in (leg.giver_user_id, leg.recipient_user_id)}
     )
@@ -67,10 +76,10 @@ async def award_exchange(db: AsyncSession, legs: Sequence[ExchangeLeg]) -> None:
     if len(pair) != 2 or await families_acl.share_active_family(db, *pair):
         return
 
-    accounts = await lock_accounts(db, pair)
+    accounts = await lock_accounts(db, [(party, PointAccountType.PARTY) for party in pair])
     config = await load_config(db)
     now = datetime.utcnow()
-    used = await _used_pair_slots(
+    used = await used_pair_slots(
         db, pair[0], pair[1], since=now - timedelta(days=config.pair_window_days)
     )
     items = await inventory_acl.exchanged_items(db, [leg.item_id for leg in legs])
@@ -103,7 +112,7 @@ async def award_exchange(db: AsyncSession, legs: Sequence[ExchangeLeg]) -> None:
     )
 
     item_of = {leg.reservation_id: leg.item_id for leg in legs}
-    emission = await emission_account_id(db)
+    emission = await system_account_id(db, PointAccountType.EMISSION)
     for award in planned:
         transaction_type = PointTransactionType(award.transaction_type)
         if await source_key_exists(
@@ -124,33 +133,12 @@ async def award_exchange(db: AsyncSession, legs: Sequence[ExchangeLeg]) -> None:
             occurred_at=now,
             entries=[
                 PointLine(emission, -award.total),
-                *(PointLine(accounts[party], amount) for party, amount in award.credits),
+                *(
+                    PointLine(accounts[(party, PointAccountType.PARTY)], amount)
+                    for party, amount in award.credits
+                ),
             ],
         )
-
-
-async def _used_pair_slots(db: AsyncSession, a: uuid.UUID, b: uuid.UUID, *, since: datetime) -> int:
-    """The pair's rewarded transactions, in either direction, since `since`."""
-    pair_limited = [t for t, rule in TRANSACTION_RULES.items() if rule.pair_limited]
-    return int(
-        await db.scalar(
-            select(func.count())
-            .select_from(PointTransaction)
-            .where(
-                PointTransaction.transaction_type.in_(pair_limited),
-                or_(
-                    and_(
-                        PointTransaction.party_id == a, PointTransaction.counterparty_party_id == b
-                    ),
-                    and_(
-                        PointTransaction.party_id == b, PointTransaction.counterparty_party_id == a
-                    ),
-                ),
-                PointTransaction.occurred_at >= since,
-            )
-        )
-        or 0
-    )
 
 
 async def award_attendance(
@@ -179,13 +167,15 @@ async def award_attendance(
     if not pending or level <= 0:
         return 0
 
-    accounts = await lock_accounts(db, {party for _, party in pending})
+    accounts = await lock_accounts(db, {(party, PointAccountType.PARTY) for _, party in pending})
     config = await load_config(db)
     cap_month = attendance_cap_month(clock.local_now())
-    used = await _attendance_in_cap_month(db, accounts, cap_month)
+    used = await _attendance_in_cap_month(
+        db, {account_id: party for (party, _type), account_id in accounts.items()}, cap_month
+    )
     planned = plan_attendance_awards(pending, level, config.attendance_monthly_cap, used)
 
-    emission = await emission_account_id(db)
+    emission = await system_account_id(db, PointAccountType.EMISSION)
     now = datetime.utcnow()
     for award in planned:
         await post_points(
@@ -199,17 +189,17 @@ async def award_attendance(
             occurred_at=now,
             entries=[
                 PointLine(emission, -award.amount),
-                PointLine(accounts[award.party_id], award.amount),
+                PointLine(accounts[(award.party_id, PointAccountType.PARTY)], award.amount),
             ],
         )
     return len(planned)
 
 
 async def _attendance_in_cap_month(
-    db: AsyncSession, accounts: dict[uuid.UUID, uuid.UUID], cap_month: date
+    db: AsyncSession, party_of: dict[uuid.UUID, uuid.UUID], cap_month: date
 ) -> dict[uuid.UUID, int]:
-    """`{party_id: ATTENDANCE points credited in cap_month}`, one query."""
-    party_of = {account_id: party_id for party_id, account_id in accounts.items()}
+    """`{party_id: ATTENDANCE points credited in cap_month}` over the PARTY
+    accounts `party_of` (`{account_id: party_id}`), one query."""
     rows = await db.execute(
         select(PointEntry.account_id, func.sum(PointEntry.amount))
         .join(PointTransaction, PointTransaction.id == PointEntry.transaction_id)

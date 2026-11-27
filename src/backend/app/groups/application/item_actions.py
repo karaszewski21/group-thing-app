@@ -26,7 +26,7 @@ from app.core.errors import EntityNotFoundException
 from app.users.models import UserProfile
 from app.users.service import get_profile_by_account_user_id, get_profile_by_principal
 
-from ..infrastructure import events_acl, inventory_bridge, locations_acl, repository
+from ..infrastructure import events_acl, inventory_bridge, locations_acl, points_acl, repository
 from ..infrastructure.slug_resolver import resolve_organizer_slugs
 from ..models import ItemListingPreference, ItemVisibility, SwapProposal
 from ..schemas import (
@@ -100,12 +100,13 @@ async def get_item_actions(
 
     return ItemActionsResponse(
         mode=mode,
+        points_price=preference.points_price if preference is not None else None,
         visibility=preference.visibility if viewer == "OWN" and preference is not None else None,
         available=available,
         reservation=names.reservation(balance_status, reserved_by, proposer),
         party_reservation=(
-            await _party_reservation(db, leg, proposals, viewer_profile, preference)
-            if viewer_profile is not None
+            await _party_reservation(db, leg, proposals, viewer_profile, preference, principal)
+            if viewer_profile is not None and principal is not None
             else None
         ),
         owner=owner,
@@ -259,6 +260,7 @@ async def _party_reservation(
     proposals: list[SwapProposal],
     viewer: UserProfile,
     preference: ItemListingPreference | None,
+    principal: Principal,
 ) -> ItemPartyReservationResponse | None:
     """The viewer's part in the item's newest open reservation `leg` (GIVER
     holds the item, RECEIVER gets it), else in one of its PROPOSED swap
@@ -266,7 +268,12 @@ async def _party_reservation(
     own); `None` for anyone else."""
     user_id = cast(uuid.UUID, viewer.account_user_id)
     if leg is not None and user_id in (leg.reserved_by_user_id, leg.giver_user_id):
-        can_confirm, can_cancel = await transaction_action_flags(db, leg, user_id)
+        can_confirm, can_cancel = await transaction_action_flags(db, leg, user_id, principal)
+        held = (
+            await points_acl.hold_amounts(db, [cast(uuid.UUID, leg.id)])
+            if leg.reservation_type == inventory_bridge.ReservationType.POINTS
+            else {}
+        )
         return ItemPartyReservationResponse(
             role="GIVER" if user_id == leg.giver_user_id else "RECEIVER",
             reservation_id=cast(uuid.UUID, leg.id),
@@ -277,6 +284,7 @@ async def _party_reservation(
             can_cancel=can_cancel,
             can_accept=False,
             can_reject=False,
+            held_points=held.get(cast(uuid.UUID, leg.id)),
         )
 
     owns = is_listing_owner(preference, viewer.party_id)
@@ -294,4 +302,5 @@ async def _party_reservation(
         can_cancel=False,
         can_accept=owns,
         can_reject=owns,
+        held_points=None,
     )

@@ -6,6 +6,11 @@ import * as itemsApi from "../api/items";
 import * as inventoriesApi from "../api/inventories";
 import * as categoriesApi from "../api/categories";
 import * as locationsApi from "../api/locations";
+import * as itemActionsApi from "../api/itemActions";
+import * as pointsApi from "../api/points";
+import * as listingApi from "../api/itemListingPreferences";
+import { ApiError } from "../api/client";
+import type { ItemActionsResponse } from "../api/itemActions";
 import type { Category } from "../api/categories";
 import type { InventoryItemResponse } from "../api/inventories";
 import type { ItemDetailsResponse } from "../api/items";
@@ -72,6 +77,12 @@ vi.mock("../api/products", () => ({
 
 vi.mock("../api/categories", () => ({ getCategories: vi.fn() }));
 
+vi.mock("../api/itemActions", () => ({ getItemActions: vi.fn() }));
+
+vi.mock("../api/points", () => ({ getItemPointsValue: vi.fn(), getOwnedItemPointsValue: vi.fn() }));
+
+vi.mock("../api/itemListingPreferences", () => ({ setItemListingPreference: vi.fn() }));
+
 vi.mock("../api/locations", () => ({
   getMyLocations: vi.fn(),
   createLocation: vi.fn(),
@@ -132,6 +143,27 @@ function savedItem(): InventoryItemResponse {
   };
 }
 
+function actions(overrides: Partial<ItemActionsResponse> = {}): ItemActionsResponse {
+  return {
+    mode: "GIFT",
+    points_price: null,
+    visibility: "PUBLIC",
+    available: true,
+    reservation: null,
+    party_reservation: null,
+    owner: { party_id: "party-ania", display_name: "Ania", slug: "ania", items_total: 1 },
+    viewer: "OWN",
+    location: null,
+    contexts: [],
+    personal_pickup_available: false,
+    ...overrides,
+  };
+}
+
+function pointsActions(overrides: Partial<ItemActionsResponse> = {}): ItemActionsResponse {
+  return actions({ mode: "POINTS", points_price: 40, ...overrides });
+}
+
 /** `/places/new` standing in for PlaceCreateView: saving returns to the
  * edit page, replacing this entry, with the new place picked. */
 function PlaceCreateProbe() {
@@ -175,6 +207,20 @@ beforeEach(() => {
   ]);
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([KETY, POZNAN]);
   vi.mocked(inventoriesApi.updateInventoryItem).mockResolvedValue(savedItem());
+  vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(actions());
+  // The stored value (GOOD): 40 → 20–60; the draft forecast (LIKE_NEW): 60 → 30–90.
+  vi.mocked(pointsApi.getOwnedItemPointsValue).mockResolvedValue({
+    points_value: 40,
+    price_min: 20,
+    price_max: 60,
+    price_step: 10,
+  });
+  vi.mocked(pointsApi.getItemPointsValue).mockImplementation(async (_categoryId, condition) =>
+    condition === "GOOD"
+      ? { points_value: 40, price_min: 20, price_max: 60, price_step: 10 }
+      : { points_value: 60, price_min: 30, price_max: 90, price_step: 10 },
+  );
+  vi.mocked(listingApi.setItemListingPreference).mockResolvedValue(null);
 });
 
 describe("ItemEditView", () => {
@@ -294,5 +340,128 @@ describe("ItemEditView", () => {
     ]);
     expect(calls.at(-1)?.method).toBe("back");
     expect(getTestLocation().pathname).toBe(ITEM_URL);
+  });
+});
+
+describe("ItemEditView — POINTS price", () => {
+  async function priceInput() {
+    return screen.findByRole("textbox", { name: "Cena w punktach" });
+  }
+
+  it("shows no price section for a listing that is not POINTS", async () => {
+    renderEditPage();
+    await editForm();
+    await waitFor(() => expect(itemActionsApi.getItemActions).toHaveBeenCalled());
+    expect(screen.queryByRole("textbox", { name: "Cena w punktach" })).not.toBeInTheDocument();
+    expect(pointsApi.getOwnedItemPointsValue).not.toHaveBeenCalled();
+  });
+
+  it("uses the stored value's bounds while the category and condition are unchanged", async () => {
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(pointsActions());
+    renderEditPage();
+
+    expect(await priceInput()).toHaveValue("40");
+    expect(screen.getByText("Dozwolone 20–60 pkt, co 10")).toBeInTheDocument();
+    expect(pointsApi.getOwnedItemPointsValue).toHaveBeenCalledWith(ITEM_ID);
+    expect(screen.queryByText(/Zmieniłeś/)).not.toBeInTheDocument();
+  });
+
+  it("after a condition change shows the forecast and the preview bounds", async () => {
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(pointsActions());
+    renderEditPage();
+    const form = await editForm();
+    await priceInput();
+
+    fireEvent.change(within(form).getByLabelText("Stan"), { target: { value: "LIKE_NEW" } });
+
+    expect(
+      await screen.findByText(
+        "Zmieniłeś stan — sugestia to teraz 60 pkt (dozwolone 30–90). Twoja cena 40 pkt mieści się w zakresie.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Dozwolone 30–90 pkt, co 10")).toBeInTheDocument();
+  });
+
+  it("while reserved says the reservation settles at its held amount", async () => {
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(
+      pointsActions({
+        available: false,
+        reservation: { by_name: "Ania", by_me: false },
+        party_reservation: {
+          role: "GIVER",
+          reservation_id: "res-1",
+          proposal_id: null,
+          reservation_type: "POINTS",
+          personal_pickup: true,
+          can_confirm: false,
+          can_cancel: true,
+          can_accept: false,
+          can_reject: false,
+          held_points: 50,
+        },
+      }),
+    );
+    renderEditPage();
+    await priceInput();
+
+    expect(
+      screen.getByText(
+        "Zarezerwowana przez Ania za 50 pkt — ta rezerwacja rozliczy się po 50 pkt. Nowa cena dotyczy kolejnych osób.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("blocks an invalid price, then saves the PATCH first and PUTs the price after it", async () => {
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(pointsActions());
+    renderEditPage();
+    const form = await editForm();
+    const input = await priceInput();
+
+    fireEvent.change(input, { target: { value: "55" } });
+    expect(screen.getByRole("alert")).toHaveTextContent("Cena musi być od 20 do 60 pkt, co 10.");
+    expect(within(form).getByRole("button", { name: "Zapisz zmiany" })).toBeDisabled();
+
+    fireEvent.change(within(form).getByLabelText("Stan"), { target: { value: "LIKE_NEW" } });
+    await screen.findByText("Dozwolone 30–90 pkt, co 10");
+    fireEvent.change(input, { target: { value: "70" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Zapisz zmiany" }));
+
+    expect(await screen.findByText("Moje rzeczy")).toBeInTheDocument();
+    expect(inventoriesApi.updateInventoryItem).toHaveBeenCalledWith(ITEM_ID, { condition: "LIKE_NEW" });
+    expect(listingApi.setItemListingPreference).toHaveBeenCalledWith(ITEM_ID, "POINTS", undefined, 70);
+    expect(vi.mocked(inventoriesApi.updateInventoryItem).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(listingApi.setItemListingPreference).mock.invocationCallOrder[0],
+    );
+  });
+
+  it("sends no PUT when neither the price nor the bounds changed", async () => {
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(pointsActions());
+    renderEditPage();
+    const form = await editForm();
+    await priceInput();
+    await waitFor(() => expect(placeSelect()).toHaveValue(KETY.id));
+    fireEvent.change(placeSelect(), { target: { value: POZNAN.id } });
+    fireEvent.click(within(form).getByRole("button", { name: "Zapisz zmiany" }));
+
+    expect(await screen.findByText("Moje rzeczy")).toBeInTheDocument();
+    expect(listingApi.setItemListingPreference).not.toHaveBeenCalled();
+  });
+
+  it("shows a 400 on the PUT verbatim and re-reads the stored value", async () => {
+    vi.mocked(itemActionsApi.getItemActions).mockResolvedValue(pointsActions());
+    vi.mocked(listingApi.setItemListingPreference).mockRejectedValue(
+      new ApiError(400, "Bad Request", { message: "Cena musi być od 30 do 90 pkt, co 10." }),
+    );
+    renderEditPage();
+    const form = await editForm();
+    const input = await priceInput();
+    await waitFor(() => expect(pointsApi.getOwnedItemPointsValue).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(input, { target: { value: "50" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Zapisz zmiany" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Cena musi być od 30 do 90 pkt, co 10.");
+    await waitFor(() => expect(pointsApi.getOwnedItemPointsValue).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText("Moje rzeczy")).not.toBeInTheDocument();
   });
 });

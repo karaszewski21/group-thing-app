@@ -23,6 +23,7 @@ export function MatchCard({
         condition={match.meta.condition}
         thumbUrl={match.meta.thumb_url}
         mode={match.meta.mode}
+        pointsPrice={match.meta.points_price}
         reservation={null}
         reservedCaption={reservedCaption(match)}
         marker={isNew ? "nowe" : undefined}

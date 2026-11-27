@@ -20,7 +20,7 @@ from tests.test_term_item_listings import _auth, _register
 from tests.test_wants_api import NOT_FOUND_MESSAGE, _create_want
 
 SIMILAR_KEYS = {"id", "title", "href", "meta", "reserved_by_me", "proposed_by_me"}
-META_KEYS = {"mode", "condition", "thumb_url", "reserved", "reserved_until"}
+META_KEYS = {"mode", "points_price", "condition", "thumb_url", "reserved", "reserved_until"}
 
 
 async def _similar(client: AsyncClient, token: str, want_id: str) -> list[dict[str, Any]]:
@@ -60,6 +60,7 @@ async def test_listSimilar_storedSimilarPair_returnsExactCardKeySetWithoutVector
         "href": f"/{owner_party}/product/{stroller}",
         "meta": {
             "mode": "GIFT",
+            "points_price": None,
             "condition": "GOOD",
             "thumb_url": None,
             "reserved": False,

@@ -859,8 +859,8 @@ def item_listing_preferences_select(
     *,
     include_private: bool = False,
     private_circle_id: uuid.UUID | None = None,
-) -> Select[tuple[uuid.UUID, uuid.UUID, str, datetime]]:
-    """`(item_id, owner_party_id, mode, created_at)` of every listing
+) -> Select[tuple[uuid.UUID, uuid.UUID, str, datetime, int | None]]:
+    """`(item_id, owner_party_id, mode, created_at, points_price)` of every listing
     preference owned by `party_ids`, PUBLIC ones only unless
     `include_private` or `private_circle_id` (`_visible_preferences`).
     Unexecuted, so another context can join it with its own item select in
@@ -870,6 +870,7 @@ def item_listing_preferences_select(
         ItemListingPreference.owner_party_id.label("owner_party_id"),
         ItemListingPreference.mode.label("mode"),
         ItemListingPreference.created_at.label("created_at"),
+        ItemListingPreference.points_price.label("points_price"),
     ).where(
         ItemListingPreference.owner_party_id.in_(set(party_ids)),
         _visible_preferences(include_private, private_circle_id),
@@ -906,7 +907,7 @@ async def shares_private_circle(
 
 def _my_items(party_id: uuid.UUID, items: Select[Any]) -> Subquery:
     """`items` (the inventory module's inventory-items select) plus the party's own
-    listing `mode` and `visibility`, both `None` without a preference.
+    listing `mode`, `visibility` and `points_price`, all `None` without a preference.
     PRIVATE preferences count: this is the owner's view of their items."""
     inventory_items = items.subquery("inventory_items")
     return (
@@ -914,6 +915,7 @@ def _my_items(party_id: uuid.UUID, items: Select[Any]) -> Subquery:
             inventory_items,
             ItemListingPreference.mode.label("mode"),
             ItemListingPreference.visibility.label("visibility"),
+            ItemListingPreference.points_price.label("points_price"),
         )
         .outerjoin(
             ItemListingPreference,
@@ -1230,15 +1232,16 @@ async def count_owner_public_terms(
 
 
 def _owner_listed_items(owner_party_id: uuid.UUID, listed_items: Select[Any]) -> Subquery:
-    """`(item_id, mode, created_at, product_id, product_name, condition,
-    balance_status, reserved_by_user_id, proposer_party_id)`, from a
-    `with_pending_proposer` select."""
+    """`(item_id, mode, points_price, created_at, product_id, product_name,
+    condition, balance_status, reserved_by_user_id, proposer_party_id)`, from
+    a `with_pending_proposer` select."""
     preferences = item_listing_preferences_select([owner_party_id]).subquery("preferences")
     listed = listed_items.subquery("listed_items")
     return (
         select(
             preferences.c.item_id,
             preferences.c.mode,
+            preferences.c.points_price,
             preferences.c.created_at,
             listed.c.product_id,
             listed.c.product_name,

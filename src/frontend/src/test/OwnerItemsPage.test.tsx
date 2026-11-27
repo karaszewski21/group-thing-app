@@ -47,6 +47,7 @@ function card(id: string, mode: OwnerItemCard["mode"], overrides: Partial<OwnerI
     product_name: `Rzecz ${id}`,
     condition: "GOOD",
     mode,
+    points_price: null,
     thumb_url: null,
     added_at: "2026-10-30T09:00:00",
     reservation: null,
@@ -80,7 +81,7 @@ function ownerPage(overrides: Partial<OwnerItemsPageResponse> = {}): OwnerItemsP
   return {
     owner: { party_id: PARTY_ID, display_name: "Akademia Orlik", slug: SLUG },
     nearest: NEAREST_EVENT,
-    counts: { GIFT: 2, SWAP: 1 },
+    counts: { GIFT: 2, SWAP: 1, POINTS: 0 },
     items: [card("i1", "GIFT"), card("i2", "SWAP"), card("i3", "GIFT")],
     total: 3,
     page: 1,
@@ -160,7 +161,7 @@ describe("OwnerItemsPage", () => {
       ownerPage({
         owner: { party_id: PARTY_ID, display_name: "Ania W.", slug: null },
         nearest: null,
-        counts: { GIFT: 1, SWAP: 1 },
+        counts: { GIFT: 1, SWAP: 1, POINTS: 0 },
         items: [card("i1", "GIFT"), card("i2", "SWAP")],
         total: 2,
       }),
@@ -188,7 +189,7 @@ describe("OwnerItemsPage", () => {
 
     const tablist = await screen.findByRole("tablist");
     const tabs = within(tablist).getAllByRole("tab");
-    expect(tabs.map((tab) => tab.textContent)).toEqual(["Wszystkie 3", "Chcę oddać 2", "Chcę się zamienić 1"]);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Wszystkie 3", "Chcę oddać 2", "Chcę się zamienić 1", "Za punkty 0"]);
 
     fireEvent.click(within(tablist).getByRole("tab", { name: "Chcę oddać 2" }));
 
@@ -217,7 +218,7 @@ describe("OwnerItemsPage", () => {
     expect(within(reserved).getByText("Oddam")).toBeInTheDocument();
     expect(screen.queryByText(/przez/)).not.toBeInTheDocument();
     const tabs = within(screen.getByRole("tablist")).getAllByRole("tab");
-    expect(tabs.map((tab) => tab.textContent)).toEqual(["Wszystkie 3", "Chcę oddać 2", "Chcę się zamienić 1"]);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Wszystkie 3", "Chcę oddać 2", "Chcę się zamienić 1", "Za punkty 0"]);
   });
 
   it("refetches the owner items under a new key after a login", async () => {
@@ -257,8 +258,8 @@ describe("OwnerItemsPage", () => {
   it("loads the next page on 'Pokaż więcej'", async () => {
     vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockImplementation(async (_slug, page) =>
       page === 1
-        ? ownerPage({ counts: { GIFT: 21, SWAP: 0 }, items: [card("i1", "GIFT")], total: 21 })
-        : ownerPage({ counts: { GIFT: 21, SWAP: 0 }, items: [card("i21", "GIFT")], total: 21, page: 2 }),
+        ? ownerPage({ counts: { GIFT: 21, SWAP: 0, POINTS: 0 }, items: [card("i1", "GIFT")], total: 21 })
+        : ownerPage({ counts: { GIFT: 21, SWAP: 0, POINTS: 0 }, items: [card("i21", "GIFT")], total: 21, page: 2 }),
     );
 
     await renderAt(`/${SLUG}/items`);

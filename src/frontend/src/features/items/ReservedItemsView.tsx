@@ -8,11 +8,13 @@ import { SafeImage } from "../product/ItemGallery";
 const MODE_LABEL: Record<MyReservationResponse["mode"], string> = {
   GIFT: "Za darmo",
   SWAP: "Zamiana",
+  POINTS: "Za punkty",
 };
 
 const MODE_TONE: Record<MyReservationResponse["mode"], string> = {
   GIFT: "bg-primary-soft text-primary-fg",
   SWAP: "bg-accent-soft text-accent-fg",
+  POINTS: "bg-orange text-ink",
 };
 
 const STATUS_LABEL: Record<MyReservationResponse["status"], string> = {
@@ -80,6 +82,13 @@ export function ReservedItemsView() {
                 <span className={`rounded-full px-2.5 py-0.5 text-xs font-extrabold ${MODE_TONE[reservation.mode]}`}>
                   {MODE_LABEL[reservation.mode]}
                 </span>{" "}
+                {reservation.held_points !== null && (
+                  <>
+                    <span className="rounded-full bg-cream px-2.5 py-0.5 text-xs font-extrabold text-ink">
+                      {reservation.held_points} pkt zablokowane
+                    </span>{" "}
+                  </>
+                )}
                 <span className="rounded-full bg-cream px-2.5 py-0.5 text-xs font-extrabold text-ink-soft">
                   {STATUS_LABEL[reservation.status]}
                 </span>

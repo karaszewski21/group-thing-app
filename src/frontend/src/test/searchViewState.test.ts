@@ -8,7 +8,7 @@ const PRODUCT: SearchResult = {
   title: "Klocki drewniane",
   subtitle: null,
   href: "/zielony-krag/product/it-1",
-  meta: { mode: "GIFT", condition: "GOOD", thumb_url: null, reserved: false, reserved_until: null },
+  meta: { mode: "GIFT", points_price: null, condition: "GOOD", thumb_url: null, reserved: false, reserved_until: null },
 };
 
 const EVENT: SearchResult = {

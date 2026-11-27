@@ -106,6 +106,7 @@ async def _list_owner_items(
             product_name=row.product_name,
             condition=row.condition,
             mode=cast(ExchangeMode, row.mode),
+            points_price=row.points_price,
             thumb_url=thumb_url(row.product_id),
             added_at=row.created_at,
             reservation=names.row_reservation(row),
@@ -216,7 +217,7 @@ async def _build_page(
     storage: ObjectStorage | None,
     principal: Principal | None,
 ) -> OwnerItemsPageResponse:
-    total = counts.GIFT + counts.SWAP if mode is None else getattr(counts, mode)
+    total = counts.GIFT + counts.SWAP + counts.POINTS if mode is None else getattr(counts, mode)
     items = await _list_owner_items(
         db,
         owner.party_id,
@@ -266,7 +267,7 @@ async def get_party_owner_items(
     private person's name. The owner is the person (`person_summary`)."""
     profile = await users_acl.get_profile_by_party(db, party_id)
     counts = await groups_acl.owner_item_counts(db, party_id)
-    if counts.GIFT + counts.SWAP == 0:
+    if counts.GIFT + counts.SWAP + counts.POINTS == 0:
         raise EntityNotFoundException("Party", party_id)
     owner = person_summary(profile)
     return await _build_page(db, owner, counts, params, mode, storage, principal)

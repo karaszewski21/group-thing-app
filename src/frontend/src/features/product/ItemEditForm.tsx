@@ -4,10 +4,13 @@ import type { ItemDetailsResponse } from "../../api/items";
 import { CategoryTreePicker } from "../../components/shared/CategoryTreePicker";
 import { ItemPointsPreview } from "../../components/shared/ItemPointsPreview";
 import { LocationPicker } from "../../components/shared/LocationPicker";
+import { PointsPriceStepper } from "../../components/shared/PointsPriceStepper";
+import { useItemActions } from "../../hooks/useItemActions";
 import type { useItemEditing } from "../../hooks/useItemDetail";
+import { useItemPointsPreview, useOwnedItemPointsValue } from "../../hooks/useItemPointsPreview";
 import { useMyLocations } from "../../hooks/useMyLocations";
 import { useNavigationState } from "../../routing/navigation";
-import type { PickedLocationState } from "../../utils/appHelpers";
+import { clampPointsPrice, parsePointsPrice, type PickedLocationState, type PointsPriceBounds } from "../../utils/appHelpers";
 import { ITEM_LOCATION_HELPER, liveLocationId, type ItemEditDraft } from "../../utils/itemQuickAdd";
 import { CONDITION_LABELS } from "../../utils/productCategory";
 import { FIELD_LABEL, PRODUCT_DESCRIPTION_MAX } from "./itemPageShared";
@@ -16,6 +19,7 @@ const INPUT = "rounded-xl border-[1.5px] border-line bg-paper px-3 py-2 text-ink
 const HINT_TEXT = "mt-1.5 text-[11.5px] text-ink-soft";
 const ACTION_CLASS = "rounded-[13px] px-4 py-3 text-[13.5px] font-extrabold disabled:opacity-60";
 const PLACE_PICKER = "item-edit-place";
+const PRICE_ID = "item-edit-points-price";
 
 const LISTING_STATUS_CHIP: Record<ListingStatus, { label: string; className: string }> = {
   DRAFT: { label: "Wersja robocza", className: "bg-cream text-ink-soft" },
@@ -84,10 +88,33 @@ export function ItemEditForm({
   const descriptionChanged = !descriptionLocked && description.trim() !== (item.description ?? "").trim();
   const chip = LISTING_STATUS_CHIP[item.listing_status];
 
+  // POINTS: the stepper checks against the stored value's bounds (what the
+  // server checks the PUT against); after a category or condition change the
+  // preview of the value the PATCH will store stands in, as a forecast.
+  const actions = useItemActions(item.id).data;
+  const listedPrice = actions?.mode === "POINTS" ? actions.points_price : null;
+  const isPoints = listedPrice !== null;
+  const owned = useOwnedItemPointsValue(isPoints ? item.id : null);
+  const preview = useItemPointsPreview(categoryId, condition);
+  const conditionChanged = condition !== item.condition;
+  const revalued = conditionChanged || categoryId !== item.category_id;
+  const valuation = revalued ? preview : owned;
+  const priceBounds = isPoints ? valuation.bounds : null;
+  const priceTouched = draft.pointsPrice !== null;
+  const priceText =
+    draft.pointsPrice ?? (listedPrice === null ? "" : String(priceBounds ? clampPointsPrice(listedPrice, priceBounds) : listedPrice));
+  const parsedPrice = priceBounds ? parsePointsPrice(priceText, priceBounds) : undefined;
+  const priceInvalid = isPoints && priceTouched && typeof parsedPrice !== "number";
+  const priceToSave =
+    isPoints && typeof parsedPrice === "number" && (parsedPrice !== listedPrice || revalued) ? parsedPrice : null;
+  const heldPoints = actions?.party_reservation?.held_points ?? null;
+
   /** Description first, while the item still points at its current product;
    * a partial failure leaves the saved fields matching the refetched item, so
-   * a second "Zapisz zmiany" sends only the rest. */
+   * a second "Zapisz zmiany" sends only the rest. The POINTS price goes last,
+   * after the PATCH has stored the new value (and clamped the old price). */
   async function save() {
+    if (priceInvalid) return;
     if (!trimmedName) {
       setError("Podaj nazwę rzeczy");
       nameRef.current?.focus();
@@ -104,6 +131,7 @@ export function ItemEditForm({
       if (condition !== item.condition) await editing.saveCondition(condition);
       if (locationId !== item.location_id) await editing.saveLocation(locationId);
       if (repoints) await editing.saveNameCategory(trimmedName, categoryId);
+      if (priceToSave !== null) await editing.savePointsPrice(priceToSave);
       onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -188,7 +216,37 @@ export function ItemEditForm({
             placeholder={item.category_name ?? undefined}
           />
         </div>
-        <ItemPointsPreview categoryId={categoryId} condition={condition} />
+        {isPoints ? (
+          <div className="flex min-w-0 flex-col gap-2">
+            {revalued && priceBounds && valuation.data !== null && (
+              <p className="rounded-[14px] bg-accent-soft px-3.5 py-2.5 text-[12.5px] font-semibold text-accent-fg">
+                {forecastText(conditionChanged, categoryId !== item.category_id, valuation.data, priceBounds, listedPrice)}
+              </p>
+            )}
+            {priceBounds && valuation.data !== null ? (
+              <PointsPriceStepper
+                id={PRICE_ID}
+                value={priceText}
+                onChange={(text) => update({ pointsPrice: text })}
+                bounds={priceBounds}
+                suggestion={valuation.data}
+                disabled={busy}
+              />
+            ) : (
+              <p aria-live="polite" className="text-[12.5px] text-ink-soft">
+                {valuation.error ? "Nie udało się wyliczyć ceny w punktach." : "Liczę cenę w punktach…"}
+              </p>
+            )}
+            {heldPoints !== null && (
+              <p className="text-[12.5px] text-ink-soft">
+                Zarezerwowana przez {actions?.reservation?.by_name ?? "inną osobę"} za {heldPoints} pkt — ta rezerwacja
+                rozliczy się po {heldPoints} pkt. Nowa cena dotyczy kolejnych osób.
+              </p>
+            )}
+          </div>
+        ) : (
+          <ItemPointsPreview categoryId={categoryId} condition={condition} />
+        )}
         {repoints && (
           <p className="text-[11.5px] text-ink-soft">
             Ta zmiana podepnie rzecz pod inny produkt z katalogu — innych rzeczy nie zmienia. Zdjęcia i opis
@@ -242,7 +300,7 @@ export function ItemEditForm({
           </p>
         )}
         <div className="grid grid-cols-2 gap-2">
-          <button type="submit" disabled={busy} className={`${ACTION_CLASS} bg-primary text-on-primary`}>
+          <button type="submit" disabled={busy || priceInvalid} className={`${ACTION_CLASS} bg-primary text-on-primary`}>
             {busy ? "Zapisywanie…" : "Zapisz zmiany"}
           </button>
           <button
@@ -257,4 +315,23 @@ export function ItemEditForm({
       </form>
     </>
   );
+}
+
+/** The note over the stepper after a category or condition change: the
+ * forecast bounds and what happens to the current price if left as it is. */
+function forecastText(
+  conditionChanged: boolean,
+  categoryChanged: boolean,
+  suggestion: number,
+  bounds: PointsPriceBounds,
+  listedPrice: number,
+): string {
+  const what = conditionChanged && categoryChanged ? "kategorię i stan" : conditionChanged ? "stan" : "kategorię";
+  const head = `Zmieniłeś ${what} — sugestia to teraz ${suggestion} pkt (dozwolone ${bounds.min}–${bounds.max}).`;
+  const clamped = clampPointsPrice(listedPrice, bounds);
+  const tail =
+    clamped === listedPrice
+      ? `Twoja cena ${listedPrice} pkt mieści się w zakresie.`
+      : `Bez nowej ceny zapisana cena ${listedPrice} pkt zostanie docięta do ${clamped} pkt.`;
+  return `${head} ${tail}`;
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "../../routing/navigation";
 import {
   ACTIVE_LOCK_BALANCE_STATUSES,
@@ -8,6 +9,7 @@ import {
 } from "../../api/inventories";
 import { useLoadMoreOnScroll } from "../../hooks/useLoadMoreOnScroll";
 import { useMyItemsPage } from "../../hooks/useMyItemsPage";
+import { POINTS_KEY } from "../../hooks/usePointsConfig";
 import { serverMessageOr } from "../../api/problem";
 import { cancelTransaction, confirmTransaction, getReservation } from "../../api/reservations";
 import {
@@ -19,6 +21,7 @@ import {
 } from "../../api/termItemListings";
 import { CONDITION_LABELS } from "../../utils/productCategory";
 import { BoxIcon, CloseIcon, SearchIcon } from "../../components/shared/appIcons";
+import { PointsPriceLabel } from "../../components/shared/ItemTileBadges";
 import {
   capitalize,
   ITEM_MODE_TO_RESERVATION_TYPE,
@@ -40,16 +43,19 @@ const NO_MODE_HINT = "Wybierz, czy oddajesz, czy zamieniasz — wtedy inni zobac
 const MODE_TONE: Record<ItemMode, string> = {
   "oddam": "bg-primary-soft text-primary-fg",
   "zamienię": "bg-accent-soft text-accent-fg",
+  "za punkty": "bg-orange text-ink",
 };
 
 /** The offer badge on the photo and the picked mode button: solid tones. */
 const MODE_BADGE: Record<ItemMode, string> = {
   "oddam": "bg-primary text-on-primary",
   "zamienię": "bg-accent text-ink",
+  "za punkty": "bg-orange text-ink",
 };
 const MODE_BUTTON_ON: Record<ItemMode, string> = {
   "oddam": "border-[1.5px] border-primary bg-primary text-on-primary",
   "zamienię": "border-[1.5px] border-accent bg-accent text-ink",
+  "za punkty": "border-[1.5px] border-orange bg-orange text-ink",
 };
 
 /** One column on a phone, two and three as the panel widens, so a tile keeps
@@ -80,7 +86,7 @@ function initials(name: string): string {
  * spec.md Requirement 12-13 — no action button is ever added next to it. */
 interface ReservationTermInfo {
   hasEnded: boolean;
-  isGift: boolean;
+  recipientConfirms: boolean;
   isUnpairedSwap: boolean;
 }
 
@@ -117,6 +123,7 @@ export function MyItemsView() {
     load,
   } = useAppData();
 
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<ItemMode | null>(null);
   const [query, setQuery] = useState("");
   const paged = useMyItemsPage(
@@ -160,8 +167,8 @@ export function MyItemsView() {
   // soft-deleted, unlike `GET /terms/{id}`. Settled per reservation so one
   // failing fetch never hides the buttons of the other locked items.
   // A personal reservation (no term or event) counts as ended right away.
-  // `isGift`: on their own gift the owner is the giver, who may only cancel —
-  // the recipient confirms receipt. `isUnpairedSwap`: a SWAP leg still
+  // `recipientConfirms`: on their own GIFT or POINTS item the owner is the
+  // giver or seller, who may only cancel — the recipient confirms receipt. `isUnpairedSwap`: a SWAP leg still
   // waiting for its proposal's accept is released only by a reject.
   const [reservationTermInfo, setReservationTermInfo] = useState<Record<string, ReservationTermInfo>>({});
   useEffect(() => {
@@ -180,7 +187,7 @@ export function MyItemsView() {
         next[id] = {
           hasEnded:
             personal_pickup || (term_occurs_on != null && new Date(term_occurs_on).getTime() <= Date.now()),
-          isGift: reservation_type === "GIFT",
+          recipientConfirms: reservation_type === "GIFT" || reservation_type === "POINTS",
           isUnpairedSwap: reservation_type === "SWAP" && paired_reservation_id === null,
         };
       }
@@ -266,10 +273,10 @@ export function MyItemsView() {
     return info !== undefined && info.hasEnded && !info.isUnpairedSwap;
   }
 
-  function isGift(itemId: string): boolean {
+  function recipientConfirms(itemId: string): boolean {
     const reservationId = itemsById.get(itemId)?.reservation_id;
     if (reservationId == null) return false;
-    return reservationTermInfo[reservationId]?.isGift === true;
+    return reservationTermInfo[reservationId]?.recipientConfirms === true;
   }
 
   async function handleConfirmReceipt(itemId: string) {
@@ -279,7 +286,7 @@ export function MyItemsView() {
     setActionBusyItemId(itemId);
     try {
       await confirmTransaction(reservationId);
-      await load({ silent: true });
+      await Promise.all([load({ silent: true }), queryClient.invalidateQueries({ queryKey: [POINTS_KEY] })]);
     } catch {
       setActionError("Nie udało się potwierdzić odbioru — spróbuj ponownie");
     } finally {
@@ -294,7 +301,7 @@ export function MyItemsView() {
     setActionBusyItemId(itemId);
     try {
       await cancelTransaction(reservationId);
-      await load({ silent: true });
+      await Promise.all([load({ silent: true }), queryClient.invalidateQueries({ queryKey: [POINTS_KEY] })]);
     } catch {
       setActionError("Nie udało się anulować wymiany — spróbuj ponownie");
     } finally {
@@ -462,6 +469,11 @@ export function MyItemsView() {
                             {it.points_value} pkt
                           </span>
                         )}
+                        {mode === "za punkty" && it.points_price !== null && (
+                          <span className="inline-flex items-center rounded-full bg-orange px-2.5 py-0.5 text-xs font-extrabold text-ink">
+                            <PointsPriceLabel price={it.points_price} />
+                          </span>
+                        )}
                         {mode && (
                           <span
                             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-extrabold ${
@@ -494,7 +506,7 @@ export function MyItemsView() {
                       {badgeLabel && <StatusPill label={badgeLabel} />}
                       {settle && (
                         <>
-                          {!isGift(it.id) && (
+                          {!recipientConfirms(it.id) && (
                             <button
                               type="button"
                               onClick={() => void handleConfirmReceipt(it.id)}
@@ -536,7 +548,7 @@ export function MyItemsView() {
                     </div>
                   )}
 
-                  <div className="relative z-10 mt-3 grid grid-cols-2 gap-1.5">
+                  <div className="relative z-10 mt-3 grid grid-cols-3 gap-1.5">
                     {ITEM_MODES.map((m) => {
                       const on = mode === m;
                       return (

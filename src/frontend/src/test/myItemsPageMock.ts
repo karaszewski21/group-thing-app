@@ -24,6 +24,7 @@ export function pageResult(
       ALL: items.length,
       GIFT: items.filter((it) => it.listing_mode === "GIFT").length,
       SWAP: items.filter((it) => it.listing_mode === "SWAP").length,
+      POINTS: items.filter((it) => it.listing_mode === "POINTS").length,
     },
     loading: false,
     error: null,

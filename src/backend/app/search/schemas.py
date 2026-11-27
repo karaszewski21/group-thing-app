@@ -25,6 +25,8 @@ class _Result(BaseModel):
 
 class ProductMeta(BaseModel):
     mode: ExchangeMode
+    # The price of a POINTS offer, `None` for any other mode.
+    points_price: int | None
     condition: ItemCondition
     thumb_url: str | None
     reserved: bool

@@ -32,6 +32,7 @@ export function layoutItem(id: string, overrides: Partial<OwnerItemCard> = {}): 
     product_name: `Rzecz ${id}`,
     condition: "GOOD",
     mode: "GIFT",
+    points_price: null,
     thumb_url: null,
     added_at: "2026-10-01T12:00:00",
     reservation: null,
@@ -70,7 +71,7 @@ export function scheduleLayout(overrides: Partial<Omit<LayoutOf<"SCHEDULE">, "la
     stats: layoutStats(),
     upcoming_terms: [],
     groups: [],
-    item_stats: { GIFT: 0, SWAP: 0 },
+    item_stats: { GIFT: 0, SWAP: 0, POINTS: 0 },
     ...overrides,
   };
 }

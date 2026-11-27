@@ -31,9 +31,12 @@ def _require_party_to_any_reservation(
 
 
 def _require_exchange_legs(reservations: Sequence[Reservation]) -> None:
-    """An exchange is a single GIFT leg, or exactly two SWAP legs paired
-    with each other."""
-    if len(reservations) == 1 and reservations[0].reservation_type == ReservationType.GIFT:
+    """An exchange is a single GIFT or POINTS leg, or exactly two SWAP legs
+    paired with each other."""
+    if len(reservations) == 1 and reservations[0].reservation_type in (
+        ReservationType.GIFT,
+        ReservationType.POINTS,
+    ):
         return
     if len(reservations) == 2:
         first, second = reservations
@@ -44,7 +47,7 @@ def _require_exchange_legs(reservations: Sequence[Reservation]) -> None:
         ):
             return
     raise BusinessConflictException(
-        "Wymiana to jedna rezerwacja GIFT albo dwie sparowane rezerwacje SWAP"
+        "Wymiana to jedna rezerwacja GIFT albo POINTS albo dwie sparowane rezerwacje SWAP"
     )
 
 

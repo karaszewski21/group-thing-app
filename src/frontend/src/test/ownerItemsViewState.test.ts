@@ -20,7 +20,7 @@ const ORG_REF: OwnerRef = { kind: "organization", slug: "orlik" };
 const PARTY_REF: OwnerRef = { kind: "party", partyId: "p-1" };
 const PERSON = { party_id: "p-1", display_name: "Ania", slug: null };
 const ORG_OWNER = { party_id: "p-1", display_name: "Orlik", slug: "orlik" };
-const COUNTS = { GIFT: 1, SWAP: 0 };
+const COUNTS = { GIFT: 1, SWAP: 0, POINTS: 0 };
 
 const orgRead = (overrides = {}) => ({ data: ORGANIZATION, loading: false, notFound: false, error: null, ...overrides });
 const itemsRead = (overrides = {}) => ({

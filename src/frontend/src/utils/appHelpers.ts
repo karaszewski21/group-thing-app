@@ -63,7 +63,7 @@ export interface NewFamilyMember {
   birthYear: number | null;
 }
 
-export type ItemMode = "oddam" | "zamienię";
+export type ItemMode = "oddam" | "zamienię" | "za punkty";
 
 /** A term the caller takes part in without leading it — their own RSVP
  * ("attended") or a term of a circle their family belongs to ("member"). */
@@ -87,30 +87,34 @@ export interface GuestTermCard {
 
 export type TermPlaceLocation = Pick<PublicLocationResponse, "locality" | "label" | "formatted_address" | "google_place_id">;
 
-export const ITEM_MODES: ItemMode[] = ["oddam", "zamienię"];
+export const ITEM_MODES: ItemMode[] = ["oddam", "zamienię", "za punkty"];
 
 /** Soft tile + readable text per item mode, matching the exchange tones. */
 export const ITEM_MODE_TONE: Record<ItemMode, string> = {
   "oddam": "bg-primary-soft text-primary-fg",
   "zamienię": "bg-accent-soft text-accent-fg",
+  "za punkty": "bg-orange text-ink",
 };
 
 /** `ItemMode` <-> backend `ReservationType` — the Panel's "Moje rzeczy"
  * mode toggle persists as a standing `ItemListingPreference.mode`
- * (`/api/item-listing-preferences`), `GIFT` or `SWAP`. */
+ * (`/api/item-listing-preferences`), `GIFT`, `SWAP` or `POINTS`. */
 export const ITEM_MODE_TO_RESERVATION_TYPE: Record<ItemMode, ListingMode> = {
   "oddam": "GIFT",
   "zamienię": "SWAP",
+  "za punkty": "POINTS",
 };
 
 export const RESERVATION_TYPE_TO_ITEM_MODE: Partial<Record<ReservationType, ItemMode>> = {
   GIFT: "oddam",
   SWAP: "zamienię",
+  POINTS: "za punkty",
 };
 
 export const ITEM_MODE_STYLE: Record<ItemMode, { bg: string; c: string }> = {
   "oddam": { bg: "var(--color-mint-soft)", c: "#12604D" },
   "zamienię": { bg: "var(--color-lime-soft)", c: "#56701F" },
+  "za punkty": { bg: "var(--color-orange)", c: "var(--color-ink)" },
 };
 
 const MAX_CAPACITY = 10_000;
@@ -126,6 +130,37 @@ export function parseCapacity(raw: string): number | null | undefined {
   if (!/^\d+$/.test(trimmed)) return undefined;
   const parsed = Number(trimmed);
   return parsed >= 1 && parsed <= MAX_CAPACITY ? parsed : undefined;
+}
+
+/** The allowed POINTS prices of one item: `min`–`max`, multiples of `step`. */
+export interface PointsPriceBounds {
+  min: number;
+  max: number;
+  step: number;
+}
+
+/** The raw text of a POINTS price input, as `parseCapacity` reads it: blank
+ * is `null` (no price typed), plain digits within the bounds and on the step
+ * are that number, anything else is `undefined` (invalid — the form shows
+ * `pointsPriceError(bounds)` and blocks submit). */
+export function parsePointsPrice(raw: string, { min, max, step }: PointsPriceBounds): number | null | undefined {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  if (!/^\d+$/.test(trimmed)) return undefined;
+  const parsed = Number(trimmed);
+  return parsed >= min && parsed <= max && parsed % step === 0 ? parsed : undefined;
+}
+
+/** What the server does to a price it must fit into the bounds: round it to
+ * the nearest multiple of `step` (halves up), then clamp it to `min`–`max`. */
+export function clampPointsPrice(price: number, { min, max, step }: PointsPriceBounds): number {
+  const snapped = Math.floor(price / step + 0.5) * step;
+  return Math.min(max, Math.max(min, snapped));
+}
+
+/** The server's message for a price outside the bounds, word for word. */
+export function pointsPriceError({ min, max, step }: PointsPriceBounds): string {
+  return `Cena musi być od ${min} do ${max} pkt, co ${step}.`;
 }
 
 /** The input text for a stored capacity. */

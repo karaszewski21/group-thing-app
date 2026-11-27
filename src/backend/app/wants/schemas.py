@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict
 from .domain.status import WantStatus
 from .infrastructure.inventory_acl import ItemCondition
 
-OfferMode = Literal["GIFT", "SWAP"]
+OfferMode = Literal["GIFT", "SWAP", "POINTS"]
 
 
 class CreateWantRequest(BaseModel):
@@ -83,6 +83,8 @@ class WantMatchMeta(BaseModel):
     proposal or an available item."""
 
     mode: str
+    # The price of a POINTS offer, `None` for any other mode.
+    points_price: int | None
     condition: ItemCondition
     thumb_url: str | None
     reserved: bool

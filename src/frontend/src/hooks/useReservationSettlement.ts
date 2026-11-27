@@ -16,6 +16,7 @@ import { ITEM_DETAILS_KEY } from "./useItemDetail";
 import { NOTIFICATIONS_KEY } from "./useNotifications";
 import { ORGANIZATION_LAYOUT_KEY } from "./useOrganizationLayout";
 import { OWNER_ITEMS_KEY } from "./useOwnerItems";
+import { POINTS_KEY } from "./usePointsConfig";
 import { GROUP_ACCESS_KEY } from "./useTermAccess";
 
 /** Query-key prefixes of every page and list that shows an item's
@@ -49,7 +50,8 @@ export interface UseReservationSettlementResult {
 }
 
 /** Settling a reservation or a swap proposal: each action awaits invalidation
- * of `RESERVATION_STATE_KEYS`, then `refetch`. A race lost to the other party
+ * of `RESERVATION_STATE_KEYS` (confirm and cancel also of the caller's points,
+ * which a POINTS hold moves), then `refetch`. A race lost to the other party
  * (409 `already_resolved`) shows its own message and still refreshes; other
  * errors carry the server's message verbatim. Actions never reject; they
  * resolve to that error (or `null`), so a confirm dialog can stay open on it. */
@@ -59,23 +61,24 @@ export function useReservationSettlement(refetch: () => Promise<void>): UseReser
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  async function refresh() {
-    await Promise.all(RESERVATION_STATE_KEYS.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
+  async function refresh(movesPoints: boolean) {
+    const keys: readonly (readonly string[])[] = movesPoints ? [...RESERVATION_STATE_KEYS, [POINTS_KEY]] : RESERVATION_STATE_KEYS;
+    await Promise.all(keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
     await refetch();
   }
 
-  async function run(action: () => Promise<string | null>): Promise<string | null> {
+  async function run(action: () => Promise<string | null>, movesPoints = false): Promise<string | null> {
     setBusy(true);
     setError(null);
     setSuccess(null);
     try {
       setSuccess(await action());
-      await refresh();
+      await refresh(movesPoints);
       return null;
     } catch (err) {
       const message = isAlreadyResolved(err) ? ALREADY_RESOLVED_MESSAGE : extractProblemMessage(err);
       setError(message);
-      if (isAlreadyResolved(err)) await refresh();
+      if (isAlreadyResolved(err)) await refresh(movesPoints);
       return message;
     } finally {
       setBusy(false);
@@ -90,12 +93,12 @@ export function useReservationSettlement(refetch: () => Promise<void>): UseReser
       run(async () => {
         await confirmTransaction(reservationId);
         return null;
-      }),
+      }, true),
     cancel: (reservationId) =>
       run(async () => {
         await cancelTransaction(reservationId);
         return null;
-      }),
+      }, true),
     accept: (proposalId) => run(async () => acceptedCopy(await acceptSwapProposal(proposalId))),
     reject: (proposalId) =>
       run(async () => {

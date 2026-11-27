@@ -9,6 +9,7 @@ import { MY_PLEDGES_KEY } from "../../hooks/useMyPledges";
 import { NEEDED_ITEMS_KEY } from "../../hooks/useNeededItems";
 import { MY_ITEMS_PAGE_KEY } from "../../hooks/useMyItemsPage";
 import { MY_TERMS_KEY } from "../../hooks/useMyTerms";
+import type { CreateItemResult } from "../../hooks/useCreateItem";
 import { GROUP_TERMS_KEY } from "../../hooks/useNearestGroupTerm";
 import { TERM_KEY } from "../../hooks/useTerm";
 import {
@@ -138,11 +139,6 @@ function useAppDataValue() {
   useEffect(() => {
     if (pathname === viewPath("groups/new")) setAddGroupError(null);
   }, [pathname]);
-  // Not on entering /groups/new: coming back from /places/new (its place
-  // picker's "+") must keep the visibility the user already chose.
-  useEffect(() => {
-    setGroupForm((form) => ({ ...form, visibility: defaultVisibility(organizationSlug) }));
-  }, [organizationSlug]);
   useEffect(() => {
     if (pathname === viewPath("add/term")) setAddTermError(null);
   }, [pathname]);
@@ -163,6 +159,11 @@ function useAppDataValue() {
     defaultPaymentUrl: "",
   });
   const [groupForm, setGroupForm] = useState<GroupFormValue>(emptyGroupForm);
+  // Not on entering /groups/new: coming back from /places/new (its place
+  // picker's "+") must keep the visibility the user already chose.
+  useEffect(() => {
+    setGroupForm((form) => ({ ...form, visibility: defaultVisibility(organizationSlug) }));
+  }, [organizationSlug]);
 
   // --- formularz: nowe wydarzenie (/add/event) — kept here so it survives
   // a trip to /places/new from its place picker ---
@@ -174,9 +175,12 @@ function useAppDataValue() {
   // --- formularz: nowa rzecz (/add/product) and /items/:id/edit — kept here
   // for the same trip. `itemDraft` + `itemPhotos` are cleared after a
   // successful create; `itemEdit` (seeded once per item) after a save or
-  // "Anuluj". ---
+  // "Anuluj". `itemCreated` is the draft's item already registered when its
+  // POINTS offer failed, so a retry after a remount only repeats the offer;
+  // it is cleared with the draft. ---
   const [itemDraft, setItemDraft] = useState<ItemQuickAddValue>(createEmptyItemQuickAddValue);
   const [itemPhotos, setItemPhotos] = useState<File[]>([]);
+  const [itemCreated, setItemCreated] = useState<CreateItemResult | null>(null);
   const [itemEdit, setItemEdit] = useState<{ itemId: string; draft: ItemEditDraft } | null>(null);
 
   // --- /terms/:termId/edit and the first-term stepper — kept here for the
@@ -512,7 +516,14 @@ function useAppDataValue() {
       // Reads started before this save may carry the old mode — drop them.
       itemsSeqRef.current++;
       setItemModes((prev) => ({ ...prev, [itemId]: next }));
-      setItemVisibilityLocally(itemId, saved?.visibility ?? null);
+      // The saved price (set only for POINTS) feeds the card's price chip.
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === itemId
+            ? { ...i, listing_visibility: saved?.visibility ?? null, points_price: saved?.points_price ?? null }
+            : i,
+        ),
+      );
       // A mode filter may no longer match the item.
       await queryClient.invalidateQueries({ queryKey: [MY_ITEMS_PAGE_KEY] });
     } catch (err) {
@@ -750,6 +761,7 @@ function useAppDataValue() {
     eventEdit,
     itemDraft,
     itemPhotos,
+    itemCreated,
     itemEdit,
     termEdit,
     firstTermDraft: firstTerm.firstTermDraft,
@@ -776,6 +788,7 @@ function useAppDataValue() {
     setEventEdit,
     setItemDraft,
     setItemPhotos,
+    setItemCreated,
     setItemEdit,
     setTermEdit,
     setFirstTermDraft: firstTerm.setFirstTermDraft,

@@ -22,8 +22,8 @@ from sqlalchemy.ext.asyncio import (
 
 from app.groups.infrastructure import points_acl
 from app.inventory.models import InventoryItem, Reservation, ReservationStatus
-from app.points.infrastructure.ledger import emission_account_id
-from app.points.models import PointAccount, PointTransactionType
+from app.points.infrastructure.ledger import system_account_id
+from app.points.models import PointAccount, PointAccountType, PointTransactionType
 from tests.point_ledger_assertions import (
     assert_point_transactions_balanced,
     point_row_counts,
@@ -97,7 +97,10 @@ async def test_confirmGift_eventAndPersonalContexts_postsGiveFreeAsInTermContext
     assert value is not None
     giver_account = (
         await db_session.execute(
-            select(PointAccount.id).where(PointAccount.party_id == giver_party)
+            select(PointAccount.id).where(
+                PointAccount.party_id == giver_party,
+                PointAccount.account_type == PointAccountType.PARTY,
+            )
         )
     ).scalar_one()
     (gift,) = await transactions_for_party(db_session, giver_party)
@@ -109,7 +112,10 @@ async def test_confirmGift_eventAndPersonalContexts_postsGiveFreeAsInTermContext
         name,
     )
     assert sorted((e.account_id, e.amount) for e in gift.entries) == sorted(
-        [(await emission_account_id(db_session), -value), (giver_account, value)]
+        [
+            (await system_account_id(db_session, PointAccountType.EMISSION), -value),
+            (giver_account, value),
+        ]
     )
     assert await transactions_for_party(db_session, taker_party) == []
     await assert_point_transactions_balanced(db_session)

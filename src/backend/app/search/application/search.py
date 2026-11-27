@@ -332,6 +332,7 @@ def _items_select(
     return select_query.add_columns(
         preference.owner_party_id,
         preference.mode,
+        preference.points_price,
         listed.c.product_id,
         listed.c.product_name,
         listed.c.condition,
@@ -380,6 +381,7 @@ async def _product_results(
                 href=links.product_path(slug, row.item_id),
                 meta=ProductMeta(
                     mode=row.mode,
+                    points_price=row.points_price,
                     condition=row.condition,
                     thumb_url=(
                         storage.public_url(photo.thumb_key)

@@ -76,6 +76,7 @@ async def _listed_items_by_party(
             preferences.c.owner_party_id,
             preferences.c.item_id,
             preferences.c.mode,
+            preferences.c.points_price,
             preferences.c.created_at,
             listed.c.product_id,
             listed.c.product_name,
@@ -117,6 +118,7 @@ async def _listed_items_by_party(
                 item_id=row.item_id,
                 product_name=row.product_name,
                 mode=row.mode,
+                points_price=row.points_price,
                 thumb_url=storage.public_url(photo.thumb_key) if storage and photo else None,
                 added_at=row.created_at,
                 reservation=(

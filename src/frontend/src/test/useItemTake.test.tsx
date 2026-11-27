@@ -6,11 +6,13 @@ import * as inventoriesApi from "../api/inventories";
 import type { InventoryBalanceResponse, MyInventoryItemResponse } from "../api/inventories";
 import type { ItemTakeResponse } from "../api/itemReservations";
 import type { SwapProposalResponse } from "../api/termItemListings";
+import { ApiError } from "../api/client";
 import { EVENT_KEY } from "../hooks/useEvent";
 import { ITEM_ACTIONS_KEY } from "../hooks/useItemActions";
 import { ITEM_DETAILS_KEY } from "../hooks/useItemDetail";
 import { ORGANIZATION_LAYOUT_KEY } from "../hooks/useOrganizationLayout";
 import { OWNER_ITEMS_KEY } from "../hooks/useOwnerItems";
+import { POINTS_KEY } from "../hooks/usePointsConfig";
 import { createQueryWrapper, createTestQueryClient } from "./queryClient";
 
 vi.mock("../api/itemReservations", () => ({ takeItem: vi.fn(), proposeItemSwap: vi.fn() }));
@@ -56,6 +58,7 @@ const mySwapItem: MyInventoryItemResponse = {
   updated_at: "2026-10-01T10:00:00",
   listing_mode: "SWAP",
   listing_visibility: "PUBLIC",
+  points_price: null,
   location_id: null,
   points_value: null,
   photos_moderation_pending: false,
@@ -210,5 +213,49 @@ describe("useItemTake", () => {
 
     await waitFor(() => expect(result.current.gateOpen).toBe(true));
     expect(itemReservationsApi.takeItem).not.toHaveBeenCalled();
+  });
+  it("POINTS opens the points sheet after the context, then takes with the price and refreshes points and actions", async () => {
+    vi.mocked(itemReservationsApi.takeItem).mockResolvedValue(termTake);
+    const client = createTestQueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const { result, deps } = renderTake({ client });
+
+    act(() => result.current.take("i1", "POINTS", TERM));
+    await waitFor(() => expect(result.current.points.itemId).toBe("i1"));
+    expect(result.current.points.target).toEqual(TERM);
+    expect(itemReservationsApi.takeItem).not.toHaveBeenCalled();
+
+    act(() => result.current.points.confirm("i1", 60));
+
+    await waitFor(() => expect(deps.refetch).toHaveBeenCalled());
+    expect(itemReservationsApi.takeItem).toHaveBeenCalledWith("i1", {
+      context: { kind: "TERM", id: "t1" },
+      reservation_type: "POINTS",
+      points_price: 60,
+    });
+    const keys = invalidate.mock.calls.map(([filters]) => filters?.queryKey);
+    expect(keys).toEqual(expect.arrayContaining([[POINTS_KEY], [ITEM_ACTIONS_KEY]]));
+    expect(Math.max(...invalidate.mock.invocationCallOrder)).toBeLessThan(deps.refetch.mock.invocationCallOrder[0]);
+    expect(result.current.points.itemId).toBeNull();
+    expect(result.current.takeSuccess).toEqual({ itemId: "i1", itemName: "Kurtka", target: TERM });
+    expect(result.current.takenItemId).toBe("i1");
+  });
+
+  it("a refused POINTS take keeps the sheet open with the server's message and no toast", async () => {
+    const body = { status: 409, error: "Conflict", message: "Cena zmieniła się — odśwież." };
+    vi.mocked(itemReservationsApi.takeItem).mockRejectedValue(new ApiError(409, "Conflict", body));
+    const { result, deps } = renderTake();
+
+    act(() => result.current.take("i1", "POINTS", { kind: "PERSONAL" }));
+    await waitFor(() => expect(result.current.points.itemId).toBe("i1"));
+    act(() => result.current.points.confirm("i1", 60));
+
+    await waitFor(() => expect(result.current.points.error).toBe("Cena zmieniła się — odśwież."));
+    expect(result.current.points.itemId).toBe("i1");
+    expect(deps.showToast).not.toHaveBeenCalled();
+
+    await act(() => result.current.points.refresh());
+    expect(result.current.points.error).toBeNull();
+    expect(deps.refetch).toHaveBeenCalled();
   });
 });

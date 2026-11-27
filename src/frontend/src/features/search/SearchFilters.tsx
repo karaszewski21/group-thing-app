@@ -18,6 +18,7 @@ import { ITEM_MODE_TO_RESERVATION_TYPE, ITEM_MODES } from "../../utils/appHelper
 import { buildCategoryIndex, type CategoryIndex } from "../../utils/categoryTree";
 import dayjs from "../../utils/dayjs";
 import { CONDITION_LABELS } from "../../utils/productCategory";
+import { EXCHANGE_MODE_LABELS } from "../terms/components/termLabels";
 import { readLastLocality, saveLastLocality } from "./lastLocality";
 import { SEGMENT_CLASS, segmentTone } from "./segmentStyles";
 
@@ -47,7 +48,7 @@ interface SearchFiltersProps {
 
 /** The searched mode's filters. Items: a row of main-category tiles, and a
  * „Filtry” sheet with the scope, the locality, a subcategory, Stan and
- * Oddam/Zamienię. Meetings: a „Filtry” sheet with the scope, the locality,
+ * Oddam/Zamienię/Za punkty. Meetings: a „Filtry” sheet with the scope, the locality,
  * Od (today when unset) and Do. */
 export function SearchFilters({ mode, dateRangeInvalid, ...rest }: SearchFiltersProps) {
   if (mode === "items") return <ItemFilters {...rest} />;
@@ -281,7 +282,7 @@ function ItemFilters({ filters, onChange, scope, onScopeChange, open, onClose }:
 }
 
 /** The scope, then what narrows the picked main category: a drill-down
- * through its subcategories, Stan and Oddam/Zamienię. Every pick applies at once. */
+ * through its subcategories, Stan and Oddam/Zamienię/Za punkty. Every pick applies at once. */
 function ItemFilterSheet({
   index,
   path,
@@ -383,8 +384,8 @@ function ItemFilterSheet({
           </div>
         </div>
 
-        <div role="group" aria-label="Tryb oferty" className="flex flex-col gap-2">
-          <h4 className={SECTION_TITLE_CLASS}>Oddam / zamienię</h4>
+        <div role="group" aria-label="Rodzaj oferty" className="flex flex-col gap-2">
+          <h4 className={SECTION_TITLE_CLASS}>Rodzaj oferty</h4>
           <div className="flex flex-wrap gap-2">
             {ITEM_MODES.map((itemMode) => {
               const offerType = ITEM_MODE_TO_RESERVATION_TYPE[itemMode];
@@ -395,9 +396,9 @@ function ItemFilterSheet({
                   type="button"
                   aria-pressed={on}
                   onClick={() => onChange({ offer_type: on ? null : offerType })}
-                  className={`${CHIP_CLASS} capitalize ${chipTone(on)}`}
+                  className={`${CHIP_CLASS} ${chipTone(on)}`}
                 >
-                  {itemMode}
+                  {EXCHANGE_MODE_LABELS[offerType]}
                 </button>
               );
             })}

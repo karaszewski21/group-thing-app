@@ -27,6 +27,7 @@ PARTY_KEYS = {
     "can_cancel",
     "can_accept",
     "can_reject",
+    "held_points",
 }
 FLAGS = ("can_confirm", "can_cancel", "can_accept", "can_reject")
 

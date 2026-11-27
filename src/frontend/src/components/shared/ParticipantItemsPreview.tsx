@@ -14,6 +14,8 @@ export interface ParticipantPreviewItem {
   name: string;
   /** The modes it is offered in, shown as intent pills. */
   modes: ListingMode[];
+  /** A POINTS listing's price; left out (term listings) the pill reads „Za punkty”. */
+  pointsPrice?: number | null;
   thumbUrl: string | null;
   /** Naive UTC ISO, no offset. */
   addedAt: string;
@@ -42,7 +44,7 @@ function ItemRow({ item, partyId }: { item: ParticipantPreviewItem; partyId: str
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="block text-[15px] leading-snug wrap-break-word">{item.name}</span>{" "}
-          <ItemTileBadges modes={item.modes} reservation={item.reservation} />{" "}
+          <ItemTileBadges modes={item.modes} pointsPrice={item.pointsPrice} reservation={item.reservation} />{" "}
         </span>
         <span aria-hidden="true" className="shrink-0 text-ink-soft">
           ›

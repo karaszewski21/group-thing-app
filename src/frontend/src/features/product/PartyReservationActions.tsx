@@ -20,6 +20,9 @@ function waitingHint(party: ItemPartyReservationResponse, ownerName: string, rec
   }
   if (party.reservation_id === null || party.proposal_id !== null) return null;
   if (!party.can_confirm && !party.can_cancel) return party.personal_pickup ? null : "Potwierdzicie po terminie.";
+  if (party.reservation_type === "POINTS" && party.role === "GIVER") {
+    return `Potwierdza tylko kupujący. Możesz anulować — punkty wrócą do ${receiverName}.`;
+  }
   if (party.reservation_type === "GIFT" && party.role === "GIVER" && !party.can_confirm) {
     return `Przekazanie potwierdza ${receiverName}, gdy odbierze rzecz.`;
   }
@@ -38,14 +41,19 @@ interface PartyReservationActionsProps {
  * page: confirm/cancel the hand-over, accept/reject a proposal. The buttons
  * follow the server's `can_*` flags; cancelling and rejecting ask first, and
  * that dialog closes only on success — a failure stays inline in it (the card
- * shows the same error once the dialog is closed). */
+ * shows the same error once the dialog is closed). The seller of a POINTS
+ * item sees who holds how many points and can only cancel; the buyer
+ * confirms the pickup. The settlement hook reloads the caller's
+ * points after a confirm or cancel. */
 export function PartyReservationActions({ party, ownerName, counterpartyName, refetch }: PartyReservationActionsProps) {
   const settlement = useReservationSettlement(refetch);
   const [confirming, setConfirming] = useState<"cancel" | "reject" | null>(null);
   const { busy, error, success } = settlement;
 
   const { reservation_id: reservationId, proposal_id: proposalId } = party;
-  const hint = waitingHint(party, ownerName, counterpartyName ?? "odbiorca");
+  const isPoints = party.reservation_type === "POINTS";
+  const buyerName = counterpartyName ?? (isPoints ? "kupującego" : "odbiorca");
+  const hint = waitingHint(party, ownerName, buyerName);
 
   async function settleInDialog(action: () => Promise<string | null>) {
     const failure = await action();
@@ -55,6 +63,16 @@ export function PartyReservationActions({ party, ownerName, counterpartyName, re
 
   return (
     <div>
+      {isPoints && party.role === "GIVER" && party.held_points !== null && (
+        <p className="mt-1.5 flex items-center gap-3 rounded-2xl border border-line bg-cream px-3.5 py-3 text-sm text-ink">
+          <span className="min-w-0 wrap-break-word">{`Zarezerwowane przez ${buyerName}`}</span>
+          {" "}
+          <span className="sr-only">·</span>{" "}
+          <span className="ml-auto flex-none rounded-full bg-accent-soft px-2.5 py-0.5 text-[11px] font-extrabold text-accent-fg">
+            {`${party.held_points} pkt zablokowane`}
+          </span>
+        </p>
+      )}
       {party.can_confirm && reservationId !== null && (
         <button
           type="button"
@@ -62,7 +80,7 @@ export function PartyReservationActions({ party, ownerName, counterpartyName, re
           onClick={() => void settlement.confirm(reservationId)}
           className={PRIMARY_ACTION}
         >
-          Potwierdzam przekazanie
+          {isPoints ? "Potwierdź odbiór" : "Potwierdzam przekazanie"}
         </button>
       )}
       {party.can_accept && proposalId !== null && (
@@ -99,7 +117,11 @@ export function PartyReservationActions({ party, ownerName, counterpartyName, re
       {confirming === "cancel" && reservationId !== null && (
         <ConfirmDeleteDialog
           title="Anulować rezerwację?"
-          body="Rzecz znów będzie dostępna dla innych."
+          body={
+            isPoints
+              ? `Rzecz znów będzie dostępna dla innych, a zablokowane punkty wrócą do ${party.role === "GIVER" ? buyerName : "Ciebie"}.`
+              : "Rzecz znów będzie dostępna dla innych."
+          }
           confirmLabel="Tak, anuluj"
           busyLabel="Anulowanie…"
           fallbackError="Nie udało się anulować rezerwacji"

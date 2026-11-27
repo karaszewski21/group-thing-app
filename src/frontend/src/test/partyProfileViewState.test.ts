@@ -20,7 +20,7 @@ function profile(slug: string | null = null): PartyProfileResponse {
     cover: null,
     gallery: [],
     nearest: null,
-    counts: { GIFT: 0, SWAP: 0 },
+    counts: { GIFT: 0, SWAP: 0, POINTS: 0 },
     recent_items: [],
     is_me: false,
   };
@@ -33,7 +33,7 @@ const person = profile();
 const owner = profile("akademia-orlik");
 const active: PartyProfileResponse = {
   ...person,
-  counts: { GIFT: 0, SWAP: 2 },
+  counts: { GIFT: 0, SWAP: 2, POINTS: 0 },
   nearest: {
     kind: "TERM",
     id: "t-1",

@@ -51,7 +51,7 @@ async def set_item_listing_preference(
     item_id: uuid.UUID, body: SetItemListingPreferenceRequest, db: DbSession, principal: EditPrincipal
 ) -> ItemListingPreferenceResponse | None:
     preference = await service.set_item_listing_preference(
-        db, principal, item_id, body.mode, body.visibility
+        db, principal, item_id, body.mode, body.visibility, body.points_price
     )
     return ItemListingPreferenceResponse.model_validate(preference) if preference else None
 

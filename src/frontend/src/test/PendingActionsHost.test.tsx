@@ -14,6 +14,7 @@ import { derivePendingActions, pendingActionKey } from "../components/layout/pen
 import { ModalSheet } from "../components/shared/ModalSheet";
 import { useRegisterOpenSheet } from "../components/shared/openSheets";
 import { NOTIFICATIONS_KEY } from "../hooks/useNotifications";
+import { POINTS_KEY } from "../hooks/usePointsConfig";
 import { createQueryWrapper, createTestQueryClient } from "./queryClient";
 import { getTestLocation, renderWithRoute } from "./renderWithRoute";
 
@@ -380,7 +381,8 @@ describe("PendingActionsHost — confirm flow", () => {
       expect(termItemListingsApi.getMyTakenTermItemListings).not.toHaveBeenCalled();
       expect(peopleApi.getMyProfile).not.toHaveBeenCalled();
       expect(invalidate).toHaveBeenCalledWith({ queryKey: NOTIFICATIONS_KEY });
-      expect(invalidationsAtEmit).toEqual([1]);
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: [POINTS_KEY] });
+      expect(invalidationsAtEmit).toEqual([2]);
       expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith("2");
       expect(screen.queryByRole("dialog", { name: "Potwierdź przekazanie" })).not.toBeInTheDocument();
     } finally {

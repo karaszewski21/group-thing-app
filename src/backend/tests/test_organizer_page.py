@@ -148,7 +148,16 @@ async def _event(client: AsyncClient, token: str, name: str, days: int) -> str:
 
 
 DATE_KEYS = {"kind", "id", "name", "starts_at", "location_name", "attendee_count", "path"}
-ITEM_KEYS = {"item_id", "product_name", "condition", "mode", "thumb_url", "added_at", "reservation"}
+ITEM_KEYS = {
+    "item_id",
+    "product_name",
+    "condition",
+    "mode",
+    "points_price",
+    "thumb_url",
+    "added_at",
+    "reservation",
+}
 
 
 async def test_getOrganizationLayout_eachLayout_onlyItsPropsWithoutIdentityKeys(
@@ -190,7 +199,7 @@ async def test_getOrganizationLayout_eachLayout_onlyItsPropsWithoutIdentityKeys(
             "upcoming_term_count": 1,
         }
     ]
-    assert schedule["item_stats"] == {"GIFT": 1, "SWAP": 0}
+    assert schedule["item_stats"] == {"GIFT": 1, "SWAP": 0, "POINTS": 0}
     assert set(exchange) == {"layout", "stats", "items", "term_links"}
     assert exchange["term_links"] == [
         {"kind": "TERM", "starts_at": occurs_on.isoformat(), "path": date["path"]}
@@ -232,7 +241,7 @@ async def test_getOrganizationLayout_stats_ownGroupsTermsEventsAndAvailableItems
     schedule = await _layout(client, slug, "SCHEDULE")
 
     assert schedule["stats"] == {"group_count": 1, "item_count": 2, "meeting_count": 2}
-    assert schedule["item_stats"] == {"GIFT": 1, "SWAP": 1}
+    assert schedule["item_stats"] == {"GIFT": 1, "SWAP": 1, "POINTS": 0}
     assert [group["id"] for group in schedule["groups"]] == [str(public_id)]
     assert [date["id"] for date in schedule["upcoming_terms"]] == [str(public_term), own_event]
 
@@ -276,7 +285,7 @@ async def test_getOrganizationLayout_unknownSlugOwnerlessOrLayout_404Or400_empty
         "stats": zero,
         "upcoming_terms": [],
         "groups": [],
-        "item_stats": {"GIFT": 0, "SWAP": 0},
+        "item_stats": {"GIFT": 0, "SWAP": 0, "POINTS": 0},
     }
     assert await _layout(client, empty_slug, "EXCHANGE") == {
         "layout": "EXCHANGE",

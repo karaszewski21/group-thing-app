@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>High-Level Design — moduł wysyłki e-maili</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+/* extensions */
+pre { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:12px 14px; overflow-x:auto; font-size:12px; line-height:1.4; }
+.tldr { border-left:4px solid var(--accent); }
+.toc { font-size:13px; margin:10px 0 4px; }
+.grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; }
+.example { border-left:3px solid var(--ok); }
+td.small, .small { font-size:12.5px; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="research-report.html">Report</a>
+  <a href="solution-exploration.html">Exploration</a>
+  <span class="here">Design</span>
+  <a href="decision-log.html">Decision Log</a>
+  <a href="high-level-design.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">high-level design</span>
+  <h1>High-Level Design: moduł wysyłki e-maili <code>app/email</code></h1>
+  <div class="small" style="color:var(--dim)">Wygenerowano 2026-11-26 · bliźniak: <a href="high-level-design.md" target="_blank" rel="noopener">high-level-design.md</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>10</b><span>komponentów</span></div>
+  <div class="tile"><b>10</b><span>ADR</span></div>
+  <div class="tile"><b>10</b><span>punktów integracji</span></div>
+  <div class="tile"><b>5</b><span>przykładów</span></div>
+  <div class="tile"><b>modułowy monolit</b><span>moduł + kolejka w DB</span></div>
+</div>
+
+<section class="card tldr">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul>
+    <li>Nowy moduł <b><code>app/email</code></b> w istniejącym kontenerze backendu, z kolejką <b><code>email_messages</code></b> zapisywaną w <b>tej samej transakcji co bell</b> (hook w <code>notifications.service.create_notification(s)</code>) albo flow konta (weryfikacja, reset). Wysyła ją job <b><code>_run_email_send</code></b> co ~1 min: <code>SKIP LOCKED</code>, późne wiązanie odbiorcy, preferencji i suppression, backoff.</li>
+    <li>Dostawca <b>Mailgun EU</b> (<code>api.eu.mailgun.net</code>) przez <code>httpx</code> za portem <code>EmailSender</code>. Dev używa SMTP do Mailpit, testy <code>FakeEmailSender</code>.</li>
+    <li>Zgoda działa jako <b>opt-out per kategoria</b>, domyślnie włączone <b>po weryfikacji adresu</b>. Wypis spełnia <b>RFC 8058</b>. Dochodzi <b>pełny webhook</b> (<code>delivered</code>/<code>failed</code>/<code>complained</code>) z HMAC, który zasila <code>email_suppressions</code> i statusy dostarczenia.</li>
+    <li>MVP obejmuje 3 maile konta (weryfikacja, reset, hasło zmienione) i 7 rodzajów bell. Wdrożenie w 3 etapach: najpierw same transakcyjne (warm-up), potem powiadomienia, potem nowe bell.</li>
+  </ul>
+  <h2>Key Decisions</h2>
+  <ul>
+    <li>Mailgun EU przez <code>httpx</code> bez SDK, za portem <code>EmailSender</code> — wiadomości, logi i suppression zostają w regionie EU, a zmiana dostawcy to jeden adapter (<a href="decision-log.html#adr-002">ADR-002</a>).</li>
+    <li>Hook w <code>notifications.service</code> + jeden <code>INSERT … ON CONFLICT DO NOTHING</code> do <code>email_messages</code> w transakcji domeny — jedyny punkt, przez który przechodzi każdy bell, a sam wiersz kolejki jest transactional outboxem. Bez trzeciego przeskoku przez <code>outbox_entries</code> (<a href="decision-log.html#adr-003">ADR-003</a>).</li>
+    <li>Job z późnym wiązaniem, backoffem i polityką „zawieszonego SENDING” (P/D wracają do PENDING, T idą do FAILED) — dispatcher outboxa nie ma backoffu i powtarza wszystkie handlery (<a href="decision-log.html#adr-004">ADR-004</a>).</li>
+    <li>Opt-out per kategoria, domyślnie włączone po weryfikacji. „Szukam” można przełączyć na opt-in jedną stałą. Wypis jednym kliknięciem przez podpisany token — mail serwisowy nie jest informacją handlową z art. 398 PKE (<a href="decision-log.html#adr-005">ADR-005</a>).</li>
+    <li><code>user_profiles.email_verified_at</code>, backfill z tożsamości Google, losowe hashowane tokeny w <code>account_tokens</code>, baner zamiast masowej kampanii (<a href="decision-log.html#adr-006">ADR-006</a>).</li>
+    <li>Odbiorca bez własnego zweryfikowanego adresu dostaje SKIPPED z <code>skip_reason</code>. Konto tylko-Google może ustawić pierwsze hasło linkiem resetu, a API zawsze odpowiada neutralnym 202 (<a href="decision-log.html#adr-007">ADR-007</a>).</li>
+    <li>Jinja2 w repo z jednym generycznym szablonem powiadomienia renderowanym ze snapshotu bell — bez ACL-i do domen na potrzeby treści (<a href="decision-log.html#adr-008">ADR-008</a>).</li>
+    <li>Wysyłka natychmiastowa, MATCH dławiony kluczem dziennym per want, cisza nocna 22–07 dla P/D, <code>EMAIL_DAILY_CAP</code> na warm-up, bez digestów (<a href="decision-log.html#adr-009">ADR-009</a>).</li>
+    <li>Pełny webhook Mailgun (8A, wybór użytkownika zamiast rekomendowanego 8B) ze statusami DELIVERED/BOUNCED/COMPLAINED (<a href="decision-log.html#adr-010">ADR-010</a>).</li>
+    <li>Handover ADR-009 (2026-10-13): kierunek potwierdzony, punkt wpięcia, dedupe i model zgody zmienione, uwaga o pollerze moderacji nieaktualna (<a href="decision-log.html#adr-001">ADR-001</a>).</li>
+  </ul>
+  <h2>Open Questions / Risks</h2>
+  <ul>
+    <li><span class="sev warning">warning</span>DPA Mailgun/Sinch i lista podprocesorów nie zostały przeczytane. Mailgun Technologies to spółka z USA (teoretyczny CLOUD Act). Trzeba to sprawdzić przed etapem 1.</li>
+    <li><span class="sev warning">warning</span>Domyślne włączenie kategorii, zwłaszcza „Szukam” (szara strefa prawna), wymaga opinii prawnej. Przejście na opt-in to zmiana jednej stałej.</li>
+    <li><span class="sev info">info</span>Okno duplikatu na Mailgun (crash między 2xx a commitem): dla P/D możliwy podwójny mail, dla T FAILED.</li>
+    <li><span class="sev info">info</span>Darmowy limit Mailgun to 100 dziennie. Przy <code>EMAIL_DAILY_CAP</code> nadmiarowe P/D dostają SKIPPED (<code>daily_cap</code>), więc wzrost wymaga planu Basic. Pełny webhook nie zużywa limitu wysyłki, ale zwiększa ruch przychodzący.</li>
+    <li><span class="sev info">info</span>Rzeczy należące do Organization nie dostaną maili (SKIPPED <code>organization</code>). Lukę mierzymy przez <code>skip_reason</code>, reguła powstanie w osobnym zadaniu.</li>
+    <li><span class="sev warning">warning</span>Polityka prywatności (D14) jest warunkiem etapu 2. Musi wskazać Mailgun jako procesora i retencję logu wysyłek.</li>
+    <li><span class="sev info">info</span>Throttling MATCH wymaga przekazania <code>want_id</code> do kolejki. Nowe pole <code>topic_id</code> w <code>NotificationEntry</code> (tylko w pamięci, nie w tabeli <code>notifications</code>) trzeba potwierdzić w specyfikacji.</li>
+    <li><span class="sev info">info</span>Ochrona przed replay webhooka (okno czasu + pamięć tokenów w procesie) zakłada jedną instancję backendu. Druga instancja wymagałaby tabeli tokenów.</li>
+    <li><span class="sev warning">warning</span>Każdy zapis zmieniający <code>user_profiles.email</code> (dziś bez flow zmiany adresu, ale z możliwą ścieżką przez rodziny/opiekunów) musi czyścić <code>email_verified_at</code>. Specyfikacja musi to prześledzić.</li>
+    <li><span class="sev info">info</span>Reset hasła nie unieważnia wydanych JWT (zaakceptowane ryzyko „brak revocation”, bez zmian).</li>
+  </ul>
+</section>
+
+<nav class="toc">Spis: <a href="#overview">Przegląd</a> · <a href="#arch">Architektura</a> · <a href="#components">Komponenty</a> · <a href="#data">Model danych</a> · <a href="#flows">Przepływy</a> · <a href="#integration">Integracja</a> · <a href="#decisions">Decyzje</a> · <a href="#frontend">Frontend</a> · <a href="#testing">Testy</a> · <a href="#migrations">Migracje</a> · <a href="#stages">Etapy</a> · <a href="#examples">Przykłady</a> · <a href="#scope">Poza zakresem</a> · <a href="#success">Kryteria sukcesu</a></nav>
+
+<main>
+<h2 id="overview">1. Design Overview</h2>
+<div class="card">
+<p><b>Kontekst biznesowy.</b> aj ma dziś tylko powiadomienia w aplikacji. Ludzie przegapiają przejęcia rzeczy, propozycje wymian i prośby o potwierdzenie po terminie, więc wymiany się nie domykają, a punkty nie są przyznawane. Nie istnieje też żaden flow konta oparty na mailu: nie ma weryfikacji adresu ani resetu hasła, a konta tylko-Google nie mają odzyskiwania. Zyskują uczestnicy wymian (mniej niedoszłych odbiorów) i każdy właściciel konta.</p>
+<p><b>Wybrane podejście.</b> Mail to <b>drugi kanał istniejących bell</b>, a nie nowe zdarzenia domenowe. <code>notifications.service</code> (jedyny wspólny punkt 13 rodzajów bell) jednym zapytaniem wstawia wiersz do <b><code>email_messages</code></b> w transakcji domeny. Kolejka sama jest <b>transactional outboxem</b>. Osobny <b>job wysyłki</b> wiąże adresata późno (adres, weryfikacja, suppression, preferencje), renderuje <b>Jinja2</b> i wysyła przez <b>port <code>EmailSender</code></b> z adapterem <b>Mailgun EU</b>. Webhook dostawcy domyka pętlę: statusy dostarczenia i <b>suppression</b>. Styl architektury: <b>moduł w modularnym monolicie</b> (mikrokernel aj), integracja przez <b>ACL-e</b> i <b>kolejkę w bazie</b>. Nie powstaje nowy kontener w produkcji.</p>
+<p><b>Kluczowe decyzje:</b></p>
+<ul>
+<li>Hook w <code>notifications.service</code> zamiast handlera outboxa: pokrywa 13/13 rodzajów bez zmian w domenach.</li>
+<li>Własna kolejka z backoffem, <code>send_after</code> i kluczem idempotencji: cisza nocna, throttling i retry bez dublowania bell.</li>
+<li>Opt-out per kategoria po weryfikacji adresu: kanał dociera do ludzi zgodnie z PKE/RODO (interpretacja badania).</li>
+<li>Weryfikacja i reset na losowych, hashowanych, jednorazowych tokenach: dają się unieważnić, w przeciwieństwie do JWT.</li>
+<li>Mailgun EU za portem: rezydencja danych w UE, wymiana dostawcy to jeden adapter.</li>
+<li>Pełny webhook: własny log dostarczenia, bo Mailgun trzyma logi tylko 1–5 dni.</li>
+</ul>
+</div>
+
+<h2 id="arch">2. Architektura</h2>
+<h3>2.1 System Context (C4 Level 1)</h3>
+<pre>
+ [Użytkownik] --HTTPS--> [ aj ] --HTTPS form--> [Mailgun EU] --SMTP/DKIM--> [Skrzynka]
+      ^                   ^  ^                       |                        |
+      |                   |  +------webhook HMAC-----+                        |
+      +---- link w mailu / one-click POST (RFC 8058) -------------------------+
+                                       [DNS mail.&lt;domena&gt;] &lt;-- weryfikacja SPF/DKIM/DMARC
+                     [ aj ] --OIDC (bez zmian)--> [Google Identity]
+</pre>
+<ul class="small">
+<li><b>Użytkownik</b> dostaje maile i wraca do aj przez linki (<code>/verify-email</code>, <code>/reset-password</code>, <code>/unsubscribe</code>, <code>link_path</code> bell).</li>
+<li><b>Mailgun EU</b> przyjmuje wiadomości przez HTTP API i wysyła webhooki o zdarzeniach <code>delivered</code>, <code>failed</code> (permanent) i <code>complained</code>.</li>
+<li><b>DNS</b> to konfiguracja operatora (subdomena <code>mail.&lt;domena&gt;</code>), bez kodu.</li>
+<li><b>Google</b> bez zmian. Weryfikacja Google daje jedynie backfill <code>email_verified_at</code>.</li>
+</ul>
+<details><summary>Źródło Mermaid (C4 L1)</summary>
+<pre>flowchart LR
+    user["Użytkownik aj (osoba z kontem)"]
+    aj["aj (Next.js + FastAPI + PostgreSQL, docker compose na VPS)"]
+    mg["Mailgun EU (api.eu.mailgun.net)"]
+    inbox["Skrzynka odbiorcy (Gmail, Outlook, …)"]
+    dns["DNS domeny (mail.&lt;domena&gt;: SPF, DKIM, DMARC, MX)"]
+    google["Google Identity (istniejące logowanie)"]
+    user -- "HTTPS: panel, /settings, linki z maili" --&gt; aj
+    aj -- "HTTPS POST form (wysyłka, httpx)" --&gt; mg
+    mg -- "SMTP + DKIM" --&gt; inbox
+    inbox -- "kliknięcie linku / one-click POST (RFC 8058)" --&gt; aj
+    mg -- "HTTPS POST webhook (HMAC-SHA256)" --&gt; aj
+    inbox -. "weryfikacja SPF/DKIM/DMARC" .-&gt; dns
+    aj -- "OIDC (bez zmian)" --&gt; google</pre>
+</details>
+
+<h3>2.2 Container Overview (C4 Level 2)</h3>
+<pre>
+ VPS (docker compose)
+ +----------------------------------------------------------------------------------+
+ |  [nginx :5174] --/api/* (webhook, one-click POST)--> [backend FastAPI :8080]      |
+ |       |                                               app/email + job              |
+ |       +--pozostałe ścieżki--> [web Next.js :3000]     _run_email_send (APScheduler)|
+ |                                /settings, /verify-email,      |  SQL (asyncpg)      |
+ |                                /reset-password, /unsubscribe  v                    |
+ |  [matcher] --SQL + outbox wants.bells_due--> [(PostgreSQL 18)]                    |
+ |                                email_messages, email_preferences,                  |
+ |                                email_suppressions, account_tokens,                 |
+ |                                user_profiles.email_verified_at                     |
+ |  [mailpit] (profiles: dev) &lt;--SMTP (EMAIL_BACKEND=smtp)-- backend                  |
+ +----------------------------------------------------------------------------------+
+        backend --HTTPS (EMAIL_BACKEND=mailgun)--> [Mailgun EU] --webhook--> nginx
+</pre>
+<div class="card">
+<table>
+<tr><th>Kontener</th><th>Zmiana</th><th>Odpowiedzialność w tym projekcie</th></tr>
+<tr><td><code>backend</code></td><td>nowy moduł, nowy job, nowe endpointy</td><td>Kolejkowanie, wysyłka, webhook, wypis, preferencje, tokeny konta</td></tr>
+<tr><td><code>web</code></td><td>3 nowe strony publiczne, 1 strona panelu, baner, link „Nie pamiętasz hasła?”</td><td>Powierzchnie z maili i ustawienia</td></tr>
+<tr><td>PostgreSQL</td><td>4 nowe tabele + 1 kolumna</td><td>Kolejka (log wysyłek), preferencje, suppression, tokeny</td></tr>
+<tr><td>nginx</td><td>bez zmian w konfiguracji (<code>/api/*</code> → backend). Sprawdzić, że POST nie jest przekierowywany</td><td>Przepuszcza webhook i one-click POST</td></tr>
+<tr><td><code>matcher</code></td><td>bez zmian</td><td>Jego bell MATCH trafia do kolejki przez handler <code>wants.bells_due</code> → <code>create_notifications</code></td></tr>
+<tr><td><code>mailpit</code></td><td>nowy, tylko <code>profiles: ["dev"]</code>, przypięta wersja obrazu</td><td>Podgląd maili w dev</td></tr>
+</table>
+<p class="small">Nie ma nowego kontenera produkcyjnego. Wysyłka działa w procesie backendu, tak jak <code>_run_attendance_close</code> i reconcile embeddings.</p>
+</div>
+<details><summary>Źródło Mermaid (C4 L2)</summary>
+<pre>flowchart TB
+    subgraph host["VPS (docker compose)"]
+        nginx["nginx :5174 reverse proxy"]
+        web["web — Next.js standalone :3000"]
+        backend["backend — FastAPI :8080, app/email + job _run_email_send"]
+        db[("PostgreSQL 18")]
+        matcher["matcher (bez zmian)"]
+        mailpit["mailpit (tylko profile: dev)"]
+    end
+    mg["Mailgun EU"]
+    nginx -- "/api/*" --&gt; backend
+    nginx -- "pozostałe ścieżki" --&gt; web
+    web -- "fetch /api/* (Bearer)" --&gt; nginx
+    backend -- "SQL (asyncpg)" --&gt; db
+    matcher -- "SQL + outbox wants.bells_due" --&gt; db
+    backend -- "HTTPS (EMAIL_BACKEND=mailgun)" --&gt; mg
+    backend -. "SMTP (EMAIL_BACKEND=smtp, dev)" .-&gt; mailpit
+    mg -- "webhook POST /api/email/webhooks/mailgun" --&gt; nginx</pre>
+</details>
+
+<h3>2.3 Widok modułów w kontenerze <code>backend</code></h3>
+<pre>
+ groups / events / wants --> notifications.service --> notifications/infrastructure/email_acl --+
+                                                                                               v
+ auth (+ users: rejestracja) --> auth/infrastructure/email_acl -------------------> app/email.service
+                                                                                    (enqueue_*)  |
+                                                                                                 v
+                                                                                           email.rules
+ app/email:  sending (job) --> infrastructure/users_acl (adres, weryfikacja, typ party)
+             sending --> rendering + templates (Jinja2) --> links (podpis wypisu)
+             sending --> senders (EmailSender: Mailgun / SMTP / Log)
+             router (webhook, unsubscribe, preferences) --> links
+</pre>
+<p class="small"><b>Reguła granic:</b> <code>app.email</code> importują tylko <code>app/main.py</code> (lifespan, router, job) i dwa ACL-e konsumentów (<code>notifications/infrastructure/email_acl</code>, <code>auth/infrastructure/email_acl</code>). <code>app/email</code> czyta inne konteksty wyłącznie przez własne <code>infrastructure/*_acl.py</code>. Moduł trafia do <code>MODULES</code> w teście granic modułów i do testu strażnika zegara domeny.</p>
+
+<h2 id="components">3. Kluczowe komponenty</h2>
+<div class="card">
+<table class="small">
+<tr><th>Komponent</th><th>Cel</th><th>Odpowiedzialności</th><th>Interfejsy</th><th>Zależności</th></tr>
+<tr><td><b>Kolejkowanie</b> (<code>email.service</code>)</td><td>Jedyne API zapisu dla innych modułów</td><td><code>enqueue_for_notifications(db, entries)</code>: filtr rodzajów przez <code>rules</code>, jeden wielowierszowy <code>INSERT … ON CONFLICT (idempotency_key) DO NOTHING</code>, bez odczytów · <code>enqueue_transactional(db, template, party_id, context, key)</code> dla maili konta · no-op przy <code>EMAIL_ENABLED=false</code></td><td>Wywoływane z ACL-i w transakcji wywołującego, bez commitu</td><td><code>rules</code>, sesja DB</td></tr>
+<tr><td><b>Reguły</b> (<code>email.rules</code>)</td><td>Jedno miejsce decyzji „co, kiedy, jak”</td><td>mapa <code>NotificationKind → (kategoria, strumień, szablon, temat, CTA)</code>, tylko 7 rodzajów MVP · budowa klucza (<code>notification:&lt;id&gt;</code>, <code>want_match:&lt;want&gt;:&lt;dzień Warsaw&gt;</code>, <code>auth:&lt;token_id&gt;</code>) · stałe: domyślne kategorie (<code>WANTS_DEFAULT_ENABLED</code>), backoff, <code>MAX_ATTEMPTS</code>, cisza nocna, próg SENDING</td><td>Czyste funkcje i stałe</td><td><code>clock</code></td></tr>
+<tr><td><b>Job wysyłki</b> (<code>email.sending</code>)</td><td>Dostarczenie z kolejki</td><td>odzysk zawieszonych SENDING · claim <code>PENDING AND send_after &lt;= now</code> z <code>FOR UPDATE SKIP LOCKED</code> (batch 50) → SENDING · późne wiązanie: adres, weryfikacja, typ party, suppression, preferencje, limit dzienny → SKIPPED · cisza nocna → przesunięcie <code>send_after</code> · render, <code>EmailSender.send()</code> bez trzymania blokad, zapis wyniku, jedna linia logu na przebieg</td><td><code>run_send_batch()</code> wołane przez <code>_run_email_send</code> w <code>main.py</code></td><td><code>users_acl</code>, <code>rendering</code>, <code>senders</code>, <code>clock</code></td></tr>
+<tr><td><b>Renderowanie</b> (<code>email.rendering</code> + szablony)</td><td>Polskie treści HTML + tekst</td><td>Jinja2 <code>select_autoescape(("html","html.j2"))</code>, <code>StrictUndefined</code> · pary <code>*.html.j2</code>/<code>*.txt.j2</code>, wspólny <code>base.html.j2</code> z inline CSS · szablony MVP: <code>verify_email</code>, <code>password_reset</code>, <code>password_changed</code>, <code>notification</code> (generyczny) · daty przez <code>clock.format_term_when</code>/<code>format_term_day</code></td><td><code>render(template, context) → (subject, html, text)</code></td><td><code>links</code>, <code>APP_PUBLIC_BASE_URL</code></td></tr>
+<tr><td><b>Nadawcy</b> (<code>email.senders</code>)</td><td>Odcięcie dostawcy</td><td>Protocol <code>EmailSender.send(message) → SendResult(provider_message_id)</code> / błąd sklasyfikowany (permanent / retryable) · <code>MailgunSender</code> (<code>httpx</code>, form POST, timeout, <code>v:email_message_id</code>, tracking wyłączony) · <code>SmtpSender</code> (dev, Mailpit), <code>LogSender</code> (bez treści i adresów) · <code>set_sender()</code>/<code>get_sender()</code> w lifespanie</td><td>Port + <code>set_sender()</code></td><td><code>httpx</code>, config</td></tr>
+<tr><td><b>Linki podpisane</b> (<code>email.links</code>)</td><td>Token wypisu bez stanu</td><td>HMAC-SHA256 kluczem <code>EMAIL_LINK_SIGNING_SECRET</code> nad <code>party_id</code> + kategorią (lub <code>ALL</code>) + wersją formatu · bez wygasania, porównanie <code>compare_digest</code></td><td><code>sign_unsubscribe()</code>, <code>verify_unsubscribe()</code></td><td>config</td></tr>
+<tr><td><b>Router e-mail</b> (<code>email.router</code>)</td><td>Wejścia HTTP modułu</td><td><code>POST /api/email/webhooks/mailgun</code> (PUBLIC + HMAC) · <code>POST /api/email/unsubscribe/{token}</code> (PUBLIC, RFC 8058 i strona) · <code>GET</code>/<code>PUT /api/email/preferences</code> (zalogowany)</td><td>FastAPI router w <code>main.py</code></td><td><code>links</code>, tabele modułu, <code>users_acl</code></td></tr>
+<tr><td><b>ACL użytkowników</b> (<code>email/infrastructure/users_acl</code>)</td><td>Odczyt adresata jednym zapytaniem</td><td>batch <code>party_id → (typ party, email, email_verified_at, display_name)</code> · brak konta lub adresu = <code>None</code></td><td><code>get_recipients_by_party_ids()</code></td><td><code>users</code>, <code>party</code> (tylko odczyt)</td></tr>
+<tr><td><b>Tokeny konta</b> (<code>auth</code>)</td><td>Weryfikacja i reset</td><td>tabela <code>account_tokens</code> (hash SHA-256, cel, <code>expires_at</code>, <code>used_at</code>, snapshot adresu) · żądanie z limitem w DB, neutralne 202 · potwierdzenie: weryfikacja → <code>email_verified_at</code>; reset → nowe hasło + mail „hasło zmienione”</td><td>Endpointy <code>/api/auth/password-reset*</code>, <code>/api/auth/email-verification*</code></td><td><code>auth/infrastructure/email_acl</code></td></tr>
+<tr><td><b>ACL-e konsumentów</b></td><td>Wąskie wejście do <code>app.email</code></td><td><code>notifications/infrastructure/email_acl</code> (przekazuje <code>(notification_id, party_id, kind, message, link_path, topic_id)</code>) · <code>auth/infrastructure/email_acl</code> (maile konta)</td><td>jedna funkcja każdy</td><td><code>app.email.service</code></td></tr>
+</table>
+</div>
+
+<h2 id="data">4. Model danych</h2>
+<p class="small">Wszystkie tabele na <code>BaseEntity</code> (UUID <code>id</code>, <code>created_at</code>, <code>updated_at</code> jako <code>version_id_col</code>). Znaczniki są naiwnym UTC, enumy przechowywane jako string, nazwy <code>pk_</code>/<code>fk_</code>/<code>ix_</code>/<code>uq_</code>/<code>ck_</code> jawne.</p>
+<div class="card">
+<h3 style="margin-top:0">4.1 <code>email_messages</code> — kolejka i log wysyłek (moduł <code>email</code>)</h3>
+<table class="small">
+<tr><th>Kolumna</th><th>Typ</th><th>Uwagi</th></tr>
+<tr><td><code>idempotency_key</code></td><td><code>String(200)</code> NOT NULL</td><td><code>uq_email_messages_idempotency_key</code></td></tr>
+<tr><td><code>party_id</code></td><td>UUID NOT NULL</td><td>FK <code>parties</code> (adresat jako party, adres wiązany późno)</td></tr>
+<tr><td><code>stream</code></td><td><code>TRANSACTIONAL</code> | <code>NOTIFICATION</code></td><td>Decyduje o nagłówkach wypisu, suppression i ciszy nocnej. Strumień „D” (digest) dojdzie z pierwszym digestem</td></tr>
+<tr><td><code>category</code></td><td>string, NULL dla <code>TRANSACTIONAL</code></td><td><code>ck_email_messages_category_stream</code></td></tr>
+<tr><td><code>template</code></td><td><code>String(50)</code></td><td>np. <code>notification</code>, <code>verify_email</code></td></tr>
+<tr><td><code>notification_id</code>, <code>notification_kind</code></td><td>UUID / string, NULL</td><td>Luźny wskaźnik, bez FK (bell może zostać zwinięty lub usunięty)</td></tr>
+<tr><td><code>payload</code></td><td>JSONB</td><td>Snapshot: <code>message</code>, <code>link_path</code>, <code>kind</code> dla bell; <code>token</code> (surowy) dla T, <b>zerowany</b> przy SENT/FAILED/SKIPPED</td></tr>
+<tr><td><code>status</code></td><td>patrz 4.6</td><td><code>ix_email_messages_pending_send_after</code> (częściowy, <code>WHERE status='PENDING'</code>)</td></tr>
+<tr><td><code>skip_reason</code></td><td>string NULL</td><td><code>no_address</code>, <code>unverified</code>, <code>organization</code>, <code>suppressed</code>, <code>category_disabled</code>, <code>daily_cap</code>. <code>ck</code>: ustawiony ⇔ <code>SKIPPED</code></td></tr>
+<tr><td><code>attempts</code></td><td>int, default 0</td><td></td></tr>
+<tr><td><code>send_after</code></td><td>timestamp NOT NULL</td><td>Domyślnie <code>utcnow()</code>. Przesuwany przez backoff i ciszę nocną</td></tr>
+<tr><td><code>claimed_at</code>, <code>sent_at</code>, <code>delivered_at</code>, <code>event_at</code></td><td>timestamp NULL</td><td><code>event_at</code> = czas ostatniego zdarzenia webhooka</td></tr>
+<tr><td><code>provider_message_id</code></td><td><code>String(255)</code> NULL</td><td><code>ix_email_messages_provider_message_id</code>, znormalizowany (bez <code>&lt;&gt;</code>)</td></tr>
+<tr><td><code>last_error</code></td><td><code>String(200)</code> NULL</td><td>Kod lub klasa błędu, <b>bez adresu i treści</b></td></tr>
+</table>
+<p class="small">Adres odbiorcy <b>nie jest zapisywany</b> (minimalizacja danych). Diagnoza idzie przez <code>party_id</code>, a suppression przez adres z webhooka.</p>
+</div>
+
+<div class="card">
+<h3 style="margin-top:0">4.2 <code>email_preferences</code> (moduł <code>email</code>)</h3>
+<p class="small"><code>party_id</code> FK <code>parties</code>, <code>category</code> (<code>ALL</code> | <code>RESERVATIONS</code> | <code>MEETINGS</code> | <code>WANTS</code> | <code>MESSAGES</code> | <code>ORGANIZER_DIGESTS</code>), <code>enabled</code> bool, <code>uq_email_preferences_party_id_category</code>. <b>Brak wiersza oznacza domyślną wartość kategorii z <code>rules</code>.</b> Kategoria jest efektywnie włączona, gdy wiersz <code>ALL</code> nie ma <code>enabled=false</code> i jej własny wiersz (lub domyślna wartość) ma <code>enabled=true</code>. Transakcyjne nie mają wiersza i nie da się ich wyłączyć.</p>
+<table class="small">
+<tr><th>Kategoria (UI)</th><th>Wartość</th><th>Rodzaje MVP</th><th>Domyślnie po weryfikacji</th><th>W <code>/settings</code> w MVP</th></tr>
+<tr><td>Rezerwacje i wymiany</td><td><code>RESERVATIONS</code></td><td>B1 <code>TERM_ITEM_LISTING_TAKEN</code>, B3 <code>SWAP_PROPOSED</code>, B4 <code>SWAP_ACCEPTED</code>, B5 <code>SWAP_REJECTED</code>, B6 <code>TERM_CONFIRMATION_NEEDED</code>, B8 <code>RESERVATION_CANCELLED</code></td><td>włączona</td><td>tak</td></tr>
+<tr><td>Szukam</td><td><code>WANTS</code></td><td>B9 <code>WANT_MATCH_FOUND</code> (+ per-want <code>notifications_enabled</code>)</td><td>włączona (<b>jedna stała</b> <code>WANTS_DEFAULT_ENABLED</code>)</td><td>tak</td></tr>
+<tr><td>Spotkania i wydarzenia</td><td><code>MEETINGS</code></td><td>— (C2/C3 w etapie 3)</td><td>włączona</td><td>od pierwszego rodzaju</td></tr>
+<tr><td>Wiadomości</td><td><code>MESSAGES</code></td><td>— (C6 później)</td><td>do decyzji</td><td>od pierwszego rodzaju</td></tr>
+<tr><td>Podsumowania organizatora</td><td><code>ORGANIZER_DIGESTS</code></td><td>— (digesty później)</td><td><b>wyłączona</b></td><td>od pierwszego rodzaju</td></tr>
+<tr><td>Transakcyjne</td><td>—</td><td>A1–A3</td><td>zawsze</td><td>jako zablokowany wiersz informacyjny</td></tr>
+</table>
+<p class="small">Katalog kategorii jest ustalony teraz, żeby nie migrować preferencji później. <code>/settings</code> pokazuje jednak tylko kategorie, do których mapuje się co najmniej jeden aktywny rodzaj (minimal-implementation: bez przełączników, które nic nie robią).</p>
+</div>
+
+<div class="grid2">
+<div class="card"><h3 style="margin-top:0">4.3 <code>email_suppressions</code> (moduł <code>email</code>)</h3>
+<p class="small"><code>address_normalized</code> <code>String(320)</code> (<code>lower(trim)</code>, <code>uq_</code>), <code>reason</code> <code>BOUNCE</code> | <code>COMPLAINT</code>, <code>source_message_id</code> UUID NULL (luźny). Blokuje P/D. T próbujemy wysłać (żądanie użytkownika, odzyskanie konta). Suppression przetrwa purge logu. Usuwanie konta i hashowanie adresu to osobny temat (poza zakresem).</p></div>
+<div class="card"><h3 style="margin-top:0">4.4 <code>account_tokens</code> (moduł <code>auth</code>)</h3>
+<p class="small"><code>user_id</code> FK <code>users</code> ON DELETE CASCADE, <code>purpose</code> <code>VERIFY_EMAIL</code> | <code>PASSWORD_RESET</code>, <code>token_hash</code> <code>String(64)</code> (SHA-256 hex surowego tokenu ≥ 32 bajty z <code>secrets</code>, <code>uq_</code>), <code>email</code> (snapshot adresu w chwili wydania, do porównania przy potwierdzeniu), <code>expires_at</code> (reset ~1 h, weryfikacja ~48 h; stałe), <code>used_at</code> NULL, <code>ix_account_tokens_user_id_purpose_created_at</code> (limit żądań). Wydanie nowego tokenu danego celu unieważnia poprzednie niewykorzystane (<code>used_at</code> = teraz).</p></div>
+<div class="card"><h3 style="margin-top:0">4.5 <code>user_profiles.email_verified_at</code> (moduł <code>users</code>)</h3>
+<p class="small">Nullable, naiwny UTC. <b>Backfill:</b> profile z tożsamością Google <code>email_verified=true</code>, gdzie <code>lower(identity.email) = lower(profile.email)</code>. Ustawiany przez potwierdzenie weryfikacji, a dla nowych kont Google przy <code>bootstrap_person_account</code>. <b>Każdy zapis zmieniający <code>email</code> czyści <code>email_verified_at</code>.</b></p></div>
+</div>
+
+<h3>4.6 Cykl życia <code>email_messages.status</code></h3>
+<pre>
+ INSERT ──> PENDING ──claim (SKIP LOCKED)──> SENDING
+                ^                              │
+                ├── cisza nocna (P/D) ─────────┤ → send_after 07:00
+                ├── 429/5xx/timeout ───────────┤ → backoff, attempts+1
+                └── zawieszony > ~10 min (P/D) ┤
+                                               ├──> SKIPPED  (no_address | unverified | organization |
+                                               │              suppressed | category_disabled | daily_cap)
+                                               ├──> FAILED   (4xx walidacji | attempts ≥ MAX | zawieszony T)
+                                               └──> SENT ──webhook──> DELIVERED ──> BOUNCED ──> COMPLAINED
+                                                     │                    └────────────────────> COMPLAINED
+                                                     ├──> BOUNCED (failed permanent)
+                                                     └──> COMPLAINED
+</pre>
+<p class="small"><b>Pierwszeństwo statusów webhooka:</b> <code>COMPLAINED &gt; BOUNCED &gt; DELIVERED &gt; SENT</code>. Zdarzenie nigdy nie obniża statusu, bo webhooki mogą przyjść w dowolnej kolejności i powtórzone. Dzięki temu każde zdarzenie jest idempotentne.</p>
+
+<h2 id="flows">5. Przepływy danych (sekwencje)</h2>
+<details open><summary>5.1 Bell → kolejka → wysyłka</summary>
+<pre>
+ Domena → notifications.service: create_notification(s)(party, kind, message, link_path[, topic_id])
+ notifications.service → DB: INSERT notifications
+ notifications.service → email_acl → email.service: enqueue_for_notifications
+ email.service: rules — czy kind idzie mailem? klucz, kategoria
+ email.service → DB: INSERT email_messages … ON CONFLICT (idempotency_key) DO NOTHING
+ Domena → DB: COMMIT (bell + mail atomowo)
+ Job → DB: odzysk SENDING > ~10 min; claim PENDING ≤ now FOR UPDATE SKIP LOCKED → SENDING; COMMIT
+ Job → users_acl: adresaci batch (typ party, email, verified)
+ Job → DB: suppression, preferencje, liczba wysłanych dziś (po jednym zapytaniu)
+   ├ nie kwalifikuje się → SKIPPED + skip_reason
+   ├ cisza nocna (P) → PENDING, send_after = 07:00 Warsaw
+   └ wysyłka → render Jinja2 (subject, html, text, List-Unsubscribe)
+              → EmailSender.send() (bez blokad DB, timeout)
+              → SENT + provider_message_id | PENDING + backoff | FAILED
+</pre></details>
+<details><summary>5.2 Weryfikacja adresu</summary>
+<pre>
+ Użytkownik → web: rejestracja hasłem / „Wyślij link” w banerze lub /settings
+ web → backend auth: POST /api/auth/register | POST /api/auth/email-verification (Bearer)
+ backend: limit w DB (≤1/60 s, ≤5/h); nowy token, hash w account_tokens
+ backend → kolejka: enqueue_transactional(verify_email, key=auth:&lt;token_id&gt;, token) → 201 / 202
+ job + Mailgun → Użytkownik: mail z linkiem APP_PUBLIC_BASE_URL/verify-email?token=…
+ Użytkownik → web: GET /verify-email?token=… (bez efektów ubocznych) → klik „Potwierdź adres”
+ web → backend: POST /api/auth/email-verification/confirm {token}
+ backend: hash → token ważny, nieużyty, email == snapshot → email_verified_at = now, used_at, usuń BOUNCE z suppression
+ backend → web: 204 → stan „Adres potwierdzony”, invalidacja profilu
+</pre></details>
+<details><summary>5.3 Reset hasła (także pierwsze hasło konta tylko-Google)</summary>
+<pre>
+ Użytkownik → web: „Nie pamiętasz hasła?” → podaje e-mail
+ web → backend: POST /api/auth/password-reset {email}
+ backend: lower(email) → konto? limit? (cicho)
+   opt konto istnieje i limit OK → token PASSWORD_RESET + mail
+       (wariant tekstu dla password_hash IS NULL: „logujesz się przez Google, możesz ustawić hasło”)
+ backend → web: 202 zawsze (neutralnie)
+ job → Użytkownik: mail na adres konta (niezależnie od weryfikacji)
+ Użytkownik → web: /reset-password?token=… → formularz nowego hasła
+ web → backend: POST /api/auth/password-reset/confirm {token, password}
+ backend: token ważny → bcrypt hash, used_at, unieważnij inne tokeny resetu
+ backend → kolejka: mail password_changed (T, key=auth:&lt;token_id&gt;:changed)
+ backend → web: 204 → pełne przeładowanie na /login z komunikatem
+</pre></details>
+<details><summary>5.4 Wypis (stopka i one-click RFC 8058)</summary>
+<pre>
+ one-click w kliencie poczty:
+   Klient → backend: POST /api/email/unsubscribe/{token} (List-Unsubscribe=One-Click)
+   backend: verify HMAC → (party, kategoria) → upsert email_preferences enabled=false
+   backend → Klient: 200 (bez przekierowania, idempotentne)
+ link w stopce:
+   Odbiorca → web: GET /unsubscribe?token=… (tylko widok)
+   Odbiorca → web: „Wyłącz tę kategorię” / „Wyłącz wszystkie”
+   web → backend: POST /api/email/unsubscribe/{token} {scope: category|all}
+   backend → web: 200 {category_label} → potwierdzenie + link do /settings
+</pre></details>
+<details><summary>5.5 Webhook Mailgun</summary>
+<pre>
+ Mailgun → backend: {signature{timestamp, token, signature}, event-data}
+ backend: HMAC-SHA256(EMAIL_WEBHOOK_SIGNING_KEY, timestamp+token) compare_digest
+ backend: |now − timestamp| ≤ 5 min, token niewidziany (pamięć procesu)
+   ├ podpis zły / replay → 401 (bez szczegółów)
+   └ OK → znajdź wiadomość po v:email_message_id, inaczej po provider_message_id
+        → status = max(obecny, zdarzenie) + event_at / delivered_at
+        → opt failed permanent lub complained: INSERT email_suppressions ON CONFLICT DO NOTHING (adres z event-data)
+        → opt complained i wiadomość NOTIFICATION: email_preferences(party, kategoria) enabled=false
+        → 200 (także dla nieznanej wiadomości, żeby Mailgun nie ponawiał)
+</pre></details>
+<p class="small">Pełne diagramy Mermaid (sequenceDiagram, stateDiagram) są w <a href="high-level-design.md" target="_blank" rel="noopener">bliźniaku md</a>.</p>
+
+<h2 id="integration">6. Punkty integracji</h2>
+<div class="card">
+<table class="small">
+<tr><th>#</th><th>Punkt</th><th>Kierunek</th><th>Kontrakt</th><th>Uwagi</th></tr>
+<tr><td>I1</td><td><code>notifications.service.create_notification</code> / <code>create_notifications</code> → <code>notifications/infrastructure/email_acl</code></td><td>wewn. synchr.</td><td>Po zapisie bell jedna lista wpisów. <b>Dokładnie jedno dodatkowe zapytanie</b>, bez odczytów</td><td><code>create_notification</code> musi znać <code>id</code> bella przed flushem (nadany jawnie jak w <code>create_notifications</code>). Test liczby zapytań</td></tr>
+<tr><td>I2</td><td><code>wants</code> → <code>notifications_acl.NotificationEntry.topic_id</code></td><td>wewn.</td><td><code>topic_id = want.id</code> dla <code>WANT_MATCH_FOUND</code>. Tylko w pamięci</td><td>Klucz <code>want_match:&lt;want&gt;:&lt;dzień Warsaw&gt;</code></td></tr>
+<tr><td>I3</td><td><code>auth</code> (+ rejestracja w <code>users</code>) → <code>auth/infrastructure/email_acl</code></td><td>wewn. synchr.</td><td><code>enqueue_transactional(template, party_id, context, key)</code></td><td>Miejsce wywołania przy rejestracji ustala specyfikacja (unikając cyklu importów users ↔ auth)</td></tr>
+<tr><td>I4</td><td><code>email/infrastructure/users_acl</code></td><td>wewn. odczyt</td><td>batch <code>party_id → recipient</code></td><td>Jedno zapytanie na batch</td></tr>
+<tr><td>I5</td><td>Mailgun Messages API</td><td>wychodzący HTTPS</td><td><code>POST {EMAIL_PROVIDER_API_URL}/messages</code> (form: <code>from</code>, <code>to</code>, <code>subject</code>, <code>text</code>, <code>html</code>, <code>h:Reply-To</code>, <code>h:List-Unsubscribe</code>, <code>h:List-Unsubscribe-Post</code>, <code>h:List-Id</code>, <code>h:Auto-Submitted</code>, <code>o:tag</code>, <code>o:tracking=no</code>, <code>v:email_message_id</code>), Basic auth <code>api:&lt;klucz&gt;</code></td><td>Timeout ~10 s, klasyfikacja błędów w adapterze</td></tr>
+<tr><td>I6</td><td>Mailgun webhooks</td><td>przychodzący HTTPS</td><td><code>POST /api/email/webhooks/mailgun</code>, zdarzenia <code>delivered</code>, <code>failed</code> (tylko <code>severity=permanent</code>), <code>complained</code></td><td>Konfiguracja w panelu domeny EU</td></tr>
+<tr><td>I7</td><td>Klient poczty (RFC 8058)</td><td>przychodzący HTTPS</td><td><code>POST /api/email/unsubscribe/{token}</code>, <code>application/x-www-form-urlencoded</code> lub <code>multipart/form-data</code></td><td>DKIM obejmuje oba nagłówki</td></tr>
+<tr><td>I8</td><td>Frontend → API</td><td>HTTPS</td><td><code>GET</code>/<code>PUT /api/email/preferences</code>, endpointy <code>/api/auth/password-reset*</code>, <code>/api/auth/email-verification*</code>, <code>GET /api/people/me</code> z <code>email_verified</code></td><td>TanStack Query hooki w <code>src/hooks/</code></td></tr>
+<tr><td>I9</td><td>Lifespan + APScheduler</td><td>wewn.</td><td><code>set_sender()</code> wg <code>EMAIL_BACKEND</code>. Job <code>_run_email_send</code> tylko przy <code>EMAIL_ENABLED=true</code> (<code>coalesce</code>, <code>max_instances=1</code>)</td><td>Linia startowa z <code>EMAIL_ENABLED=…, EMAIL_BACKEND=…</code></td></tr>
+<tr><td>I10</td><td>DNS (operator)</td><td>konfiguracja</td><td>SPF, DKIM 2048, MX, DMARC <code>none → quarantine → reject</code> na <code>mail.&lt;domena&gt;</code></td><td>Raport §10</td></tr>
+</table>
+</div>
+<h3>6.1 Nowe wiersze <code>AUTHORIZATION_MATRIX</code> (po wierszu 73, first-match-wins)</h3>
+<div class="card">
+<table class="small">
+<tr><th>Wiersz</th><th>Metoda</th><th>Ścieżka</th><th>Reguła</th><th>Uzasadnienie</th></tr>
+<tr><td>74</td><td>POST</td><td><code>^/api/auth/password-reset$</code></td><td>PUBLIC</td><td>Flow auth (precedens 72/73). Neutralne 202</td></tr>
+<tr><td>75</td><td>POST</td><td><code>^/api/auth/password-reset/confirm$</code></td><td>PUBLIC</td><td>Token w body</td></tr>
+<tr><td>76</td><td>POST</td><td><code>^/api/auth/email-verification/confirm$</code></td><td>PUBLIC</td><td>Token w body, działa bez sesji</td></tr>
+<tr><td>77</td><td>POST</td><td><code>^/api/auth/email-verification$</code></td><td>zalogowany (<code>READ</code>/<code>EDIT</code> loginu, bez <code>mcp:*</code>)</td><td>Ponowne wysłanie własnej weryfikacji</td></tr>
+<tr><td>78</td><td>POST</td><td><code>^/api/email/unsubscribe/[^/]+$</code></td><td>PUBLIC</td><td>RFC 8058: bez cookies i auth, podpis w ścieżce</td></tr>
+<tr><td>79</td><td>POST</td><td><code>^/api/email/webhooks/mailgun$</code></td><td>PUBLIC</td><td>Uwierzytelnienie HMAC w handlerze, nie w JWT</td></tr>
+<tr><td>80</td><td>GET, PUT</td><td><code>^/api/email/preferences$</code></td><td>zalogowany (<code>READ</code> dla GET, <code>EDIT</code> dla PUT, bez <code>mcp:*</code>)</td><td>Jak wants (66–67)</td></tr>
+</table>
+<p class="small">Wiersze 74–79 to kolejne publiczne POST poza <code>/api/public/</code>. Komentarz w macierzy ma je uzasadnić tak jak wiersze 72/73 (flow auth i wejście od dostawcy). Test macierzy dostaje nowe przypadki. Strony <code>/verify-email</code>, <code>/reset-password</code> i <code>/unsubscribe</code> w Next nie potrzebują wierszy (to nie <code>/api</code>).</p>
+</div>
+<h3>6.2 Konfiguracja (tylko nazwy; wartości wyłącznie w <code>.env</code>)</h3>
+<div class="card small">
+<p><code>EMAIL_ENABLED</code> (default false), <code>EMAIL_BACKEND</code> (<code>mailgun</code> | <code>smtp</code> | <code>log</code>), <code>EMAIL_PROVIDER_API_URL</code> (dla Mailgun EU z domeną w ścieżce), <code>EMAIL_PROVIDER_API_KEY</code>, <code>EMAIL_FROM_ADDRESS</code>, <code>EMAIL_FROM_NAME</code>, <code>EMAIL_REPLY_TO_ADDRESS</code>, <code>EMAIL_LINK_SIGNING_SECRET</code>, <code>EMAIL_WEBHOOK_SIGNING_KEY</code>, <code>EMAIL_DAILY_CAP</code>, <code>EMAIL_SMTP_HOST</code>, <code>EMAIL_SMTP_PORT</code> (tylko dev), <code>APP_PUBLIC_BASE_URL</code>.</p>
+<p>Każda nazwa trafia do <code>config.py</code> (z <code>email_configured</code>, walidatorem pustego placeholdera i fail-fast w lifespanie, gdy <code>EMAIL_ENABLED=true</code> a <code>mailgun</code> nie ma klucza, nadawcy, sekretów lub bazowego URL), do <code>.env.example</code> (puste placeholdery) i do <code>docker-compose.yml</code> (<code>backend.environment</code>). Przy <code>EMAIL_ENABLED=false</code> endpointy żądania resetu i weryfikacji zwracają 503 z polskim komunikatem, a kolejkowanie jest no-opem (bez zaległości, która wystrzeliłaby po włączeniu). <b>Nigdy nie logować ani nie wypisywać wartości. W raportach, promptach i testach używać tylko nazw.</b></p>
+</div>
+
+<h2 id="decisions">Decyzje projektowe (podsumowanie)</h2>
+<div class="card">
+<table class="small">
+<tr><th>ADR</th><th>Decyzja</th><th>Obszar</th><th>Odejście od rekomendacji</th></tr>
+<tr><td><a href="decision-log.html#adr-001">ADR-001</a></td><td>Relacja do handover ADR-009: potwierdzone, zmienione, zastąpione</td><td>baza</td><td>—</td></tr>
+<tr><td><a href="decision-log.html#adr-002">ADR-002</a></td><td>Mailgun EU przez <code>httpx</code> za portem <code>EmailSender</code></td><td>D1</td><td>—</td></tr>
+<tr><td><a href="decision-log.html#adr-003">ADR-003</a></td><td>Hook w <code>notifications.service</code> + <code>email_messages</code> w transakcji domeny</td><td>D2</td><td>—</td></tr>
+<tr><td><a href="decision-log.html#adr-004">ADR-004</a></td><td>Job z późnym wiązaniem, backoffem, polityką SENDING</td><td>D2</td><td>—</td></tr>
+<tr><td><a href="decision-log.html#adr-005">ADR-005</a></td><td>Opt-out per kategoria, RFC 8058</td><td>D3</td><td>—</td></tr>
+<tr><td><a href="decision-log.html#adr-006">ADR-006</a></td><td><code>email_verified_at</code>, backfill Google, <code>account_tokens</code>, baner</td><td>D4</td><td>—</td></tr>
+<tr><td><a href="decision-log.html#adr-007">ADR-007</a></td><td>SKIPPED + <code>skip_reason</code>, reset Google = ustaw hasło</td><td>D5</td><td>—</td></tr>
+<tr><td><a href="decision-log.html#adr-008">ADR-008</a></td><td>Jinja2 w repo, generyczny szablon <code>notification</code></td><td>D6</td><td>—</td></tr>
+<tr><td><a href="decision-log.html#adr-009">ADR-009</a></td><td>Natychmiast, klucz dzienny MATCH, cisza nocna, limit dzienny</td><td>D7</td><td>—</td></tr>
+<tr><td><a href="decision-log.html#adr-010">ADR-010</a></td><td>Pełny webhook Mailgun (8A)</td><td>D8</td><td><span class="sev warning">tak</span> 8A zamiast 8B (wybór użytkownika)</td></tr>
+</table>
+</div>
+
+<h2 id="frontend">7. Powierzchnie frontendu</h2>
+<div class="card">
+<table class="small">
+<tr><th>Powierzchnia</th><th>Layout / dostęp</th><th>Zawartość</th><th>Standardy</th></tr>
+<tr><td><code>/settings</code></td><td><code>(panel)</code>, dopisane do <code>PROTECTED_PREFIXES</code> (<code>settings</code> już zarezerwowane)</td><td>Adres, stan weryfikacji i przycisk „Wyślij link weryfikacyjny”, informacja o suppression („Twój adres odrzucał wiadomości”), przełącznik „Wszystkie powiadomienia e-mail”, przełączniki kategorii <code>role="switch"</code> (wzór <code>WantNotificationToggle</code>), zablokowany wiersz „Transakcyjne”</td><td>Hook <code>useEmailPreferences</code> w <code>src/hooks/</code> (query + <code>update</code>, invalidacja prefiksu), polskie komunikaty błędów</td></tr>
+<tr><td>Wiersz „Powiadomienia e-mail” w <code>AccountView</code></td><td>panel</td><td>Link do <code>/settings</code> w sekcji „Ustawienia”</td><td>—</td></tr>
+<tr><td>Baner weryfikacji</td><td>panel: Start (<code>/home</code>) i <code>/settings</code></td><td>„Potwierdź adres, żeby dostawać powiadomienia” + przycisk. Widoczny, gdy profil ma <code>email</code> i nie ma <code>email_verified</code></td><td><code>role="status"</code>, przycisk <code>aria-disabled</code> w trakcie</td></tr>
+<tr><td><code>/verify-email?token=</code></td><td><code>(public)</code>, <b>bez</b> <code>AuthGuard</code> i <code>PROTECTED_PREFIXES</code></td><td>GET pokazuje przycisk „Potwierdź adres”, POST daje stan sukcesu lub błędu (wygasły, użyty) z akcją „Wyślij nowy link” (dla zalogowanych)</td><td><code>resolveVerifyEmailView()</code> w <code>*ViewState.ts</code>, testy <code>it.each</code></td></tr>
+<tr><td><code>/reset-password</code></td><td><code>(public)</code>, bez guardów</td><td>Bez tokenu: formularz e-mail i zawsze ten sam komunikat „Jeśli konto istnieje, wysłaliśmy link”. Z tokenem: nowe hasło ×2 → POST → pełne przeładowanie na <code>/login</code> z komunikatem</td><td><code>resolveResetPasswordView()</code>, walidacja hasła jak w rejestracji, pełne przeładowanie po zmianie sesji (<code>documentNavigation</code>)</td></tr>
+<tr><td>Link „Nie pamiętasz hasła?”</td><td><code>LoginForm</code></td><td>→ <code>/reset-password</code></td><td>—</td></tr>
+<tr><td><code>/unsubscribe?token=</code></td><td><code>(public)</code>, bez guardów</td><td>Dwa przyciski („Wyłącz tę kategorię” / „Wyłącz wszystkie powiadomienia e-mail”), potwierdzenie, link do <code>/settings</code></td><td>GET bez efektów ubocznych</td></tr>
+<tr><td>Reserved slugs</td><td><code>routing/reservedSlugs.ts</code> <b>i</b> <code>organizations/slugs.py</code> w jednej zmianie</td><td><code>verify-email</code>, <code>reset-password</code>, <code>unsubscribe</code></td><td>Test parytetu</td></tr>
+</table>
+<p class="small">Jednorazowe POST-y tokenów (<code>confirm</code>) to <code>useMutation</code> w hookach <code>src/hooks/</code>. Wyjątku imperatywnego jak <code>getGoogleNonce</code> nie potrzeba: wywołania nie rotują cookie i nie są cache'owane.</p>
+</div>
+
+<h2 id="testing">8. Strategia testów</h2>
+<div class="card small">
+<p><b>Backend (pytest + testcontainers, <code>db_session</code>, <code>client</code>):</b></p>
+<ul>
+<li><code>FakeEmailSender</code> w <code>tests/</code> zapisuje <code>(to, subject, text, html, headers)</code> i można go zaprogramować na błąd permanent lub retryable. Wpinany przez <code>set_sender()</code> w fixture (jak <code>FakeStorage</code>).</li>
+<li>Kolejkowanie: bell rodzaju MVP tworzy jeden PENDING. Rodzaj spoza MVP nie tworzy nic. Duplikat klucza nie tworzy drugiego wiersza. Trzy MATCH jednego wanta tego samego dnia (Warsaw, <code>freeze_local_now</code>) dają jeden wiersz. <code>create_notification(s)</code> wykonuje dokładnie jedno dodatkowe zapytanie (<code>count_queries</code>). <code>EMAIL_ENABLED=false</code> nie wstawia nic.</li>
+<li>Job: SKIPPED dla każdego <code>skip_reason</code>. Cisza nocna przesuwa na 07:00 dla P, ale nie dla T. 5xx daje backoff, a po <code>MAX_ATTEMPTS</code> FAILED z jedną linią ERROR <code>email message … FAILED after …</code>. 4xx daje FAILED bez retry. Zawieszony SENDING: P wraca do PENDING, T idzie do FAILED. <code>payload.token</code> jest zerowany. Liczba zapytań na batch nie rośnie z liczbą wierszy. W logach nie ma adresów ani tokenów (<code>caplog</code>).</li>
+<li>Webhook: poprawny HMAC aktualizuje status. Zły podpis, stary timestamp albo powtórzony token dają 401. Zdarzenia poza kolejnością nie obniżają statusu. <code>failed</code> permanent i <code>complained</code> tworzą suppression, a <code>complained</code> wyłącza też kategorię. Nieznana wiadomość dostaje 200.</li>
+<li>Wypis: one-click POST bez auth jest idempotentny, zwraca 200 bez przekierowania, a zły podpis daje 400/404. Scope <code>all</code> działa.</li>
+<li>Flow konta: reset zawsze zwraca 202 (konto istnieje, nie istnieje, tylko-Google, limit). Token wygasły lub użyty jest odrzucany. Reset konta tylko-Google ustawia hasło. Potwierdzenie weryfikacji z innym adresem niż snapshot jest odrzucane. Backfill Google działa w migracji.</li>
+<li>Rendering: <code>StrictUndefined</code> łapie brak zmiennej. Autoescape działa dla nazw rzeczy z <code>&lt;script&gt;</code>. Polskie znaki i daty Warsaw są poprawne. Nagłówki List-Unsubscribe są tylko na P.</li>
+<li>Granice i strażnicy: <code>email</code> w <code>MODULES</code> testu granic, <code>app/email</code> w teście zegara domeny, nowe wiersze w teście macierzy, test downgrade-then-upgrade migracji.</li>
+<li>Adapter Mailgun: <code>httpx.MockTransport</code> (pola formularza, Basic auth, klasyfikacja 2xx/4xx/429/5xx/timeout). Bez prawdziwej sieci.</li>
+</ul>
+<p><b>Frontend (Vitest + Testing Library):</b> tablicowe testy <code>resolveResetPasswordView</code>/<code>resolveVerifyEmailView</code>, strony <code>/unsubscribe</code>, <code>/reset-password</code> i <code>/verify-email</code> przez <code>renderWithRoute</code>, przełączniki <code>/settings</code> (aria, stany), baner, reserved slugs, przypadek <code>ssrSafety</code> dla nowych stron publicznych, typowane fabryki fixture bez rzutowań.</p>
+<p><b>Ręcznie i przed startem:</b> Mailpit (<code>EMAIL_BACKEND=smtp</code>): struktura, HTML i tekst, nagłówki. Test seed (mail-tester, Gmail, Outlook): <code>spf=pass dkim=pass dmarc=pass</code>, one-click widoczny w Gmailu.</p>
+</div>
+
+<h2 id="migrations">9. Migracje i runbook</h2>
+<div class="card small">
+<table>
+<tr><th>Rewizja</th><th>Zawartość</th><th>Downgrade</th></tr>
+<tr><td><code>0109_email_tables</code></td><td><code>email_messages</code>, <code>email_preferences</code>, <code>email_suppressions</code>, <code>account_tokens</code> z indeksami i CHECK-ami</td><td>Drop w odwrotnej kolejności. <b>Stratny</b> (log wysyłek, preferencje, suppression, tokeny)</td></tr>
+<tr><td><code>0110_email_verified_at</code></td><td>nullable <code>user_profiles.email_verified_at</code> (osobna rewizja: kolumna addytywna)</td><td>Drop kolumny. Stratny (stan weryfikacji)</td></tr>
+<tr><td><code>0111_backfill_google_verified</code></td><td>Rewizja danych: <code>UPDATE user_profiles … FROM user_identities WHERE email_verified AND lower(...) = lower(...)</code></td><td>No-op lub wyzerowanie (kolumna i tak znika w 0110)</td></tr>
+</table>
+<p>Rewizje nie biorą długich blokad na dużych tabelach (nowe tabele, kolumna nullable). Backfill dotyczy liczby kont Google. W razie potrzeby <code>SET LOCAL lock_timeout = '5s'</code>.</p>
+<p><b>Runbook (skrót):</b></p>
+<ol>
+<li><code>pg_dump</code> przed wdrożeniem. Nie ma rollbacku samego obrazu za 0109 (stary obraz nie wystartuje na nieznanej rewizji, tak jak przy 0108). Cofnięcie = <code>downgrade 0108</code> z nowego obrazu (bez guardu, stratny) albo przywrócenie dumpu.</li>
+<li>DNS przed <code>EMAIL_ENABLED=true</code>: domena <b>utworzona w regionie EU</b> w Mailgun, SPF, DKIM 2048, MX, DMARC <code>p=none</code> (≥48 h po pass SPF/DKIM), webhooki <code>delivered</code>/<code>failed</code>/<code>complained</code> na <code>https://&lt;app&gt;/api/email/webhooks/mailgun</code>, klucz podpisu webhooków skopiowany do <code>.env</code> (nigdy do repo, raportów ani logów; sprawdzenie obecności tylko testem „set/missing”).</li>
+<li>Wdrożenie z <code>EMAIL_ENABLED=false</code> → health check → przełączenie flagi i <code>up -d backend</code>. Przy błędzie konfiguracji (fail-fast) flaga wraca na false. Backend nie ma polityki restartu.</li>
+<li>Weryfikacja: linia startowa <code>EMAIL_ENABLED=True</code>, linia joba <code>email send: claimed=… sent=… skipped=… retried=… failed=…</code>, <code>grep "FAILED after"</code>, test seed, statusy DELIVERED z webhooka.</li>
+<li>DMARC: <code>p=none</code> przez ≥1 tydzień, potem <code>quarantine</code> (<code>pct</code>/<code>t=y</code>), potem <code>reject</code> przy czystych raportach.</li>
+<li>Przy zmianie <code>architecture.md</code>: usunąć „In-app notifications only”, dopisać moduł, macierz 74–80, runbook 0109–0111 i nowy ADR zastępujący handover ADR-009 w części wpięcia i zgody.</li>
+</ol>
+</div>
+
+<h2 id="stages">10. Etapy wdrożenia</h2>
+<div class="card small">
+<table>
+<tr><th>Etap</th><th>Zakres</th><th>Warunek wejścia</th><th>Warunek wyjścia</th></tr>
+<tr><td><b>0 — decyzje</b></td><td>Przeczytanie DPA Mailgun, polityka prywatności (D14) i link przy rejestracji, opinia o domyślnym włączeniu „Szukam”, domena nadawcza</td><td>—</td><td>Polityka opublikowana (wymagana przed etapem 2)</td></tr>
+<tr><td><b>1 — maile konta</b></td><td><code>app/email</code> (kolejka, job, port, Mailgun + SMTP dev + log + fake), DNS, <b>pełny webhook + suppression</b>, <code>account_tokens</code>, <code>email_verified_at</code> + backfill, A1–A3, <code>/verify-email</code>, <code>/reset-password</code>, link w <code>LoginForm</code>, baner. Tylko strumień T. <code>EMAIL_DAILY_CAP</code> ≈ 100</td><td>DNS pass, DPA zaakceptowane</td><td>≥1 tydzień bez skarg, bounce &lt; 2%, seed pass</td></tr>
+<tr><td><b>2 — powiadomienia</b></td><td><code>email_preferences</code>, <code>/settings</code>, <code>/unsubscribe</code> + RFC 8058, hook w <code>notifications.service</code>, rodzaje Rezerwacji (B1, B3–B6, B8) w 1. tygodniu, potem „Szukam” (B9)</td><td>Etap 1 stabilny, polityka prywatności</td><td>Spam rate &lt; 0.1% (Postmaster), wolumen w limicie planu</td></tr>
+<tr><td><b>3 — nowe bell</b></td><td><code>TRANSACTION_CANCELLED</code> (C1), <code>TERM_RESCHEDULED</code> (C2), ew. C3. Zasada „najpierw bell”: nowy <code>NotificationKind</code> + wpis w <code>rules</code>, kategoria „Spotkania i wydarzenia” pojawia się w <code>/settings</code></td><td>Etap 2 stabilny</td><td>—</td></tr>
+</table>
+<p>Włączanie rodzajów odbywa się wpisem w mapie <code>rules</code> (wdrożenie), bez nowej flagi runtime.</p>
+</div>
+
+<h2 id="examples">11. Concrete Examples</h2>
+<div class="grid2">
+<div class="card example"><b>1 — propozycja wymiany w nocy.</b><br><i>Given</i> Ania ma zweryfikowany adres i domyślne preferencje, <i>when</i> o 23:10 (Warsaw) Bartek proponuje wymianę na jej rzecz, <i>then</i> w tej samej transakcji powstaje bell <code>SWAP_PROPOSED</code> i wiersz <code>email_messages</code> PENDING (<code>notification:&lt;id&gt;</code>, kategoria <code>RESERVATIONS</code>). Job o 23:11 przesuwa <code>send_after</code> na 07:00, a o ~07:01 Ania dostaje jeden mail z CTA do <code>link_path</code> i z nagłówkami List-Unsubscribe.</div>
+<div class="card example"><b>2 — seria dopasowań MATCH.</b><br><i>Given</i> Celina ma aktywny want „rower 20 cali” z włączonymi powiadomieniami, <i>when</i> matcher trzy razy w ciągu dnia znajduje nowe ogłoszenia (bell jest zwijany i zastępowany sumą), <i>then</i> powstaje dokładnie jeden wiersz <code>want_match:&lt;want&gt;:&lt;dzień&gt;</code> i Celina dostaje jeden mail dziennie. Pozostałe INSERT-y kończą się na <code>ON CONFLICT DO NOTHING</code>.</div>
+<div class="card example"><b>3 — reset dla konta tylko-Google.</b><br><i>Given</i> Darek założył konto przez Google (<code>password_hash IS NULL</code>), <i>when</i> wpisuje swój adres w „Nie pamiętasz hasła?”, <i>then</i> API zwraca 202 (tak samo jak dla nieistniejącego adresu), a Darek dostaje mail „Logujesz się przez Google. Możesz też ustawić hasło”. Po ustawieniu hasła przychodzi „Hasło zostało zmienione”, a logowanie hasłem działa.</div>
+<div class="card example"><b>4 — skarga na spam.</b><br><i>Given</i> Ewa dostała mail o przejęciu rzeczy (SENT, potem DELIVERED), <i>when</i> oznacza go jako spam i Mailgun wysyła <code>complained</code> z poprawnym HMAC, <i>then</i> wiadomość ma status COMPLAINED, adres Ewy trafia do <code>email_suppressions</code> (<code>COMPLAINT</code>), a jej kategoria <code>RESERVATIONS</code> jest wyłączona. Kolejne P dla Ewy kończą się SKIPPED <code>suppressed</code>. Bell działa bez zmian.</div>
+<div class="card example"><b>5 — organizacja jako właściciel.</b><br><i>Given</i> rzecz należy do Organization, <i>when</i> ktoś ją bierze (<code>TERM_ITEM_LISTING_TAKEN</code> do party organizacji), <i>then</i> wiersz kolejki kończy się SKIPPED <code>organization</code>. Liczba takich wierszy jest miarą luki przed decyzją 5B/5C.</div>
+</div>
+
+<h2 id="scope">12. Out of Scope</h2>
+<div class="card small">
+<ul>
+<li>Pomysły odłożone: wieczorne przypomnienia przed terminem lub wydarzeniem (C4), mail o wiadomości czatu (C6, wymaga okna koalescencji 7C), digest organizatora (B11, B12, C8, C11, C12), digest MATCH (7D), zmiana adresu e-mail (A7), auto-linking kont Google po weryfikacji, zaproszenie opiekuna z ustawieniem hasła (A8), maile moderacji (C15) i płatności (C9), <code>mailto:</code> w List-Unsubscribe i poczta przychodząca, podgląd szablonów i log wysyłek w panelu admina, wersje językowe, usuwanie konta z obsługą <code>email_suppressions</code> (hash).</li>
+<li>Reguła odbiorcy dla Organization (liderzy lub założyciel) i routing dzieci do opiekuna <code>is_primary_contact</code>: po pomiarze <code>skip_reason</code>.</li>
+<li><code>WANT_EXPIRING</code>, <code>NEEDED_ITEM_REMOVED</code>, <code>PLEDGE_*</code> mailem (później). <code>ITEM_RESERVED_FOR_PICKUP</code> i <code>TERM_ALREADY_RESOLVED</code> nigdy (własna akcja).</li>
+<li>Purge <code>email_messages</code> po ~90 dniach (stretch, wymagany przed dużym wolumenem), purge <code>outbox_entries</code> i guard <code>run_forever</code> (sąsiedni problem outboxa).</li>
+<li>Marketing, newslettery, SUGGESTION/SIMILAR mailem, SMS, push.</li>
+<li>Twarda bramka weryfikacji przy logowaniu i masowa kampania weryfikacyjna.</li>
+<li>Rate limiting HTTP poza limitem tokenów w DB (D12).</li>
+<li>Szczegóły do ustalenia w specyfikacji: dokładne miejsce wywołania przy rejestracji (cykl importów users ↔ auth), nazwa i kształt <code>topic_id</code>, wartości backoffu i <code>MAX_ATTEMPTS</code>, czas życia tokenów, treści szablonów.</li>
+</ul>
+</div>
+
+<h2 id="success">13. Success Criteria</h2>
+<div class="card small">
+<ol>
+<li><b>Atomowość i koszt hooka:</b> bell i jego wiersz kolejki zapisują się w jednej transakcji. <code>create_notification(s)</code> wykonuje dokładnie jedno dodatkowe zapytanie (test), a awaria dostawcy nie zmienia zapisu bell.</li>
+<li><b>Czas dostarczenia:</b> poza ciszą nocną mail P lub T jest przekazany dostawcy w ≤ 2 min od commitu (interwał joba + batch). T nigdy nie jest opóźniany ciszą nocną.</li>
+<li><b>Brak niechcianych maili:</b> 0 wiadomości P/D do adresu niezweryfikowanego, wyłączonej kategorii albo adresu w suppression (testy + <code>skip_reason</code>). Wypis działa od następnego przebiegu joba, czyli ≤ 2 min, znacznie poniżej 48 h Gmaila.</li>
+<li><b>Reputacja:</b> spam rate &lt; 0.1% w Postmaster Tools, twarde bounce &lt; 2%, seed test <code>spf=pass dkim=pass dmarc=pass</code>, a DMARC dochodzi do <code>p=reject</code> w ciągu ~4 tygodni od startu.</li>
+<li><b>Prywatność logów:</b> żaden log, <code>last_error</code> ani raport nie zawiera adresu, tokenu ani treści maila (test <code>caplog</code>). Surowe tokeny znikają z <code>payload</code> po stanie końcowym.</li>
+<li><b>Odzyskiwanie konta:</b> każde konto z adresem (także tylko-Google) może ustawić hasło przez reset, a API resetu nie zdradza istnienia konta (zawsze 202).</li>
+</ol>
+</div>
+</main>
+</body>
+</html>

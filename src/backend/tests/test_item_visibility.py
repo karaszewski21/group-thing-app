@@ -37,6 +37,7 @@ PREFERENCE_KEYS = {
     "owner_party_id",
     "mode",
     "visibility",
+    "points_price",
     "created_at",
     "updated_at",
 }
@@ -309,7 +310,7 @@ async def test_privateItem_lists_hiddenOnEventsPublicTermsOrganizerOwnerPage_sho
         assert response.status_code == 200, response.text
         assert str(world.public) in response.text, response.request.url
         assert not any(item_id in response.text for item_id in hidden), response.request.url
-    assert owner_items.json()["counts"] == {"GIFT": 1, "SWAP": 0}
+    assert owner_items.json()["counts"] == {"GIFT": 1, "SWAP": 0, "POINTS": 0}
     private_listings = {
         row["item_id"] for row in private_term.json()["group"]["term"]["item_listings"]
     }

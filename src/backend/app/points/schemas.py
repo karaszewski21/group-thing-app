@@ -35,6 +35,10 @@ class PointsConfigResponse(BaseModel):
     pair_reward_limit: int
     pair_window_days: int
     max_points_offers: int
+    price_min_ratio: float
+    price_max_ratio: float
+    price_cap: int
+    price_step: int
     updated_at: datetime
 
 
@@ -60,6 +64,10 @@ class UpdatePointsConfigRequest(BaseModel):
     pair_reward_limit: int
     pair_window_days: int
     max_points_offers: int
+    price_min_ratio: Decimal
+    price_max_ratio: Decimal
+    price_cap: int
+    price_step: int
     updated_at: datetime
 
 
@@ -75,26 +83,37 @@ ItemConditionKey = Literal["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"]
 
 
 class ItemPointsValueResponse(BaseModel):
-    """What an item would be worth if saved now (20, 40 or 60)."""
+    """An item's value (20, 40 or 60) and the POINTS price range around it:
+    the stored value for an existing item, else what a new or changed one
+    would be worth if saved now. All null for an item without a stored
+    value."""
 
-    points_value: int
+    points_value: int | None
+    price_min: int | None
+    price_max: int | None
+    price_step: int | None
 
 
 class PointsSummaryResponse(BaseModel):
-    """The caller's own balance and reputation; 0 and 0 without an account."""
+    """The caller's own available `balance` (PARTY account), `held` points
+    (HELD account) and `reputation`; 0 for an account that does not exist."""
 
     balance: int
+    held: int
     reputation: int
 
 
 class PointHistoryEntryResponse(BaseModel):
-    """The caller's entry in one transaction. `id` is the transaction's id,
-    `reputation` its amount for GIVE_FREE (0 otherwise), and
-    `counterparty_name` the other party's display name, null for ATTENDANCE."""
+    """The caller's side of one transaction. `id` is the transaction's id,
+    `amount` the sum of its entries on the caller's PARTY account and
+    `held_amount` on the HELD account (0 when none), `reputation` the amount
+    for GIVE_FREE (0 otherwise), and `counterparty_name` the other party's
+    display name, null for ATTENDANCE."""
 
     id: uuid.UUID
     type: str
     amount: int
+    held_amount: int
     reputation: int
     description: str
     counterparty_name: str | None

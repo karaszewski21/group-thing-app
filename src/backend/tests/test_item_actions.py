@@ -25,6 +25,7 @@ from tests.test_term_item_listings import _auth, _register, _rsvp
 
 ACTIONS_KEYS = {
     "mode",
+    "points_price",
     "visibility",
     "available",
     "reservation",

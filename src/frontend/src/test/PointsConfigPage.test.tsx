@@ -32,6 +32,10 @@ const CONFIG: PointsConfig = {
   pair_reward_limit: 3,
   pair_window_days: 30,
   max_points_offers: 5,
+  price_min_ratio: 0.5,
+  price_max_ratio: 1.5,
+  price_cap: 100,
+  price_step: 10,
   updated_at: "2026-11-19T10:00:00",
 };
 
@@ -65,7 +69,7 @@ describe("PointsConfigPage", () => {
       "Nagrody",
       "Obecność na terminach",
       "Ochrona przed nabijaniem",
-      "Oferty „za punkty” (etap 2)",
+      "Oferty „za punkty”",
     ]);
     const small = screen.getByLabelText("Mała");
     expect(small).toHaveValue("20");
@@ -136,6 +140,40 @@ describe("PointsConfigPage", () => {
       fireEvent.click(screen.getByRole("button", { name: "Zapisz konfigurację" }));
     });
 
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+  });
+
+  it("shows the POINTS offers fields with a live example", async () => {
+    renderPage();
+
+    const group = (await screen.findByText("Oferty „za punkty”")).closest("fieldset") as HTMLElement;
+    expect(group).not.toHaveStyle({ opacity: "0.6" });
+    expect(within(group).getByLabelText("Limit ofert za punkty")).toHaveValue("5");
+    expect(within(group).getByLabelText("Minimum ceny (× sugestia)")).toHaveValue("0,50");
+    expect(within(group).getByLabelText("Maksimum ceny (× sugestia)")).toHaveAttribute("inputmode", "decimal");
+    expect(within(group).getByLabelText("Cena maksymalna")).toHaveValue("100");
+    expect(within(group).getByLabelText("Krok ceny")).toHaveValue("10");
+    expect(within(group).getByText(/^Przykład: sugestia 20 → 10–30 pkt; sugestia 40 → 20–60 pkt;/)).toHaveTextContent(
+      "nigdy powyżej 100.",
+    );
+
+    fireEvent.change(within(group).getByLabelText("Cena maksymalna"), { target: { value: "50" } });
+    expect(within(group).getByText(/^Przykład:/)).toHaveTextContent("sugestia 40 → 20–50 pkt; sugestia 60 → 30–50 pkt; nigdy powyżej 50.");
+  });
+
+  it("shows the server's 400 message verbatim", async () => {
+    const message = "Cena maksymalna musi być wielokrotnością kroku ceny.";
+    vi.mocked(pointsApi.updatePointsConfig).mockRejectedValue(
+      new ApiError(400, "Bad Request", { status: 400, error: "Bad Request", message }),
+    );
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText("Krok ceny"), { target: { value: "20" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Zapisz konfigurację" }));
+    });
+
+    expect(pointsApi.updatePointsConfig).toHaveBeenCalledWith({ ...CONFIG, price_step: 20 });
     expect(await screen.findByRole("alert")).toHaveTextContent(message);
   });
 });

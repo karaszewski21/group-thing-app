@@ -16,12 +16,19 @@ function contextTitle(context: ItemContextOptionResponse): string {
   return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${context.name}`;
 }
 
+const CONFIRM_LABEL: Record<ExchangeMode, string> = {
+  GIFT: "Rezerwuję na ten termin",
+  SWAP: "Dalej: wybierz rzecz na zamianę",
+  POINTS: "Dalej: zablokuj punkty",
+};
+
 interface ChooseContextSheetProps {
   ownerName: string;
   mode: ExchangeMode;
   /** The viewer's eligible upcoming contexts, at least one. */
   contexts: ItemContextOptionResponse[];
-  /** Reserves (GIFT) or continues to the swap picker (SWAP) in `context`. */
+  /** Reserves (GIFT), continues to the swap picker (SWAP) or to the points
+   * sheet that holds the price (POINTS) in `context`. */
   onConfirm: (context: ItemContextOptionResponse) => void;
   onClose: () => void;
 }
@@ -71,7 +78,7 @@ export function ChooseContextSheet({ ownerName, mode, contexts, onConfirm, onClo
         onClick={() => selected && onConfirm(selected)}
         className={`${BTN_PRIMARY} ${BTN_LG} mt-4 block w-full text-center`}
       >
-        {mode === "SWAP" ? "Dalej: wybierz rzecz na zamianę" : "Rezerwuję na ten termin"}
+        {CONFIRM_LABEL[mode]}
       </button>
     </ModalSheet>
   );

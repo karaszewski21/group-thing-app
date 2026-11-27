@@ -224,6 +224,7 @@ const NOT_ELIGIBLE_CONTEXT: ItemContextOptionResponse = {
 function itemActions(overrides: Partial<ItemActionsResponse> = {}): ItemActionsResponse {
   return {
     mode: "GIFT",
+    points_price: null,
     visibility: null,
     available: true,
     reservation: null,
@@ -248,6 +249,7 @@ function party(overrides: Partial<ItemPartyReservationResponse> = {}): ItemParty
     can_cancel: false,
     can_accept: false,
     can_reject: false,
+    held_points: null,
     ...overrides,
   };
 }
@@ -572,6 +574,7 @@ describe("ItemDetailPage context actions", () => {
     updated_at: "2026-10-01T10:00:00",
     listing_mode: "SWAP",
     listing_visibility: "PUBLIC",
+    points_price: null,
     location_id: null,
     points_value: null,
     photos_moderation_pending: false,

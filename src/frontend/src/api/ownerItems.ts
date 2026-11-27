@@ -9,6 +9,8 @@ export interface OwnerItemCard {
   product_name: string;
   condition: string;
   mode: ExchangeMode;
+  /** The owner's price; set exactly for a POINTS listing. */
+  points_price: number | null;
   thumb_url: string | null;
   /** Naive UTC ISO, no offset. */
   added_at: string;

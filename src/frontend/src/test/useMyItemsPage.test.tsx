@@ -23,6 +23,7 @@ function myItem(id: string): MyInventoryItemResponse {
     updated_at: "2026-01-01T00:00:00Z",
     listing_mode: null,
     listing_visibility: null,
+    points_price: null,
     listing_status: "DRAFT",
     photos_moderation_pending: false,
     location_id: "loc-1",
@@ -33,7 +34,7 @@ function myItem(id: string): MyInventoryItemResponse {
 }
 
 function page(items: MyInventoryItemResponse[], pageNumber: number, total: number): MyInventoryItemsPage {
-  return { items, total, page: pageNumber, size: 5, counts: { ALL: total, GIFT: 1, SWAP: 2 } };
+  return { items, total, page: pageNumber, size: 5, counts: { ALL: total, GIFT: 1, SWAP: 2, POINTS: 0 } };
 }
 
 beforeEach(() => {
@@ -51,7 +52,7 @@ describe("useMyItemsPage", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.items).toHaveLength(5);
-    expect(result.current.counts).toEqual({ ALL: 6, GIFT: 1, SWAP: 2 });
+    expect(result.current.counts).toEqual({ ALL: 6, GIFT: 1, SWAP: 2, POINTS: 0 });
     expect(result.current.hasNextPage).toBe(true);
 
     await act(async () => {

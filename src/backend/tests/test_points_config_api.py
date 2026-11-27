@@ -32,6 +32,10 @@ CONFIG_KEYS = {
     "pair_reward_limit",
     "pair_window_days",
     "max_points_offers",
+    "price_min_ratio",
+    "price_max_ratio",
+    "price_cap",
+    "price_step",
     "updated_at",
 }
 
@@ -104,6 +108,55 @@ async def test_putConfig_invalidValue_returns400WithPolishMessage(
     client: AsyncClient, db_session: AsyncSession, changes: dict[str, Any], message: str
 ) -> None:
     headers = await _admin(client, db_session, "points-config-invalid@example.com")
+    config = await _config(client, headers)
+
+    response = await client.put("/api/points/config", json={**config, **changes}, headers=headers)
+
+    assert response.status_code == 400, response.text
+    assert response.json()["message"] == message
+    assert (await _config(client, headers))["updated_at"] == config["updated_at"]
+
+
+async def test_putConfig_newKeys_roundTrip(client: AsyncClient, db_session: AsyncSession) -> None:
+    headers = await _admin(client, db_session, "points-config-price@example.com")
+    config = await _config(client, headers)
+    assert (
+        config["price_min_ratio"],
+        config["price_max_ratio"],
+        config["price_cap"],
+        config["price_step"],
+    ) == (0.5, 1.5, 100, 10)
+
+    changes = {"price_min_ratio": 0.4, "price_max_ratio": 2.25, "price_cap": 120, "price_step": 5}
+    saved = await client.put("/api/points/config", json={**config, **changes}, headers=headers)
+
+    assert saved.status_code == 200, saved.text
+    reread = await _config(client, headers)
+    assert {key: reread[key] for key in changes} == changes
+
+
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"price_min_ratio": 0}, "Minimum ceny musi być liczbą od 0,01 do 1,00."),
+        ({"price_min_ratio": 1.01}, "Minimum ceny musi być liczbą od 0,01 do 1,00."),
+        ({"price_min_ratio": 0.505}, "Minimum ceny musi być liczbą od 0,01 do 1,00."),
+        ({"price_max_ratio": 0.99}, "Maksimum ceny musi być liczbą od 1,00 do 3,00."),
+        ({"price_max_ratio": 3.01}, "Maksimum ceny musi być liczbą od 1,00 do 3,00."),
+        ({"price_cap": 1001}, "Cena maksymalna musi być liczbą całkowitą ≤ 1000."),
+        ({"price_cap": 0}, "Cena maksymalna musi być liczbą całkowitą ≥ 1."),
+        ({"price_step": 0}, "Krok ceny musi być liczbą całkowitą ≥ 1."),
+        ({"price_step": 101}, "Krok ceny musi być liczbą całkowitą ≤ 100."),
+        (
+            {"price_cap": 105, "price_step": 10},
+            "Cena maksymalna musi być wielokrotnością kroku ceny.",
+        ),
+    ],
+)
+async def test_putConfig_invalidPriceKeys_returnsPolish400(
+    client: AsyncClient, db_session: AsyncSession, changes: dict[str, Any], message: str
+) -> None:
+    headers = await _admin(client, db_session, "points-config-price-bad@example.com")
     config = await _config(client, headers)
 
     response = await client.put("/api/points/config", json={**config, **changes}, headers=headers)

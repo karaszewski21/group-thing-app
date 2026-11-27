@@ -53,7 +53,7 @@ function product(id: string, title: string, reserved = false, reservedUntil: str
     title,
     subtitle: null,
     href: `/zielony-krag/product/${id}`,
-    meta: { mode: "GIFT", condition: "GOOD", thumb_url: null, reserved, reserved_until: reservedUntil },
+    meta: { mode: "GIFT", points_price: null, condition: "GOOD", thumb_url: null, reserved, reserved_until: reservedUntil },
   };
 }
 
@@ -347,6 +347,43 @@ describe("SearchView", () => {
     expect(tile).not.toHaveTextContent("Termin");
   });
 
+  it("a POINTS product shows its price on the badge", async () => {
+    const bike: SearchResult = {
+      kind: "product",
+      id: "b",
+      title: "Rower 16″",
+      subtitle: null,
+      href: "/zielony-krag/product/b",
+      meta: { mode: "POINTS", points_price: 60, condition: "GOOD", thumb_url: null, reserved: false, reserved_until: null },
+    };
+    vi.mocked(searchApi.searchPublic).mockResolvedValue(page([bike]));
+    renderSearch("/search?q=rower");
+
+    const tile = (await screen.findByRole("link", { name: "Rower 16″" })).closest("article");
+    expect(tile).toHaveTextContent("Za punkty: 60 pkt");
+    expect(within(tile as HTMLElement).getByText("Za punkty:")).toHaveClass("sr-only");
+  });
+
+  it("the „Za punkty” chip writes offer_type=POINTS and stays pressed", async () => {
+    renderSearch("/search?q=rower");
+
+    fireEvent.click(screen.getByRole("button", { name: "Filtry" }));
+    const sheet = await screen.findByRole("dialog", { name: "Filtry" });
+    const group = within(sheet).getByRole("group", { name: "Rodzaj oferty" });
+    expect(within(group).getAllByRole("button").map((chip) => chip.textContent)).toEqual(["Oddam", "Zamienię", "Za punkty"]);
+    fireEvent.click(within(group).getByRole("button", { name: "Za punkty" }));
+
+    expect(getTestLocation().search).toBe("?q=rower&offer_type=POINTS");
+    await waitFor(() =>
+      expect(searchApi.searchPublic).toHaveBeenLastCalledWith(
+        { q: "rower", mode: "items", scope: "all", filters: { ...NO_FILTERS, offer_type: "POINTS" } },
+        1,
+        20,
+      ),
+    );
+    expect(within(group).getByRole("button", { name: "Za punkty" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("an event is a meeting tile that reads out its date, without the group or points pills", async () => {
     vi.mocked(searchApi.searchPublic).mockResolvedValue(
       page([
@@ -454,7 +491,7 @@ describe("SearchView", () => {
     const sheet = await screen.findByRole("dialog", { name: "Filtry" });
     act(() => {
       fireEvent.click(within(sheet).getByRole("button", { name: "Dobry" }));
-      fireEvent.click(within(sheet).getByRole("button", { name: "oddam" }));
+      fireEvent.click(within(sheet).getByRole("button", { name: "Oddam" }));
     });
 
     expect(getTestLocation().search).toBe("?q=klocki&condition=GOOD&offer_type=GIFT");

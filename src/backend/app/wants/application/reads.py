@@ -243,6 +243,7 @@ def _cards_select(
         WantMatch.item_id,
         preference.owner_party_id,
         preference.mode,
+        preference.points_price,
         listed.c.product_id,
         listed.c.product_name,
         listed.c.condition,
@@ -330,6 +331,7 @@ async def _card_fields(
                 "href": links.product_path(slug, row.item_id),
                 "meta": WantMatchMeta(
                     mode=row.mode,
+                    points_price=row.points_price,
                     condition=row.condition,
                     thumb_url=(
                         storage.public_url(photo.thumb_key)

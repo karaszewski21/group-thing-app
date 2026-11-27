@@ -13,7 +13,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.search.application import search as search_service
-from tests.conftest import count_queries
+from tests.conftest import count_queries, pg_error
 from tests.test_event_item_reservations import _listed_items
 from tests.test_membership_characterisation import _add_member
 from tests.test_organizer_page import _circle, _event, _in_days, _organization_slug, _term
@@ -22,7 +22,7 @@ from tests.test_term_item_listings import _auth, _register
 PAGE_KEYS = {"items", "total", "page", "size", "other_mode_count"}
 RESULT_KEYS = {"kind", "id", "title", "subtitle", "href", "meta"}
 META_KEYS = {
-    "product": {"mode", "condition", "thumb_url", "reserved", "reserved_until"},
+    "product": {"mode", "points_price", "condition", "thumb_url", "reserved", "reserved_until"},
     "term": {"starts_at", "place", "in_my_groups", "attendance_points"},
     "event": {"starts_at", "place"},
     "group": {"description", "next_starts_at", "in_my_groups"},
@@ -61,6 +61,7 @@ async def test_search_itemsAsGuest_productShapeAndOtherModeCount(client: AsyncCl
     assert result["href"] == f"/{owner_party}/product/{item_id}"
     assert result["meta"] == {
         "mode": "SWAP",
+        "points_price": None,
         "condition": "GOOD",
         "thumb_url": None,
         "reserved": False,
@@ -145,15 +146,9 @@ async def test_search_cacheHeaders_differForAnonymousAndLoggedIn(client: AsyncCl
     assert anonymous.headers["vary"] == logged_in.headers["vary"] == "Authorization, Cookie"
 
 
-class _PgError(Exception):
-    def __init__(self, sqlstate: str) -> None:
-        super().__init__("canceling statement")
-        self.sqlstate = sqlstate
-
-
 def _failing_read(sqlstate: str) -> Any:
     async def read(*args: Any, **kwargs: Any) -> Any:
-        raise OperationalError("SELECT", {}, _PgError(sqlstate))
+        raise pg_error(sqlstate, "SELECT")
 
     return read
 

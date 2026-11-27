@@ -31,8 +31,10 @@ from .models import (
     SwapProposalStatus,
 )
 
-# Listing-time offer subset: an item is only ever offered as a gift or a swap.
-_OFFERABLE_RESERVATION_TYPES = frozenset({ReservationType.SWAP, ReservationType.GIFT})
+# Listing-time offer subset: an item is offered as a gift, a swap or for points.
+_OFFERABLE_RESERVATION_TYPES = frozenset(
+    {ReservationType.SWAP, ReservationType.GIFT, ReservationType.POINTS}
+)
 
 
 class GroupResponse(BaseModel):
@@ -540,7 +542,7 @@ class GroupAccessResponse(BaseModel):
 
 # --- Listing-time exchange modes, as shown on item cards and reservations.
 
-ExchangeMode = Literal["GIFT", "SWAP"]
+ExchangeMode = Literal["GIFT", "SWAP", "POINTS"]
 
 
 class MyReservationResponse(BaseModel):
@@ -564,6 +566,8 @@ class MyReservationResponse(BaseModel):
     occurs_at: datetime | None
     # Naive UTC, when the reservation or the proposal was made.
     reserved_at: datetime
+    # The HOLD amount of a POINTS reservation; `None` for any other row.
+    held_points: int | None
 
 
 # --- The owner summary and per-mode counts, shared by the item page and,
@@ -578,9 +582,10 @@ class OwnerSummaryResponse(BaseModel):
 
 
 class OwnerItemCountsResponse(BaseModel):
-    # Reserved items included, so GIFT + SWAP is every listed item.
+    # Reserved items included, so GIFT + SWAP + POINTS is every listed item.
     GIFT: int
     SWAP: int
+    POINTS: int
 
 
 class CreateRsvpRequest(BaseModel):
@@ -755,22 +760,31 @@ class WithdrawAttendanceResponse(BaseModel):
 class SetItemListingPreferenceRequest(BaseModel):
     """`mode=None` clears the item's standing listing preference. An omitted
     `visibility` keeps the current one (PUBLIC for a new row); it is refused
-    without a mode, so a visibility change can never clear the listing."""
+    without a mode, so a visibility change can never clear the listing.
+    `points_price` is only for POINTS, where it is optional: an omitted one
+    keeps the current price or takes the clamped suggestion."""
 
     mode: ReservationType | None = None
     visibility: ItemVisibility | None = None
+    points_price: int | None = None
 
     @field_validator("mode")
     @classmethod
     def _validate_mode(cls, value: ReservationType | None) -> ReservationType | None:
         if value is not None and value not in _OFFERABLE_RESERVATION_TYPES:
-            raise ValueError("mode may only be SWAP or GIFT")
+            raise ValueError("mode may only be SWAP, GIFT or POINTS")
         return value
 
     @model_validator(mode="after")
     def _visibility_needs_mode(self) -> SetItemListingPreferenceRequest:
         if self.visibility is not None and self.mode is None:
             raise ValueError("Ustaw tryb, żeby wybrać widoczność.")
+        return self
+
+    @model_validator(mode="after")
+    def _price_needs_points_mode(self) -> SetItemListingPreferenceRequest:
+        if self.points_price is not None and self.mode != ReservationType.POINTS:
+            raise ValueError("Cena w punktach dotyczy tylko oferty za punkty.")
         return self
 
 
@@ -782,6 +796,7 @@ class ItemListingPreferenceResponse(BaseModel):
     owner_party_id: uuid.UUID
     mode: str
     visibility: ItemVisibility
+    points_price: int | None
     created_at: datetime
     updated_at: datetime
 
@@ -798,7 +813,8 @@ class MyInventoryItemResponse(BaseModel):
     `thumb_url` is the product's first APPROVED photo (400 px), `None`
     without one or without object storage. `location_id` is the item's
     place as stored, soft-deleted or not. `points_value` is the value the
-    item stored when it was saved (owner only, `None` before valuation)."""
+    item stored when it was saved (owner only, `None` before valuation);
+    `points_price` is the price of a POINTS listing, `None` otherwise."""
 
     id: uuid.UUID
     inventory_id: uuid.UUID
@@ -814,6 +830,7 @@ class MyInventoryItemResponse(BaseModel):
     listing_status: ItemListingStatus
     location_id: uuid.UUID | None
     points_value: int | None
+    points_price: int | None
     photos_moderation_pending: bool
     thumb_url: str | None = None
     # As `GET /api/inventory-items/{id}/balance` reports them.
@@ -826,6 +843,7 @@ class MyInventoryItemCountsResponse(BaseModel):
     ALL: int
     GIFT: int
     SWAP: int
+    POINTS: int
 
 
 class MyInventoryItemsPageResponse(BaseModel):
@@ -896,10 +914,21 @@ class ReservationContextRef(BaseModel):
 
 
 class ItemTakeRequest(BaseModel):
-    """Only `GIFT` is taken directly; a SWAP goes through the propose route."""
+    """`GIFT` and `POINTS` are taken directly; a SWAP goes through the
+    propose route. `points_price` is the price the buyer saw, required for
+    POINTS and refused otherwise."""
 
     context: ReservationContextRef
     reservation_type: ReservationType
+    points_price: int | None = None
+
+    @model_validator(mode="after")
+    def _price_only_for_points(self) -> ItemTakeRequest:
+        if self.reservation_type == ReservationType.POINTS and self.points_price is None:
+            raise ValueError("Podaj cenę w punktach.")
+        if self.reservation_type != ReservationType.POINTS and self.points_price is not None:
+            raise ValueError("Cena w punktach dotyczy tylko oferty za punkty.")
+        return self
 
 
 class ItemProposeRequest(BaseModel):
@@ -943,7 +972,9 @@ class ItemLocationResponse(BaseModel):
 class ItemPartyReservationResponse(BaseModel):
     """The caller's part in the item's open reservation or pending swap
     proposal. `role` is GIVER for the item's holder, RECEIVER for the party
-    who would get it; the flags follow the write paths' own rules."""
+    who would get it; the flags follow the write paths' own rules.
+    `held_points` is the HOLD amount of a POINTS reservation (both parties
+    see it), `None` otherwise."""
 
     role: Literal["GIVER", "RECEIVER"]
     reservation_id: uuid.UUID | None
@@ -954,6 +985,7 @@ class ItemPartyReservationResponse(BaseModel):
     can_cancel: bool
     can_accept: bool
     can_reject: bool
+    held_points: int | None
 
 
 class ItemActionsResponse(BaseModel):
@@ -962,9 +994,11 @@ class ItemActionsResponse(BaseModel):
     pending swap proposal; `reservation` is the reserved badge (null while
     nobody reserves the item); `visibility` is the listing's visibility for
     its owner and null for anyone else or without a listing preference;
-    `contexts` holds at most 5 upcoming contexts the viewer may see."""
+    `contexts` holds at most 5 upcoming contexts the viewer may see.
+    `points_price` is the price of a POINTS listing, `None` otherwise."""
 
     mode: ExchangeMode | None
+    points_price: int | None
     visibility: ItemVisibility | None
     available: bool
     reservation: ReservedByResponse | None

@@ -15,6 +15,7 @@ export function SuggestionCard({ suggestion, onOpen }: { suggestion: WantSuggest
         condition={suggestion.meta.condition}
         thumbUrl={suggestion.meta.thumb_url}
         mode={suggestion.meta.mode}
+        pointsPrice={suggestion.meta.points_price}
         reservation={null}
         reservedCaption={reservedCaption(suggestion)}
         onOpen={onOpen}

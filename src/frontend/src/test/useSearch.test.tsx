@@ -27,7 +27,7 @@ function product(id: string): SearchResult {
     title: `Klocki ${id}`,
     subtitle: null,
     href: `/zielony-krag/product/${id}`,
-    meta: { mode: "GIFT", condition: "GOOD", thumb_url: null, reserved: false, reserved_until: null },
+    meta: { mode: "GIFT", points_price: null, condition: "GOOD", thumb_url: null, reserved: false, reserved_until: null },
   };
 }
 

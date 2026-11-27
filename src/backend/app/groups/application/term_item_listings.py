@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, TypeGuard, cast
 
-from sqlalchemy import Row, Select
+from sqlalchemy import Row, Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import clock
@@ -146,12 +146,80 @@ async def list_registered_item(
     await db.flush()
 
 
+_POINTS = inventory_bridge.ReservationType.POINTS
+OFFER_CHANGED_MESSAGE = "Oferta zmieniła się w międzyczasie — odśwież."
+
+
+def _is_points(preference: ItemListingPreference | None) -> TypeGuard[ItemListingPreference]:
+    return preference is not None and preference.mode == _POINTS.value
+
+
+async def _count_other_points_offers(
+    db: AsyncSession, owner_party_id: uuid.UUID, item_id: uuid.UUID
+) -> int:
+    """The owner's POINTS preferences, reserved ones included, except `item_id`."""
+    result = await db.execute(
+        select(func.count())
+        .select_from(ItemListingPreference)
+        .where(
+            ItemListingPreference.owner_party_id == owner_party_id,
+            ItemListingPreference.mode == _POINTS.value,
+            ItemListingPreference.item_id != item_id,
+        )
+    )
+    return int(result.scalar_one())
+
+
+async def _points_price(
+    db: AsyncSession,
+    *,
+    item: inventory_bridge.InventoryItem,
+    account_user_id: uuid.UUID | None,
+    owner_party_id: uuid.UUID,
+    current: ItemListingPreference | None,
+    becomes_points: bool,
+    requested: int | None,
+) -> int:
+    """The POINTS price to store, checked after the locks. An item becoming
+    POINTS must have a valuation, a photo of the owner's that moderation has
+    not rejected, and fewer than `max_points_offers` other POINTS listings;
+    an existing POINTS listing keeps its value and skips those checks, so a
+    photo rejected later never blocks a price or visibility edit. A given
+    price must lie within the bounds of the STORED `points_value` and on the
+    step; an omitted one keeps the current price, else the clamped value."""
+    if item.points_value is None:
+        # Only an item becoming POINTS can lack it: a POINTS listing always has one.
+        raise ValueError("Tej rzeczy nie można wystawić za punkty — brak wyceny.")
+    if becomes_points:
+        if account_user_id is None or not await product_bridge.has_own_unrejected_photo(
+            db, item.product_id, account_user_id
+        ):
+            raise ValueError("Dodaj przynajmniej jedno zdjęcie, aby wystawić za punkty.")
+        limit = await points_acl.max_points_offers(db)
+        item_id = cast(uuid.UUID, item.id)
+        if await _count_other_points_offers(db, owner_party_id, item_id) >= limit:
+            raise BusinessConflictException(
+                f"Masz już maksymalną liczbę ofert za punkty ({limit})."
+            )
+    bounds = await points_acl.price_bounds(db, item.points_value)
+    if requested is not None:
+        if not points_acl.is_valid_price(requested, bounds):
+            raise ValueError(
+                f"Cena musi być od {bounds.min} do {bounds.max} pkt, co {bounds.step}."
+            )
+        return requested
+    if _is_points(current) and current.points_price is not None:
+        return current.points_price
+    return points_acl.clamp_price(item.points_value, bounds)
+
+
 async def set_item_listing_preference(
     db: AsyncSession,
     principal: Principal,
     item_id: uuid.UUID,
     mode: inventory_bridge.ReservationType | None,
     visibility: ItemVisibility | None = None,
+    points_price: int | None = None,
 ) -> ItemListingPreference | None:
     """Sets, changes, or (when `mode` is `None`) clears the standing listing
     mode on one of the caller's own items, moving the item to ACTIVE or
@@ -160,49 +228,95 @@ async def set_item_listing_preference(
     requirement) — unlike taking a listing, expressing intent to gift/swap
     an item shouldn't be blocked by its current balance. A first listing (DRAFT to ACTIVE) needs the
     item's live location; changing an existing listing never does, so a
-    deleted place leaves listings as they are. The item row is read under
-    FOR UPDATE, so concurrent status writes serialize against this one."""
+    deleted place leaves listings as they are.
+
+    Lock order owner account -> item -> preference: an item becoming POINTS
+    first locks the owner's PARTY account (the offer-cap mutex), decided on an
+    unlocked read and re-checked under the item lock (409 when the answer
+    changed). GIFT and SWAP drop the POINTS price."""
     profile = await get_profile_by_principal(db, principal)
-    item = await inventory_bridge.get_item_for_update(db, item_id)
-    inventory = await inventory_bridge.resolve_owning_inventory(db, item)
-    if (
-        inventory.owner_user_id != profile.account_user_id
-        or inventory.inventory_type != inventory_bridge.InventoryType.PERSONAL
-    ):
-        raise AccessDeniedException
+    async with mapped_transaction_conflicts(db):
+        becomes_points = False
+        if mode == _POINTS:
+            unlocked = await repository.get_item_listing_preference(db, item_id)
+            becomes_points = not _is_points(unlocked)
+            if becomes_points:
+                await points_acl.lock_owner_accounts(db, profile.party_id)
+        item = await inventory_bridge.get_item_for_update(db, item_id)
+        inventory = await inventory_bridge.resolve_owning_inventory(db, item)
+        if (
+            inventory.owner_user_id != profile.account_user_id
+            or inventory.inventory_type != inventory_bridge.InventoryType.PERSONAL
+        ):
+            raise AccessDeniedException
 
-    existing = await repository.get_item_listing_preference(db, item_id)
-    if mode is None:
-        if existing is not None:
-            await db.delete(existing)
-            await inventory_bridge.set_item_listing_status(
-                db, item_id, inventory_bridge.ItemListingStatus.DRAFT
+        existing = await repository.lock_item_listing_preference(db, item_id)
+        still_becomes_points = not _is_points(existing)
+        if mode == _POINTS and becomes_points != still_becomes_points:
+            raise BusinessConflictException(OFFER_CHANGED_MESSAGE)
+        if mode is None:
+            if existing is not None:
+                await db.delete(existing)
+                await inventory_bridge.set_item_listing_status(
+                    db, item_id, inventory_bridge.ItemListingStatus.DRAFT
+                )
+                await db.commit()
+            return None
+        if (
+            existing is None
+            and await inventory_bridge.get_item_live_location_id(db, item_id) is None
+        ):
+            raise BusinessConflictException("Ustaw lokalizację przedmiotu, aby go wystawić")
+
+        price = (
+            await _points_price(
+                db,
+                item=item,
+                account_user_id=profile.account_user_id,
+                owner_party_id=profile.party_id,
+                current=existing,
+                becomes_points=becomes_points,
+                requested=points_price,
             )
-            await db.commit()
-        return None
-    if existing is None and await inventory_bridge.get_item_live_location_id(db, item_id) is None:
-        raise BusinessConflictException("Ustaw lokalizację przedmiotu, aby go wystawić")
-
-    if existing is not None:
-        existing.mode = mode.value
-        existing.owner_party_id = profile.party_id
-        if visibility is not None:
-            existing.visibility = visibility
-        preference = existing
-    else:
-        preference = ItemListingPreference(
-            item_id=item_id,
-            owner_party_id=profile.party_id,
-            mode=mode.value,
-            visibility=visibility or ItemVisibility.PUBLIC,
+            if mode == _POINTS
+            else None
         )
-        db.add(preference)
-    await inventory_bridge.set_item_listing_status(
-        db, item_id, inventory_bridge.ItemListingStatus.ACTIVE
-    )
-    await db.commit()
+        if existing is not None:
+            existing.mode = mode.value
+            existing.points_price = price
+            existing.owner_party_id = profile.party_id
+            if visibility is not None:
+                existing.visibility = visibility
+            preference = existing
+        else:
+            preference = ItemListingPreference(
+                item_id=item_id,
+                owner_party_id=profile.party_id,
+                mode=mode.value,
+                points_price=price,
+                visibility=visibility or ItemVisibility.PUBLIC,
+            )
+            db.add(preference)
+        await inventory_bridge.set_item_listing_status(
+            db, item_id, inventory_bridge.ItemListingStatus.ACTIVE
+        )
+        await db.commit()
     await db.refresh(preference)
     return preference
+
+
+async def clamp_points_price(db: AsyncSession, item_id: uuid.UUID, points_value: int) -> None:
+    """`update_item`'s re-valuation hook, called under the item row lock: a
+    POINTS price outside the bounds of the new `points_value` is clamped
+    into them. Flush only; inventory owns the commit."""
+    preference = await repository.lock_item_listing_preference(db, item_id)
+    if preference is None or not _is_points(preference) or preference.points_price is None:
+        return
+    bounds = await points_acl.price_bounds(db, points_value)
+    clamped = points_acl.clamp_price(preference.points_price, bounds)
+    if clamped != preference.points_price:
+        preference.points_price = clamped
+        await db.flush()
 
 
 async def _my_inventory_rows(
@@ -264,6 +378,7 @@ async def _my_inventory_item_responses(
             listing_status=row.listing_status,
             location_id=row.location_id,
             points_value=row.points_value,
+            points_price=row.points_price,
             photos_moderation_pending=row.product_id in pending,
             thumb_url=(
                 storage.public_url(photos[row.product_id].thumb_key)
@@ -309,6 +424,7 @@ async def list_my_inventory_items_page(
             ALL=sum(counts.values()),
             GIFT=counts.get(inventory_bridge.ReservationType.GIFT.value, 0),
             SWAP=counts.get(inventory_bridge.ReservationType.SWAP.value, 0),
+            POINTS=counts.get(inventory_bridge.ReservationType.POINTS.value, 0),
         ),
         items=await _my_inventory_item_responses(db, rows, storage),
         total=total,
@@ -621,20 +737,24 @@ async def _lock_takeable_preference(
 
 
 def _take_messages(
-    context: ReservationContext, taker_name: str, product_name: str
+    context: ReservationContext, taker_name: str, product_name: str, points_price: int | None
 ) -> tuple[str, str]:
-    """`(owner, taker)` notification text of a take."""
+    """`(owner, taker)` notification text of a take; a POINTS take names
+    its price after the product."""
+    item = f"„{product_name}”"
+    if points_price is not None:
+        item += f" za {points_price} pkt"
     if isinstance(context, PersonalContext):
         return (
-            f"„{taker_name}” odbierze osobiście „{product_name}” — ustalcie szczegóły na czacie.",
-            f"Zarezerwowano „{product_name}” — {context.pickup_phrase()}, ustal szczegóły"
+            f"„{taker_name}” odbierze osobiście {item} — ustalcie szczegóły na czacie.",
+            f"Zarezerwowano {item} — {context.pickup_phrase()}, ustal szczegóły"
             f" z {context.owner_display_name} na czacie. Gdy odbierzesz rzecz, potwierdź to"
             " na stronie przedmiotu.",
         )
     phrase = context.pickup_phrase()
     return (
-        f"„{taker_name}” weźmie „{product_name}” — przynieś w {phrase}",
-        f"Zarezerwowano „{product_name}” — odbierz w {phrase}",
+        f"„{taker_name}” weźmie {item} — przynieś w {phrase}",
+        f"Zarezerwowano {item} — odbierz w {phrase}",
     )
 
 
@@ -645,17 +765,35 @@ def _swap_accepted_message(context: ReservationContext, product_name: str) -> st
     return f"{accepted} — wymiana w {context.pickup_phrase()}"
 
 
+def _is_login_principal(principal: Principal) -> bool:
+    return "PERMISSION_EDIT" in principal.authorities
+
+
+def require_login_principal(principal: Principal) -> None:
+    """POINTS move a person's own balance, so taking or confirming for
+    points needs a login token (`PERMISSION_EDIT`): an `mcp:edit`-only
+    OAuth2 token gets 403."""
+    if not _is_login_principal(principal):
+        raise AccessDeniedException
+
+
 async def _take(
     db: AsyncSession,
     taker_profile: UserProfile,
     item_id: uuid.UUID,
     reservation_type: inventory_bridge.ReservationType,
     context: ReservationContext,
+    points_price: int | None,
 ) -> tuple[ItemListingPreference, str]:
     """The take shared by terms, events and personal pickups; returns the
     listing preference and the product name. The reservation stays `PENDING`
     until either party resolves it via `confirm_transaction` once the date
-    has come (at once for a personal pickup)."""
+    has come (at once for a personal pickup).
+
+    A POINTS take locks the point accounts after the preference, the one
+    exception to the settling paths' reservation → accounts → item →
+    preference order (take locks no item row and creates the reservation),
+    and posts HOLD in the same commit as the reservation."""
     context.require_open()
     await context.require_eligibility(db, taker_profile.party_id)
 
@@ -683,6 +821,14 @@ async def _take(
             "Zamianę zaproponuj przez propozycję zamiany, nie przez wzięcie rzeczy"
         )
 
+    purchase = None
+    if reservation_type == inventory_bridge.ReservationType.POINTS:
+        if preference.points_price is None or points_price != preference.points_price:
+            raise BusinessConflictException("Cena zmieniła się — odśwież.")
+        purchase = await points_acl.lock_purchase(
+            db, taker_profile.party_id, preference.owner_party_id, preference.points_price
+        )
+
     reservation = await inventory_bridge.create_reservation(
         db,
         item_id=item_id,
@@ -693,8 +839,13 @@ async def _take(
     )
 
     product = await product_bridge.get_product(db, listed_item.product_id)
+    if purchase is not None:
+        await points_acl.post_hold(db, purchase, cast(uuid.UUID, reservation.id), product.name)
     owner_message, taker_message = _take_messages(
-        context, taker_profile.display_name, product.name
+        context,
+        taker_profile.display_name,
+        product.name,
+        None if purchase is None else purchase.price,
     )
     await notifications_bridge.create_notification(
         db,
@@ -722,9 +873,14 @@ async def take_item(
     response for a personal pickup. A hidden item is a 404 before the
     context is built."""
     taker_profile = await get_profile_by_principal(db, principal)
+    if data.reservation_type == inventory_bridge.ReservationType.POINTS:
+        require_login_principal(principal)
     await require_item_visible(db, item_id, taker_profile.party_id)
     context = await load_requested_context(db, data.context, item_id)
-    _, product_name = await _take(db, taker_profile, item_id, data.reservation_type, context)
+    async with mapped_transaction_conflicts(db):
+        _, product_name = await _take(
+            db, taker_profile, item_id, data.reservation_type, context, data.points_price
+        )
     return ItemTakeResponse(
         item_id=item_id, product_name=product_name, context=await context.to_response(db)
     )
@@ -879,12 +1035,19 @@ def _is_unaccepted_swap_leg(reservation: inventory_bridge.Reservation) -> bool:
     )
 
 
+_RECIPIENT_CONFIRMED_TYPES = (
+    inventory_bridge.ReservationType.GIFT,
+    inventory_bridge.ReservationType.POINTS,
+)
+
+
 def _may_confirm(reservation: inventory_bridge.Reservation, acting_user_id: uuid.UUID) -> bool:
-    """A GIFT is confirmed by its recipient only; either SWAP party may."""
-    if reservation.reservation_type != inventory_bridge.ReservationType.GIFT:
+    """A GIFT or a POINTS purchase is confirmed by its recipient only;
+    either SWAP party may."""
+    if reservation.reservation_type not in _RECIPIENT_CONFIRMED_TYPES:
         return True
     try:
-        confirm_race_rules._require_recipient_to_confirm_gift(
+        confirm_race_rules._require_recipient_to_confirm(
             reservation.reserved_by_user_id, acting_user_id
         )
     except AccessDeniedException:
@@ -893,11 +1056,15 @@ def _may_confirm(reservation: inventory_bridge.Reservation, acting_user_id: uuid
 
 
 async def transaction_action_flags(
-    db: AsyncSession, reservation: inventory_bridge.Reservation, acting_user_id: uuid.UUID
+    db: AsyncSession,
+    reservation: inventory_bridge.Reservation,
+    acting_user_id: uuid.UUID,
+    principal: Principal,
 ) -> tuple[bool, bool]:
     """`(can_confirm, can_cancel)` for a party of `reservation`: the
     non-raising read of `_resolve_transaction_reservations_for_action` and
-    `confirm_transaction`'s GIFT rule, from the same predicates."""
+    `confirm_transaction`'s recipient and login-token rules, from the same
+    predicates."""
     if reservation.status not in _ACTIVE_RESERVATION_STATUSES or _is_unaccepted_swap_leg(
         reservation
     ):
@@ -909,7 +1076,10 @@ async def transaction_action_flags(
         context.require_ended()
     except BusinessConflictException:
         return False, False
-    return _may_confirm(reservation, acting_user_id), True
+    can_confirm = _may_confirm(reservation, acting_user_id) and (
+        reservation.reservation_type != _POINTS or _is_login_principal(principal)
+    )
+    return can_confirm, True
 
 
 async def _lock_pending_proposal(db: AsyncSession, proposal_id: uuid.UUID) -> SwapProposal:
@@ -1155,11 +1325,14 @@ async def confirm_transaction(
     fulfils every leg in one commit, which also commits the listing
     preferences deleted here; the other party's later call is recognized
     as a no-op via `TermAlreadyResolvedException` rather than a raw,
-    unexplained conflict. A GIFT is confirmed by its recipient only (403
-    for the giver, who can still cancel); either SWAP party may confirm."""
+    unexplained conflict. A GIFT or POINTS is confirmed by its recipient
+    only (403 for the giver, who can still cancel), a POINTS one only with a
+    login token; either SWAP party may confirm."""
     acting_user_id, reservations = await _resolve_transaction_reservations_for_action(
         db, principal, reservation_id
     )
+    if reservations[0].reservation_type == inventory_bridge.ReservationType.POINTS:
+        require_login_principal(principal)
     if not _may_confirm(reservations[0], acting_user_id):
         raise AccessDeniedException
 
@@ -1167,8 +1340,13 @@ async def confirm_transaction(
     # concurrent confirm that posted first leaves its source keys behind, so
     # the awards skip them; its fulfilment makes this one's stale (409).
     async with mapped_transaction_conflicts(db):
-        # Awards lock the point accounts before the item rows below are touched.
+        # Lock order: the legs' reservation rows (as cancel and event
+        # deletion), the point accounts (awards or SALE), then each leg's
+        # item row in item-id order, then its listing preference.
+        await inventory_bridge.lock_reservations(db, [cast(uuid.UUID, r.id) for r in reservations])
         await points_acl.award_exchange(db, reservations)
+        for r in sorted(reservations, key=lambda leg: leg.item_id):
+            await inventory_bridge.get_item_for_update(db, r.item_id)
 
         # A GIFT/SWAP permanently hands the item to someone else, so the giver's
         # standing listing mode no longer applies — deleted here so the item
@@ -1201,7 +1379,10 @@ async def cancel_transaction(
     acting_user_id, reservations = await _resolve_transaction_reservations_for_action(
         db, principal, reservation_id
     )
-    cancelled = await inventory_bridge.cancel_exchange(
-        db, [cast(uuid.UUID, r.id) for r in reservations], acting_user_id
-    )
+    # `cancel_exchange` locks the legs' reservation rows, then a POINTS
+    # leg's RELEASE the buyer's point accounts.
+    async with mapped_transaction_conflicts(db):
+        cancelled = await inventory_bridge.cancel_exchange(
+            db, [cast(uuid.UUID, r.id) for r in reservations], acting_user_id
+        )
     return next(r for r in cancelled if r.id == reservation_id)

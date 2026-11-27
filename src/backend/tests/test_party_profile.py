@@ -92,7 +92,7 @@ async def test_getPartyProfile_accountWithNothingPublic_isPublicWithEmptySection
     private_only = await _profile(client, org_party_id)
 
     assert quiet["is_me"] is False
-    assert quiet["counts"] == {"GIFT": 0, "SWAP": 0}
+    assert quiet["counts"] == {"GIFT": 0, "SWAP": 0, "POINTS": 0}
     assert quiet["nearest"] is None
     assert private_only["nearest"] is None
 
@@ -109,7 +109,7 @@ async def test_getPartyProfile_newAccountAsItself_returns200EmptyProfile(
     body = response.json()
     assert set(body) == PROFILE_KEYS
     assert body["is_me"] is True
-    assert body["counts"] == {"GIFT": 0, "SWAP": 0}
+    assert body["counts"] == {"GIFT": 0, "SWAP": 0, "POINTS": 0}
     assert body["recent_items"] == []
     assert body["nearest"] is None
 
@@ -140,7 +140,7 @@ async def test_getPartyProfile_listedItems_bioCountsAndRecentItemsCapped(
     assert body["bio"] == "Oddaję ubranka po córce."
     assert (body["logo"], body["avatar"], body["cover"], body["gallery"]) == (None, None, None, [])
     assert body["page_layout"] == "BANNER"
-    assert body["counts"] == {"GIFT": 3, "SWAP": 4}
+    assert body["counts"] == {"GIFT": 3, "SWAP": 4, "POINTS": 0}
     assert len(body["recent_items"]) == PROFILE_RECENT_ITEMS
     assert body["nearest"] is None
     assert body["is_me"] is False
@@ -156,7 +156,7 @@ async def test_getPartyProfile_authoredEventOnly_visibleWithNearestEvent(
 
     body = await _profile(client, party_id)
 
-    assert body["counts"] == {"GIFT": 0, "SWAP": 0}
+    assert body["counts"] == {"GIFT": 0, "SWAP": 0, "POINTS": 0}
     assert body["recent_items"] == []
     assert (body["nearest"]["kind"], body["nearest"]["id"]) == ("EVENT", event_id)
 

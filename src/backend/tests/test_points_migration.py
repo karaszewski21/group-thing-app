@@ -120,6 +120,7 @@ async def test_migration0103_downgradeTo0102AndUpgradeHead_roundTrips(
     await engine.dispose()
     assert {
         "uq_point_accounts_account_type_emission",
+        "uq_point_accounts_account_type_burn",
         "ix_point_transactions_party_counterparty_occurred_at",
         "ix_point_entries_account_id_transaction_id",
         "uq_points_config_singleton",
@@ -131,7 +132,7 @@ async def test_migration0103_downgradeTo0102AndUpgradeHead_roundTrips(
         "pk_points_config",
         "fk_point_accounts_party_id_parties",
         "ck_point_accounts_party_id_account_type",
-        "uq_point_accounts_party_id",
+        "uq_point_accounts_party_id_account_type",
         "fk_point_transactions_party_id_parties",
         "fk_point_transactions_counterparty_party_id_parties",
         "uq_point_transactions_type_source",

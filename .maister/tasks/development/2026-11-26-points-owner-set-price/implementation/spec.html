@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — POINTS mode (stage 2, part 1)</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:720px){ .two { grid-template-columns:1fr; } }
+.stories { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; }
+.story { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:10px 12px; font-size:13px; }
+.story b { color:var(--accent); }
+ul.tight { margin:6px 0; padding-left:20px; } ul.tight li { margin:3px 0; }
+.toc { font-size:13px; margin:10px 0; }
+.flow { font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px; overflow-x:auto; white-space:pre; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span>
+  <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">Specification</span>
+  <h1>POINTS mode (stage 2, part 1) with an owner-set price</h1>
+  <div style="color:var(--dim);font-size:12.5px">Revised 2026-11-26 after the spec audit · migration 0109 · <a href="spec.md" target="_blank" rel="noopener">spec.md</a> · <a href="../verification/spec-audit.md" target="_blank" rel="noopener">spec-audit.md</a></div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>12</b><span>requirement groups</span></div>
+  <div class="tile"><b>18</b><span>audit findings resolved</span></div>
+  <div class="tile"><b>7</b><span>new components</span></div>
+  <div class="tile"><b>8</b><span>binding screens</span></div>
+  <div class="tile"><b style="color:var(--crit)">High</b><span>risk</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul class="tight">
+    <li>POINTS becomes a third listing mode. The owner picks <code>points_price</code> within bounds around the item's stored <code>points_value</code>, served by <code>GET /api/points/item-value?item_id=</code> (owner-only) and enforced by the same function on PUT.</li>
+    <li>„Biorę” posts HOLD (buyer PARTY → buyer HELD). The buyer's confirm posts a 4-entry SALE (HELD −p, BURN +p, EMISSION −p, seller +p). Any cancel posts RELEASE. POINTS take and confirm need a login token; OAuth <code>mcp:*</code> tokens get 403.</li>
+    <li>The ledger moves to declared debit/credit types, a non-negative balance check and one account per (party, type), under one lock order: accounts → item → preference. Migration 0109 has a guarded downgrade.</li>
+    <li><code>points_price</code> and <code>held_points</code> become the R8 exceptions. Eight binding screens are implemented, and /add retries only the PUT after a failure.</li>
+  </ul>
+
+  <h2>Key Decisions</h2>
+  <table>
+    <tr><th>Decision</th><th>Rationale</th></tr>
+    <tr><td>No new routes or matrix rows; <code>item-value</code> gains an <code>item_id</code> form under row 69 (READ, no mcp)</td><td>Minimal implementation; rows 60, take|propose and 64 cover the rest</td></tr>
+    <tr><td>POINTS take and confirm need a login token: the use case checks <code>PERMISSION_EDIT</code>, and an <code>mcp:edit</code>-only token gets 403</td><td>User decision 1; mirrors row 69. A matrix carve-out cannot see the reservation type. Cancel and listing stay open to mcp.</td></tr>
+    <tr><td>Bounds for an existing item come from the stored <code>points_value</code> via <code>item-value?item_id</code> (404 before 403)</td><td>User decision 2; the form and PUT share one source. The preview stays for new items and serves as a forecast after a draft change.</td></tr>
+    <tr><td>Listing for points happens only through PUT <code>/api/item-listing-preferences/{id}</code></td><td>The photo rule needs an owner photo, and photos are uploaded after the item exists</td></tr>
+    <tr><td>/add keeps the created draft id after a failed PUT; a retry repeats only the PUT</td><td>User decision 3; no duplicate items, and the draft stays in My Items</td></tr>
+    <tr><td>One lock order: accounts → item → preference; take is the documented safe exception; <code>update_item</code> and <code>delete_event</code> are wrapped in <code>mapped_transaction_conflicts</code></td><td>M3: no deadlock cycles, and anything left over is a 409</td></tr>
+    <tr><td>“Becomes POINTS” is re-checked under the item lock; a changed answer gives 409 „Oferta zmieniła się w międzyczasie — odśwież.”</td><td>M4: closes the offer-limit race</td></tr>
+    <tr><td>A PUT may omit <code>points_price</code> for POINTS</td><td>The My Items switch needs no stepper</td></tr>
+    <tr><td>Condition/category changes clamp through the <code>on_revalued</code> hook; <code>update_item</code> locks the item first</td><td>Inventory never imports groups</td></tr>
+    <tr><td><code>/details</code> unchanged; the price comes from <code>/actions</code></td><td><code>/actions</code> already carries <code>mode</code></td></tr>
+    <tr><td>Wants match cards get <code>meta.points_price</code>; term-listing responses do not</td><td><code>ItemCard</code> is shared</td></tr>
+    <tr><td>HOLD is the price snapshot, exposed as <code>held_points</code> on both party responses</td><td>SALE and RELEASE use the HOLD amount (L11 naming)</td></tr>
+    <tr><td>R8 allowlist = <code>{"points_price", "held_points"}</code>, with a reserved-POINTS probe case</td><td>L10: <code>held_points</code> is party-only</td></tr>
+    <tr><td>Confirm never re-checks the pair limit or family; GIFT/SWAP planning ignores open holds</td><td>User decision 4 (see Risks)</td></tr>
+    <tr><td>SALE and RELEASE exclude each other under the account lock</td><td>The second gets a 409; repeats are skipped via the source key</td></tr>
+    <tr><td><code>max_points_offers</code> mutex = <code>(owner, PARTY)</code>, locked only when an item becomes POINTS</td><td>The same key take locks for the seller (L8)</td></tr>
+    <tr><td><code>price_max = min(cap, max(step, round_step(s × max_ratio)))</code></td><td>The max is never below one step</td></tr>
+    <tr><td>Server texts are the mockup texts, except the number-neutral limit message</td><td>L6: no backend plural helper, and the cap is configurable</td></tr>
+    <tr><td>/add uses one <code>aria-pressed</code> group for all three modes (Oddam preselected) with one primary action; „Wersja robocza” is kept</td><td>L4: follows the mockup, with one name for the draft action</td></tr>
+    <tr><td>The photo rule is checked only on the server; the /add hint covers the no-photo case</td><td>L9 edge cases accepted</td></tr>
+    <tr><td>0109 holds schema plus seed</td><td>Recorded exception, like 0104</td></tr>
+    <tr><td><code>bg-orange text-ink</code> for the badge, button and Home tile</td><td>About 5:1 contrast, versus 2.9:1 for white</td></tr>
+  </table>
+
+  <h2>Open Questions / Risks</h2>
+  <ul class="tight">
+    <li><span class="sev warning">accepted</span><b>The pair limit is not strict across GIFT and POINTS.</b> A GIFT confirm can take a slot an open hold reserved. The overshoot is at most the pair's open holds, and burn still equals emission.</li>
+    <li><span class="sev warning">accepted</span><b>Shared products and the photo rule.</b> If the product is full (10 photos) with none of them the owner's, the owner cannot list for points. If the owner uploaded a photo for an earlier item, the /add hint blocks while the server would accept; My Items or the edit form still work.</li>
+    <li><span class="sev warning">accepted</span><b>Held points can stay locked indefinitely.</b> The seller can cancel, and the 30-day reminder is deferred.</li>
+    <li><span class="sev critical">high</span><b>The ledger contract changes for the first time.</b> PARTY debits become possible, with a non-negative check under the lock. The tests are rewritten deliberately.</li>
+    <li><span class="sev info">note</span>Every account read keyed by <code>party_id</code> must also filter <code>account_type</code>, including the stage-1 <code>lock_accounts</code> callers and the test helpers.</li>
+    <li><span class="sev info">note</span>The RFC 8693 bridge token carries <code>EDIT</code>, so it passes the login check, as it passes row 69 today. This is unchanged and recorded.</li>
+    <li><span class="sev info">note</span>POINTS listings match wants with <code>offer_mode</code> NULL; run the matcher suite.</li>
+    <li><span class="sev warning">ops</span>No image-only rollback past 0109. An old image rejects re-saving a <code>POINTS</code> want.</li>
+    <li><span class="sev info">note</span>The stage-1 record ("frozen at listing", "badge without price") is superseded.</li>
+  </ul>
+</section>
+
+<nav class="toc">
+  <a href="#scope">Scope</a> · <a href="#stories">User stories</a> · <a href="#requirements">Requirements</a> · <a href="#ledger">Ledger</a> · <a href="#locks">Lock order</a> · <a href="#migration">Migration</a> · <a href="#visual">Visual design</a> · <a href="#reuse">Components</a> · <a href="#tests">Tests</a> · <a href="#success">Success</a> · <a href="#audit">Audit resolution</a>
+</nav>
+
+<main>
+<h2 id="scope">Scope</h2>
+<p><b>Goal:</b> let people spend their points: owners list an item for an owner-set price within system bounds, buyers reserve it by holding that price, and the buyer's confirmation burns the held points while the seller receives the same amount, so the points in circulation do not change.</p>
+<div class="two">
+  <div class="card"><b class="pass">In scope</b>
+    <ul class="tight">
+      <li>4 config keys + enforced <code>max_points_offers</code></li>
+      <li>Pure price domain; <code>item-value</code> in item_id and category forms</li>
+      <li>POINTS listing via PUT (photo rule, limit, M4 re-check, stored-value bounds)</li>
+      <li>HOLD at take, SALE at buyer confirm, RELEASE at any cancel</li>
+      <li>Login-token-only POINTS take/confirm</li>
+      <li>Ledger contract, per-type accounts, BURN/HELD, one lock order</li>
+      <li><code>points_price</code>/<code>held_points</code> on read models; POINTS counts, search chip, wants</li>
+      <li>Migration 0109 + runbook; 8 binding screens; docs</li>
+    </ul></div>
+  <div class="card"><b class="fail">Out of scope</b>
+    <ul class="tight">
+      <li>Pickup condition correction and SALE_REFUND; the seller block after 3 corrections</li>
+      <li>The 30-day reminder; auto-confirm, objections, hold expiry</li>
+      <li>Points notifications beyond the „za N pkt” text</li>
+      <li>POINTS on <code>POST /api/inventory-items</code>; price on <code>/details</code> and term listings</li>
+      <li>Recomputing stored prices after config changes; unlisting on a lower cap</li>
+      <li>A strict pair limit across GIFT/SWAP and POINTS</li>
+      <li>Restricting <code>mcp:edit</code> on POINTS cancel or listing</li>
+      <li>START_BONUS, points at events, a payment gateway</li>
+    </ul></div>
+</div>
+
+<h2 id="stories">User Stories</h2>
+<div class="stories">
+  <div class="story"><b>Owner</b> — list an item „Za punkty” at a price I choose within the allowed range, to earn points for things I no longer need.</div>
+  <div class="story"><b>Owner</b> — see the suggestion and the allowed range, to pick a fair price without guessing.</div>
+  <div class="story"><b>Buyer</b> — see the price on cards, in search and on the item page, before opening it.</div>
+  <div class="story"><b>Buyer</b> — see my available balance and what remains after reserving, to know whether I can afford it.</div>
+  <div class="story"><b>Buyer</b> — have my points only held until I confirm the pickup, so I don't lose them if the hand-over fails.</div>
+  <div class="story"><b>Seller</b> — receive the price when the buyer confirms, and be able to cancel (returning the hold), so a no-show never blocks my item.</div>
+  <div class="story"><b>Logged-in person</b> — see available, held and reputation on <code>/points</code>, with labelled holds, sales, purchases and releases.</div>
+  <div class="story"><b>Admin</b> — tune the ratios, cap, step and offer limit without a deploy.</div>
+</div>
+
+<h2 id="requirements">Requirements</h2>
+<table>
+  <tr><th>ID</th><th>Requirement</th><th>Priority</th></tr>
+  <tr><td>R1</td><td>Config: <code>price_min_ratio</code> 0.50, <code>price_max_ratio</code> 1.50, <code>price_cap</code> 100, <code>price_step</code> 10; Polish 400s (ratio ranges 0.01–1.00 / 1.00–3.00, cap 1–1000, step 1–100, cap a multiple of the step)</td><td>Must</td></tr>
+  <tr><td>R2</td><td>Pure <code>round_step</code> (ROUND_HALF_UP), <code>price_bounds</code>, <code>is_valid_price</code>, <code>clamp_price</code>; <code>GET /api/points/item-value</code> with <code>?item_id</code> (owner-only, stored value, 404 before 403) or <code>?category_id&amp;condition</code> (preview); exactly one form, else 400</td><td>Must</td></tr>
+  <tr><td>R3</td><td>POINTS listing via PUT: pre-lock decision → <code>(owner, PARTY)</code> lock → item lock → <b>re-check (409 on change)</b> → valuation → photo rule → limit → price against the stored-value bounds; the <code>on_revalued</code> hook with item → preference locking inside <code>mapped_transaction_conflicts</code>; POINTS counts</td><td>Must</td></tr>
+  <tr><td>R4</td><td><code>points_price</code> on actions, my items, search, pages, events and wants meta; <code>held_points</code> on party reservations and my reservations; R8 allowlist <code>{points_price, held_points}</code></td><td>Must</td></tr>
+  <tr><td>R5</td><td>Take: a required matching price, <b>login token only (403 for mcp)</b>, <code>lock_purchase</code> (eligibility, family, pair limit incl. open holds, balance), HOLD with party = buyer and counterparty = seller</td><td>Must</td></tr>
+  <tr><td>R6</td><td>Confirm: buyer only, <b>login token only</b>, a single POINTS leg, accounts → items → preference delete, SALE with 4 entries and no reputation; hand-over queries include POINTS</td><td>Must</td></tr>
+  <tr><td>R7</td><td>Cancel: <code>release_hold</code> first in <code>_release</code>; event deletion pre-locks all buyers' accounts once (<code>lock_release_accounts</code>) and is wrapped</td><td>Must</td></tr>
+  <tr><td>R8</td><td>Ledger: HELD/BURN, HOLD/SALE/RELEASE, declared debits/credits, balance check, <code>(party_id, account_type)</code> keys, the stage-1 call-site changes, <code>system_account_id</code></td><td>Must</td></tr>
+  <tr><td>R9</td><td>Reads: <code>{balance, held, reputation}</code>; one history row per transaction with <code>held_amount</code></td><td>Must</td></tr>
+  <tr><td>R10</td><td>Migration 0109 with a guarded downgrade</td><td>Must</td></tr>
+  <tr><td>R11</td><td>Frontend types and ripple, incl. HomeView, the appHelpers maps, ReservedItemsView, <code>ReservationType</code>, wanted, MyItemsView <code>recipientConfirms</code></td><td>Must</td></tr>
+  <tr><td>R12</td><td>Docs: architecture.md stage-2 bullets + 0109 runbook, security.md login rule, INDEX.md</td><td>Must</td></tr>
+</table>
+
+<details class="card"><summary>R3.4 listing steps and messages</summary>
+<ol>
+  <li>Profile.</li>
+  <li>Read the preference unlocked; <code>becomes_points</code> = no row or a non-POINTS row; if so, <code>lock_owner_accounts</code> → <code>(owner, PARTY)</code>.</li>
+  <li>Item FOR UPDATE, ownership (403), live-location rule.</li>
+  <li>Re-read the preference; if <code>becomes_points</code> changed → 409 „Oferta zmieniła się w międzyczasie — odśwież.”</li>
+  <li>NULL <code>points_value</code> → 400 „Tej rzeczy nie można wystawić za punkty — brak wyceny.”</li>
+  <li>No own non-rejected photo → 400 „Dodaj przynajmniej jedno zdjęcie, aby wystawić za punkty.” (<code>product_service.has_own_unrejected_photo</code> via <code>product_bridge</code>)</li>
+  <li>Only when <code>becomes_points</code>: count ≥ <code>max_points_offers</code> → 409 „Masz już maksymalną liczbę ofert za punkty ({n}).”</li>
+  <li>Price against <code>price_bounds(stored points_value)</code>: invalid → 400 „Cena musi być od {min} do {max} pkt, co {step}.”; omitted → keep the existing price, or clamp the suggestion.</li>
+  <li>Write, set ACTIVE, commit. Steps 2–9 run in <code>mapped_transaction_conflicts</code>.</li>
+</ol>
+<p>Non-POINTS modes NULL the price. <code>points_price</code> with another mode → 400 „Cena w punktach dotyczy tylko oferty za punkty.”</p>
+</details>
+
+<details class="card"><summary>R5–R7 take, confirm, cancel messages</summary>
+<ul class="tight">
+  <li>Missing price on a POINTS take → 400 „Podaj cenę w punktach.”; a price with another type → 400 „Cena w punktach dotyczy tylko oferty za punkty.”</li>
+  <li>An <code>mcp:edit</code>-only token on a POINTS take or confirm → 403 via <code>require_login_principal</code> (needs <code>PERMISSION_EDIT</code>).</li>
+  <li>Price mismatch → 409 „Cena zmieniła się — odśwież.”</li>
+  <li>Not eligible → 409 „Za punkty mogą kupować tylko osoby z kontem.”; family → 409 „Nie można kupować za punkty od członka własnej rodziny.”</li>
+  <li>Pair limit → 409 „Limit nagród dla tej pary został wyczerpany — spróbuj za kilka dni.”; balance → 409 „Za mało punktów — ktoś był szybszy albo masz inne blokady.”</li>
+  <li>SALE after RELEASE, or vice versa → 409 „Ta transakcja została już rozstrzygnięta”.</li>
+  <li><code>_require_exchange_legs</code> message: „Wymiana to jedna rezerwacja GIFT albo POINTS albo dwie sparowane rezerwacje SWAP”.</li>
+  <li>Take notifications gain „ za {p} pkt”.</li>
+  <li>The <code>item-value</code> form error → 400 „Podaj item_id albo category_id i condition.”</li>
+</ul>
+</details>
+
+<h2 id="ledger">Ledger contract</h2>
+<table>
+  <tr><th>Type</th><th>Debits</th><th>Credits</th><th>Pair slot</th><th>Reputation</th><th>party / counterparty</th></tr>
+  <tr><td>GIVE_FREE, EXCHANGE, WISHLIST_MATCH</td><td>EMISSION</td><td>PARTY</td><td>yes</td><td>GIVE_FREE only</td><td>as today</td></tr>
+  <tr><td>ATTENDANCE</td><td>EMISSION</td><td>PARTY</td><td>no</td><td>no</td><td>as today</td></tr>
+  <tr><td>HOLD</td><td>PARTY</td><td>HELD</td><td>no</td><td>no</td><td>buyer / seller</td></tr>
+  <tr><td>SALE</td><td>HELD, EMISSION</td><td>BURN, PARTY</td><td>yes</td><td>no</td><td>seller / buyer</td></tr>
+  <tr><td>RELEASE</td><td>HELD</td><td>PARTY</td><td>no</td><td>no</td><td>buyer / seller</td></tr>
+</table>
+<details class="card"><summary>Accounts, <code>post_points</code>, <code>lock_accounts</code> and reads</summary>
+<ul class="tight">
+  <li>0109 drops <code>uq_point_accounts_party_id</code> and adds <code>uq_point_accounts_party_id_account_type</code>. It recreates <code>ck_point_accounts_party_id_account_type</code> (PARTY/HELD with a party, EMISSION/BURN without), adds the partial <code>uq_point_accounts_account_type_burn</code>, and seeds BURN. All of this is mirrored in <code>PointAccount.__table_args__</code>.</li>
+  <li><code>post_points</code>: entries are on the declared debit/credit types, sum to 0 and are non-zero; every debited PARTY/HELD account must stay ≥ 0 under the caller's lock, else <code>LedgerInvariantError</code>. It only flushes.</li>
+  <li><code>lock_accounts(keys: (party_id, type))</code>: sorted <code>INSERT … ON CONFLICT DO NOTHING</code>, then <code>FOR UPDATE ORDER BY party_id, account_type</code>. Stage-1 sites change: <code>awards.py:70/182</code> pass PARTY keys, <code>:127/:202</code> index by tuple, <code>_attendance_in_cap_month</code> (<code>:185</code>, <code>:208-223</code>) takes the PARTY ids, and <code>emission_account_id</code> → <code>system_account_id</code> (<code>:106/:188</code>).</li>
+  <li><code>hold_amounts(reservation_ids)</code> takes one query.</li>
+  <li>Reads: <code>{balance, held, reputation}</code>. History has one row per transaction: HOLD (−p / +p held), RELEASE (+p / −p held), SALE buyer (0 / −p held), SALE seller (+p / 0).</li>
+</ul>
+</details>
+
+<h2 id="locks">Lock order</h2>
+<div class="flow">one total order:  point accounts (sorted) → item FOR UPDATE → preference
+
+PUT POINTS     [(owner, PARTY) if becoming POINTS] → item → preference (re-checked)
+PATCH revalue  item → preference                      (update_item wrapped)
+confirm        accounts (award / SALE) → items by id → preference delete → fulfil
+cancel         accounts (first in _release) → reservation / balance rows
+event delete   reservations FOR UPDATE → all buyers' accounts once, sorted   (wrapped)
+take (exc.)    event FOR SHARE → preference FOR UPDATE → accounts → reservation rows
+               locks no item row; PUT's item is verified non-POINTS, and confirm's item
+               is reserved, so neither can close a cycle with take</div>
+<p>Every path above runs in <code>mapped_transaction_conflicts</code>, so a residual deadlock is a 409, never a 500.</p>
+
+<h2 id="migration">Migration 0109</h2>
+<div class="two">
+  <div class="card"><b>Upgrade</b> (<code>lock_timeout 5s</code>)
+    <ol><li>4 config columns NOT NULL with temporary server defaults, then the defaults dropped</li><li><code>points_price</code> SMALLINT + 2 CHECKs</li><li>The account constraints + the BURN index</li><li>Insert the BURN row</li></ol></div>
+  <div class="card"><b>Downgrade</b> (guarded)
+    <p>Refuses while any of these counts is non-zero: HOLD/SALE/RELEASE transactions, POINTS preferences, POINTS reservations; the recovery is the pre-0109 dump. Otherwise it deletes HELD/BURN, restores the constraints and drops the column and config columns.</p>
+    <p>Runbook: <code>pg_dump</code> first, the matcher suite, backend before web, no image-only rollback, and an old image rejects re-saving a POINTS want.</p></div>
+</div>
+
+<h2 id="visual">Visual Design</h2>
+<p>Mockups in <code>analysis/design-context/</code> are binding inputs. The implementation-planner will attach <code>Visual References</code> to the UI task groups.</p>
+<table>
+  <tr><th>Screen</th><th>Mockup</th><th>Key points</th></tr>
+  <tr><td><code>screen:item-create-points</code></td><td><a href="../analysis/design-context/mockups/dodaj-rzecz-wystawienie-za-punkty.html">dodaj-rzecz…</a></td><td>An <code>aria-pressed</code> group Oddam/Zamienię/Za punkty (Oddam preselected), then „Wystaw” or „Wystaw za N pkt”, plus „Wersja robocza”. POINTS mode shows the stepper, the suggestion, the range and the no-photo hint. The flow is draft → photos → PUT. <b>A failed PUT keeps <code>createdItemId</code>, and a retry repeats only the PUT.</b></td></tr>
+  <tr><td><code>component:price-stepper</code></td><td>same</td><td>±step buttons, a text/numeric input, <code>parsePointsPrice</code>, an inline alert, the bounds as props</td></tr>
+  <tr><td><code>screen:item-edit-points</code></td><td><a href="../analysis/design-context/mockups/edycja-rzeczy-cena-za-punkty.html">edycja-rzeczy…</a></td><td>Bounds from <code>useOwnedItemPointsValue(itemId)</code> (stored value), with the preview as a forecast after a category or condition change. Notes for the condition change and for a reservation (H = <code>held_points</code>). PATCH, then PUT; a 400 is shown verbatim, followed by a refetch.</td></tr>
+  <tr><td><code>screen:item-cards-points</code> / <code>component:points-badge</code></td><td><a href="../analysis/design-context/mockups/karty-przedmiot-w-z-cen-w-punktach.html">karty…</a></td><td>The orange badge „N pkt” with sr-only „Za punkty: N pkt”. MyItemsView: the mode option, chip, filter, count and <b>no seller confirm button</b>. HomeView: three tiles.</td></tr>
+  <tr><td><code>screen:item-page-points</code></td><td><a href="../analysis/design-context/mockups/strona-przedmiotu-za-punkty.html">strona-przedmiotu…</a></td><td>„Cena N pkt”, „Biorę za N pkt”, the owner's „H pkt zablokowane” and cancel, the buyer's „Potwierdź odbiór”</td></tr>
+  <tr><td><code>screen:points-reservation-sheet</code></td><td><a href="../analysis/design-context/mockups/okno-rezerwacji-za-punkty-saldo.html">okno-rezerwacji…</a></td><td>Price, available, after; „Zablokuj N pkt i rezerwuj”; the short-balance hint; a 409/403 shown verbatim, with „Odśwież”</td></tr>
+  <tr><td><code>screen:search-points-filter</code></td><td><a href="../analysis/design-context/mockups/wyszukiwanie-filtr-za-punkty.html">wyszukiwanie…</a></td><td>The „Za punkty” chip → <code>offer_type=POINTS</code></td></tr>
+  <tr><td><code>screen:admin-points-offers</code></td><td><a href="../analysis/design-context/mockups/admin-konfiguracja-ofert-za-punkty.html">admin…</a></td><td>A new <code>RatioField</code>/<code>parseRatio</code> (0.01–1.00, 1.00–3.00); the live example in integer hundredths with half-up integer division (30 × 1.15 → 35)</td></tr>
+  <tr><td><code>screen:account-points-held</code></td><td><a href="../analysis/design-context/mockups/twoje-punkty-saldo-blokady-historia.html">twoje-punkty…</a></td><td>Three tiles; HOLD/RELEASE/purchase/sale labels</td></tr>
+</table>
+
+<h2 id="reuse">Reusable vs new components</h2>
+<div class="two">
+  <div class="card"><b>Reuse</b>
+    <ul class="tight">
+      <li><code>term_item_listings</code> take/confirm/cancel, <code>_may_confirm</code>, <code>transaction_action_flags</code></li>
+      <li><code>get_item_for_update</code> for confirm and <code>update_item</code></li>
+      <li><code>ledger.py</code> primitives; <code>awards._used_pair_slots</code>; the families/users ACLs</li>
+      <li><code>valuation.value_for</code>, <code>item_value_preview</code>; the points <code>inventory_acl</code>/<code>users_acl</code></li>
+      <li><code>config.py</code> validation; <code>mapped_transaction_conflicts</code>; the <code>on_registered</code> hook pattern</li>
+      <li><code>_release</code>, <code>cancel_reservations_without_commit</code></li>
+      <li>The read-side groups ACLs; <code>product_bridge</code></li>
+      <li>Frontend: <code>ModalSheet</code>, <code>useItemTake</code>, <code>useItemPointsPreview</code>, <code>useMyPoints</code>, <code>parseCapacity</code>, the <code>ItemCard</code> badge, <code>SearchFilters</code>, <code>PointsTiles</code></li>
+      <li>Tests: the awards helpers, <code>assert_point_transactions_balanced</code>, <code>_oauth_token</code>, <code>_alembic</code>, <code>count_queries</code></li>
+    </ul></div>
+  <div class="card"><b>New (and why)</b>
+    <ul class="tight">
+      <li><code>points/domain/pricing.py</code> + <code>application/pricing.py</code>: no home for bounds</li>
+      <li><code>points/application/purchases.py</code>: HOLD/SALE/RELEASE do not fit plan-and-skip</li>
+      <li><code>PointsReservationSheet</code>: no sheet shows a balance</li>
+      <li><code>PointsPriceStepper</code>: two callers</li>
+      <li><code>has_own_unrejected_photo</code>: the existing queries are approved-only</li>
+      <li><code>require_login_principal</code>: no helper distinguishes a login token</li>
+      <li>Migration 0109</li>
+    </ul></div>
+</div>
+
+<details class="card"><summary>Technical approach</summary>
+<ul class="tight">
+  <li><b>Boundaries:</b> groups <code>points_acl</code> gains <code>lock_owner_accounts</code>, <code>price_bounds</code>, <code>offer_rules</code>, <code>lock_purchase</code>, <code>post_hold</code> and <code>hold_amounts</code>. Inventory <code>points_acl</code> gains <code>release_hold</code> and <code>lock_release_accounts</code>. Points <code>inventory_acl</code> gains the owned-item value read. <code>_POINTS_IMPORTERS</code> is unchanged.</li>
+  <li><b>Login-token rule:</b> <code>require_login_principal</code> raises 403 unless the principal holds <code>PERMISSION_EDIT</code>. It is called for a POINTS take (before any read) and a POINTS confirm (after resolve).</li>
+  <li><b>Data flow:</b> form (bounds from <code>item-value</code>) → PUT → read models → sheet with <code>/api/points/me</code> → HOLD → hand-over → SALE or RELEASE → history.</li>
+  <li><b>Clock:</b> naive-UTC ledger timestamps, no new clock reads.</li>
+</ul>
+</details>
+
+<h2 id="tests">Testing approach</h2>
+<p>2–8 focused tests per step group. Verification runs only new and updated tests, plus the named regression sets, the matcher suite and the touched frontend tests.</p>
+<details class="card" open><summary>New behaviour tests</summary>
+<ul class="tight">
+  <li><b>Item value:</b> the owner's <code>?item_id</code> gets the stored bounds after a config change; another person's item → 403; unknown → 404; both forms or neither → 400; <code>mcp:read</code> → 403.</li>
+  <li><b>Listing:</b> the photo cases, the 6th offer → 409, the range 400, the omitted price, stored-value bounds, the PATCH clamp, a GIFT switch NULLs the price, and the M4 re-check → 409.</li>
+  <li><b>Take:</b> balance, mismatch, family, pair limit with an open hold, parallel takes, HOLD party/counterparty, and <b><code>mcp:edit</code> → 403 for POINTS while GIFT still works</b>.</li>
+  <li><b>Confirm:</b> buyer only; <b><code>mcp:edit</code> → 403, then login → 200</b>; SALE balanced with burn = emission; the HOLD amount after a price edit; no reputation; pair-limited; every context; hand-over queries.</li>
+  <li><b>Cancel:</b> seller, buyer and event deletion (two buyers in one transaction); SALE/RELEASE exclusion; repeats.</li>
+  <li><b>Ledger / reads / migration:</b> the rules table, overdraft, stage-1 awards with tuple keys, the AST guard, <code>held</code>, history rows, constant statements, the round trip and refusal.</li>
+  <li><b>Frontend:</b> stepper, <code>parsePointsPrice</code>, the ItemCreateView mode group and POINTS flow, <b>a retry after a failed PUT that calls only the PUT (<code>createItem</code> once)</b>, edit-form bounds, the view-state rows, <b>no seller „Potwierdź” in MyItemsView</b>, the sheet, the badge, <code>parseRatio</code> and the 30 × 1.15 → 35 example, the account tiles, ssrSafety.</li>
+</ul>
+</details>
+<details class="card"><summary>Exact key-set and constraint test updates</summary>
+<ul class="tight">
+  <li><code>test_item_actions.py</code> <code>ACTIONS_KEYS</code> + <code>points_price</code>; <code>test_party_reservation_actions.py</code> <code>PARTY_KEYS</code> + <code>held_points</code></li>
+  <li><code>test_search_api.py</code>, <code>test_owner_items_page.py</code>, <code>test_organizer_page.py</code>, <code>test_event_page.py</code>: + <code>points_price</code>; counts and stats + POINTS</li>
+  <li><code>test_my_reservations.py</code> <code>ROW_KEYS</code> + <code>held_points</code></li>
+  <li><code>test_wants_matches_api.py</code> and <b><code>test_wants_similar_api.py:23</code></b> <code>META_KEYS</code> + <code>points_price</code> (shared <code>WantMatchMeta</code>)</li>
+  <li><b><code>test_term_item_listings_router.py:264-286</code></b> <code>MyInventoryItemResponse</code> keys + <code>points_price</code></li>
+  <li><code>test_item_visibility.py</code> <code>PREFERENCE_KEYS</code>; the counts literals in <code>test_my_items_page.py</code>, <code>test_reserved_listings.py</code>, <code>test_party_profile.py</code> and <code>test_item_visibility.py</code> + POINTS</li>
+  <li><code>test_points_config_api.py</code> <code>CONFIG_KEYS</code> + 4; <code>test_points_me_api.py</code> <code>SUMMARY_KEYS</code> + <code>held</code>, <code>ENTRY_KEYS</code> + <code>held_amount</code>, and the L133 literal gains <code>held: 0</code></li>
+  <li><code>test_points_valuation.py</code>: item-value keys + 3; R8 allowlist <code>{points_price, held_points}</code> + the reserved-POINTS case</li>
+  <li><b><code>test_points_migration.py:122-134</code></b>: <code>uq_point_accounts_party_id</code> → <code>uq_point_accounts_party_id_account_type</code>; the indexes + <code>uq_point_accounts_account_type_burn</code></li>
+  <li><b>Helpers</b> <code>test_points_awards.py:150-153</code> and <code>test_points_awards_contexts.py:98-102</code> + <code>account_type == PARTY</code>; <code>point_ledger_assertions.py:33</code> keeps matching all accounts</li>
+  <li><code>test_points_ledger.py</code>: the PARTY-debit tests are replaced; <code>test_module_boundaries.py</code> is unchanged</li>
+</ul>
+</details>
+<details class="card"><summary>Standards compliance</summary>
+<ul class="tight">
+  <li><b>models.md</b>: int price, mirrored CHECKs, single ACLs, 404 before 403. <b>migrations.md</b>: lock_timeout, a guarded downgrade, the recorded seed exception.</li>
+  <li><b>security.md</b>: no matrix rows; the POINTS login rule in the use case, matching row 69. <b>queries.md</b>: batched holds and account locks, constant history statements.</li>
+  <li><b>error-handling.md</b>: Polish 409/400s, and <code>mapped_transaction_conflicts</code> on take, PUT, <code>update_item</code>, confirm, cancel and <code>delete_event</code>.</li>
+  <li><b>validation.md</b>, <b>time.md</b>, <b>components.md</b>, <b>accessibility.md</b>, <b>data-fetching.md</b>, testing standards, <b>minimal-implementation.md</b>.</li>
+</ul>
+</details>
+
+<h2 id="success">Success criteria</h2>
+<ul class="tight">
+  <li>s = 40 → 20–60, s = 60 → 30–90, s = 20 → 10–30, never above 100; 55 rejected with „Cena musi być od 20 do 60 pkt, co 10.”</li>
+  <li>For an existing item, the edit form and PUT share the stored-value bounds, even after a config change.</li>
+  <li>No own photo → 400. The 6th offer → 409, also under the M4 race.</li>
+  <li>A take holds exactly the price; each failure is a 409 and writes nothing.</li>
+  <li>An <code>mcp:edit</code>-only token gets 403 on a POINTS take and confirm.</li>
+  <li>Only the buyer confirms, and the seller sees no confirm button. SALE burn = emission = the seller's credit, with no reputation. Cancel releases, and SALE and RELEASE never both happen.</li>
+  <li>A deadlock on PUT, PATCH, confirm, cancel or event deletion is a 409, never a 500.</li>
+  <li>/add never creates a second item after a failed POINTS PUT.</li>
+  <li><code>/points</code> shows available/held/reputation and the history. The read models show <code>points_price</code>/<code>held_points</code> only for POINTS and their parties.</li>
+  <li>0109 round-trips and refuses with POINTS data. All tests and the matcher suite pass; mypy/ruff stay at 15/65 and the frontend at the 33 pre-existing failures.</li>
+</ul>
+
+<h2 id="audit">Audit resolution</h2>
+<table>
+  <tr><th>ID</th><th>Resolution</th></tr>
+  <tr><td><span class="sev critical">H1</span></td><td>User decision 2: <code>item-value?item_id</code> (owner-only, 404 before 403, row 69, via the points <code>inventory_acl</code>) gives the stored-value bounds to the edit form and PUT; the preview is for new items and serves as a forecast after a draft change.</td></tr>
+  <tr><td><span class="sev warning">M1</span></td><td>User decision 3: /add keeps <code>createdItemId</code>; a retry repeats only the PUT; leaving keeps the draft.</td></tr>
+  <tr><td><span class="sev warning">M2</span></td><td>MyItemsView <code>isGift</code> → <code>recipientConfirms</code> (GIFT or POINTS).</td></tr>
+  <tr><td><span class="sev warning">M3</span></td><td>One order: accounts → item → preference; <code>update_item</code> and confirm lock the item first; take is the documented exception; <code>update_item</code> and <code>delete_event</code> are wrapped.</td></tr>
+  <tr><td><span class="sev warning">M4</span></td><td>Re-check under the item lock, with a 409 when the answer changed.</td></tr>
+  <tr><td><span class="sev warning">M5</span></td><td>Added the migration head sets, the wants similar <code>META_KEYS</code>, the router <code>MyInventoryItemResponse</code> keys, the PARTY filter in the helpers and the me-API literal.</td></tr>
+  <tr><td><span class="sev warning">M6</span></td><td>User decision 1: <code>require_login_principal</code> on POINTS take and confirm; tested with <code>_oauth_token</code>; recorded in security.md.</td></tr>
+  <tr><td><span class="sev info">L1</span></td><td>Accepted overshoot, recorded (user decision 4).</td></tr>
+  <tr><td><span class="sev info">L2</span></td><td><code>lock_release_accounts</code> pre-locks sorted; <code>delete_event</code> is wrapped.</td></tr>
+  <tr><td><span class="sev info">L3</span></td><td>HomeView, the appHelpers maps, ReservedItemsView, <code>ReservationType</code>, wantText, wantFormViewState and the pendingActions note added.</td></tr>
+  <tr><td><span class="sev info">L4</span></td><td>One <code>aria-pressed</code> group for all modes with one primary action; „Wersja robocza” kept.</td></tr>
+  <tr><td><span class="sev info">L5</span></td><td>Integer-hundredths mirror with half-up integer division.</td></tr>
+  <tr><td><span class="sev info">L6</span></td><td>The number-neutral limit text kept as a recorded exception.</td></tr>
+  <tr><td><span class="sev info">L7</span></td><td>HOLD/RELEASE: buyer / seller; SALE: seller / buyer.</td></tr>
+  <tr><td><span class="sev info">L8</span></td><td><code>(owner, PARTY)</code> mutex; the stage-1 call sites listed; <code>__table_args__</code> mirrored; <code>system_account_id</code>.</td></tr>
+  <tr><td><span class="sev info">L9</span></td><td>The server is authoritative; the edge cases are accepted in Risks.</td></tr>
+  <tr><td><span class="sev info">L10</span></td><td><code>held_points</code> joins the allowlist as party-only; a reserved-POINTS probe case.</td></tr>
+  <tr><td><span class="sev info">L11</span></td><td>Paths fixed; <code>RatioField</code>/<code>parseRatio</code>; <code>MyReservationResponse.held_points</code>.</td></tr>
+</table>
+</main>
+</body>
+</html>

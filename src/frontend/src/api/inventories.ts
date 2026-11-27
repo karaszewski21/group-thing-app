@@ -43,6 +43,8 @@ export interface MyInventoryItemResponse extends InventoryItemResponse {
   listing_mode: ReservationType | null;
   /** The listing's visibility; `null` exactly when `listing_mode` is. */
   listing_visibility: ItemVisibility | null;
+  /** The owner's price; set exactly for a POINTS listing. */
+  points_price: number | null;
   /** True while any photo of the item's product is still in moderation
    * (PENDING or NEEDS_REVIEW). The server then rejects setting a mode
    * with 409, so the panel disables the mode toggles. */
@@ -109,13 +111,14 @@ export interface MyInventoryItemCounts {
   ALL: number;
   GIFT: number;
   SWAP: number;
+  POINTS: number;
 }
 
 export interface MyInventoryItemsPage extends Page<MyInventoryItemResponse> {
   counts: MyInventoryItemCounts;
 }
 
-export type MyItemsModeFilter = "GIFT" | "SWAP";
+export type MyItemsModeFilter = "GIFT" | "SWAP" | "POINTS";
 
 /** One page of "Moje rzeczy", newest first: `mode` keeps one listing mode,
  * `q` matches part of the name. */

@@ -60,6 +60,7 @@ function ProfileItemsList() {
                 condition={item.condition}
                 thumbUrl={item.thumb_url}
                 mode={item.mode}
+                pointsPrice={item.points_price}
                 reservation={item.reservation}
               />
             </li>

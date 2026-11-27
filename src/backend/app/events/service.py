@@ -20,6 +20,7 @@ from app.core.errors import (
     BusinessConflictException,
     EntityNotFoundException,
 )
+from app.db import mapped_transaction_conflicts
 from app.moderation.status import ModerationStatus
 from app.moderation.text_guard import TextField, check_text
 from app.outbox import service as outbox_service
@@ -270,26 +271,31 @@ async def delete_event(db: AsyncSession, principal: Principal, event_id: uuid.UU
     """Only while nobody is signed up (409 otherwise). Before the start the
     event's open reservations and swaps are cancelled with notice; from the
     start on, any open one refuses the delete (409). The cancellations, the
-    banner's outbox file delete and the row delete commit once."""
-    event, _ = await _get_own_event_for_update(db, principal, event_id)
-    if await count_attendees(db, event_id) > 0:
-        raise EventHasAttendees()
-    if clock.local_now() >= event.starts_at:
-        if (await groups_acl.count_open_event_reservations(db, event_id)).total > 0:
-            raise EventHasOpenReservations()
-    else:
-        await groups_acl.cancel_open_event_reservations(db, event_id, event.name, event.starts_at)
-    banner = await get_banner(db, event_id)
-    if banner is not None:
-        await outbox_service.append(
-            db,
-            event_type=OBJECTS_DELETE,
-            payload={"keys": [banner.large_key, banner.thumb_key]},
-        )
-        await db.delete(banner)
-    await db.execute(delete(EventAttendance).where(EventAttendance.event_id == event_id))
-    await db.delete(event)
-    await db.commit()
+    banner's outbox file delete and the row delete commit once. Cancelling
+    a POINTS purchase locks its buyer's point accounts, so a deadlock or
+    serialization failure is the shared 409."""
+    async with mapped_transaction_conflicts(db):
+        event, _ = await _get_own_event_for_update(db, principal, event_id)
+        if await count_attendees(db, event_id) > 0:
+            raise EventHasAttendees()
+        if clock.local_now() >= event.starts_at:
+            if (await groups_acl.count_open_event_reservations(db, event_id)).total > 0:
+                raise EventHasOpenReservations()
+        else:
+            await groups_acl.cancel_open_event_reservations(
+                db, event_id, event.name, event.starts_at
+            )
+        banner = await get_banner(db, event_id)
+        if banner is not None:
+            await outbox_service.append(
+                db,
+                event_type=OBJECTS_DELETE,
+                payload={"keys": [banner.large_key, banner.thumb_key]},
+            )
+            await db.delete(banner)
+        await db.execute(delete(EventAttendance).where(EventAttendance.event_id == event_id))
+        await db.delete(event)
+        await db.commit()
 
 
 async def list_my_events(db: AsyncSession, principal: Principal) -> list[Event]:

@@ -23,6 +23,7 @@ function reservation(overrides: Partial<MyReservationResponse> = {}): MyReservat
     context_name: null,
     occurs_at: null,
     reserved_at: "2026-11-08T10:00:00",
+    held_points: null,
     ...overrides,
   };
 }
@@ -61,6 +62,16 @@ describe("ReservedItemsView", () => {
     expect(sled).toHaveAttribute("href", "/klub/product/item-2");
     expect(sled).toHaveTextContent("Piknik wymiany · sob 14 lis, 11:00");
     expect(sled).toHaveTextContent("Propozycja zamiany czeka na odpowiedź");
+  });
+
+  it("shows a POINTS row with its held points", async () => {
+    vi.mocked(getMyReservations).mockResolvedValue([reservation({ mode: "POINTS", held_points: 40 })]);
+
+    renderView();
+
+    const bike = await screen.findByRole("link", { name: /^Rowerek biegowy/ });
+    expect(bike).toHaveTextContent("Za punkty");
+    expect(bike).toHaveTextContent("40 pkt zablokowane");
   });
 
   it("shows the empty state without reservations", async () => {

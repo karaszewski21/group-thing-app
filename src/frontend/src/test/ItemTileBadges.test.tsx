@@ -14,6 +14,18 @@ describe("ItemTileBadges", () => {
     expect(swap.parentElement).toHaveTextContent(/^Chcę się zamienić Chcę oddać$/);
   });
 
+  it("shows a POINTS pill as its price with the hidden „Za punkty:”, or „Za punkty” without one", () => {
+    const { unmount } = render(<ItemTileBadges modes={["POINTS"]} pointsPrice={40} />);
+    const hidden = screen.getByText("Za punkty:");
+    expect(hidden).toHaveClass("sr-only");
+    expect(hidden.parentElement).toHaveClass("bg-orange", "text-ink", "rounded-full");
+    expect(hidden.parentElement).toHaveTextContent(/^Za punkty: 40 pkt$/);
+    unmount();
+
+    render(<ItemTileBadges modes={["POINTS"]} />);
+    expect(screen.getByText("Za punkty")).toHaveClass("bg-orange", "text-ink");
+  });
+
   it("renders nothing without a mode or a reservation", () => {
     const { container } = render(<ItemTileBadges modes={[]} />);
     expect(container).toBeEmptyDOMElement();

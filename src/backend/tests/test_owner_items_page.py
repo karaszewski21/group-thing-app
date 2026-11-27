@@ -31,6 +31,7 @@ ITEM_KEYS = {
     "product_name",
     "condition",
     "mode",
+    "points_price",
     "thumb_url",
     "added_at",
     "reservation",
@@ -46,7 +47,7 @@ async def _items_page(client: AsyncClient, path: str) -> dict[str, Any]:
     body: dict[str, Any] = response.json()
     assert set(body) == PAGE_KEYS
     assert set(body["owner"]) == OWNER_KEYS
-    assert set(body["counts"]) == {"GIFT", "SWAP"}
+    assert set(body["counts"]) == {"GIFT", "SWAP", "POINTS"}
     for item in body["items"]:
         assert set(item) == ITEM_KEYS
     if body["nearest"] is not None:
@@ -116,7 +117,7 @@ async def test_getOwnerItems_organizationSlug_exactShapeNewestFirstModeFilterAnd
         "slug": slug,
     }
     assert body["nearest"] is None
-    assert body["counts"] == {"GIFT": 3, "SWAP": 1}
+    assert body["counts"] == {"GIFT": 3, "SWAP": 1, "POINTS": 0}
     assert (body["total"], body["page"], body["size"]) == (4, 1, 20)
     assert [i["item_id"] for i in body["items"]] == [
         str(newest),
@@ -135,13 +136,14 @@ async def test_getOwnerItems_organizationSlug_exactShapeNewestFirstModeFilterAnd
         "product_name": "Oi najnowszy",
         "condition": "GOOD",
         "mode": "SWAP",
+        "points_price": None,
         "thumb_url": None,
         "added_at": ADDED.isoformat(),
         "reservation": None,
     }
 
     gifts = await _items_page(client, f"{base}?mode=GIFT")
-    assert gifts["counts"] == {"GIFT": 3, "SWAP": 1}
+    assert gifts["counts"] == {"GIFT": 3, "SWAP": 1, "POINTS": 0}
     assert [i["item_id"] for i in gifts["items"]] == [str(older), str(oldest), str(reserved)]
     assert gifts["total"] == 3
 

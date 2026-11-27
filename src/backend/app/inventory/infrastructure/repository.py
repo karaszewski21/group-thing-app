@@ -484,18 +484,21 @@ async def list_active_reservations_for_item(db: AsyncSession, item_id: uuid.UUID
     return list(result.scalars().all())
 
 
+_HAND_OVER_TYPES = (ReservationType.GIFT, ReservationType.POINTS)
+
+
 async def list_active_hand_over_reservations_for_terms(
     db: AsyncSession, term_ids: list[uuid.UUID]
 ) -> list[Reservation]:
-    """Every `PENDING`/`CONFIRMED` GIFT reservation whose `term_id` is one
-    of `term_ids` — the candidates of the term-end prompt. SWAP (prompted
-    via `SwapProposal`) is excluded. Same query shape as
+    """Every `PENDING`/`CONFIRMED` GIFT or POINTS reservation whose
+    `term_id` is one of `term_ids` — the candidates of the term-end prompt.
+    SWAP (prompted via `SwapProposal`) is excluded. Same query shape as
     `list_active_reservations_for_item`."""
     result = await db.execute(
         select(Reservation)
         .where(
             Reservation.term_id.in_(term_ids),
-            Reservation.reservation_type == ReservationType.GIFT,
+            Reservation.reservation_type.in_(_HAND_OVER_TYPES),
             Reservation.status.in_((ReservationStatus.PENDING, ReservationStatus.CONFIRMED)),
         )
         .order_by(Reservation.id)
@@ -517,7 +520,7 @@ async def list_active_hand_over_reservations_for_events(
         select(Reservation)
         .where(
             Reservation.event_id.in_(event_ids),
-            Reservation.reservation_type == ReservationType.GIFT,
+            Reservation.reservation_type.in_(_HAND_OVER_TYPES),
             Reservation.status.in_((ReservationStatus.PENDING, ReservationStatus.CONFIRMED)),
         )
         .order_by(Reservation.id)

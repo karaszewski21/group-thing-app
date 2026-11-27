@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { reservedCaption } from "../features/wanted/reservedCaption";
 import { makeWantSimilar } from "./fixtures/wants";
 
-const RESERVED = { mode: "GIFT", condition: "GOOD", thumb_url: null, reserved: true, reserved_until: null } as const;
+const RESERVED = { mode: "GIFT", points_price: null, condition: "GOOD", thumb_url: null, reserved: true, reserved_until: null } as const;
 
 describe("reservedCaption", () => {
   it.each([

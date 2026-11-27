@@ -28,6 +28,10 @@ const config: PointsConfig = {
   pair_reward_limit: 3,
   pair_window_days: 30,
   max_points_offers: 5,
+  price_min_ratio: 0.5,
+  price_max_ratio: 1.5,
+  price_cap: 100,
+  price_step: 10,
   updated_at: "2026-11-19T10:00:00",
 };
 

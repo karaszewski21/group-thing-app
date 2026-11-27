@@ -15,7 +15,7 @@ const MORE_BUTTON = `flex min-h-11 w-full items-center justify-center rounded-fu
 export function OwnerItemsList() {
   const { owner, counts, items, filter, setFilter } = useOwnerItemsPage();
   const baseId = useId();
-  const hasItems = counts.GIFT + counts.SWAP > 0;
+  const hasItems = counts.GIFT + counts.SWAP + counts.POINTS > 0;
   const tabId = (id: ExchangeFilter) => `${baseId}-tab-${id}`;
   const panelId = `${baseId}-items`;
   return (
@@ -53,6 +53,7 @@ export function OwnerItemsList() {
                   condition={item.condition}
                   thumbUrl={item.thumb_url}
                   mode={item.mode}
+                  pointsPrice={item.points_price}
                   reservation={item.reservation}
                 />
               </li>

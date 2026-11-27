@@ -8,6 +8,8 @@ import * as peopleApi from "../api/people";
 import * as productsApi from "../api/products";
 import * as categoriesApi from "../api/categories";
 import * as locationsApi from "../api/locations";
+import * as listingApi from "../api/itemListingPreferences";
+import * as pointsApi from "../api/points";
 import { ApiError } from "../api/client";
 import type { Category } from "../api/categories";
 import type { InventoryItemResponse, InventoryResponse, MyInventoryItemResponse } from "../api/inventories";
@@ -43,6 +45,7 @@ const panel = vi.hoisted(() => {
     setters: {
       setItemDraft: (next: unknown) => set("itemDraft", next),
       setItemPhotos: (next: unknown) => set("itemPhotos", next),
+      setItemCreated: (next: unknown) => set("itemCreated", next),
     },
   };
 });
@@ -82,6 +85,14 @@ vi.mock("../api/categories", () => ({
   getCategories: vi.fn(),
 }));
 
+vi.mock("../api/points", () => ({
+  getItemPointsValue: vi.fn(),
+}));
+
+vi.mock("../api/itemListingPreferences", () => ({
+  setItemListingPreference: vi.fn(),
+}));
+
 // Ids are UUID strings at runtime; some API types still declare `number`.
 const ACCOUNT_USER_ID = "0b1c2d3e-4f50-4617-8a29-3b4c5d6e7f80";
 const INVENTORY_ID = "1c2d3e4f-5061-4728-9b3a-4c5d6e7f8091";
@@ -100,6 +111,8 @@ const POZNAN = makeLocationResponse({
 const MISSING_HINT = "Podaj nazwę, wybierz kategorię i lokalizację, aby zapisać.";
 
 const CONFLICT_MESSAGE = "Ustaw lokalizację przedmiotu, aby go wystawić";
+const PHOTO_HINT = "Dodaj przynajmniej jedno zdjęcie, aby wystawić za punkty.";
+const LIMIT_MESSAGE = "Masz już maksymalną liczbę ofert za punkty (5).";
 
 function category(id: string, name: string, parent_id: string | null, sort_order: number): Category {
   return {
@@ -129,6 +142,7 @@ function myItem(id: string, location_id: string | null, created_at: string): MyI
     updated_at: created_at,
     listing_mode: null,
     listing_visibility: null,
+    points_price: null,
     photos_moderation_pending: false,
     location_id,
     points_value: null,
@@ -170,7 +184,11 @@ function categoryTrigger() {
 }
 
 function actionButtons() {
-  return ["Oddam", "Zamienię", "Wersja robocza"].map((name) => screen.getByRole("button", { name }));
+  return ["Wystaw", "Wersja robocza"].map((name) => screen.getByRole("button", { name }));
+}
+
+function modeButton(name: string) {
+  return within(screen.getByRole("group", { name: "Tryb oferty" })).getByRole("button", { name });
 }
 
 /** Picks Dzieci › Wózki through the tree picker sheet. */
@@ -203,6 +221,7 @@ beforeEach(() => {
     refreshItems: vi.fn(async () => {}),
     itemDraft: createEmptyItemQuickAddValue(),
     itemPhotos: [],
+    itemCreated: null,
   });
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([KETY]);
   vi.mocked(categoriesApi.getCategories).mockResolvedValue([
@@ -222,13 +241,19 @@ beforeEach(() => {
   vi.mocked(inventoriesApi.registerInventoryItem).mockResolvedValue({
     id: NEW_ITEM_ID,
   } as unknown as InventoryItemResponse);
+  vi.mocked(pointsApi.getItemPointsValue).mockResolvedValue({
+    points_value: 40,
+    price_min: 20,
+    price_max: 60,
+    price_step: 10,
+  });
   let preview = 0;
   URL.createObjectURL = vi.fn(() => `blob:preview-${(preview += 1)}`);
   URL.revokeObjectURL = vi.fn();
 });
 
 describe("ItemCreateView", () => {
-  it("keeps Oddam, Zamienię and Wersja robocza aria-disabled until a name and a category are set", async () => {
+  it("keeps Wystaw and Wersja robocza aria-disabled until a name and a category are set", async () => {
     renderPage();
 
     expect(screen.getByRole("region", { name: "Dodaj rzecz" })).toBeInTheDocument();
@@ -296,7 +321,7 @@ describe("ItemCreateView", () => {
     }
     expect(placeSelect()).not.toHaveAttribute("aria-invalid");
 
-    fireEvent.click(screen.getByRole("button", { name: "Oddam" }));
+    fireEvent.click(screen.getByRole("button", { name: "Wystaw" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent("Wybierz lokalizację");
     expect(placeSelect()).toHaveAttribute("aria-invalid", "true");
@@ -413,7 +438,7 @@ describe("ItemCreateView", () => {
     await chooseStrollers();
 
     for (const button of actionButtons()) expect(button).toHaveAttribute("aria-disabled", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Oddam" }));
+    fireEvent.click(screen.getByRole("button", { name: "Wystaw" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent("Wybierz lokalizację");
     expect(placeSelect()).toHaveAttribute("aria-invalid", "true");
@@ -454,10 +479,10 @@ describe("ItemCreateView", () => {
   });
 
   it.each([
-    ["Oddam", "GIFT"],
-    ["Zamienię", "SWAP"],
-    ["Wersja robocza", null],
-  ] as const)("%s registers the item at its place with listing_mode %s, then uploads the photos", async (label, mode) => {
+    ["Oddam", "Wystaw", "GIFT"],
+    ["Zamienię", "Wystaw", "SWAP"],
+    ["Zamienię", "Wersja robocza", null],
+  ] as const)("%s + %s registers the item at its place with listing_mode %s, then uploads the photos", async (picked, label, mode) => {
     const photo = new File(["a"], "a.jpg", { type: "image/jpeg" });
     vi.mocked(productsApi.addProductPhoto).mockResolvedValue(
       {} as Awaited<ReturnType<typeof productsApi.addProductPhoto>>,
@@ -465,6 +490,7 @@ describe("ItemCreateView", () => {
     await fillForm("  Rowerek  ");
     fireEvent.change(screen.getByLabelText("Stan"), { target: { value: "LIKE_NEW" } });
     addPhoto(photo);
+    fireEvent.click(modeButton(picked));
 
     fireEvent.click(screen.getByRole("button", { name: label }));
 
@@ -480,6 +506,7 @@ describe("ItemCreateView", () => {
     expect(vi.mocked(productsApi.addProductPhoto).mock.calls).toEqual([[PRODUCT_ID, photo]]);
     const registerOrder = vi.mocked(inventoriesApi.registerInventoryItem).mock.invocationCallOrder[0];
     expect(registerOrder).toBeLessThan(vi.mocked(productsApi.addProductPhoto).mock.invocationCallOrder[0]);
+    expect(listingApi.setItemListingPreference).not.toHaveBeenCalled();
   });
 
   it("skips an empty description", async () => {
@@ -521,7 +548,7 @@ describe("ItemCreateView", () => {
     fireEvent.change(screen.getByLabelText("Stan"), { target: { value: "NEW" } });
     addPhoto(new File(["a"], "a.jpg", { type: "image/jpeg" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Oddam" }));
+    fireEvent.click(screen.getByRole("button", { name: "Wystaw" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(CONFLICT_MESSAGE);
     expect(productsApi.addProductPhoto).not.toHaveBeenCalled();
@@ -548,7 +575,8 @@ describe("ItemCreateView", () => {
     vi.mocked(inventoriesApi.registerInventoryItem).mockRejectedValue(new ApiError(500, "Server Error", null));
     await fillForm();
 
-    fireEvent.click(screen.getByRole("button", { name: "Zamienię" }));
+    fireEvent.click(modeButton("Zamienię"));
+    fireEvent.click(screen.getByRole("button", { name: "Wystaw" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Nie udało się dodać rzeczy. Spróbuj ponownie.");
   });
@@ -576,5 +604,195 @@ describe("ItemCreateView", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("Nieobsługiwany plik — dodaj zdjęcie JPG, PNG lub WebP");
     expect(screen.queryByRole("button", { name: "Usuń zdjęcie 1" })).not.toBeInTheDocument();
+  });
+
+  it("offers one mode group, Oddam / Zamienię / Za punkty with Oddam pressed, and one primary action", async () => {
+    await fillForm();
+
+    const group = screen.getByRole("group", { name: "Tryb oferty" });
+    const modes = within(group).getAllByRole("button");
+    expect(modes.map((button) => button.textContent)).toEqual(["Oddam", "Zamienię", "Za punkty"]);
+    expect(modes.map((button) => button.getAttribute("aria-pressed"))).toEqual(["true", "false", "false"]);
+    for (const button of modes) expect(button).toHaveAttribute("type", "button");
+    // GIFT/SWAP keep the system valuation; no stepper.
+    expect(await screen.findByText("40 pkt")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Cena w punktach")).not.toBeInTheDocument();
+
+    fireEvent.click(modeButton("Zamienię"));
+    expect(modeButton("Zamienię")).toHaveAttribute("aria-pressed", "true");
+    expect(modeButton("Oddam")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Wystaw" })).toBeInTheDocument();
+
+    fireEvent.click(modeButton("Za punkty"));
+    expect(await screen.findByRole("button", { name: "Wystaw za 40 pkt" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Wystaw" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Wersja robocza" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Cena w punktach")).toHaveValue("40");
+    expect(screen.getByText("Dozwolone 20–60 pkt, co 10")).toBeInTheDocument();
+    expect(screen.queryByText("Wycena systemu:")).not.toBeInTheDocument();
+    expect(screen.getByText("Do oferty za punkty potrzebne jest co najmniej jedno Twoje zdjęcie.")).toBeInTheDocument();
+  });
+
+  it("keeps the POINTS action aria-disabled without a photo, with the hint, and sends nothing", async () => {
+    await fillForm();
+    fireEvent.click(modeButton("Za punkty"));
+    const action = await screen.findByRole("button", { name: "Wystaw za 40 pkt" });
+
+    expect(action).toHaveAttribute("aria-disabled", "true");
+    expect(action).toBeEnabled();
+    expect(action).toHaveAccessibleDescription(PHOTO_HINT);
+    fireEvent.click(action);
+    expect(inventoriesApi.registerInventoryItem).not.toHaveBeenCalled();
+    // The draft never needs a photo.
+    expect(screen.getByRole("button", { name: "Wersja robocza" })).not.toHaveAttribute("aria-disabled");
+
+    addPhoto(new File(["a"], "a.jpg", { type: "image/jpeg" }));
+    expect(action).not.toHaveAttribute("aria-disabled");
+    expect(screen.queryByText(PHOTO_HINT)).not.toBeInTheDocument();
+  });
+
+  it("blocks the POINTS action while the typed price is invalid", async () => {
+    await fillForm();
+    addPhoto(new File(["a"], "a.jpg", { type: "image/jpeg" }));
+    fireEvent.click(modeButton("Za punkty"));
+    const price = await screen.findByLabelText("Cena w punktach");
+
+    fireEvent.change(price, { target: { value: "55" } });
+
+    const action = screen.getByRole("button", { name: "Wystaw za punkty" });
+    expect(screen.getByRole("alert")).toHaveTextContent("Cena musi być od 20 do 60 pkt, co 10.");
+    expect(action).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(action);
+    expect(inventoriesApi.registerInventoryItem).not.toHaveBeenCalled();
+  });
+
+  it("lists for POINTS as a draft, then uploads the photos, then PUTs the POINTS preference with the price", async () => {
+    const photo = new File(["a"], "a.jpg", { type: "image/jpeg" });
+    vi.mocked(productsApi.addProductPhoto).mockResolvedValue(
+      {} as Awaited<ReturnType<typeof productsApi.addProductPhoto>>,
+    );
+    vi.mocked(listingApi.setItemListingPreference).mockResolvedValue(null);
+    await fillForm();
+    addPhoto(photo);
+    fireEvent.click(modeButton("Za punkty"));
+    fireEvent.click(await screen.findByRole("button", { name: "Podnieś o 10" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Wystaw za 50 pkt" }));
+
+    expect(await screen.findByText(`ITEM PAGE ${NEW_ITEM_ID}`)).toBeInTheDocument();
+    expect(inventoriesApi.registerInventoryItem).toHaveBeenCalledWith({
+      inventory_id: INVENTORY_ID,
+      product_id: PRODUCT_ID,
+      condition: "GOOD",
+      location_id: KETY.id,
+      listing_mode: null,
+    });
+    expect(vi.mocked(productsApi.addProductPhoto).mock.calls).toEqual([[PRODUCT_ID, photo]]);
+    expect(vi.mocked(listingApi.setItemListingPreference).mock.calls).toEqual([
+      [NEW_ITEM_ID, "POINTS", undefined, 50],
+    ]);
+    const order = [
+      vi.mocked(inventoriesApi.registerInventoryItem).mock.invocationCallOrder[0],
+      vi.mocked(productsApi.addProductPhoto).mock.invocationCallOrder[0],
+      vi.mocked(listingApi.setItemListingPreference).mock.invocationCallOrder[0],
+    ];
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  it("after a failed PUT shows the server text and a retry repeats only the PUT for the same item", async () => {
+    vi.mocked(productsApi.addProductPhoto).mockResolvedValue(
+      {} as Awaited<ReturnType<typeof productsApi.addProductPhoto>>,
+    );
+    vi.mocked(listingApi.setItemListingPreference)
+      .mockRejectedValueOnce(new ApiError(409, "Conflict", { status: 409, error: "Conflict", message: LIMIT_MESSAGE }))
+      .mockResolvedValueOnce(null);
+    await fillForm();
+    addPhoto(new File(["a"], "a.jpg", { type: "image/jpeg" }));
+    fireEvent.click(modeButton("Za punkty"));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Wystaw za 40 pkt" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(LIMIT_MESSAGE);
+    expect(screen.queryByText(`ITEM PAGE ${NEW_ITEM_ID}`)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Wystaw za 40 pkt" }));
+
+    expect(await screen.findByText(`ITEM PAGE ${NEW_ITEM_ID}`)).toBeInTheDocument();
+    expect(inventoriesApi.registerInventoryItem).toHaveBeenCalledTimes(1);
+    expect(productsApi.resolveProduct).toHaveBeenCalledTimes(1);
+    expect(productsApi.addProductPhoto).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(listingApi.setItemListingPreference).mock.calls).toEqual([
+      [NEW_ITEM_ID, "POINTS", undefined, 40],
+      [NEW_ITEM_ID, "POINTS", undefined, 40],
+    ]);
+  });
+  it("after a failed PUT locks the place picker, and a remount retries only the PUT, then clears the kept item", async () => {
+    vi.mocked(productsApi.addProductPhoto).mockResolvedValue(
+      {} as Awaited<ReturnType<typeof productsApi.addProductPhoto>>,
+    );
+    vi.mocked(listingApi.setItemListingPreference)
+      .mockRejectedValueOnce(new ApiError(409, "Conflict", { status: 409, error: "Conflict", message: LIMIT_MESSAGE }))
+      .mockResolvedValueOnce(null);
+    const view = await fillForm();
+    addPhoto(new File(["a"], "a.jpg", { type: "image/jpeg" }));
+    fireEvent.click(modeButton("Za punkty"));
+    fireEvent.click(await screen.findByRole("button", { name: "Wystaw za 40 pkt" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(LIMIT_MESSAGE);
+
+    expect(placeSelect()).toBeDisabled();
+    expect(screen.queryByRole("link", { name: "Dodaj nowe miejsce" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dodaj nowe miejsce" })).toBeDisabled();
+
+    // As after a trip to /places/new and back: the view remounts on the kept draft.
+    view.unmount();
+    renderPage();
+    fireEvent.click(modeButton("Za punkty"));
+    fireEvent.click(await screen.findByRole("button", { name: "Wystaw za 40 pkt" }));
+
+    expect(await screen.findByText(`ITEM PAGE ${NEW_ITEM_ID}`)).toBeInTheDocument();
+    expect(inventoriesApi.registerInventoryItem).toHaveBeenCalledTimes(1);
+    expect(productsApi.addProductPhoto).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(listingApi.setItemListingPreference).mock.calls).toEqual([
+      [NEW_ITEM_ID, "POINTS", undefined, 40],
+      [NEW_ITEM_ID, "POINTS", undefined, 40],
+    ]);
+    expect(panel.get().itemCreated).toBeNull();
+  });
+
+  it("unlocks the form when the retried PUT finds the kept item deleted (404)", async () => {
+    vi.mocked(productsApi.addProductPhoto).mockResolvedValue(
+      {} as Awaited<ReturnType<typeof productsApi.addProductPhoto>>,
+    );
+    vi.mocked(listingApi.setItemListingPreference)
+      .mockRejectedValueOnce(new ApiError(409, "Conflict", { status: 409, error: "Conflict", message: LIMIT_MESSAGE }))
+      .mockRejectedValueOnce(new ApiError(404, "Not Found", { status: 404, error: "Not Found", message: "Not found" }));
+    await fillForm();
+    addPhoto(new File(["a"], "a.jpg", { type: "image/jpeg" }));
+    fireEvent.click(modeButton("Za punkty"));
+    fireEvent.click(await screen.findByRole("button", { name: "Wystaw za 40 pkt" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(LIMIT_MESSAGE);
+    expect(placeSelect()).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Wystaw za 40 pkt" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Ta rzecz została w międzyczasie usunięta");
+    expect(panel.get().itemCreated).toBeNull();
+    await waitFor(() => expect(placeSelect()).not.toBeDisabled());
+  });
+
+  it("defaults the POINTS price to the suggestion fitted into a non-default config, with no error", async () => {
+    vi.mocked(pointsApi.getItemPointsValue).mockResolvedValue({
+      points_value: 40,
+      price_min: 25,
+      price_max: 50,
+      price_step: 25,
+    });
+    await fillForm();
+    addPhoto(new File(["a"], "a.jpg", { type: "image/jpeg" }));
+    fireEvent.click(modeButton("Za punkty"));
+
+    expect(await screen.findByLabelText("Cena w punktach")).toHaveValue("50");
+    expect(screen.getByRole("button", { name: "Wystaw za 50 pkt" })).not.toHaveAttribute("aria-disabled");
+    expect(screen.queryByText("Cena musi być od 25 do 50 pkt, co 25.")).not.toBeInTheDocument();
   });
 });

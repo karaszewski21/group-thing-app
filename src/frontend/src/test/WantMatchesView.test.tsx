@@ -164,7 +164,7 @@ describe("WantMatchesView", () => {
       makeWantMatch({
         id: "item-2",
         title: "Moja rezerwacja",
-        meta: { mode: "GIFT", condition: "GOOD", thumb_url: null, reserved: true, reserved_until: null },
+        meta: { mode: "GIFT", points_price: null, condition: "GOOD", thumb_url: null, reserved: true, reserved_until: null },
         reserved_by_me: true,
         proposed_by_me: true,
       }),
@@ -172,7 +172,7 @@ describe("WantMatchesView", () => {
       makeWantMatch({
         id: "item-4",
         title: "Cudza rezerwacja",
-        meta: { mode: "SWAP", condition: "GOOD", thumb_url: null, reserved: true, reserved_until: null },
+        meta: { mode: "SWAP", points_price: null, condition: "GOOD", thumb_url: null, reserved: true, reserved_until: null },
       }),
     ]);
     vi.mocked(wantsApi.markWantMatchOpened).mockRejectedValue(apiError(404, "Nie ma takiej pary."));
@@ -329,6 +329,7 @@ describe("WantMatchesView", () => {
         href: "/fundacja-sanki/product/item-1",
         meta: {
           mode: "GIFT",
+          points_price: null,
           condition: "GOOD",
           thumb_url: "https://cdn.test/sanki/w400.webp",
           reserved: false,
@@ -566,7 +567,7 @@ describe("WantMatchesView", () => {
       makeWantSimilar({
         id: "item-13",
         title: "Autko na pedały",
-        meta: { mode: "SWAP", condition: "GOOD", thumb_url: null, reserved: true, reserved_until: null },
+        meta: { mode: "SWAP", points_price: null, condition: "GOOD", thumb_url: null, reserved: true, reserved_until: null },
       }),
     ]);
     renderView();

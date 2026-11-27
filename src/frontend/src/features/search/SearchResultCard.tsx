@@ -28,6 +28,7 @@ export function SearchResultCard({ result }: { result: SearchResult }) {
           condition={result.meta.condition}
           thumbUrl={result.meta.thumb_url}
           mode={result.meta.mode}
+          pointsPrice={result.meta.points_price}
           reservation={null}
           reservedCaption={reservedCaption(result.meta)}
         />

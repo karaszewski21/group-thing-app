@@ -36,6 +36,8 @@ export interface EventParticipantItem {
   item_id: string;
   product_name: string;
   mode: ListingMode;
+  /** The owner's price; set exactly for a POINTS listing. */
+  points_price: number | null;
   thumb_url: string | null;
   /** When it was listed: naive UTC ISO, no offset (parse with `dayjs.utc`). */
   added_at: string;

@@ -19,7 +19,7 @@ const ITEM: SearchResult = {
   title: "Rowerek",
   subtitle: null,
   href: "/ania/product/it-1",
-  meta: { mode: "GIFT", condition: "GOOD", thumb_url: null, reserved: false, reserved_until: null },
+  meta: { mode: "GIFT", points_price: null, condition: "GOOD", thumb_url: null, reserved: false, reserved_until: null },
 };
 
 describe("resolveHomeFeedView", () => {

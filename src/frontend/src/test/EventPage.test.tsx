@@ -36,7 +36,7 @@ const AUTHOR: EventParticipant = {
   display_name: "Fundacja Zielony Krąg",
   is_author: true,
   is_me: false,
-  items: [{ item_id: "it-1", product_name: "Pluszowy miś", mode: "GIFT", thumb_url: null, added_at: "2026-10-30T09:00:00", reservation: null }],
+  items: [{ item_id: "it-1", product_name: "Pluszowy miś", mode: "GIFT", points_price: null, thumb_url: null, added_at: "2026-10-30T09:00:00", reservation: null }],
   items_total: 1,
 };
 const ME: EventParticipant = {
@@ -194,9 +194,9 @@ describe("EventPage", () => {
       is_author: false,
       is_me: false,
       items: [
-        { item_id: "it-7", product_name: "Kurtka", mode: "GIFT", thumb_url: null, added_at: "2026-10-30T09:00:00", reservation: null },
-        { item_id: "it-6", product_name: "Rowerek", mode: "SWAP", thumb_url: null, added_at: "2026-10-28T09:00:00", reservation: null },
-        { item_id: "it-5", product_name: "Carcassonne", mode: "GIFT", thumb_url: null, added_at: "2026-10-24T09:00:00", reservation: null },
+        { item_id: "it-7", product_name: "Kurtka", mode: "GIFT", points_price: null, thumb_url: null, added_at: "2026-10-30T09:00:00", reservation: null },
+        { item_id: "it-6", product_name: "Rowerek", mode: "SWAP", points_price: null, thumb_url: null, added_at: "2026-10-28T09:00:00", reservation: null },
+        { item_id: "it-5", product_name: "Carcassonne", mode: "GIFT", points_price: null, thumb_url: null, added_at: "2026-10-24T09:00:00", reservation: null },
       ],
       items_total: 12,
     };

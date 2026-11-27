@@ -116,6 +116,7 @@ const ITEM: ItemDetailsResponse = {
 
 const ITEM_ACTIONS: ItemActionsResponse = {
   mode: "GIFT",
+  points_price: null,
   visibility: "PUBLIC",
   available: true,
   reservation: null,
@@ -142,7 +143,7 @@ const PARTY_PROFILE: PartyProfileResponse = {
   cover: { url: "https://cdn.test/c.webp", thumb_url: "https://cdn.test/c-t.webp" },
   gallery: [{ url: "https://cdn.test/g.webp", thumb_url: "https://cdn.test/g-t.webp" }],
   nearest: null,
-  counts: { GIFT: 1, SWAP: 0 },
+  counts: { GIFT: 1, SWAP: 0, POINTS: 0 },
   recent_items: [],
   is_me: true,
 };
@@ -369,6 +370,68 @@ describe("SSR safety", () => {
 
     expect(html).toContain("Lokalizacja przedmiotu");
     expect(html).toContain(ITEM_ADDRESS);
+  });
+
+  it("renders a POINTS item page for a logged-in buyer without touching browser globals", async () => {
+    const client = createTestQueryClient();
+    client.setQueryData([ITEM_DETAILS_KEY, ITEM_ID], { ...ITEM, is_owner: false });
+    client.setQueryData([ITEM_ACTIONS_KEY, ITEM_ID, "ania@example.com"], {
+      ...ITEM_ACTIONS,
+      mode: "POINTS",
+      points_price: 60,
+      visibility: null,
+      viewer: "OTHER",
+    } satisfies ItemActionsResponse);
+
+    const html = renderOnServer(
+      `/party-1/product/${ITEM_ID}`,
+      "/:slug/product/:id",
+      <PublicLayout>{await itemRouteElement(`/party-1/product/${ITEM_ID}`)}</PublicLayout>,
+      client,
+      SESSION,
+    );
+
+    expect(html).toContain("Cena");
+    expect(html).toContain("Biorę za 60 pkt");
+    expect(html).toContain("Spalimy je dopiero, gdy potwierdzisz odbiór.");
+
+    const seller = createTestQueryClient();
+    seller.setQueryData([ITEM_DETAILS_KEY, ITEM_ID], {
+      ...ITEM,
+      status: { ...ITEM.status, code: "RESERVED", counterparty_label: "Ania", personal_pickup: true },
+    } satisfies ItemDetailsResponse);
+    seller.setQueryData([ITEM_ACTIONS_KEY, ITEM_ID, "ania@example.com"], {
+      ...ITEM_ACTIONS,
+      mode: "POINTS",
+      points_price: 60,
+      available: false,
+      party_reservation: {
+        role: "GIVER",
+        reservation_id: "r-1",
+        proposal_id: null,
+        reservation_type: "POINTS",
+        personal_pickup: true,
+        can_confirm: false,
+        can_cancel: true,
+        can_accept: false,
+        can_reject: false,
+        held_points: 50,
+      },
+    } satisfies ItemActionsResponse);
+
+    const sellerHtml = renderOnServer(
+      `/party-1/product/${ITEM_ID}`,
+      "/:slug/product/:id",
+      <PublicLayout>{await itemRouteElement(`/party-1/product/${ITEM_ID}`)}</PublicLayout>,
+      seller,
+      SESSION,
+    );
+
+    expect(sellerHtml).toContain("Zarezerwowane przez Ania");
+    expect(sellerHtml).toContain("50 pkt zablokowane");
+    expect(sellerHtml).toContain("Potwierdza tylko kupujący. Możesz anulować — punkty wrócą do Ania.");
+    expect(sellerHtml).toContain("Anuluj rezerwację");
+    expect(sellerHtml).not.toContain("Potwierdź odbiór");
   });
 
   it("renders the item page shell while its data is loading", async () => {

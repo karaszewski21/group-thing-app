@@ -45,6 +45,8 @@ export interface ItemPartyReservationResponse {
   can_cancel: boolean;
   can_accept: boolean;
   can_reject: boolean;
+  /** The points held for a POINTS reservation; `null` otherwise. */
+  held_points: number | null;
 }
 
 /** Who is looking, decided server-side. */
@@ -54,6 +56,8 @@ export type ItemActionsViewer = "ANONYMOUS" | "OWN" | "OTHER";
 export interface ItemActionsResponse {
   /** `null` without a listing preference. */
   mode: ExchangeMode | null;
+  /** The owner's price; set exactly for a POINTS listing. */
+  points_price: number | null;
   /** Set only for the owner (`viewer === "OWN"`) of a listed item. */
   visibility: ItemVisibility | null;
   /** ACTIVE, AVAILABLE and without a pending swap proposal. */

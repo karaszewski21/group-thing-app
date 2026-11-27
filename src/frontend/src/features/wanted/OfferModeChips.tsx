@@ -5,6 +5,7 @@ const OPTIONS: readonly { value: ExchangeMode | null; label: string }[] = [
   { value: null, label: "Obojętnie" },
   { value: "GIFT", label: "Oddam" },
   { value: "SWAP", label: "Zamiana" },
+  { value: "POINTS", label: "Za punkty" },
 ];
 
 /** How the searcher wants to get the item; exactly one chip is pressed,

@@ -61,9 +61,10 @@ class AccountType(enum.StrEnum):
 
 
 class MovementType(enum.StrEnum):
-    """GIFT/SWAP share their values with `ReservationType`, so a fulfilled
-    reservation maps to `MovementType(reservation_type.value)`. LEND/RETURN
-    are no longer posted but stay loadable for existing item history."""
+    """GIFT/SWAP/POINTS share their values with `ReservationType`, so a
+    fulfilled reservation maps to `MovementType(reservation_type.value)`.
+    LEND/RETURN are no longer posted but stay loadable for existing item
+    history."""
 
     REGISTER = "REGISTER"
     REMOVE = "REMOVE"
@@ -71,6 +72,7 @@ class MovementType(enum.StrEnum):
     LEND = "LEND"
     RETURN = "RETURN"
     SWAP = "SWAP"
+    POINTS = "POINTS"
 
 
 class InventoryType(enum.StrEnum):
@@ -97,13 +99,14 @@ class BalanceStatus(enum.StrEnum):
 
 
 class ReservationType(enum.StrEnum):
-    """Only `SWAP`/`GIFT` reservations are created; `LEND`/`RETURN` stay
-    loadable for existing rows."""
+    """Only `SWAP`/`GIFT`/`POINTS` reservations are created; `LEND`/`RETURN`
+    stay loadable for existing rows."""
 
     LEND = "LEND"
     RETURN = "RETURN"
     SWAP = "SWAP"
     GIFT = "GIFT"
+    POINTS = "POINTS"
 
 
 class ItemListingStatus(enum.StrEnum):

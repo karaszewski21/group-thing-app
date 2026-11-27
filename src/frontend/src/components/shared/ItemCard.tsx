@@ -3,14 +3,19 @@ import { Link } from "../../routing/navigation";
 import type { ExchangeMode, ReservedByResponse } from "../../api/groups";
 import type { ItemCondition } from "../../api/inventories";
 import { PhotoPlaceholder } from "./Icons";
-import { ItemTileBadges } from "./ItemTileBadges";
+import { ItemTileBadges, PointsPriceLabel } from "./ItemTileBadges";
 import { CONDITION_LABELS } from "../../utils/productCategory";
 import { SafeImage } from "../../features/product/ItemGallery";
 
-const PLACEHOLDER_TONE: Record<ExchangeMode, string> = { GIFT: "bg-primary-soft", SWAP: "bg-accent-soft" };
+const PLACEHOLDER_TONE: Record<ExchangeMode, string> = {
+  GIFT: "bg-primary-soft",
+  SWAP: "bg-accent-soft",
+  POINTS: "bg-orange/15",
+};
 const OFFER_BADGE: Record<ExchangeMode, { label: string; tone: string }> = {
   GIFT: { label: "Oddam", tone: "bg-primary text-on-primary" },
   SWAP: { label: "Zamienię", tone: "bg-accent text-ink" },
+  POINTS: { label: "Za punkty", tone: "bg-orange text-ink" },
 };
 const CORNER_BADGE =
   "absolute top-1.5 rounded-full px-2 py-0.5 text-[10.5px] font-extrabold shadow-[0_2px_8px_-2px_rgba(19,38,29,0.35)] md:top-2 md:px-2.5 md:py-1 md:text-xs";
@@ -22,6 +27,8 @@ interface ItemCardProps {
   condition: string;
   thumbUrl: string | null;
   mode: ExchangeMode;
+  /** A POINTS listing's price, shown on the badge; without it the badge reads „Za punkty”. */
+  pointsPrice?: number | null;
   /** `null` while available; a reserved tile keeps its link and offer badge. */
   reservation: ReservedByResponse | null;
   /** Marks the tile reserved with this text instead of the reserver's. */
@@ -38,7 +45,7 @@ interface ItemCardProps {
 
 /** The app's one item tile (search, home, owner and organization pages,
  * wants): the photo (or a placeholder in the offer's tone) with the Oddam /
- * Zamienię badge in its corner, the name and the condition; while reserved
+ * Zamienię / „N pkt” badge in its corner (never the system's suggestion), the name and the condition; while reserved
  * the photo is dimmed and a reservation pill follows. The whole tile opens
  * the item page. Shows nothing about who listed it. */
 export function ItemCard({
@@ -47,6 +54,7 @@ export function ItemCard({
   condition,
   thumbUrl,
   mode,
+  pointsPrice = null,
   reservation,
   reservedCaption,
   marker,
@@ -71,7 +79,9 @@ export function ItemCard({
             <PhotoPlaceholder size={32} />
           </span>
         )}
-        <span className={`${CORNER_BADGE} left-1.5 md:left-2 ${offer.tone}`}>{offer.label}</span>
+        <span className={`${CORNER_BADGE} left-1.5 md:left-2 ${offer.tone}`}>
+          {mode === "POINTS" && pointsPrice !== null ? <PointsPriceLabel price={pointsPrice} /> : offer.label}
+        </span>
         {marker && <span className={`${CORNER_BADGE} right-1.5 bg-paper text-ink md:right-2`}>{marker}</span>}
       </div>
       <Link

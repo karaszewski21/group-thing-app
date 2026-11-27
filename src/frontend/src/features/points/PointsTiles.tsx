@@ -7,12 +7,26 @@ function Tile({ value, label }: { value: number | undefined; label: string }) {
   );
 }
 
-/** The owner's balance and reputation side by side; „–” while unknown. */
-export function PointsTiles({ balance, reputation }: { balance: number | undefined; reputation: number | undefined }) {
+type PointsTilesProps =
+  | { balance: number | undefined; reputation: number | undefined; withHeld?: false }
+  | { balance: number | undefined; reputation: number | undefined; withHeld: true; held: number | undefined };
+
+/** The owner's balance and reputation side by side; „–” while unknown.
+ * `withHeld` (the /points page) adds the held points between them. */
+export function PointsTiles(props: PointsTilesProps) {
+  if (props.withHeld) {
+    return (
+      <div className="flex gap-2.5">
+        <Tile value={props.balance} label="dostępne" />
+        <Tile value={props.held} label="zablokowane" />
+        <Tile value={props.reputation} label="reputacja" />
+      </div>
+    );
+  }
   return (
     <div className="flex gap-2.5">
-      <Tile value={balance} label="punktów" />
-      <Tile value={reputation} label="reputacji" />
+      <Tile value={props.balance} label="punktów" />
+      <Tile value={props.reputation} label="reputacji" />
     </div>
   );
 }

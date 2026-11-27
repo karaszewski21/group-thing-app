@@ -1,7 +1,7 @@
 """The owner's listed items: the select of listed items (a listing
 preference on a live AVAILABLE, RESERVED or IN_TRANSIT item, with its pending
 proposer), the per-mode counts, which include reserved items so GIFT + SWAP
-is every listed item, and the owner's name. Used by the item page and,
++ POINTS is every listed item, and the owner's name. Used by the item page and,
 through `groups.service`, by `app.pages`."""
 
 from __future__ import annotations
@@ -24,12 +24,14 @@ def listed_items() -> Select[Any]:
 
 async def owner_item_counts(db: AsyncSession, party_id: uuid.UUID) -> OwnerItemCountsResponse:
     counts = await repository.count_owner_listed_items_by_mode(db, party_id, listed_items())
-    return OwnerItemCountsResponse(GIFT=counts.get("GIFT", 0), SWAP=counts.get("SWAP", 0))
+    return OwnerItemCountsResponse(
+        GIFT=counts.get("GIFT", 0), SWAP=counts.get("SWAP", 0), POINTS=counts.get("POINTS", 0)
+    )
 
 
 async def count_owner_items(db: AsyncSession, party_id: uuid.UUID) -> int:
     counts = await owner_item_counts(db, party_id)
-    return counts.GIFT + counts.SWAP
+    return counts.GIFT + counts.SWAP + counts.POINTS
 
 
 async def owner_summary(db: AsyncSession, profile: UserProfile) -> OwnerSummaryResponse:

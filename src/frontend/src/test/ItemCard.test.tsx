@@ -34,4 +34,28 @@ describe("ItemCard", () => {
     expect(screen.queryByText("nowe")).not.toBeInTheDocument();
     expect(screen.getByRole("article")).toHaveTextContent("Oddam");
   });
+
+  it("shows a POINTS item's price on the orange badge, read as „Za punkty: N pkt”", () => {
+    renderWithRoute(
+      <ItemCard href="/ania/product/8" name="Rower 16″" condition="GOOD" thumbUrl={null} mode="POINTS" pointsPrice={60} reservation={null} />,
+      { url: "/search" },
+    );
+
+    const hidden = screen.getByText("Za punkty:");
+    expect(hidden).toHaveClass("sr-only");
+    const badge = hidden.parentElement as HTMLElement;
+    expect(badge).toHaveClass("bg-orange", "text-ink");
+    expect(badge).toHaveTextContent(/^Za punkty: 60 pkt$/);
+  });
+
+  it("falls back to „Za punkty” on a POINTS item without a price", () => {
+    renderWithRoute(
+      <ItemCard href="/ania/product/8" name="Rower 16″" condition="GOOD" thumbUrl={null} mode="POINTS" reservation={null} />,
+      { url: "/search" },
+    );
+
+    const badge = screen.getByText("Za punkty");
+    expect(badge).toHaveClass("bg-orange", "text-ink");
+    expect(screen.queryByText(/pkt/)).not.toBeInTheDocument();
+  });
 });

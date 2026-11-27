@@ -1,6 +1,6 @@
 """Read-only ACL over `app.users`, `app.auth` and `app.party`: which login
 users are persons who may earn points, the caller's own party, and the names
-shown in the points history."""
+shown in the points history, and the caller's user id for owner checks."""
 
 from __future__ import annotations
 
@@ -46,6 +46,12 @@ async def caller_party_id(db: AsyncSession, principal: Principal) -> uuid.UUID |
             .join(Party, Party.id == UserProfile.party_id)
             .where(User.username == principal.username, Party.party_type == PartyType.PERSON)
         )
+    ).scalar_one_or_none()
+
+
+async def caller_user_id(db: AsyncSession, principal: Principal) -> uuid.UUID | None:
+    return (
+        await db.execute(select(User.id).where(User.username == principal.username))
     ).scalar_one_or_none()
 
 

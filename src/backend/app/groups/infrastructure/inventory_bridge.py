@@ -58,6 +58,7 @@ __all__ = [
     "get_item_for_update",
     "get_item_live_location_id",
     "get_reservation",
+    "lock_reservations",
     "list_active_hand_over_reservations_for_events",
     "list_active_hand_over_reservations_for_terms",
     "list_active_reservations_for_taker",
@@ -168,6 +169,14 @@ async def fulfill_exchange(
     session, including the caller's flushed changes — see
     `app.inventory.service.fulfill_exchange`."""
     return await inventory_service.fulfill_exchange(db, reservation_ids, acting_user_id)
+
+
+async def lock_reservations(
+    db: AsyncSession, reservation_ids: Collection[uuid.UUID]
+) -> list[Reservation]:
+    """`confirm_transaction`'s first lock, before the point accounts — see
+    `app.inventory.service.lock_reservations`."""
+    return await inventory_service.lock_reservations(db, reservation_ids)
 
 
 async def cancel_exchange(

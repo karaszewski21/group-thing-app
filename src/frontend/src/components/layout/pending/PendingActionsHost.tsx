@@ -5,6 +5,7 @@ import { getMyProfile } from "../../../api/people";
 import { ALREADY_RESOLVED_MESSAGE, confirmTransaction, isAlreadyResolved } from "../../../api/reservations";
 import { useAuth } from "../../../auth/AuthContext";
 import { NOTIFICATIONS_KEY, useNotifications } from "../../../hooks/useNotifications";
+import { POINTS_KEY } from "../../../hooks/usePointsConfig";
 import { ToastPill } from "../../shared/ToastPill";
 import { useToast } from "../../shared/useToast";
 import dayjs from "../../../utils/dayjs";
@@ -107,8 +108,12 @@ export function PendingActionsHost() {
       }
       await confirmTransaction(reservationId);
       // Invalidate before marking read, so the refetch cannot bring the
-      // prompt back before the server has stored the read.
-      await queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY });
+      // prompt back before the server has stored the read. A POINTS confirm
+      // also moves the caller's held points.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
+        queryClient.invalidateQueries({ queryKey: [POINTS_KEY] }),
+      ]);
       dismissPendingAction(action);
       showToast("Potwierdzono");
       emitPendingActionResolved();

@@ -373,13 +373,13 @@ async def test_counts_organizationLayoutAvailableOnly_ownerIncludesReservedEqual
     actions = (await client.get(f"/api/public/items/{swap_id}/actions")).json()
 
     assert exchange["stats"]["item_count"] == 2
-    assert schedule["item_stats"] == {"GIFT": 1, "SWAP": 1}
+    assert schedule["item_stats"] == {"GIFT": 1, "SWAP": 1, "POINTS": 0}
     assert {uuid.UUID(item["item_id"]) for item in exchange["items"]} == {
         world["free_id"],
         world["taken_id"],
         swap_id,
     }
-    assert owner_items["counts"] == {"GIFT": 2, "SWAP": 1}
+    assert owner_items["counts"] == {"GIFT": 2, "SWAP": 1, "POINTS": 0}
     assert (owner_items["total"], len(owner_items["items"])) == (3, 3)
     assert (gifts["total"], len(gifts["items"])) == (2, 2)
     assert actions["owner"]["items_total"] == 3

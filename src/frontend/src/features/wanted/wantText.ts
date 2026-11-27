@@ -2,7 +2,7 @@ import type { WantResponse } from "../../api/wants";
 import dayjs from "../../utils/dayjs";
 import { pluralPl } from "../../utils/plural";
 
-const OFFER_MODE_LABEL = { GIFT: "Oddam", SWAP: "Zamiana" } as const;
+const OFFER_MODE_LABEL = { GIFT: "Oddam", SWAP: "Zamiana", POINTS: "Za punkty" } as const;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** A closed want stays on the list this long before the server removes it. */
 const REMOVAL_DAYS = 30;

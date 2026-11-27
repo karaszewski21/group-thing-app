@@ -10,6 +10,7 @@ import { ITEM_ACTIONS_KEY } from "../hooks/useItemActions";
 import { ITEM_DETAILS_KEY } from "../hooks/useItemDetail";
 import { ORGANIZATION_LAYOUT_KEY } from "../hooks/useOrganizationLayout";
 import { OWNER_ITEMS_KEY } from "../hooks/useOwnerItems";
+import { POINTS_KEY } from "../hooks/usePointsConfig";
 import { useReservationSettlement } from "../hooks/useReservationSettlement";
 import { GROUP_ACCESS_KEY } from "../hooks/useTermAccess";
 import { createQueryWrapper, createTestQueryClient } from "./queryClient";
@@ -95,6 +96,32 @@ describe("useReservationSettlement", () => {
     expect(Math.max(...invalidate.mock.invocationCallOrder)).toBeLessThan(refetch.mock.invocationCallOrder[0]);
     expect(result.current.error).toBeNull();
     expect(result.current.busy).toBe(false);
+  });
+
+  it.each(["confirm", "cancel"] as const)("%s also invalidates the caller's points before refetching", async (action) => {
+    const settled = { reservation_id: "r1", status: "CONFIRMED", already_resolved: false } as const;
+    vi.mocked(reservationsApi.confirmTransaction).mockResolvedValue(settled);
+    vi.mocked(reservationsApi.cancelTransaction).mockResolvedValue({ ...settled, status: "CANCELLED" });
+    const client = createTestQueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const { result, refetch } = renderSettlement(client);
+
+    await act(() => result.current[action]("r1"));
+
+    const pointsCall = invalidate.mock.calls.findIndex(([filters]) => filters?.queryKey?.[0] === POINTS_KEY);
+    expect(pointsCall).toBeGreaterThanOrEqual(0);
+    expect(invalidate.mock.invocationCallOrder[pointsCall]).toBeLessThan(refetch.mock.invocationCallOrder[0]);
+  });
+
+  it("an accept does not touch the caller's points", async () => {
+    vi.mocked(termItemListingsApi.acceptSwapProposal).mockResolvedValue(accepted());
+    const client = createTestQueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const { result } = renderSettlement(client);
+
+    await act(() => result.current.accept("s1"));
+
+    expect(invalidate.mock.calls.map(([filters]) => filters?.queryKey)).not.toContainEqual([POINTS_KEY]);
   });
 
   it("an already-resolved 409 shows its own message and still refetches", async () => {

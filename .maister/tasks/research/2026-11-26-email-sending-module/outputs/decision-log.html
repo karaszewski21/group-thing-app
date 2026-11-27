@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Log — moduł wysyłki e-maili</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+/* extensions */
+.tldr { border-left:4px solid var(--accent); }
+.adr h2 { margin-top:0; }
+.adr .st { display:inline-block; font-size:11px; font-weight:700; text-transform:uppercase; padding:2px 8px;
+  border-radius:99px; background:var(--ok-soft); color:var(--ok); margin-left:6px; vertical-align:middle; }
+.adr .st.amend { background:var(--warn-soft); color:var(--warn); }
+.adr h3 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); margin:14px 0 4px; }
+.outcome { background:var(--accent-soft); border-radius:8px; padding:10px 12px; }
+.cons { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:10px; }
+.good { border-left:3px solid var(--ok); padding-left:10px; }
+.bad { border-left:3px solid var(--warn); padding-left:10px; }
+.small { font-size:12.5px; }
+.toc { font-size:13px; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="research-report.html">Report</a>
+  <a href="solution-exploration.html">Exploration</a>
+  <a href="high-level-design.html">Design</a>
+  <span class="here">Decision Log</span>
+  <a href="decision-log.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+
+<header>
+  <span class="badge">decision log</span>
+  <h1>Decision Log — moduł wysyłki e-maili <code>app/email</code></h1>
+  <div class="small" style="color:var(--dim)">Wygenerowano 2026-11-26 · bliźniak: <a href="decision-log.md" target="_blank" rel="noopener">decision-log.md</a> · format MADR</div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><b>10</b><span>ADR</span></div>
+  <div class="tile"><b>10</b><span>Accepted</span></div>
+  <div class="tile"><b>0</b><span>Superseded</span></div>
+  <div class="tile"><b>1</b><span>amendment (handover ADR-009)</span></div>
+  <div class="tile"><b>1</b><span>odejście od rekomendacji</span></div>
+</div>
+
+<section class="card tldr">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <ul>
+    <li>10 decyzji, wszystkie w statusie <b>Accepted</b>. Najważniejsze dla architektury: punkt wpięcia w <code>notifications.service</code> z kolejką <code>email_messages</code> w transakcji domeny (<a href="#adr-003">ADR-003</a>) i job z późnym wiązaniem (<a href="#adr-004">ADR-004</a>).</li>
+    <li>Wobec bazowej decyzji z researchu handover (2026-10-13, dalej <b>„handover ADR-009”</b>): kierunek <b>potwierdzony</b>, punkt wpięcia, forma dedupe i model zgody <b>zastąpione</b>, uwaga o pollerze moderacji <b>nieaktualna</b> (<a href="#adr-001">ADR-001</a>).</li>
+    <li>Jedno odejście od rekomendacji eksploracji: pełny webhook 8A zamiast 8B (<a href="#adr-010">ADR-010</a>), z wyboru użytkownika.</li>
+    <li>Najsłabsze ogniwa: domyślne włączenie kategorii (prawo, <a href="#adr-005">ADR-005</a>) i okno duplikatu na Mailgun (<a href="#adr-002">ADR-002</a>/<a href="#adr-004">004</a>).</li>
+  </ul>
+  <h2>Key Decisions</h2>
+  <ul class="small">
+    <li><a href="#adr-001">ADR-001</a> Relacja do handover ADR-009 — część potwierdzona, część zastąpiona. Nowy log to aktualne źródło prawdy dla e-maili.</li>
+    <li><a href="#adr-002">ADR-002</a> Mailgun EU przez <code>httpx</code> za portem <code>EmailSender</code> — rezydencja w UE, brak SDK, wymiana dostawcy to jeden adapter.</li>
+    <li><a href="#adr-003">ADR-003</a> Hook w <code>notifications.service</code> + <code>email_messages</code> w tej samej transakcji — pokrywa 13/13 rodzajów bell, dwa przeskoki zamiast trzech.</li>
+    <li><a href="#adr-004">ADR-004</a> Job wysyłki z późnym wiązaniem, backoffem i polityką zawieszonego SENDING — dispatcher outboxa nie ma backoffu i dubluje handlery.</li>
+    <li><a href="#adr-005">ADR-005</a> Opt-out per kategoria, domyślnie włączone po weryfikacji, RFC 8058 — mail serwisowy nie wymaga zgody z art. 398 PKE.</li>
+    <li><a href="#adr-006">ADR-006</a> <code>email_verified_at</code> + backfill Google + losowe hashowane tokeny w <code>account_tokens</code> + baner — weryfikacja bez blokowania i bez masowej wysyłki.</li>
+    <li><a href="#adr-007">ADR-007</a> SKIPPED z <code>skip_reason</code> dla odbiorców bez zweryfikowanego adresu. Reset konta tylko-Google ustawia pierwsze hasło — nigdy nie wysyłamy do niewłaściwej osoby, a odzyskiwanie się domyka.</li>
+    <li><a href="#adr-008">ADR-008</a> Jinja2 w repo z generycznym szablonem powiadomienia ze snapshotu bell — escaping, code review, zero ACL-i do domen dla treści.</li>
+    <li><a href="#adr-009">ADR-009</a> Natychmiast + klucz dzienny MATCH + cisza nocna + <code>EMAIL_DAILY_CAP</code>, bez digestów — rodzaje MVP są pilne.</li>
+    <li><a href="#adr-010">ADR-010</a> Pełny webhook Mailgun (delivered/failed/complained) z HMAC i ochroną przed replay — własny log dostarczenia przy 1–5-dniowej retencji u dostawcy.</li>
+  </ul>
+  <h2>Open Questions / Risks</h2>
+  <ul class="small">
+    <li><span class="sev warning">warning</span>Opinia prawna o domyślnym włączeniu „Szukam” (ADR-005). Gotowa ścieżka: jedna stała.</li>
+    <li><span class="sev warning">warning</span>DPA Mailgun/Sinch nieprzeczytane (ADR-002).</li>
+    <li><span class="sev info">info</span>Replay-cache webhooka w pamięci procesu zakłada jedną instancję backendu (ADR-010).</li>
+    <li><span class="sev info">info</span>Pole <code>topic_id</code> w <code>NotificationEntry</code> do potwierdzenia w specyfikacji (ADR-009).</li>
+  </ul>
+</section>
+
+<nav class="toc">ADR: <a href="#adr-001">001</a> · <a href="#adr-002">002</a> · <a href="#adr-003">003</a> · <a href="#adr-004">004</a> · <a href="#adr-005">005</a> · <a href="#adr-006">006</a> · <a href="#adr-007">007</a> · <a href="#adr-008">008</a> · <a href="#adr-009">009</a> · <a href="#adr-010">010</a></nav>
+
+<main>
+
+<!-- ADR-001 -->
+<section class="card adr" id="adr-001">
+<h2>ADR-001: Relacja do handover ADR-009 (potwierdzenia, zmiany, zastąpienia) <span class="st">Accepted</span></h2>
+<p class="small"><span class="st amend">Handover ADR-009 → Amended</span> „Email as an additional outbox handler behind a provider-agnostic port” (<code>.maister/tasks/research/2026-10-13-handover-reminders-beyond-notifications/outputs/decision-log.md</code>) przechodzi w status <b>Amended — częściowo zastąpiony przez ADR-002…ADR-010 tego logu</b>.</p>
+<h3>Context</h3>
+<p>Handover ADR-009 zakładał, że e-mail będzie dodatkowym handlerem na istniejących zdarzeniach outboxa (bez zmian w domenach), z opt-in <code>email_reminders_enabled</code> i <code>email_consent_at</code>, dedupe <code>(outbox entry, recipient)</code> i adresami dostępnymi dla wszystkich stron. Badanie pokazało, że 9 z 13 rodzajów bell nie przechodzi przez outbox, dispatcher powtarza wszystkie handlery wpisu bez backoffu, a wiele party nie ma adresu (F1, F2, F4, F6). Fazy 1–3 handovera nie powstały.</p>
+<h3>Decision Drivers</h3>
+<ul><li>Ciągłość decyzji: przyszły czytelnik musi wiedzieć, co z handover ADR-009 nadal obowiązuje</li><li>Nowe fakty z kodu (F1, F2, F4) i z prawa (F11)</li><li>Unikanie dwóch sprzecznych źródeł prawdy</li></ul>
+<h3>Considered Options</h3>
+<ol><li>Element po elemencie: oznaczyć każdy punkt handover ADR-009 jako potwierdzony, zmieniony albo nieaktualny, i wskazać zastępujący ADR</li><li>Całkowicie zastąpić handover ADR-009 bez rozbioru</li><li>Pozostawić handover ADR-009 bez zmian i dopisać wyjątki</li></ol>
+<h3>Decision Outcome</h3>
+<div class="outcome">Chosen option: <b>1</b>, bo większość handover ADR-009 nadal obowiązuje (port, adapter, brak wysyłki w requeście). Pełne zastąpienie zgubiłoby to uzasadnienie.</div>
+<table class="small" style="margin-top:10px">
+<tr><th>Element handover ADR-009</th><th>Werdykt</th><th>Gdzie teraz</th></tr>
+<tr><td>Port <code>EmailSender</code> + adapter HTTP przez <code>httpx</code>, adapter log</td><td><span class="pass">Potwierdzony</span> (+ <code>SmtpSender</code> dev, <code>FakeEmailSender</code> testy)</td><td><a href="#adr-002">ADR-002</a></td></tr>
+<tr><td>Brak SDK dostawcy i SMTP w produkcji</td><td><span class="pass">Potwierdzony</span></td><td><a href="#adr-002">ADR-002</a></td></tr>
+<tr><td>Brak wysyłki synchronicznej w requeście</td><td><span class="pass">Potwierdzony</span></td><td><a href="#adr-003">ADR-003</a>, <a href="#adr-004">ADR-004</a></td></tr>
+<tr><td>„Dodatkowy handler na istniejących zdarzeniach outboxa, bez zmian domeny”</td><td><span class="fail">Zastąpiony</span>: hook w <code>notifications.service</code> + kolejka <code>email_messages</code></td><td><a href="#adr-003">ADR-003</a></td></tr>
+<tr><td>Dedupe <code>(outbox entry, recipient)</code> w <code>email_deliveries</code></td><td><span class="fail">Zastąpiony w formie</span>: <code>email_messages.idempotency_key</code> (<code>notification:&lt;id&gt;</code>, <code>auth:&lt;token_id&gt;</code>, <code>want_match:&lt;want&gt;:&lt;dzień&gt;</code>)</td><td><a href="#adr-003">ADR-003</a>, <a href="#adr-009">ADR-009</a></td></tr>
+<tr><td>Tylko zweryfikowane adresy</td><td><span class="pass">Potwierdzony i doprecyzowany</span>: <code>email_verified_at</code>, backfill Google, SKIPPED z <code>skip_reason</code>; T (reset) na adres konta niezależnie od weryfikacji</td><td><a href="#adr-006">ADR-006</a>, <a href="#adr-007">ADR-007</a></td></tr>
+<tr><td>„Adresy istnieją dla wszystkich stron handoveru”</td><td><span class="fail">Nieaktualny</span> (Organization, dzieci, goście RSVP bez adresu)</td><td><a href="#adr-007">ADR-007</a></td></tr>
+<tr><td>Opt-in <code>email_reminders_enabled</code> default false + <code>email_consent_at</code></td><td><span class="fail">Zastąpiony</span>: opt-out per kategoria po weryfikacji, bez zgody PKE. Zgoda z wersją tekstu tylko dla przyszłego marketingu</td><td><a href="#adr-005">ADR-005</a></td></tr>
+<tr><td>Podpisany wypis + <code>List-Unsubscribe</code></td><td><span class="pass">Potwierdzony i rozszerzony</span>: RFC 8058 one-click, osobny <code>EMAIL_LINK_SIGNING_SECRET</code></td><td><a href="#adr-005">ADR-005</a></td></tr>
+<tr><td>Nazwy 7 ustawień</td><td><span class="pass">Potwierdzone i uzupełnione</span> o <code>EMAIL_BACKEND</code>, <code>EMAIL_REPLY_TO_ADDRESS</code>, <code>EMAIL_WEBHOOK_SIGNING_KEY</code>, <code>EMAIL_DAILY_CAP</code>, <code>EMAIL_SMTP_HOST</code>, <code>EMAIL_SMTP_PORT</code></td><td><a href="#adr-002">ADR-002</a>, <a href="high-level-design.html#integration">HLD §6.2</a></td></tr>
+<tr><td>„Moderation worker's outbox poller must not claim these events”</td><td><span class="fail">Nieaktualny</span>: maile nie przechodzą przez <code>outbox_entries</code></td><td><a href="#adr-003">ADR-003</a></td></tr>
+<tr><td>Gating do fazy 3 handovera</td><td><span class="fail">Zastąpiony</span> etapami 1–3 tego projektu (najpierw maile konta)</td><td><a href="high-level-design.html#stages">HLD §10</a></td></tr>
+</table>
+<h3>Consequences</h3>
+<div class="cons">
+<div class="good"><b>Good</b><ul><li>Jedno aktualne źródło prawdy, a zachowane uzasadnienia nie giną.</li><li><code>architecture.md</code> i przyszły ADR projektu mogą cytować tę tabelę wprost.</li></ul></div>
+<div class="bad"><b>Bad</b><ul><li>Dwa logi trzeba czytać razem, dopóki <code>architecture.md</code> nie zostanie zaktualizowany (rekomendacja R8).</li><li>Kolizja numeracji: „ADR-009” w tym logu to inna decyzja niż handover ADR-009. Odwołania zawsze z przedrostkiem „handover”.</li></ul></div>
+</div>
+</section>
+
+<!-- ADR-002 -->
+<section class="card adr" id="adr-002">
+<h2>ADR-002: Mailgun EU przez <code>httpx</code> za portem <code>EmailSender</code> <span class="st">Accepted</span></h2>
+<h3>Context</h3>
+<p>Potrzebny jest zewnętrzny dostawca dla odbiorców w Polsce (RODO, aj jako administrator). W UE kluczowe jest rozróżnienie rezydencji danych i regionu wysyłki (F9). Projekt ma trzy działające precedensy portu z <code>set_x()</code> w lifespanie (<code>storage</code>, <code>text_guard</code>, <code>embeddings</code>). <code>httpx</code> jest już zależnością runtime. Jeden operator, brak budżetu na złożoną infrastrukturę.</p>
+<h3>Decision Drivers</h3>
+<ul><li>Wiadomości, logi i suppression w UE</li><li>Minimalne zależności, bez SDK dostawcy</li><li>Webhooki podpisane i ochrona przed replay</li><li>Wymiana dostawcy bez zmian poza adapterem</li><li>Koszt przy 100/dzień → 10k → 50k miesięcznie</li></ul>
+<h3>Considered Options</h3>
+<ol><li><b>1A</b> Mailgun EU (<code>api.eu.mailgun.net</code>)</li><li><b>1B</b> Resend (metadane w USA, natywny <code>Idempotency-Key</code>)</li><li><b>1C</b> Brevo (dostawca z UE, niezweryfikowane webhooki i cennik)</li><li><b>1D</b> Scaleway TEM (suwerenny, webhooki w becie przez SNS)</li></ol>
+<h3>Decision Outcome</h3>
+<div class="outcome">Chosen option: <b>1A Mailgun EU</b>, bo dane wiadomości, logi i suppression zostają w regionie EU. Ma też najwyższy wynik ważony (81/100), HMAC-SHA256 w webhookach i liniowy cennik ($0/$15/$35). Integracja: <code>MailgunSender</code> (form POST przez <code>httpx</code>, Basic auth, timeout, <code>v:email_message_id</code>, tracking wyłączony) za Protocolem <code>EmailSender</code>, wybierany w lifespanie przez <code>EMAIL_BACKEND</code> (<code>mailgun</code> | <code>smtp</code> | <code>log</code>) i <code>set_sender()</code>. <code>SmtpSender</code> tylko dla Mailpit w dev, <code>FakeEmailSender</code> w testach. Domena musi powstać <b>w regionie EU</b>, bo nie da się jej potem przenieść.</div>
+<h3>Consequences</h3>
+<div class="cons">
+<div class="good"><b>Good</b><ul><li>Rezydencja danych w UE bez dodatkowego opisu transferu w polityce prywatności (poza procesorem).</li><li>Zmiana dostawcy (np. na Resend) to nowy adapter, konfiguracja i DNS, bez zmian w kolejce.</li><li>Brak nowej zależności dla wysyłki.</li></ul></div>
+<div class="bad"><b>Bad</b><ul><li>Brak natywnej idempotencji: okno duplikatu między 2xx a commitem kompensuje polityka SENDING (<a href="#adr-004">ADR-004</a>).</li><li>Logi u dostawcy przez 1–5 dni, więc potrzebny jest własny log (<a href="#adr-010">ADR-010</a>).</li><li>Mailgun Technologies to spółka z USA (Sinch), z teoretyczną ekspozycją na CLOUD Act. DPA trzeba przeczytać przed etapem 1.</li><li>Darmowy plan 100 dziennie, przy wzroście plan Basic ($15).</li></ul></div>
+</div>
+</section>
+
+<!-- ADR-003 -->
+<section class="card adr" id="adr-003">
+<h2>ADR-003: Hook w <code>notifications.service</code> i kolejka <code>email_messages</code> w transakcji domeny <span class="st">Accepted</span></h2>
+<h3>Context</h3>
+<p>13 rodzajów <code>NotificationKind</code> zapisuje się przez <code>create_notification</code> lub <code>create_notifications</code>. Tylko 4 przechodzą przez outbox, reszta powstaje synchronicznie w transakcji requestu (F2). Dispatcher outboxa ma 5 prób co ~60 s bez backoffu i przy błędzie powtarza wszystkie handlery wpisu (F1), więc handler mailowy obok handlera bell dublowałby bell. Maile konta (weryfikacja, reset) nie mają bell.</p>
+<h3>Decision Drivers</h3>
+<ul><li>Pełne pokrycie bez zmian w logice domen</li><li>Atomowość: mail istnieje tylko, gdy bell się zapisał</li><li>Awaria dostawcy nie może dotknąć bell</li><li>Najmniej przeskoków i mechanizmów asynchronicznych</li><li>Granice modułów (ACL, test granic)</li></ul>
+<h3>Considered Options</h3>
+<ol><li><b>2A</b> Hook w <code>notifications.service</code> → <code>notifications/infrastructure/email_acl</code> → jeden <code>INSERT … ON CONFLICT (idempotency_key) DO NOTHING</code> do <code>email_messages</code> w tej samej transakcji. Maile konta przez <code>auth/infrastructure/email_acl</code></li><li><b>2B</b> Hook → wpis <code>outbox_entries</code> → handler wstawia <code>email_messages</code></li><li><b>2C</b> Handler outboxa wywołujący dostawcę (oryginał handover ADR-009)</li><li><b>2D</b> Sweeper czytający tabelę <code>notifications</code> od znacznika</li></ol>
+<h3>Decision Outcome</h3>
+<div class="outcome">Chosen option: <b>2A</b>, bo to jedyny wariant, który pokrywa 13/13 rodzajów w dwóch przeskokach. Wiersz kolejki zapisany w transakcji domeny sam pełni rolę transactional outboxa. Ograniczenia, które utrzymują ryzyko „błąd modułu e-mail psuje bell” praktycznie na zerze:
+<ul>
+<li>INSERT to <b>jedno zapytanie</b> (wielowierszowe dla <code>create_notifications</code>) <b>bez odczytów</b> adresu i preferencji, pokryte testem liczby zapytań.</li>
+<li>Decyzja „czy ten rodzaj idzie mailem” zapada w pamięci (<code>rules</code>). Rodzaj spoza mapy nic nie wstawia.</li>
+<li>Przy <code>EMAIL_ENABLED=false</code> kolejkowanie jest no-opem.</li>
+<li><code>email_messages.notification_id</code> jest luźnym wskaźnikiem bez FK. Snapshot <code>message</code> i <code>link_path</code> trafia do <code>payload</code>, więc zwinięcie lub usunięcie bell (MATCH) nie gubi maila.</li>
+<li><code>app.email</code> importują tylko <code>main.py</code> i dwa ACL-e konsumentów (test granic).</li>
+</ul></div>
+<h3>Consequences</h3>
+<div class="cons">
+<div class="good"><b>Good</b><ul><li>Wszystkie istniejące bell (i każdy przyszły, zgodnie z zasadą „najpierw bell”) mogą iść mailem bez zmian w domenach.</li><li><code>send_after</code> i klucz idempotencji dają ciszę nocną, throttling i backoff (<a href="#adr-004">ADR-004</a>, <a href="#adr-009">ADR-009</a>).</li><li>Brak wzrostu <code>outbox_entries</code> i brak ryzyka przejęcia <code>email.*</code> przez poller z filtrami.</li></ul></div>
+<div class="bad"><b>Bad</b><ul><li><code>notifications</code> zna ACL modułu e-mail (sprzężenie synchroniczne w zamian za brak trzeciego przeskoku). Błąd schematu <code>email_messages</code> zepsułby zapis bell.</li><li><code>create_notification</code> musi nadawać <code>id</code> bella jawnie przed INSERT-em kolejki.</li><li>Nowa tabela i job do utrzymania (purge jako stretch).</li></ul></div>
+</div>
+</section>
+
+<!-- ADR-004 -->
+<section class="card adr" id="adr-004">
+<h2>ADR-004: Job wysyłki z późnym wiązaniem, backoffem i polityką zawieszonego SENDING <span class="st">Accepted</span></h2>
+<h3>Context</h3>
+<p>Kolejka at-least-once wymaga idempotentnego konsumenta (F12). Adres, weryfikacja, preferencje i suppression mogą się zmienić między zapisem bell a wysyłką. Mailgun nie ma natywnej idempotencji, więc crash między 2xx a commitem zostawia niepewny stan. Standard error-handling wymaga, żeby joby logowały <code>40P01</code>/<code>40001</code> jako jeden WARNING z ponowieniem, a inne błędy raz z tracebackiem, bez przerywania pętli.</p>
+<h3>Decision Drivers</h3>
+<ul><li>Brak wysyłki do adresu, który właśnie wypisał się lub został zablokowany</li><li>Odporność na krótkie awarie dostawcy (backoff zamiast FAILED po ~5 min)</li><li>Nie trzymać blokad DB w czasie wywołania HTTP</li><li>Unikać dwóch linków resetu, akceptując rzadki duplikat powiadomienia</li><li>Wzorce istniejących jobów (<code>SKIP LOCKED</code>, jedna linia logu)</li></ul>
+<h3>Considered Options</h3>
+<ol><li>Job APScheduler co ~1 min: claim → SENDING (commit) → późne wiązanie → render → send → zapis wyniku. Zawieszony SENDING: P/D wracają do PENDING, T idą do FAILED</li><li>Wczesne wiązanie (adres i preferencje rozstrzygane przy INSERT)</li><li>Wysyłka w tej samej transakcji co claim (blokada wiersza na czas HTTP)</li></ol>
+<h3>Decision Outcome</h3>
+<div class="outcome">Chosen option: <b>1</b>, bo późne wiązanie respektuje każdą zmianę preferencji i suppression do chwili wysyłki. Hook zostaje jednym zapytaniem bez odczytów (<a href="#adr-003">ADR-003</a>), a HTTP działa bez otwartej transakcji. Ustalenia:
+<ul>
+<li>Claim <code>PENDING AND send_after &lt;= utcnow()</code> z <code>FOR UPDATE SKIP LOCKED</code>, batch 50, <code>coalesce=True</code>, <code>max_instances=1</code>.</li>
+<li>Późne wiązanie batchem (adresaci, suppression, preferencje, licznik dzienny, po jednym zapytaniu), a następnie SKIPPED z <code>skip_reason</code>.</li>
+<li>Wynik: 2xx daje SENT. 4xx (poza 429) daje FAILED bez retry. 429/5xx/timeout dają PENDING z backoffem (rosnące odstępy, stałe w <code>rules</code>). Po <code>MAX_ATTEMPTS</code> FAILED z jedną linią ERROR <code>email message %s FAILED after %d attempts</code>.</li>
+<li>SENDING starszy niż ~10 min: P/D wracają do PENDING (możliwy duplikat, akceptowany), T idą do FAILED (użytkownik ponawia żądanie).</li>
+<li>Surowy token T jest zerowany w <code>payload</code> przy stanie końcowym. Nigdy nie logujemy adresów, tokenów ani treści.</li>
+<li>Jedna linia na przebieg: <code>email send: claimed=… sent=… skipped=… retried=… failed=…</code>.</li>
+</ul></div>
+<h3>Consequences</h3>
+<div class="cons">
+<div class="good"><b>Good</b><ul><li>Wypis i suppression działają najpóźniej w następnym przebiegu.</li><li>Awaria dostawcy do kilku godzin nie gubi maili.</li><li>Zgodność ze standardem error-handling i wzorcami jobów.</li></ul></div>
+<div class="bad"><b>Bad</b><ul><li>Rzadki podwójny mail P po crashu (Mailgun bez <code>Idempotency-Key</code>).</li><li>Rzadka utrata T po crashu (FAILED), wymagająca ponownego żądania przez użytkownika.</li><li>Do ~1 min opóźnienia z interwału joba.</li></ul></div>
+</div>
+</section>
+
+<!-- ADR-005 -->
+<section class="card adr" id="adr-005">
+<h2>ADR-005: Opt-out per kategoria, domyślnie włączone po weryfikacji, wypis RFC 8058 <span class="st">Accepted</span></h2>
+<p class="small"><span class="sev warning">pewność prawna średnia</span> opinia prawna przed etapem 2</p>
+<h3>Context</h3>
+<p>Art. 398 PKE wymaga uprzedniej zgody tylko dla informacji handlowej i marketingu bezpośredniego. Powiadomienia o własnych rezerwacjach, wymianach i własnym want są mailami serwisowymi z podstawą w art. 6(1)(b) RODO, a dla opcjonalnych 6(1)(b)/(f) (F11, interpretacja). Zgoda wpleciona w rejestrację byłaby niedobrowolna (art. 7(4)). Gmail i Yahoo wymagają one-click unsubscribe dla maili „subscribed” (F10). MATCH to szara strefa.</p>
+<h3>Decision Drivers</h3>
+<ul><li>Kanał musi docierać do ludzi, żeby domykać wymiany</li><li>Zgodność z PKE/RODO bez wymuszonej zgody</li><li>Wypis z jednej kategorii nie może wyłączać innych</li><li>Tania zmiana kategorii „Szukam” na opt-in po opinii prawnej</li></ul>
+<h3>Considered Options</h3>
+<ol><li><b>3A</b> Opt-out per kategoria (<code>email_preferences(party_id, category, enabled)</code> + <code>ALL</code>), domyślnie włączone po weryfikacji, „Podsumowania organizatora” domyślnie wyłączone, „Transakcyjne” bez wyłączania</li><li><b>3B</b> Opt-in per kategoria + <code>email_consent_at</code> (handover ADR-009)</li><li><b>3C</b> Jeden globalny przełącznik</li><li><b>3D</b> Hybryda: opt-in dla „Szukam” i „Wiadomości”</li></ol>
+<h3>Decision Outcome</h3>
+<div class="outcome">Chosen option: <b>3A</b>, bo daje wartość kanału bez traktowania maila serwisowego jak marketingu. Model:
+<ul>
+<li>Brak wiersza oznacza domyślną wartość z <code>rules</code>. Stała <code>WANTS_DEFAULT_ENABLED</code> przełącza „Szukam” na opt-in (wariant 3D) jedną zmianą.</li>
+<li>Kategoria efektywnie włączona = <code>ALL</code> nie wyłączone ∧ (wiersz kategorii ∨ domyślna wartość). „Szukam” dodatkowo respektuje per-want <code>notifications_enabled</code>.</li>
+<li><code>/settings</code> pokazuje tylko kategorie z co najmniej jednym aktywnym rodzajem (w MVP Rezerwacje i Szukam, plus zablokowany wiersz Transakcyjne).</li>
+<li>Nagłówki <code>List-Unsubscribe: &lt;https://…/api/email/unsubscribe/&lt;token&gt;&gt;</code>, <code>List-Unsubscribe-Post: List-Unsubscribe=One-Click</code> i <code>List-Id</code> dla strumienia NOTIFICATION. Bez nich dla T.</li>
+<li>Token wypisu to HMAC-SHA256 nad <code>party_id</code> + kategorią (lub <code>ALL</code>) + wersją, kluczem <code>EMAIL_LINK_SIGNING_SECRET</code> (nie z <code>JWT_SECRET</code>, bo rotacja psułaby stare linki), bez wygasania.</li>
+<li>PUBLIC <code>POST /api/email/unsubscribe/{token}</code> (wiersz macierzy 78) zwraca 200 bez przekierowania i jest idempotentny. Strona <code>/unsubscribe</code> robi GET bez efektów ubocznych i akcję przez POST.</li>
+<li>Włączenie kategorii w <code>/settings</code> przez użytkownika usuwa suppression <code>COMPLAINT</code> jego adresu (świadomy powrót).</li>
+<li>Bez checkboxa zgody przy rejestracji. Bez bloków promocyjnych w szablonach. SUGGESTION/SIMILAR nie idą mailem.</li>
+</ul></div>
+<h3>Consequences</h3>
+<div class="cons">
+<div class="good"><b>Good</b><ul><li>Maile docierają do większości aktywnych użytkowników ze zweryfikowanym adresem.</li><li>Wypis jest precyzyjny (kategoria) albo pełny (<code>ALL</code>), a one-click działa w Gmailu i Yahoo.</li><li>Katalog kategorii ustalony teraz, bez migracji preferencji przy kolejnych rodzajach.</li></ul></div>
+<div class="bad"><b>Bad</b><ul><li>Pewność prawna średnia (brak wytycznych UODO). MATCH może wymagać opt-in.</li><li>Ryzyko skarg od osób, które nie pamiętają podania adresu (łagodzi to weryfikacja, <a href="#adr-006">ADR-006</a>).</li><li>Token wypisu bez wygasania: wyciek linku pozwala tylko wypisać daną osobę, co jest akceptowalne.</li></ul></div>
+</div>
+</section>
+
+<!-- ADR-006 -->
+<section class="card adr" id="adr-006">
+<h2>ADR-006: Weryfikacja adresu, tokeny konta i wdrożenie dla istniejących kont <span class="st">Accepted</span></h2>
+<h3>Context</h3>
+<p><code>user_profiles.email</code> jest nullable i nieweryfikowany. Jedynym sygnałem weryfikacji jest <code>user_identities.email_verified</code> kont Google (F3). Nie ma resetu hasła. Nowa subdomena wymaga warm-upu, a masowa wysyłka z zimnej domeny psuje reputację (F10). JWT nie da się unieważnić (accepted risk z researchu Google).</p>
+<h3>Decision Drivers</h3>
+<ul><li>Nikogo nie blokować przy logowaniu</li><li>Wolumen rośnie organicznie (warm-up)</li><li>Tokeny jednorazowe, krótkotrwałe i odwoływalne</li><li>Odporność na skanery linków (prefetch GET)</li></ul>
+<h3>Considered Options</h3>
+<ol><li><b>4A</b> <code>email_verified_at</code> + backfill Google + mail przy rejestracji + baner w panelu i <code>/settings</code>; tokeny losowe, hashowane, w tabeli</li><li><b>4B</b> Twarda bramka: konto nieaktywne do weryfikacji</li><li><b>4C</b> Jednorazowa kampania weryfikacyjna do wszystkich kont</li><li><b>4D</b> Bez weryfikacji („w locie” przez pierwszy mail)</li><li>(tokeny) JWT z krótkim <code>exp</code> zamiast tabeli</li></ol>
+<h3>Decision Outcome</h3>
+<div class="outcome">Chosen option: <b>4A z tokenami w tabeli <code>account_tokens</code></b> (moduł <code>auth</code>, obok <code>users</code> i <code>user_identities</code>):
+<ul>
+<li><code>account_tokens(user_id, purpose VERIFY_EMAIL|PASSWORD_RESET, token_hash SHA-256, email snapshot, expires_at, used_at)</code>. Surowy token ≥ 32 bajty z <code>secrets</code> istnieje tylko w linku i chwilowo w <code>payload</code> kolejki. Nowy token unieważnia poprzednie tego samego celu.</li>
+<li>Limit żądań w DB (np. ≤ 1/60 s i ≤ 5/h na konto i cel) bez nowej infrastruktury rate limit. Przekroczenie jest ciche (neutralna odpowiedź).</li>
+<li>Endpointy: <code>POST /api/auth/email-verification</code> (zalogowany, wiersz 77), <code>POST /api/auth/email-verification/confirm</code> (PUBLIC, wiersz 76). Mail weryfikacyjny wysyłany przy <code>POST /api/auth/register</code>.</li>
+<li>Potwierdzenie wymaga zgodności <code>email</code> ze snapshotem, ustawia <code>email_verified_at</code> i usuwa suppression <code>BOUNCE</code> dla adresu (dowód, że adres działa).</li>
+<li>Backfill w osobnej rewizji danych: konta Google z <code>email_verified=true</code> i zgodnym <code>lower(email)</code>. Nowe konta Google dostają <code>email_verified_at</code> przy zakładaniu.</li>
+<li>Każdy zapis zmieniający <code>user_profiles.email</code> czyści <code>email_verified_at</code>.</li>
+<li>Strona <code>/verify-email</code> robi GET bez efektów ubocznych i potwierdza przyciskiem (POST). Jest w obu listach reserved slugs, poza <code>PROTECTED_PREFIXES</code>.</li>
+</ul></div>
+<h3>Consequences</h3>
+<div class="cons">
+<div class="good"><b>Good</b><ul><li>Zero blokad. Konta Google kwalifikują się od razu (ogłoszenie w aplikacji, nie mailem).</li><li>Tokeny dają się unieważnić i nie są wrażliwe na rotację <code>JWT_SECRET</code>.</li><li>Weryfikacja odblokowuje przyszły auto-linking Google (poza zakresem).</li></ul></div>
+<div class="bad"><b>Bad</b><ul><li>Część istniejących kont z hasłem nigdy nie zweryfikuje adresu i nie dostanie powiadomień.</li><li>Konta Google zaczną dostawać powiadomienia bez własnej akcji (trzeba to ogłosić w aplikacji).</li><li>Nowa tabela w <code>auth</code> i dwa nowe publiczne endpointy.</li></ul></div>
+</div>
+</section>
+
+<!-- ADR-007 -->
+<section class="card adr" id="adr-007">
+<h2>ADR-007: Odbiorca bez zweryfikowanego adresu = SKIPPED; reset konta tylko-Google ustawia hasło <span class="st">Accepted</span></h2>
+<h3>Context</h3>
+<p>Bell trafia do party, nie do adresu. Organization nie ma adresu, lekcy członkowie rodziny i goście RSVP mają <code>email IS NULL</code>, a opiekunowie adres „jak wpisano” (F4). Reguła liderzy/założyciel dla Organization nie jest prześledzona. Konta tylko-Google (<code>password_hash IS NULL</code>) nie mają odzyskiwania.</p>
+<h3>Decision Drivers</h3>
+<ul><li>Nigdy nie wysyłać do niewłaściwej osoby</li><li>Zmierzyć lukę przed budową reguły</li><li>Zamknąć zaakceptowane ryzyko braku odzyskiwania kont Google</li><li>Nie zdradzać istnienia kont (enumeracja)</li></ul>
+<h3>Considered Options</h3>
+<ol><li><b>5A</b> SKIPPED z <code>skip_reason</code> (<code>organization</code>, <code>no_address</code>, <code>unverified</code>) dla wszystkiego bez własnego zweryfikowanego adresu; dzieci SKIPPED</li><li><b>5B</b> Organization → aktywni liderzy</li><li><b>5C</b> Organization → założyciel</li><li><b>5D</b> Własny adres organizacji</li><li>(reset Google) (i) ustaw pierwsze hasło, (ii) neutralnie bez maila, (iii) mail informacyjny bez linku</li></ol>
+<h3>Decision Outcome</h3>
+<div class="outcome">Chosen option: <b>5A</b> oraz <b>(i)</b> dla resetu:
+<ul>
+<li>Job rozwiązuje adresata przez <code>users_acl</code>. Party typu Organization daje <code>organization</code>, brak konta lub adresu (w tym dzieci) daje <code>no_address</code>, a adres niezweryfikowany dla P/D daje <code>unverified</code>. Bell zostaje bez zmian.</li>
+<li><code>POST /api/auth/password-reset</code> (PUBLIC, wiersz 74) <b>zawsze</b> zwraca 202. Mail idzie na adres konta niezależnie od weryfikacji. Dla <code>password_hash IS NULL</code> tekst brzmi „logujesz się przez Google, możesz ustawić hasło”.</li>
+<li><code>POST /api/auth/password-reset/confirm</code> (PUBLIC, wiersz 75) ustawia hasło (bcrypt), unieważnia tokeny resetu i kolejkuje T „hasło zmienione”.</li>
+</ul></div>
+<h3>Consequences</h3>
+<div class="cons">
+<div class="good"><b>Good</b><ul><li>Zero nowych reguł biznesowych. <code>skip_reason='organization'</code> mierzy lukę przed decyzją 5B/5C.</li><li>Każde konto z adresem ma odzyskiwanie. Kontrola nad skrzynką i tak daje dziś kontrolę nad kontem Google.</li></ul></div>
+<div class="bad"><b>Bad</b><ul><li>Właściciele rzeczy organizacji nie dostają maili w MVP.</li><li>Reset nie unieważnia wydanych JWT (zaakceptowane ryzyko, bez zmian).</li><li>Konto tylko-Google zyskuje drugą metodę logowania, co jest świadomą zmianą modelu.</li></ul></div>
+</div>
+</section>
+
+<!-- ADR-008 -->
+<section class="card adr" id="adr-008">
+<h2>ADR-008: Szablony Jinja2 w repo z generycznym szablonem powiadomienia <span class="st">Accepted</span></h2>
+<h3>Context</h3>
+<p>Treści są po polsku, z nazwami rzeczy wpisanymi przez użytkowników (ryzyko wstrzyknięcia HTML). Jinja2 domyślnie ma <code>autoescape=False</code> (F12). Bell ma już gotowy, przemoderowany polski tekst ≤ 500 znaków i <code>link_path</code>. Renderowanie z danych domen wymagałoby ACL-i do <code>groups</code>, <code>inventory</code>, <code>events</code> i <code>wants</code>.</p>
+<h3>Decision Drivers</h3>
+<ul><li>Bezpieczny escaping i wykrywanie brakujących zmiennych</li><li>Teksty pod code review i w testach</li><li>Niezależność od dostawcy</li><li>Minimum nowych zależności między modułami</li></ul>
+<h3>Considered Options</h3>
+<ol><li><b>6A</b> Jinja2 w repo (<code>select_autoescape(("html","html.j2"))</code>, <code>StrictUndefined</code>, pary <code>html.j2</code>/<code>txt.j2</code>, inline CSS)</li><li><b>6B</b> Szablony u dostawcy</li><li><b>6C</b> MJML prekompilowany</li><li><b>6D</b> Stdlib <code>string.Template</code> + ręczny escaping</li><li>(treść powiadomień) a) generyczny szablon ze snapshotu bell; b) osobny szablon per rodzaj z danymi z ACL-i domen</li></ol>
+<h3>Decision Outcome</h3>
+<div class="outcome">Chosen option: <b>6A</b> z <b>a)</b>. Jinja2 to nowa zależność backendu (wpis w <code>tech-stack.md</code>, <code>uv.lock</code>). Szablony MVP: <code>verify_email</code>, <code>password_reset</code> (z wariantem dla konta tylko-Google), <code>password_changed</code> i jeden <b><code>notification</code></b>. Ten ostatni renderuje <code>payload.message</code> bella jako treść, temat i etykietę CTA z mapy <code>rules</code> per rodzaj, oraz pełny URL <code>APP_PUBLIC_BASE_URL + link_path</code> (przycisk + URL tekstem pod nim). Do tego stopka z wypisem kategorii i linkiem do <code>/settings</code>. Daty w szablonach konta przez <code>clock.format_term_when</code>/<code>format_term_day</code>. Bez trackingu i bez bloków promocyjnych.</div>
+<h3>Consequences</h3>
+<div class="cons">
+<div class="good"><b>Good</b><ul><li>Zero ACL-i do domen na potrzeby treści. Nowy rodzaj bell to wpis w <code>rules</code>, bez nowego szablonu.</li><li>Tekst maila zgadza się z bell (jedno źródło, już po moderacji tekstu).</li><li>Autoescape chroni przed HTML w nazwach rzeczy.</li></ul></div>
+<div class="bad"><b>Bad</b><ul><li>Treść powiadomień jest tak bogata jak tekst bell (bez zdjęć, listy rzeczy, adresu miejsca). Bogatsze szablony per rodzaj można dodać później.</li><li>Nowa zależność i ręcznie pisany responsywny HTML wymagają testów w klientach (Mailpit, seed).</li></ul></div>
+</div>
+</section>
+
+<!-- ADR-009 -->
+<section class="card adr" id="adr-009">
+<h2>ADR-009: Wysyłka natychmiastowa z kluczem dziennym MATCH, ciszą nocną i limitem dziennym <span class="st">Accepted</span></h2>
+<p class="small"><span class="sev info">uwaga</span> To nie jest handover ADR-009 — ten opisuje <a href="#adr-001">ADR-001</a>.</p>
+<h3>Context</h3>
+<p>Rodzaje MVP wymagają reakcji albo zmieniają zobowiązanie (propozycja, przejęcie, potwierdzenie po terminie), więc nie wolno ich batchować (F12). Matcher działa co 60 s, a bell MATCH jest zwijany i zastępowany sumą (F8), więc mail per bell powtarzałby się. Nowa subdomena potrzebuje warm-upu, a darmowy plan Mailgun to 100 dziennie.</p>
+<h3>Decision Drivers</h3>
+<ul><li>Pilne zdarzenia na czas</li><li>Brak serii maili MATCH</li><li>Brak maili w nocy dla powiadomień</li><li>Kontrola wolumenu przy warm-upie</li><li>Najmniej kodu (bez szablonów zbiorczych)</li></ul>
+<h3>Considered Options</h3>
+<ol><li><b>7A</b> Natychmiast + klucze throttlingu + cisza nocna + <code>EMAIL_DAILY_CAP</code>, bez digestów</li><li><b>7B</b> Dzienny digest wszystkich P</li><li><b>7C</b> Okno koalescencji 10 min per osoba</li><li><b>7D</b> Digest tylko dla MATCH</li></ol>
+<h3>Decision Outcome</h3>
+<div class="outcome">Chosen option: <b>7A</b>:
+<ul>
+<li><code>WANT_MATCH_FOUND</code> dostaje klucz <code>want_match:&lt;want_id&gt;:&lt;YYYY-MM-DD Warsaw&gt;</code> (data z <code>clock.local_now()</code> przy kolejkowaniu), więc najwyżej 1 mail dziennie na want, a throttling wynika wprost z <code>ON CONFLICT</code>. <code>want_id</code> przekazuje <code>wants</code> przez nowe, nieutrwalane pole <code>NotificationEntry.topic_id</code> (nazwa do potwierdzenia w specyfikacji).</li>
+<li>Cisza nocna 22:00–07:00 (Warsaw, <code>clock.local_now()</code>) dla strumienia NOTIFICATION. Job przesuwa <code>send_after</code> na najbliższą 07:00 (zapisaną w naiwnym UTC). T zawsze natychmiast.</li>
+<li><code>EMAIL_DAILY_CAP</code>: po przekroczeniu liczby SENT w danym dniu P dostają SKIPPED <code>daily_cap</code> (jeden WARNING na przebieg). T omijają limit.</li>
+<li>Bez digestów. <code>send_after</code> zostawia drogę do koalescencji (7C/7D) po pomiarze.</li>
+</ul></div>
+<h3>Consequences</h3>
+<div class="cons">
+<div class="good"><b>Good</b><ul><li>Najmniej kodu. Pilne maile bez opóźnień (poza nocą).</li><li>Throttling bez dodatkowego stanu.</li><li><code>app/email</code> trafia do strażnika zegara domeny.</li></ul></div>
+<div class="bad"><b>Bad</b><ul><li>Aktywny wymieniacz może dostać kilka maili dziennie.</li><li>Przy przekroczeniu limitu powiadomienia przepadają (SKIPPED), a nie czekają. To świadomy wybór, żeby nie wysyłać przeterminowanych treści.</li><li>Drobna zmiana kontraktu <code>NotificationEntry</code> (pole tylko w pamięci).</li></ul></div>
+</div>
+</section>
+
+<!-- ADR-010 -->
+<section class="card adr" id="adr-010">
+<h2>ADR-010: Pełny webhook Mailgun ze statusami dostarczenia i suppression <span class="st">Accepted</span></h2>
+<p class="small"><span class="sev warning">odejście od rekomendacji</span> wybór użytkownika: 8A zamiast rekomendowanego w eksploracji 8B</p>
+<h3>Context</h3>
+<p>Mailgun trzyma logi 1–5 dni, a ochrona reputacji wymaga reakcji na twarde bounce i skargi (spam rate &lt; 0.3%, F10). Eksploracja rekomendowała 8B (tylko <code>failed</code>/<code>complained</code>). Użytkownik wybrał 8A, żeby mieć własny log dostarczenia do diagnozy „nie dostałem maila”.</p>
+<h3>Decision Drivers</h3>
+<ul><li>Ochrona reputacji nadawcy</li><li>Własna widoczność dostarczenia dłużej niż retencja dostawcy</li><li>Bezpieczeństwo publicznego endpointu (podpis, replay)</li><li>Idempotencja przy powtórzonych i nieuporządkowanych zdarzeniach</li></ul>
+<h3>Considered Options</h3>
+<ol><li><b>8A</b> Pełny webhook: <code>delivered</code>, <code>failed</code> (permanent), <code>complained</code> + statusy w <code>email_messages</code></li><li><b>8B</b> Tylko <code>failed</code>/permanent i <code>complained</code></li><li><b>8C</b> Bez webhooków (suppression tylko u dostawcy)</li><li><b>8D</b> Job odpytujący Events API</li></ol>
+<h3>Decision Outcome</h3>
+<div class="outcome">Chosen option: <b>8A</b>:
+<ul>
+<li><code>POST /api/email/webhooks/mailgun</code>, PUBLIC w <code>AUTHORIZATION_MATRIX</code> (wiersz 79, z komentarzem jak przy 72/73: uwierzytelnienie HMAC w handlerze, nie JWT).</li>
+<li>Weryfikacja: HMAC-SHA256 (<code>EMAIL_WEBHOOK_SIGNING_KEY</code>) nad <code>timestamp + token</code>, porównanie <code>compare_digest</code>, <code>|now − timestamp| ≤ 5 min</code>, odrzucenie tokenu widzianego wcześniej (pamięć procesu w oknie czasu). Zły podpis lub replay daje 401 bez szczegółów.</li>
+<li>Korelacja przez zmienną <code>v:email_message_id</code> (wysyłana z wiadomością), a w drugiej kolejności przez znormalizowany <code>provider_message_id</code>.</li>
+<li>Status = max(obecny, zdarzenie) według <code>COMPLAINED &gt; BOUNCED &gt; DELIVERED &gt; SENT</code>. Zapis <code>delivered_at</code>/<code>event_at</code>.</li>
+<li><code>failed</code> z <code>severity=permanent</code> i <code>complained</code> dodają <code>email_suppressions</code> (adres z <code>event-data</code>, <code>lower(trim)</code>, <code>ON CONFLICT DO NOTHING</code>). <code>complained</code> na strumieniu NOTIFICATION wyłącza też kategorię party. Tymczasowe błędy nie są subskrybowane.</li>
+<li>Nieznana wiadomość dostaje 200 (żeby dostawca nie ponawiał), bez logowania adresu.</li>
+<li>Webhook działa od etapu 1, więc maile transakcyjne też mają statusy dostarczenia.</li>
+</ul></div>
+<h3>Consequences</h3>
+<div class="cons">
+<div class="good"><b>Good</b><ul><li>Diagnoza dostarczenia z własnej bazy dłużej niż 1–5 dni u dostawcy.</li><li>Suppression i wyłączenie kategorii przetrwają zmianę dostawcy.</li><li>Idempotentna obsługa bez tabeli zdarzeń.</li></ul></div>
+<div class="bad"><b>Bad</b><ul><li>Ruch <code>delivered</code>: jedno zdarzenie na mail, bez wpływu na decyzje aplikacji, więcej kodu i testów niż w 8B.</li><li>Ochrona przed replay w pamięci procesu zakłada jedną instancję backendu (przy skalowaniu: tabela tokenów lub cache współdzielony).</li><li>Publiczny endpoint i sekret do utrzymania oraz rotacji (<code>EMAIL_WEBHOOK_SIGNING_KEY</code> tylko w <code>.env</code>).</li></ul></div>
+</div>
+</section>
+
+</main>
+</body>
+</html>

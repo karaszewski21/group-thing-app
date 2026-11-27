@@ -19,7 +19,7 @@ from typing import cast
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import BusinessConflictException
+from app.core.errors import BusinessConflictException, EntityNotFoundException
 from app.inventory.application.inventory import get_or_create_personal_inventory
 from app.inventory.application.inventory_items import get_item, get_item_balance
 from app.inventory.application.reservations import _current_holder_user_id, get_reservation
@@ -29,6 +29,7 @@ from app.inventory.domain.reservation_rules import (
     _require_party_to_any_reservation,
     _require_party_to_reservation,
 )
+from app.inventory.infrastructure import points_acl
 from app.inventory.infrastructure.ledger import MovementLeg, post_movement
 from app.inventory.models import (
     BalanceStatus,
@@ -75,13 +76,48 @@ async def _cancel(db: AsyncSession, reservation: Reservation, acting_user_id: uu
 
 async def _release(db: AsyncSession, reservation: Reservation) -> None:
     """The cancel transition itself: CANCELLED, and the item AVAILABLE
-    again."""
+    again. A POINTS reservation's RELEASE comes first, before any other row
+    changes: it locks the buyer's point accounts and refuses (409) once the
+    purchase was sold. The callers that can meet a POINTS row lock the
+    reservation first (confirm and cancel via `lock_reservations`, event
+    deletion via its own `FOR UPDATE`), so the order is reservation, then
+    accounts. `cancel_reservation` takes no reservation lock: it only
+    releases a swap proposer's self-lock leg, never a POINTS row."""
+    if reservation.reservation_type == ReservationType.POINTS:
+        await points_acl.release_hold(db, cast(uuid.UUID, reservation.id))
     reservation.status = ReservationStatus.CANCELLED
     balance = await get_item_balance(db, reservation.item_id)
     balance.reserved_at = None
     balance.status = BalanceStatus.AVAILABLE
     balance.due_date = None
     await db.flush()
+
+
+async def lock_reservations(
+    db: AsyncSession, reservation_ids: Collection[uuid.UUID]
+) -> list[Reservation]:
+    """The reservations `FOR UPDATE` in id order, reloaded: the first lock
+    of a confirm or cancel, taken before the point accounts so every path
+    that settles a POINTS hold locks reservation, then accounts (the
+    `delete_event` order). 404 when one is missing."""
+    ids = set(reservation_ids)
+    if not ids:
+        return []
+    locked = list(
+        (
+            await db.scalars(
+                select(Reservation)
+                .where(Reservation.id.in_(ids))
+                .order_by(Reservation.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).all()
+    )
+    missing = ids - {cast(uuid.UUID, r.id) for r in locked}
+    if missing:
+        raise EntityNotFoundException("Reservation", min(missing))
+    return locked
 
 
 async def cancel_reservations_without_commit(
@@ -102,10 +138,18 @@ async def cancel_reservations_without_commit(
         .with_for_update()
         .execution_options(populate_existing=True)
     )
+    open_reservations = [r for r in reservations.all() if r.status not in _TERMINAL_STATUSES]
+    # Every buyer's point accounts at once, sorted, before the first RELEASE.
+    await points_acl.lock_release_accounts(
+        db,
+        [
+            cast(uuid.UUID, r.id)
+            for r in open_reservations
+            if r.reservation_type == ReservationType.POINTS
+        ],
+    )
     cancelled = []
-    for reservation in reservations.all():
-        if reservation.status in _TERMINAL_STATUSES:
-            continue
+    for reservation in open_reservations:
         await _release(db, reservation)
         cancelled.append(reservation)
     return cancelled
@@ -196,7 +240,10 @@ async def _post_fulfilment(
 async def _load_exchange(
     db: AsyncSession, reservation_ids: Sequence[uuid.UUID], acting_user_id: uuid.UUID
 ) -> list[Reservation]:
-    reservations = [await get_reservation(db, reservation_id) for reservation_id in reservation_ids]
+    """The exchange's legs in input order, locked `FOR UPDATE` before any
+    point account (`lock_reservations`)."""
+    by_id = {cast(uuid.UUID, r.id): r for r in await lock_reservations(db, reservation_ids)}
+    reservations = [by_id[reservation_id] for reservation_id in reservation_ids]
     _require_exchange_legs(reservations)
     _require_party_to_any_reservation(reservations, acting_user_id)
     return reservations

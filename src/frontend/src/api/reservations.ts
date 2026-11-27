@@ -1,6 +1,6 @@
 import { api, ApiError } from "./client";
 
-export type ReservationType = "LEND" | "RETURN" | "SWAP" | "GIFT";
+export type ReservationType = "LEND" | "RETURN" | "SWAP" | "GIFT" | "POINTS";
 export type ReservationStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "FULFILLED";
 
 export interface ReservationResponse {
@@ -52,13 +52,15 @@ export interface MyReservationResponse {
   thumb_url: string | null;
   item_path: string;
   owner_name: string;
-  mode: "GIFT" | "SWAP";
+  mode: "GIFT" | "SWAP" | "POINTS";
   status: "PROPOSED" | "PENDING" | "CONFIRMED";
   reservation_id: string | null;
   context_kind: "TERM" | "EVENT" | "PERSONAL";
   context_name: string | null;
   occurs_at: string | null;
   reserved_at: string;
+  /** The points blocked for a POINTS reservation; `null` otherwise. */
+  held_points: number | null;
 }
 
 export function getMyReservations(): Promise<MyReservationResponse[]> {

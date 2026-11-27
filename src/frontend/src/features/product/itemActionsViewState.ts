@@ -23,6 +23,9 @@ export type ItemActionsView =
       contexts: ItemContextOptionResponse[];
       visibility: ItemActionsResponse["visibility"];
       partyReservation: ItemPartyReservationResponse | null;
+      pointsPrice: number | null;
+      /** The points the buyer's hold blocks; `null` outside a POINTS reservation. */
+      heldPoints: number | null;
     }
   | {
       kind: "anonymous";
@@ -30,6 +33,7 @@ export type ItemActionsView =
       mode: ExchangeMode;
       location: ItemLocationResponse | null;
       contexts: ItemContextOptionResponse[];
+      pointsPrice: number | null;
     }
   | {
       kind: "reserved";
@@ -38,6 +42,8 @@ export type ItemActionsView =
       /** `null` for a viewer outside the reservation. */
       partyReservation: ItemPartyReservationResponse | null;
       location: ItemLocationResponse | null;
+      /** The hold's amount, which may differ from a later price. */
+      heldPoints: number | null;
     }
   | { kind: "unavailable"; owner: Owner; location: ItemLocationResponse | null }
   | {
@@ -48,6 +54,8 @@ export type ItemActionsView =
       contexts: ItemContextOptionResponse[];
       eligibleContexts: ItemContextOptionResponse[];
       personalPickup: boolean;
+      /** Set exactly for a POINTS listing. */
+      pointsPrice: number | null;
     };
 
 interface ItemActionsState {
@@ -83,7 +91,8 @@ export function resolveItemActionsView({
   if (actions === null) {
     return actionsError ? { kind: "error", message: actionsError } : { kind: "loading" };
   }
-  const { owner, mode, location, contexts } = actions;
+  const { owner, mode, location, contexts, points_price: pointsPrice } = actions;
+  const heldPoints = actions.party_reservation?.held_points ?? null;
   if (actions.viewer === "OWN" || item.isOwner) {
     return {
       kind: "own",
@@ -92,6 +101,8 @@ export function resolveItemActionsView({
       contexts,
       visibility: actions.visibility,
       partyReservation: actions.party_reservation,
+      pointsPrice,
+      heldPoints,
     };
   }
   if (actions.party_reservation !== null || actions.reservation !== null) {
@@ -101,10 +112,11 @@ export function resolveItemActionsView({
       reservation: actions.reservation,
       partyReservation: actions.party_reservation,
       location,
+      heldPoints,
     };
   }
   if (!actions.available || mode === null) return { kind: "unavailable", owner, location };
-  if (actions.viewer === "ANONYMOUS") return { kind: "anonymous", owner, mode, location, contexts };
+  if (actions.viewer === "ANONYMOUS") return { kind: "anonymous", owner, mode, location, contexts, pointsPrice };
   return {
     kind: "choose",
     owner,
@@ -113,5 +125,6 @@ export function resolveItemActionsView({
     contexts,
     eligibleContexts: contexts.filter((context) => context.eligible && !context.has_started),
     personalPickup: actions.personal_pickup_available,
+    pointsPrice,
   };
 }

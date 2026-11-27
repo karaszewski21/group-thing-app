@@ -73,13 +73,22 @@ async def get_my_points_history(
     return history
 
 
+ITEM_VALUE_FORM_MESSAGE = "Podaj item_id albo category_id i condition."
+
+
 @router.get("/item-value", response_model=ItemPointsValueResponse)
 async def get_item_value(
     db: DbSession,
-    _principal: ReadPrincipal,
-    category_id: Annotated[uuid.UUID, Query()],
-    condition: Annotated[ItemConditionKey, Query()],
+    principal: ReadPrincipal,
+    item_id: Annotated[uuid.UUID | None, Query()] = None,
+    category_id: Annotated[uuid.UUID | None, Query()] = None,
+    condition: Annotated[ItemConditionKey | None, Query()] = None,
 ) -> ItemPointsValueResponse:
-    """The item forms' preview: the value a new or edited item in
-    `category_id` and `condition` gets when saved now."""
-    return await valuation.item_value_preview(db, category_id, condition)
+    """The item forms' value and price range, in exactly one form:
+    `item_id` (the caller's own item, its stored value) or `category_id` +
+    `condition` (the value a new or changed item gets when saved now)."""
+    if item_id is not None and category_id is None and condition is None:
+        return await valuation.owned_item_value(db, principal, item_id)
+    if item_id is None and category_id is not None and condition is not None:
+        return await valuation.item_value_preview(db, category_id, condition)
+    raise ValueError(ITEM_VALUE_FORM_MESSAGE)

@@ -55,6 +55,7 @@ from app.inventory.application.reservation_transitions import (
     cancel_reservations_without_commit,
     confirm_reservation,
     fulfill_exchange,
+    lock_reservations,
 )
 from app.inventory.application.reservations import (
     create_reservation,
@@ -98,6 +99,7 @@ __all__ = [
     "get_inventory",
     "get_item",
     "get_item_balance",
+    "lock_reservations",
     "get_item_details",
     "get_item_for_update",
     "get_item_history",
