@@ -383,7 +383,7 @@ describe("TermPage — sign-up footer", () => {
     const sheet = screen.getByRole("dialog", { name: "Zapisz się" });
     expect(within(sheet).getByRole("tab", { name: "Zaloguj się" })).toHaveAttribute("aria-selected", "true");
     expect(within(sheet).getByLabelText("Hasło")).toBeInTheDocument();
-    expect(within(sheet).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(sheet).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(["/reset-password"]);
     expect(within(sheet).queryByRole("button", { name: /jako gość/ })).not.toBeInTheDocument();
     expect(groupsApi.createRsvp).not.toHaveBeenCalled();
   });

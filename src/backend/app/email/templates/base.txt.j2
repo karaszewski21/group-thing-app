@@ -1,0 +1,24 @@
+{{ brand }}
+
+{{ subject }}
+
+{% for paragraph in paragraphs %}
+{{ paragraph }}
+
+{% endfor %}
+{% if cta_url is defined %}
+{{ cta_label }}: {{ cta_url }}
+
+{% endif %}
+{% if note is defined %}
+{{ note }}{% if note_link_url is defined %} {{ note_link_url }}{% endif %}
+
+{% endif %}
+--
+{% if unsubscribe_url is defined %}
+Dostajesz ten mail, bo masz włączone powiadomienia „{{ category_label }}”.
+Wypisz się z tej kategorii: {{ unsubscribe_url }}
+Ustawienia powiadomień: {{ settings_url }}
+{% else %}
+Wiadomość o Twoim koncie w {{ brand }}, wysyłana niezależnie od ustawień powiadomień.
+{% endif %}

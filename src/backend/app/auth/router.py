@@ -4,7 +4,11 @@ request body is non-blank via Pydantic, resolves `UserProfile` by `email` ->
 credentials against `users.password_hash` (bcrypt).
 
 `POST /api/auth/google/nonce` and `POST /api/auth/google`: Google sign-in.
-Public; every response the sign-in route builds clears the nonce cookie."""
+Public; every response the sign-in route builds clears the nonce cookie.
+
+The account-token routes (`/password-reset*`, `/email-verification*`,
+`/account-tokens/lookup`) answer a bad token with 404/410, never 401, and
+every reply carries `Cache-Control: no-store`."""
 
 from __future__ import annotations
 
@@ -15,20 +19,28 @@ from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 
 from app.config import settings
+from app.core.auth_deps import Principal, require_any
 from app.core.errors import ErrorResponse
-from app.core.security import encode_login_token, hash_password, verify_password
+from app.core.security import (
+    check_password_length,
+    encode_login_token,
+    hash_password,
+    verify_password,
+)
 from app.db import get_db
 from app.users.models import UserProfile
 from app.users.schemas import normalize_email
 from app.users.service import DuplicateEmailException
 
+from . import account_tokens
+from .account_tokens import AccountTokenGone, AccountTokenNotFound
 from .google import (
     GOOGLE_UNAVAILABLE_COPY,
     NONCE_COOKIE_NAME,
@@ -42,7 +54,7 @@ from .google import (
     read_nonce_cookie,
     set_nonce_cookie,
 )
-from .models import User
+from .models import AccountTokenPurpose, User
 from .service import (
     GoogleEmailTaken,
     GoogleEmailUnverified,
@@ -71,6 +83,11 @@ class LoginRequest(BaseModel):
         # just because the user typed a different casing (mobile keyboards
         # auto-capitalize the first letter).
         return normalize_email(value)
+
+    @field_validator("password")
+    @classmethod
+    def _password_fits_bcrypt(cls, value: str) -> str:
+        return check_password_length(value)
 
 
 class LoginResponse(BaseModel):
@@ -215,3 +232,119 @@ async def google_sign_in(
         token=token, created=signed_in.created, party_id=signed_in.party_id
     )
     return _google_json(201 if signed_in.created else 200, result.model_dump(), clear_cookie=True)
+
+
+_ACCOUNT_TOKEN_ERRORS: dict[int, tuple[str, str]] = {
+    404: ("Not Found", "Ten link jest nieprawidłowy."),
+    503: ("Service Unavailable", "Wysyłka maili jest chwilowo niedostępna. Spróbuj później."),
+}
+_TOKEN_GONE_COPY: dict[AccountTokenPurpose, str] = {
+    AccountTokenPurpose.PASSWORD_RESET: "Ten link do zmiany hasła jest już nieważny.",
+    AccountTokenPurpose.VERIFY_EMAIL: "Ten link wygasł albo został już użyty.",
+}
+_NO_STORE = {"Cache-Control": "no-store"}
+
+EditPrincipal = Annotated[Principal, Depends(require_any("EDIT"))]
+
+
+class PasswordResetRequest(BaseModel):
+    email: str = Field(min_length=1, max_length=255)
+
+    @field_validator("email")
+    @classmethod
+    def _normalize_email(cls, value: str) -> str:
+        return normalize_email(value)
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    token: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1)
+
+    @field_validator("password")
+    @classmethod
+    def _password_fits_bcrypt(cls, value: str) -> str:
+        return check_password_length(value)
+
+
+class EmailVerificationConfirmRequest(BaseModel):
+    token: str = Field(min_length=1, max_length=128)
+
+
+class AccountTokenLookupRequest(BaseModel):
+    token: str = Field(min_length=1, max_length=128)
+    purpose: AccountTokenPurpose
+
+
+class AccountTokenLookupResponse(BaseModel):
+    email: str
+
+
+def _account_error(status: int, message: str | None = None) -> JSONResponse:
+    error, default_message = _ACCOUNT_TOKEN_ERRORS.get(status, ("Gone", ""))
+    envelope = ErrorResponse(status=status, error=error, message=message or default_message)
+    return JSONResponse(
+        status_code=status,
+        content=jsonable_encoder(envelope.model_dump(by_alias=True)),
+        headers=_NO_STORE,
+    )
+
+
+def _token_error(
+    exc: AccountTokenNotFound | AccountTokenGone, purpose: AccountTokenPurpose
+) -> JSONResponse:
+    if isinstance(exc, AccountTokenNotFound):
+        return _account_error(404)
+    return _account_error(410, _TOKEN_GONE_COPY[purpose])
+
+
+def _empty(status: int) -> Response:
+    return Response(status_code=status, headers=_NO_STORE)
+
+
+@router.post("/password-reset", response_model=None)
+async def request_password_reset(body: PasswordResetRequest, db: DbSession) -> Response:
+    if not settings.email_enabled:
+        return _account_error(503)
+    await account_tokens.request_password_reset(db, body.email)
+    return _empty(202)
+
+
+@router.post("/password-reset/confirm", response_model=None)
+async def confirm_password_reset(body: PasswordResetConfirmRequest, db: DbSession) -> Response:
+    try:
+        await account_tokens.confirm_password_reset(db, body.token, body.password)
+    except (AccountTokenNotFound, AccountTokenGone) as exc:
+        return _token_error(exc, AccountTokenPurpose.PASSWORD_RESET)
+    return _empty(204)
+
+
+@router.post("/email-verification/confirm", response_model=None)
+async def confirm_email_verification(
+    body: EmailVerificationConfirmRequest, db: DbSession
+) -> Response:
+    try:
+        await account_tokens.confirm_verification(db, body.token)
+    except (AccountTokenNotFound, AccountTokenGone) as exc:
+        return _token_error(exc, AccountTokenPurpose.VERIFY_EMAIL)
+    return _empty(204)
+
+
+@router.post("/email-verification", response_model=None)
+async def request_email_verification(principal: EditPrincipal, db: DbSession) -> Response:
+    if not settings.email_enabled:
+        return _account_error(503)
+    await account_tokens.request_verification(db, principal)
+    return _empty(202)
+
+
+@router.post("/account-tokens/lookup", response_model=None)
+async def lookup_account_token(body: AccountTokenLookupRequest, db: DbSession) -> Response:
+    try:
+        email = await account_tokens.lookup(db, body.token, body.purpose)
+    except (AccountTokenNotFound, AccountTokenGone) as exc:
+        return _token_error(exc, body.purpose)
+    return JSONResponse(
+        status_code=200,
+        content=AccountTokenLookupResponse(email=email).model_dump(),
+        headers=_NO_STORE,
+    )

@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import AccessDeniedException, EntityNotFoundException
 
 from . import repository
+from .infrastructure import email_acl
 from .models import Notification, NotificationKind
 
 __all__ = [
@@ -37,12 +38,15 @@ __all__ = [
 
 @dataclass(frozen=True)
 class NotificationEntry:
-    """One row for `create_notifications`."""
+    """One row for `create_notifications`. `topic_id` lives in memory only:
+    the want a `WANT_MATCH_FOUND` row is about, so its mails collapse to one
+    a day."""
 
     party_id: uuid.UUID
     kind: NotificationKind
     message: str
     link_path: str | None
+    topic_id: uuid.UUID | None = None
 
 
 async def create_notification(
@@ -61,9 +65,12 @@ async def create_notification(
     `app.groups.models.SwapProposal.id` pointer, set on `SWAP_PROPOSED`
     and on a swap `TERM_CONFIRMATION_NEEDED`; `reservation_id` is the loose
     `app.inventory.models.Reservation.id` pointer, only meaningful for a
-    GIFT `TERM_CONFIRMATION_NEEDED`."""
+    GIFT `TERM_CONFIRMATION_NEEDED`. A mailed kind also stages its mail,
+    which needs the id before the flush."""
+    notification_id = uuid.uuid4()
     db.add(
         Notification(
+            id=notification_id,
             party_id=party_id,
             kind=kind,
             message=message,
@@ -71,6 +78,16 @@ async def create_notification(
             proposal_id=proposal_id,
             reservation_id=reservation_id,
         )
+    )
+    await email_acl.stage(
+        db,
+        notification_id=notification_id,
+        party_id=party_id,
+        kind=kind,
+        message=message,
+        link_path=link_path,
+        proposal_id=proposal_id,
+        reservation_id=reservation_id,
     )
 
 
@@ -80,7 +97,7 @@ async def create_notifications(
     """Inserts one row per entry in one statement, no commit, and returns the
     new ids in entry order. Each row gets its id and timestamps here because
     a multi-row insert evaluates a column default once for the whole
-    statement."""
+    statement. Their mails go out in at most one more statement."""
     if not entries:
         return []
     now = datetime.utcnow()
@@ -101,6 +118,7 @@ async def create_notifications(
             ]
         )
     )
+    await email_acl.enqueue(db, new_ids, entries)
     return new_ids
 
 

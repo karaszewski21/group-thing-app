@@ -110,13 +110,19 @@ async def _named_items(
 
 
 def _entry(
-    party_id: uuid.UUID, kind: notifications_acl.NotificationKind, message: str, link_path: str
+    party_id: uuid.UUID,
+    kind: notifications_acl.NotificationKind,
+    message: str,
+    link_path: str,
+    *,
+    topic_id: uuid.UUID | None = None,
 ) -> notifications_acl.NotificationEntry:
     return notifications_acl.NotificationEntry(
         party_id=party_id,
         kind=kind,
         message=clock.fit_notification_message(message),
         link_path=link_path,
+        topic_id=topic_id,
     )
 
 
@@ -191,6 +197,7 @@ async def write_bell_rows(
                 notifications_acl.NotificationKind.WANT_MATCH_FOUND,
                 message,
                 link_path,
+                topic_id=want.id,
             )
         )
         pointed.append((want.id, count))

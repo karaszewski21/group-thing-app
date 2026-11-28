@@ -1,0 +1,345 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases:
+  - phase-1
+  - phase-2
+  - phase-4
+  - phase-5
+  - phase-6
+  - phase-7
+  - phase-8
+  - phase-10
+  - phase-11
+  - phase-12
+  - phase-13
+  - phase-14
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    html_output: true
+    mockup_format: html
+    sequential: false
+    spec_audit_enabled: true
+    skip_test_suite: false
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+  created: '2026-11-27T07:20:17Z'
+  updated: '2026-11-28T11:33:09Z'
+  task_path: .maister/tasks/development/2026-11-27-email-sending-module
+  task_ids: {}
+task:
+  title: Moduł mailingowy app/email (Mailgun EU) — wdrożenie z badania
+  description: 'Implement the app/email sending module designed in research 2026-11-26-email-sending-module: email_messages queue written in the bell/account-flow transaction, _run_email_send job, EmailSender port with Mailgun EU/SMTP/log adapters, Jinja2 templates, webhook + suppression, opt-out preferences with RFC 8058 unsubscribe, account_tokens for email verification and password reset, email_verified_at + Google backfill, and the frontend surfaces (/settings, /verify-email, /reset-password, /unsubscribe, banner).'
+  status: completed
+  tags:
+  - email
+  - notifications
+  - auth
+  - integration
+  priority: null
+task_context:
+  risk_level: high
+  clarifications_resolved: true
+  scope_expanded: false
+  architecture_decision: Research ADR-001..010 (module in modular monolith, email_messages as transactional outbox)
+  project_context:
+    project_doc_paths:
+    - .maister/docs/project/architecture.md
+    - .maister/docs/project/tech-stack.md
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  research_reference:
+    path: .maister/tasks/research/2026-11-26-email-sending-module
+    research_question: Jak wdrożyć moduł wysyłki e-maili w aj (FastAPI + Next.js) z użyciem zewnętrznego dostawcy i w jakich momentach aplikacji maile powinny być wysyłane?
+    research_type: mixed
+    confidence_level: medium-high
+  design_reference:
+    source: phase-4-mockup-studio
+    product_design_path: null
+    mockup_count: 9
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  phase_summaries:
+    research:
+      summary: 'Module app/email inside the modular monolith: email_messages queue inserted in the domain transaction via a hook in notifications.service (and auth ACL for account mails), _run_email_send job with late binding/backoff/quiet hours, Mailgun EU via httpx behind EmailSender, Jinja2 templates, full HMAC webhook + suppressions, opt-out per category with RFC 8058, account_tokens + email_verified_at with Google backfill. 10 ADRs, 3 rollout stages.'
+      key_findings:
+      - notifications.service is the only shared point of all 13 bell kinds; 9 of 13 bypass the outbox
+      - MVP = 3 account mails (verify, reset, password changed) + 7 bell kinds (B1, B3-B6, B8, B9)
+      - Research planned migrations 0109-0111 but 0109 is now taken by 0109_points_offers; renumber to 0110+
+      recommended_approach: See analysis/research-context/high-level-design.md and decision-log.md (ADR-001..010)
+      decisions_made:
+      - D1 Mailgun EU; D2 hook + email_messages; D3 opt-out per category; D4 verification for P/D + Google backfill + banner; D5 SKIPPED with skip_reason, Google-only may set first password; D6 Jinja2; D7 immediate + MATCH daily key + quiet hours 22-07; D8 full webhook (delivered/failed/complained)
+      decisions: []
+      risks: []
+      artifacts:
+      - path: analysis/research-context/high-level-design.md
+        label: High-level design (research)
+        html: null
+      - path: analysis/research-context/decision-log.md
+        label: Decision log (research)
+        html: null
+      - path: analysis/research-context/research-report.md
+        label: Research report
+        html: null
+    codebase_analysis:
+      summary: 'No email code exists; notifications.service create_notification(s) is the single hook point. Precedents exist for every part (points boundary pattern, set_embedder setter, APScheduler job, 0107 migration template, rows 72/73). Risks: auth/users import cycle, collapsed WANT_MATCH bells, pinned statement counts, 401 logs out frontend.'
+      primary_language: Python + TypeScript
+      key_files:
+      - src/backend/app/notifications/service.py
+      - src/backend/app/wants/application/match_notifications.py
+      - src/backend/app/main.py
+      - src/backend/app/config.py
+      - src/backend/app/auth/router.py
+      - src/backend/app/users/service.py
+      - src/backend/app/core/authorization_matrix.py
+      - src/frontend/src/features/account/AccountView.tsx
+      - src/frontend/src/routing/paths.ts
+      decisions: []
+      risks:
+      - Import cycles auth<->users; app.email must not import app.notifications
+      - Collapsed WANT_MATCH bells leave dangling notification_id
+      - tests/test_wants_notifications.py:92 pins exactly one INSERT
+      - Frontend clears session on any 401 — token endpoints must use 400/404/410
+      artifacts:
+      - path: analysis/codebase-analysis.md
+        label: Codebase analysis
+        html: null
+      - path: analysis/clarifications.md
+        label: Clarifications
+        html: null
+    gap_analysis:
+      summary: Everything is new (app/email, 4 tables + column + backfill, job, adapters, webhook, token flows, 4 frontend routes); research ADRs settle most design. 2 critical + 6 important decisions remained.
+      integration_points:
+      - notifications.service create_notification(s)
+      - users.service.register
+      - auth.service Google bootstrap/linked
+      - main.py lifespan+scheduler+routers
+      - authorization_matrix rows 74-80
+      - reservedSlugs.ts + organizations/slugs.py
+      - proxy PROTECTED_PREFIXES
+      - LoginForm
+      - AccountView
+      - HomeView
+      decisions: []
+      risks:
+      - D14 privacy policy and Mailgun DPA gate the rollout
+      - Mailgun's own bounce list can block a verification mail even after the local BOUNCE row is cleared
+      - Pre-existing outbox dispatcher partial-commit bug duplicates bells
+      - 'Baseline noise: 32 vitest, 2 stale backend tests, mypy 15, ruff 64'
+      artifacts:
+      - path: analysis/gap-analysis.md
+        label: Gap analysis
+        html: null
+    scope_clarifications:
+      scope_expanded: false
+      summary: All 8 decisions resolved with recommended options; EMAIL_NOTIFICATIONS_ENABLED second flag; registration mail atomic inside users.service.register; own email_messages queue is the outbox.
+      decisions:
+      - decision: C-1 issue verification inside users.service.register
+        rationale: atomic, no import cycle
+      - decision: C-2 EMAIL_NOTIFICATIONS_ENABLED default false
+        rationale: warm-up + D14 gate without code change
+      - decision: I-1 expire stale queue rows (24h / token expiry)
+        rationale: no burst of outdated mail
+      - decision: I-2 db.add single, INSERT ON CONFLICT batch; no outbox_entries
+        rationale: email_messages is the transactional outbox
+      - decision: I-3 deterministic term_confirmation key
+        rationale: blocks duplicate mails from outbox retries
+      - decision: I-4 email_verified bool|null on /me, banner only on false
+        rationale: hide UI when email off
+      - decision: I-5 COMPLAINT lifted by support only
+        rationale: Mailgun blocks anyway
+      - decision: I-6 reset confirm verifies email when snapshot matches
+        rationale: proves inbox control
+      risks: []
+      artifacts:
+      - path: analysis/scope-clarifications.md
+        label: Scope clarifications
+        html: null
+    ui_mockups:
+      summary: '9 HTML mockup screens (Polish copy, real aj tokens/components): settings 4 states, home banner, account row, login link, reset request/new, verify-email, unsubscribe, email templates.'
+      format_used: html
+      components_designed:
+      - email-category-switch
+      - verify-banner
+      decisions: []
+      risks:
+      - Port 3847 used by another project's mockup server; ours runs on 3848
+      artifacts:
+      - path: analysis/design-context/INDEX.md
+        label: Design context index
+        html: null
+      - path: analysis/design-context/design-resources.md
+        label: Design resources
+        html: null
+    design:
+      summary: 9 mockup screens + 2 components indexed in analysis/design-context/INDEX.md
+      screen_count: 9
+      component_count: 2
+      index_path: analysis/design-context/INDEX.md
+    specification:
+      summary: 25 requirements (R1-R16 backend, F1-F9 frontend); extra lookup endpoint row 82, rows 80/81 split, ON CONFLICT for term_confirmation single path, expires_at column, quiet hours as claim filter, unsubscribe token 1.<CAT>.<party>.<sig>.
+      decisions:
+      - decision: Row 82 POST /api/auth/account-tokens/lookup (PUBLIC, no side effects)
+        rationale: mockups show the token's address before click and the reset page must show expired state first
+      - decision: TERM_CONFIRMATION_NEEDED single path uses INSERT ON CONFLICT
+        rationale: deterministic key re-staged on outbox retry would loop on IntegrityError with db.add
+      - decision: expires_at column set at enqueue
+        rationale: one expired rule, job never reads auth
+      - decision: Quiet hours as claim filter
+        rationale: no send_after rewrites
+      - decision: Single EMAIL_FROM_ADDRESS; support_address = EMAIL_REPLY_TO_ADDRESS
+        rationale: no extra env vars
+      risks:
+      - Proposed copy not in mockups needs product read (BOUNCE state, all-unsubscribe confirmation, subjects/CTAs, reset mail bodies)
+      - party_id FKs without ON DELETE — account deletion must handle
+      - Webhook replay memory per-process (single instance)
+      - D14 privacy policy + Mailgun DPA outside code
+      artifacts:
+      - path: analysis/requirements.md
+        label: Requirements
+        html: null
+      - path: implementation/spec.md
+        label: Specification
+        html: implementation/spec.html
+    spec_audit:
+      summary: 'pass-with-concerns: 0 critical, 1 high, 10 medium, 15 low; all resolved in spec revision (Audit resolution section). User decisions: M-7 neutral copy + notifications_live ''Wkrótce''; M-9 reset form for logged-in users too.'
+      decisions:
+      - decision: M-7 neutral copy + 'Powiadomienia e-mail ruszają wkrótce' via notifications_live
+        rationale: stage 1 collects verified addresses without false promises
+      - decision: M-9 reset-with-token form shown to logged-in users, session cleared on success
+        rationale: Google-only users can set a password; link never looks broken
+      risks: []
+      artifacts:
+      - path: verification/spec-audit.md
+        label: Spec audit
+        html: null
+    planning:
+      summary: 19 task groups, 117 steps, 7 waves; ~91-125 tests; visual coverage 11/11.
+      decisions:
+      - decision: Matrix rows, routing and reserved slugs each owned by one group
+        rationale: no parallel edits of shared files
+      risks:
+      - Unrelated uncommitted changes in search files and one architecture.md line (not from this workflow) - do not touch
+      - Bell-path hook regression risk
+      - MyProfileResponse type ripples into ~12 test fixtures
+      artifacts:
+      - path: implementation/implementation-plan.md
+        label: Implementation plan
+        html: implementation/implementation-plan.html
+      - path: implementation/visual-coverage.md
+        label: Visual coverage
+        html: null
+    implementation:
+      summary: 19 groups / 117 steps in 7 parallel waves + follow-up 17b. Backend full suite 2047 passed / 2 failed (known stale); frontend full 49 failed (32 baseline -3 fixed +20 pre-existing MyItemsViewCategory from HEAD 3bb3591); typecheck 0, mypy 15, ruff 64.
+      decisions:
+      - decision: MyItemsViewCategory 20 failures classified pre-existing
+        rationale: caused by HEAD commit 3bb3591 useQueryClient without test wrapper; no feature file involved
+      risks:
+      - Proposed Polish copy not in mockups needs product read (error/loading states, 'Nieprawidłowe żądanie.', 'Nie znaleziono profilu.', subjects/CTAs)
+      - AuthLayout subtitle is string — mockup bold address/emoji-above-title not matched
+      - ADR replacing handover ADR-009 not written
+      - No DB-backed lifespan test for 'email disabled schedules no job'
+      artifacts:
+      - path: implementation/work-log.md
+        label: Work log
+        html: null
+    verification:
+      summary: 'Final: Passed with Issues, ready for stage 1. 0 critical, W1-W9 fixed, W10-W12 deferred; 0 regressions after 2 fix rounds; production GO; reality Ready.'
+      decisions:
+      - decision: Fix W1-W9 + fixable info; round 2 fixes regression + N1 + N2 + minor
+        rationale: user choice
+      - decision: W10-W12 deferred
+        rationale: product/ops decisions, before stage 2
+      risks:
+      - W10 unverified existing accounts limit stage-2 reach
+      - W11 no retention
+      - W12 no alerting
+      - Proxy in front of nginx requires set_real_ip_from (runbook)
+      - nginx error log still prints token URLs on upstream failure (accepted)
+      artifacts:
+      - path: verification/implementation-verification.md
+        label: Implementation verification (final)
+        html: verification/implementation-verification.html
+  clarifications:
+  - Scope = stages 1+2 (account mails + 7 MVP bell kinds, preferences, unsubscribe, webhook, frontend); stage 3 separate task
+  - Unsubscribe signing key = separate EMAIL_LINK_SIGNING_SECRET
+  - Mailpit under compose profiles [dev] + SmtpSender
+  design_resources:
+    ran: true
+    found_any: true
+    standards:
+    - .maister/docs/standards/frontend/components.md
+    - .maister/docs/standards/frontend/accessibility.md
+    - .maister/docs/standards/frontend/css.md
+    design_system:
+    - src/frontend/src/app/globals.css
+    - src/frontend/src/components/shared/appComponents.tsx
+    - src/frontend/src/features/auth/authStyles.ts
+    - src/frontend/src/features/auth/AuthLayout.tsx
+    skill_hints: []
+  tech_clarified: true
+verification_context:
+  last_status: passed_with_issues
+  issues_found:
+  - id: W1
+    severity: warning
+    description: Tokens in nginx/uvicorn access logs
+    fixable: true
+  - id: W2
+    severity: warning
+    description: Password >72 bytes -> 500; bcrypt before claim on event loop
+    fixable: true
+  - id: W3
+    severity: warning
+    description: Mailgun 401/403 permanent -> mass FAILED
+    fixable: true
+  - id: W4
+    severity: warning
+    description: List-Unsubscribe URL has no GET (405)
+    fixable: true
+  - id: W5
+    severity: warning
+    description: No HTTP rate limit on public POSTs
+    fixable: true
+  - id: W6
+    severity: warning
+    description: Restart mid-send -> stuck_sending FAILED for T mails
+    fixable: true
+  - id: W7
+    severity: warning
+    description: Email normalisation duplicated, drift in auth/service.py:89
+    fixable: true
+  - id: W8
+    severity: warning
+    description: Category labels duplicated in frontend
+    fixable: true
+  - id: W9
+    severity: warning
+    description: Reset does not revoke JWTs (undocumented)
+    fixable: true
+  - id: W10
+    severity: warning
+    description: Existing password accounts unverified (stage-2 reach)
+    fixable: false
+  - id: W11
+    severity: warning
+    description: No retention for email_messages/account_tokens
+    fixable: false
+  - id: W12
+    severity: warning
+    description: No alerting on FAILED/overdue rows
+    fixable: false
+  fixes_applied:
+  - 'Round 1: W1-W9 + info items'
+  - 'Round 2: test regression (fake pause), cooperative stop + requeue + stop_grace_period 25s, 72B on login/families, credential-status set, client.ts simplification, docs real_ip'
+  decisions_made:
+  - 'Fix W1-W9 plus fixable info items (user choice). W3 policy: Mailgun 401/403/404 retryable under distinct code + one ERROR per run.'
+  reverify_count: 2

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
-import { getMyProfile, type UserProfileResponse } from "../api/people";
+import { getMyProfile, type MyProfileResponse } from "../api/people";
 import { extractProblemMessage } from "../api/problem";
 import { useAuth } from "../auth/AuthContext";
 import { isAwaitingModeration, mediaStatusChanged, PENDING_MEDIA_POLL_MS } from "./mediaModeration";
@@ -14,7 +14,7 @@ interface UseMyProfileOptions {
 }
 
 interface UseMyProfileResult {
-  data: UserProfileResponse | null;
+  data: MyProfileResponse | null;
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;

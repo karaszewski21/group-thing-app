@@ -21,3 +21,12 @@ export function usePanelReload(): () => void {
   const { load } = useAppData();
   return useCallback(() => void load({ silent: true }), [load]);
 }
+
+/** `usePanelReload` for views that also render outside the panel (a token
+ * page): a no-op when there is no `AppDataProvider`. */
+export function useOptionalPanelReload(): () => void {
+  const load = useContext(AppDataContext)?.load;
+  return useCallback(() => {
+    if (load) void load({ silent: true });
+  }, [load]);
+}

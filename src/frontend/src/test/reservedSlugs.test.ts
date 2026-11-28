@@ -22,6 +22,10 @@ describe("reserved slugs", () => {
     expect([...topLevel].sort()).toEqual([...RESERVED_SLUGS].sort());
   });
 
+  it("reserves the e-mail link pages", () => {
+    expect(RESERVED_SLUGS).toEqual(expect.arrayContaining(["verify-email", "reset-password", "unsubscribe"]));
+  });
+
   it("is reserved by the backend too", () => {
     const backend = backendReservedSlugs();
     expect(backend).toContain("home");

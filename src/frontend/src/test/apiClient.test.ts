@@ -48,3 +48,33 @@ describe("api client 401 handling", () => {
     expect(location.href).toBe("/");
   });
 });
+
+describe("api client empty success replies", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("request_emptyAccepted_resolvesUndefinedWithoutParsing", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 202, statusText: "Accepted" })));
+
+    await expect(api.post("/auth/password-reset", { email: "ania@example.pl" })).resolves.toBeUndefined();
+  });
+
+  it("request_acceptedWithJsonBody_parsesIt", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ queued: 1 }), { status: 202 })));
+
+    await expect(api.post("/x", {})).resolves.toEqual({ queued: 1 });
+  });
+
+  it("request_emptyOkBody_resolvesUndefined", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 200 })));
+
+    await expect(api.put("/x", {})).resolves.toBeUndefined();
+  });
+
+  it("request_jsonBody_parsesIt", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 })));
+
+    await expect(api.get("/x")).resolves.toEqual({ ok: true });
+  });
+});

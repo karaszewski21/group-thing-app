@@ -58,7 +58,7 @@ const GROUP_ID = "6a1b2c3d-4e5f-4a6b-8c7d-0000000000a1";
 const HINT = "Widoczny na stronie terminów grupy i w wyszukiwarce. Bez linków i danych kontaktowych.";
 const TOO_LONG = "Opis może mieć najwyżej 500 znaków.";
 
-const profile: peopleApi.UserProfileResponse = {
+const profile: peopleApi.MyProfileResponse = {
   id: "p1",
   party_id: "party-1",
   account_user_id: "u1",
@@ -73,6 +73,7 @@ const profile: peopleApi.UserProfileResponse = {
   primary_color: null,
   accent_color: null,
   media: [],
+  email_verified: null,
 };
 
 const leadership: groupsApi.LeadershipResponse = {

@@ -15,6 +15,7 @@ export type View =
   | "family/edit"
   | "family/members/new"
   | "account"
+  | "settings"
   | "points"
   | "search"
   | "wanted"
@@ -148,6 +149,7 @@ export const PROTECTED_PREFIXES: readonly string[] = [
   "/places",
   "/family",
   "/account",
+  "/settings",
   "/points",
   "/wanted",
   "/add/",

@@ -46,6 +46,9 @@ class _RecordingScheduler:
     def start(self) -> None:
         pass
 
+    def pause(self) -> None:
+        pass
+
     def shutdown(self, *, wait: bool) -> None:
         pass
 

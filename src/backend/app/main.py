@@ -17,6 +17,7 @@ import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
@@ -29,9 +30,13 @@ from app.auth.router import router as auth_router
 from app.category.router import router as category_router
 from app.config import settings
 from app.core import clock
+from app.core.access_log import install_access_log_filter
 from app.core.auth_deps import register_auth_exception_handlers
 from app.core.errors import register_exception_handlers
 from app.db import TRANSACTION_CONFLICTS, async_session_factory
+from app.email import sending as email_sending
+from app.email.router import router as email_router
+from app.email.senders import build_sender, set_sender
 from app.embeddings import service as embeddings_service
 from app.events.router import router as events_router
 from app.families.router import router as families_router
@@ -83,6 +88,11 @@ _MEDIA_SWEEP_INTERVAL_MINUTES = 15
 _ATTENDANCE_CLOSE_INTERVAL_MINUTES = 15
 _EMBEDDING_RECONCILE_INTERVAL_MINUTES = 1
 _EMBEDDING_RECONCILE_LIMIT = 300
+_EMAIL_SEND_INTERVAL_SECONDS = 60
+# How long shutdown waits for an in-flight send run, which stops before its
+# next send; below Docker's 10 s default stop timeout (compose sets 25 s).
+_EMAIL_SEND_SHUTDOWN_WAIT_SECONDS = 8.0
+_email_send_in_flight: asyncio.Task[Any] | None = None
 
 
 async def _run_term_end_scan() -> None:
@@ -153,6 +163,57 @@ async def _run_embedding_reconcile() -> None:
     )
 
 
+async def _run_email_send() -> None:
+    """One send batch in its own session; the batch commits and logs its own
+    summary. A lost race (deadlock or serialization failure) is one WARNING
+    and the next tick repeats the work; any other failure is logged once with
+    its traceback and never re-raised, so the job keeps running."""
+    global _email_send_in_flight
+    _email_send_in_flight = asyncio.current_task()
+    try:
+        async with async_session_factory() as db:
+            await email_sending.run_send_batch(db)
+    except DBAPIError as exc:
+        sqlstate = getattr(exc.orig, "sqlstate", None)
+        if sqlstate in TRANSACTION_CONFLICTS:
+            logger.warning("email send lost a race (%s); retrying next tick", sqlstate)
+        else:
+            logger.exception("email send run failed")
+    except Exception:
+        logger.exception("email send run failed")
+    finally:
+        _email_send_in_flight = None
+
+
+async def _finish_email_send(timeout: float) -> None:
+    """Waits up to `timeout` for a running send batch, never cancelling it;
+    the scheduler's shutdown then cancels whatever is still running."""
+    task = _email_send_in_flight
+    if task is not None and not task.done():
+        await asyncio.wait({task}, timeout=timeout)
+
+
+def _check_email_settings() -> None:
+    """Refuses to start while `EMAIL_ENABLED=true` lacks a required setting,
+    naming only the variables, then logs the e-mail flags. Never logs a value."""
+    errors = settings.email_configuration_errors
+    if errors:
+        message = f"e-mail settings missing or invalid: {', '.join(errors)}"
+        logger.error(message)
+        raise RuntimeError(message)
+    logger.info(
+        "EMAIL_ENABLED=%s EMAIL_NOTIFICATIONS_ENABLED=%s EMAIL_BACKEND=%s",
+        settings.email_enabled,
+        settings.email_notifications_enabled,
+        settings.email_backend,
+    )
+    if settings.email_enabled and settings.email_backend != "mailgun":
+        logger.warning(
+            "EMAIL_BACKEND=%s with EMAIL_ENABLED=true: mail is not delivered to real inboxes",
+            settings.email_backend,
+        )
+
+
 _OLD_WANTS_SCHEMA = "schema is the old 0099; run the amended-0099 runbook (architecture.md)"
 
 
@@ -200,13 +261,18 @@ async def _check_similar_schema() -> None:
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Starts the 60 s outbox poller as a background task alongside the app
     process, after wiring every vertical's outbox event handlers. Also
-    starts the term-end scan, superseded-media sweep and embedding reconcile jobs on an
+    starts the term-end scan, superseded-media sweep and embedding reconcile jobs, and the
+    e-mail send job while `EMAIL_ENABLED=true`, on an
     `AsyncIOScheduler` (APScheduler, interval-based) — the same "started on
     startup, cancelled/shut down on shutdown" lifecycle shape as the outbox
     poller, using APScheduler's own `start`/`shutdown(wait=False)` API
-    rather than a second sleep loop."""
+    rather than a second sleep loop. On shutdown the scheduler is paused and
+    an in-flight e-mail send batch is asked to stop before its next send and
+    gets up to 8 s to write its outcomes before the jobs are cancelled."""
     global _outbox_task, _term_end_scheduler
     clock.check_timezone()
+    install_access_log_filter()
+    _check_email_settings()
     await _check_wants_contract()
     await _check_similar_schema()
     logger.info(
@@ -231,6 +297,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         from app.embeddings.onnx_embedder import OnnxEmbedder
 
         embeddings_service.set_embedder(OnnxEmbedder(Path(settings.embeddings_model_dir)))
+    if settings.email_enabled:
+        set_sender(build_sender(settings))
 
     notifications_outbox_listener.register()
     storage_outbox_listener.register()
@@ -255,6 +323,13 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     _term_end_scheduler.add_job(
         _run_embedding_reconcile, "interval", minutes=_EMBEDDING_RECONCILE_INTERVAL_MINUTES
     )
+    if settings.email_enabled:
+        _term_end_scheduler.add_job(
+            _run_email_send,
+            "interval",
+            seconds=_EMAIL_SEND_INTERVAL_SECONDS,
+            max_instances=1,
+        )
     _term_end_scheduler.start()
 
     yield
@@ -262,9 +337,16 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     _outbox_task.cancel()
     with contextlib.suppress(asyncio.CancelledError):
         await _outbox_task
+    # Pausing stops new runs; an in-flight send batch stops before its next
+    # send, requeues what it has not attempted and may finish first.
+    email_sending.request_stop()
+    _term_end_scheduler.pause()
+    await _finish_email_send(_EMAIL_SEND_SHUTDOWN_WAIT_SECONDS)
     _term_end_scheduler.shutdown(wait=False)
+    email_sending.allow_sends()
     text_guard.set_classifier(None)
     embeddings_service.set_embedder(None)
+    set_sender(None)
 
 
 app = FastAPI(lifespan=lifespan)
@@ -304,4 +386,5 @@ app.include_router(moderation_router)
 app.include_router(search_router)
 app.include_router(wants_router)
 app.include_router(points_router)
+app.include_router(email_router)
 app.include_router(system_router)

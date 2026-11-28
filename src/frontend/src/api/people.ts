@@ -24,6 +24,10 @@ export interface UserProfileResponse {
   media: OwnerMedia[];
 }
 
+/** The caller's own profile (`/api/people/me`): `email_verified` is `null`
+ * while email is off or the profile has no address. Never on other profiles. */
+export type MyProfileResponse = UserProfileResponse & { email_verified: boolean | null };
+
 /** A `PATCH` of the public profile's look: an omitted field stays, `null`
  * clears it (a blank `bio` too). */
 export interface UpdateMyProfileAppearanceRequest {
@@ -43,17 +47,17 @@ export function getProfile(userProfileId: string): Promise<UserProfileResponse> 
   return api.get(`/people/${userProfileId}`);
 }
 
-export function getMyProfile(): Promise<UserProfileResponse> {
+export function getMyProfile(): Promise<MyProfileResponse> {
   return api.get("/people/me");
 }
 
-export function updateMyProfile(request: UpdateMyProfileRequest): Promise<UserProfileResponse> {
+export function updateMyProfile(request: UpdateMyProfileRequest): Promise<MyProfileResponse> {
   return api.patch("/people/me", request);
 }
 
 export function updateMyProfileAppearance(
   request: UpdateMyProfileAppearanceRequest,
-): Promise<UserProfileResponse> {
+): Promise<MyProfileResponse> {
   return api.patch("/people/me/appearance", request);
 }
 

@@ -104,10 +104,14 @@ async def test_search_loggedInMine_nothingOutsideOwnGroupsExceptCounterpartyItem
     all_items = await _search(client, viewer, q="pelikan", mode="items", scope="all")
     all_meetings = await _search(client, viewer, q="pelikan", mode="events", scope="all")
 
-    # The counterparty item shows in both scopes; own items never.
-    assert _ids(mine_items) == {str(co_member_item), str(taken_item)}
-    assert _ids(all_items) == {str(co_member_item), str(taken_item), str(stranger_item)}
-    assert str(own_item) not in _ids(all_items)
+    # The counterparty item and own items show in both scopes.
+    assert _ids(mine_items) == {str(co_member_item), str(taken_item), str(own_item)}
+    assert _ids(all_items) == {
+        str(co_member_item),
+        str(taken_item),
+        str(stranger_item),
+        str(own_item),
+    }
     assert _ids(mine_meetings) == {str(own_term), str(own_group)}
     assert _kinds(all_meetings) == {"term", "event", "group", "organization"}
     assert str(other_group) in _ids(all_meetings)

@@ -21,11 +21,13 @@ export function ToggleRow({
   hint,
   checked,
   onChange,
+  disabled = false,
 }: {
   label: string;
   hint: string;
   checked: boolean;
   onChange: () => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 border-t border-line py-3.5 first:border-t-0">
@@ -33,7 +35,7 @@ export function ToggleRow({
         <strong className="block text-sm text-ink">{label}</strong>
         <small className="mt-0.5 block text-xs text-ink-soft">{hint}</small>
       </div>
-      <Switch checked={checked} label={label} onChange={onChange} />
+      <Switch checked={checked} label={label} onChange={onChange} disabled={disabled} />
     </div>
   );
 }
@@ -73,7 +75,9 @@ export function Switch({
  * accent to read as actionable/new. CTA is either a `Link` (org-polish, to
  * "/organization") or a plain button (both first-term variants, opens the
  * "pierwszy-termin" modal) — never both, so exactly one of `ctaTo`/
- * `onCtaClick` is expected per instance. */
+ * `onCtaClick` is expected per instance. The ✕ renders only with
+ * `onDismiss`; `ctaDisabled` marks the button `aria-disabled` and ignores
+ * its clicks (a cooldown). */
 export function HintCard({
   icon,
   title,
@@ -81,6 +85,7 @@ export function HintCard({
   ctaLabel,
   ctaTo,
   onCtaClick,
+  ctaDisabled = false,
   onDismiss,
 }: {
   icon: ReactNode;
@@ -89,7 +94,8 @@ export function HintCard({
   ctaLabel: string;
   ctaTo?: string;
   onCtaClick?: () => void;
-  onDismiss: () => void;
+  ctaDisabled?: boolean;
+  onDismiss?: () => void;
 }) {
   const cta = "mt-2 inline-block text-sm font-extrabold text-accent-fg hover:underline";
   return (
@@ -100,13 +106,15 @@ export function HintCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <h3 className="pt-0.5 text-base font-extrabold text-ink">{title}</h3>
-          <button
-            onClick={onDismiss}
-            aria-label={`Zamknij: ${title}`}
-            className="-mt-1 -mr-1 flex h-9 w-9 flex-none items-center justify-center rounded-full text-ink-soft hover:bg-paper/60 hover:text-ink"
-          >
-            <CloseIcon />
-          </button>
+          {onDismiss && (
+            <button
+              onClick={onDismiss}
+              aria-label={`Zamknij: ${title}`}
+              className="-mt-1 -mr-1 flex h-9 w-9 flex-none items-center justify-center rounded-full text-ink-soft hover:bg-paper/60 hover:text-ink"
+            >
+              <CloseIcon />
+            </button>
+          )}
         </div>
         <p className="mt-0.5 text-sm text-ink">{description}</p>
         {ctaTo ? (
@@ -114,7 +122,11 @@ export function HintCard({
             {ctaLabel}
           </Link>
         ) : (
-          <button onClick={onCtaClick} className={cta}>
+          <button
+            onClick={ctaDisabled ? undefined : onCtaClick}
+            aria-disabled={ctaDisabled || undefined}
+            className={ctaDisabled ? `${cta} cursor-not-allowed opacity-60 hover:no-underline` : cta}
+          >
             {ctaLabel}
           </button>
         )}

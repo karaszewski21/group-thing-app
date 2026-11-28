@@ -38,8 +38,8 @@ const PANEL = [
   "/family/edit",
   "/family/members/new",
   "/account",
+  "/settings",
   "/points",
-  "/search",
   "/wanted",
   "/wanted/:id",
   "/wanted/:id/edit",
@@ -83,7 +83,11 @@ const ADMIN = [
 const INVENTORY = [
   "/",
   "/login",
+  "/reset-password",
+  "/verify-email",
+  "/unsubscribe",
   "/about/points",
+  "/search",
   ...PANEL,
   "/:slug",
   "/:slug/items",
@@ -130,6 +134,7 @@ describe("App Router route manifest", () => {
         "family/edit",
         "family/members/new",
         "account",
+        "settings",
         "points",
         "search",
         "wanted",
@@ -174,14 +179,38 @@ describe("App Router route manifest", () => {
     expect(existsSync(resolve(APP_DIR, "(public)/(panel)/add/hunting"))).toBe(false);
   });
 
-  it("opens only /add and /search of the panel to guests, each with its own PanelGate branch", () => {
+  it("opens only /add of the panel to guests, with its own PanelGate branch", () => {
     const open = PANEL.filter((pattern) => !pattern.includes(":")).filter(
       (pathname) =>
         resolveProxy({ method: "GET", pathname, search: "", hasSession: false }, "http://backend").kind === "next",
     );
-    expect(open.sort()).toEqual(["/add", "/search"]);
+    expect(open).toEqual(["/add"]);
     const gate = readFileSync(resolve(APP_DIR, "../features/panel/PanelGate.tsx"), "utf8");
-    for (const view of ["add", "search"]) expect(gate).toContain(`pathname === viewPath("${view}")`);
+    expect(gate).toContain('pathname === viewPath("add")');
+  });
+
+  it.each(["/verify-email", "/reset-password", "/unsubscribe"])(
+    "serves %s as a public page outside the panel, open to guests and sessions alike",
+    (pathname) => {
+      const page = pageFor(pathname);
+      expect(page?.dir).toBe(`(public)${pathname}`);
+      for (const hasSession of [false, true]) {
+        expect(resolveProxy({ method: "GET", pathname, search: "?token=t", hasSession }, "http://backend").kind).toBe(
+          "next",
+        );
+      }
+      // A server page: the route keeps its metadata (no-referrer for the mailed token).
+      const source = readFileSync(resolve(APP_DIR, page?.dir ?? "", "page.tsx"), "utf8");
+      expect(source).not.toMatch(/^["']use client["']/);
+      expect(source).toContain('referrer: "no-referrer"');
+    },
+  );
+
+  it("keeps /settings a panel page behind the login gate", () => {
+    expect(pageFor("/settings")?.dir).toBe("(public)/(panel)/settings");
+    expect(
+      resolveProxy({ method: "GET", pathname: "/settings", search: "", hasSession: false }, "http://backend").kind,
+    ).not.toBe("next");
   });
 
   it("never puts a server redirect() page under a layout that withholds its children", () => {

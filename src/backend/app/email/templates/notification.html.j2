@@ -1,0 +1,4 @@
+{% extends "base.html.j2" %}
+{% set paragraphs = [message] %}
+{% set cta_url = base_url ~ (link_path or "/") %}
+{% set unsubscribe_url = base_url ~ "/unsubscribe?token=" ~ (unsubscribe_token | urlencode) %}

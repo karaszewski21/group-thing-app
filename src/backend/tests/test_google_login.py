@@ -240,6 +240,42 @@ async def test_googleSignIn_firstThenSecond_creates201ThenLogsIn200(
     assert await _identity_count(db_session, "google-sub-1") == 1
 
 
+async def _verified_at(db_session: AsyncSession, party_id: str) -> object:
+    return (
+        await db_session.execute(
+            select(UserProfile.email_verified_at)
+            .where(UserProfile.party_id == party_id)
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+
+
+async def test_googleSignIn_newAndLinked_setEmailVerifiedAtOnlyForVerifiedMatchingEmail(
+    client: AsyncClient, google: None, db_session: AsyncSession
+) -> None:
+    created = await _sign_in(client, sub="google-verified")
+    assert created.status_code == 201, created.text
+    party_id = created.json()["party_id"]
+    assert await _verified_at(db_session, party_id) is not None
+
+    async def _cleared_then_sign_in(**claims: Any) -> object:
+        await db_session.execute(
+            text(
+                "UPDATE user_profiles SET email_verified_at = NULL,"
+                " email = 'Jan.Google@Example.com' WHERE party_id = :p"
+            ),
+            {"p": party_id},
+        )
+        await db_session.commit()
+        response = await _sign_in(client, sub="google-verified", **claims)
+        assert response.status_code == 200, response.text
+        return await _verified_at(db_session, party_id)
+
+    assert await _cleared_then_sign_in(email_verified=False) is None
+    assert await _cleared_then_sign_in(email="other.google@example.com") is None
+    assert await _cleared_then_sign_in(email="JAN.GOOGLE@example.com") is not None
+
+
 async def _register(client: AsyncClient, email: str) -> str:
     response = await client.post(
         "/api/auth/register", json={"role": "GUEST", "email": email, "password": "secret123"}

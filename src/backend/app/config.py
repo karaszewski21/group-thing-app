@@ -12,10 +12,15 @@ tuning knobs (not secrets) and keep the same defaults documented in
 
 from __future__ import annotations
 
-from typing import Any
+import re
+from typing import Any, Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# A plain-http base URL is accepted only for a local host, with an optional
+# port and path; `http://localhost.evil.tld` is not local.
+_LOCAL_BASE_URL = re.compile(r"http://(localhost|127\.0\.0\.1)(:\d{1,5})?(/.*)?")
 
 
 class Settings(BaseSettings):
@@ -63,6 +68,27 @@ class Settings(BaseSettings):
         default=None, validation_alias="MODERATION_ENABLED"
     )
 
+    # E-mail (`app/email`). `EMAIL_ENABLED` gates everything; bell mail also
+    # needs `EMAIL_NOTIFICATIONS_ENABLED`. Startup fails while enabled and
+    # `email_configuration_errors` is non-empty.
+    email_enabled: bool = False
+    email_notifications_enabled: bool = False
+    email_backend: Literal["mailgun", "smtp", "log"] = "log"
+    email_provider_api_url: str | None = None
+    email_provider_api_key: str | None = None
+    email_from_address: str | None = None
+    email_from_name: str = "Gooo"
+    email_reply_to_address: str | None = None
+    email_link_signing_secret: str | None = None
+    email_webhook_signing_key: str | None = None
+    # Mails sent per Warsaw day (both streams); only bell mail is held back.
+    email_daily_cap: int = Field(default=100, ge=0)
+    # SMTP backend: Mailpit only (no auth, no TLS).
+    email_smtp_host: str | None = None
+    email_smtp_port: int = 1025
+    # Origin used in mail links, without a trailing slash.
+    app_public_base_url: str | None = None
+
     @field_validator("auth_cookie_secure", mode="before")
     @classmethod
     def _empty_cookie_secure_is_default(cls, value: Any) -> Any:
@@ -75,6 +101,31 @@ class Settings(BaseSettings):
     def _strip_google_client_id(cls, value: Any) -> Any:
         """A whitespace-only `GOOGLE_CLIENT_ID` counts as unset."""
         return value.strip() if isinstance(value, str) else value
+
+    @field_validator(
+        "email_enabled",
+        "email_notifications_enabled",
+        "email_backend",
+        "email_provider_api_url",
+        "email_provider_api_key",
+        "email_from_address",
+        "email_from_name",
+        "email_reply_to_address",
+        "email_link_signing_secret",
+        "email_webhook_signing_key",
+        "email_daily_cap",
+        "email_smtp_host",
+        "email_smtp_port",
+        "app_public_base_url",
+        mode="before",
+    )
+    @classmethod
+    def _blank_email_setting_is_unset(cls, value: Any, info: ValidationInfo) -> Any:
+        """An empty or whitespace-only placeholder counts as unset: `None` for
+        optional values, the default for the rest (flags, cap, port, name)."""
+        if isinstance(value, str) and not value.strip() and info.field_name:
+            return cls.model_fields[info.field_name].default
+        return value
 
     @property
     def cors_allowed_origins_list(self) -> list[str]:
@@ -97,6 +148,31 @@ class Settings(BaseSettings):
     @property
     def google_login_configured(self) -> bool:
         return bool(self.google_client_id)
+
+    @property
+    def email_configuration_errors(self) -> list[str]:
+        """Names (never values) of the e-mail variables that are missing or
+        invalid while `EMAIL_ENABLED=true`; empty while it is off."""
+        if not self.email_enabled:
+            return []
+        errors: list[str] = []
+        if not self.email_from_address:
+            errors.append("EMAIL_FROM_ADDRESS")
+        if not self.email_link_signing_secret or len(self.email_link_signing_secret) < 32:
+            errors.append("EMAIL_LINK_SIGNING_SECRET")
+        base_url = self.app_public_base_url or ""
+        if not (base_url.startswith("https://") or _LOCAL_BASE_URL.fullmatch(base_url)):
+            errors.append("APP_PUBLIC_BASE_URL")
+        if self.email_backend == "mailgun":
+            if not (self.email_provider_api_url or "").startswith("https://"):
+                errors.append("EMAIL_PROVIDER_API_URL")
+            if not self.email_provider_api_key:
+                errors.append("EMAIL_PROVIDER_API_KEY")
+            if not self.email_webhook_signing_key:
+                errors.append("EMAIL_WEBHOOK_SIGNING_KEY")
+        elif self.email_backend == "smtp" and not self.email_smtp_host:
+            errors.append("EMAIL_SMTP_HOST")
+        return errors
 
 
 settings = Settings()

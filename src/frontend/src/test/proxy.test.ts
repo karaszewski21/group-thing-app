@@ -95,6 +95,18 @@ describe("proxy", () => {
     },
   );
 
+  it("gates /settings without a cookie", () => {
+    expect(resolveProxy(request({ pathname: "/settings" }), BACKEND)).toEqual({
+      kind: "redirect",
+      location: "/login?returnTo=%2Fsettings",
+    });
+    expect(resolveProxy(request({ pathname: "/settings", hasSession: true }), BACKEND)).toEqual({ kind: "next" });
+  });
+
+  it.each(["/verify-email", "/reset-password", "/unsubscribe"])("leaves the e-mail link page %s public", (pathname) => {
+    expect(resolveProxy(request({ pathname, search: "?token=abc" }), BACKEND)).toEqual({ kind: "next" });
+  });
+
   it("gates nested paths of a prefix on a segment boundary", () => {
     expect(resolveProxy(request({ pathname: "/groups/42/members" }), BACKEND)).toEqual({
       kind: "redirect",

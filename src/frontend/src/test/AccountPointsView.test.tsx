@@ -219,4 +219,16 @@ describe("AccountView points entry", () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
   });
+
+  it("links „Powiadomienia e-mail” to /settings directly above „Wyloguj się” in Ustawienia", async () => {
+    renderWithRoute(withQueryClient(<AccountView />), { url: "/account" });
+
+    const section = screen.getByRole("region", { name: "Ustawienia" });
+    const row = within(section).getByRole("link", { name: "Powiadomienia e-mail" });
+    expect(row).toHaveAttribute("href", "/settings");
+    expect(row.compareDocumentPosition(within(section).getByRole("button", { name: "Wyloguj się" }))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    await screen.findByRole("link", { name: "Moje punkty: 130 punktów, 80 reputacji" });
+  });
 });

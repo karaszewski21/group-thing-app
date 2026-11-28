@@ -179,7 +179,7 @@ async def test_search_otherDatabaseError_isNotMappedTo503(
         await client.get("/api/public/search", params={"q": "rower"})
 
 
-async def test_search_loggedInScopes_mineOnlyThroughGroupsOwnItemsNever(
+async def test_search_loggedInScopes_mineOnlyThroughGroupsOwnItemsAfterGroupItems(
     client: AsyncClient, db_session: AsyncSession, engine: AsyncEngine
 ) -> None:
     organizer, _ = await _register(client, "ORGANIZER", "s.scope.o@example.com")
@@ -190,7 +190,7 @@ async def test_search_loggedInScopes_mineOnlyThroughGroupsOwnItemsNever(
     await _add_member(db_session, group_id, viewer_party)
     (co_member_item,) = await _listed_items(client, organizer, ("Plumko rowerek", "GIFT"))
     (stranger_item,) = await _listed_items(client, stranger, ("Plumko kask", "GIFT"))
-    await _listed_items(client, viewer, ("Plumko sanki", "GIFT"))
+    (own_item,) = await _listed_items(client, viewer, ("Plumko sanki", "GIFT"))
     await _event(client, stranger, "Plumko festyn", 4)
 
     mine = await _search(client, viewer, q="plumko", scope="mine")
@@ -198,9 +198,11 @@ async def test_search_loggedInScopes_mineOnlyThroughGroupsOwnItemsNever(
     with count_queries(engine) as statements:
         mine_meetings = await _search(client, viewer, q="plumko", mode="events", scope="mine")
 
-    assert [result["id"] for result in mine["items"]] == [str(co_member_item)]
+    # Own items show too, never ranked as one of the viewer's groups.
+    assert [result["id"] for result in mine["items"]] == [str(co_member_item), str(own_item)]
     assert [result["id"] for result in everywhere["items"]] == [
         str(co_member_item),
+        str(own_item),
         str(stranger_item),
     ]
     # Person-run group: linked to its nearest term. No events in "Moje grupy".

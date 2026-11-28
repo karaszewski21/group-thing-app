@@ -230,3 +230,22 @@ async def test_register_secondIntegrityError_returnsPolishDuplicateMessage(
 
     assert response.status_code == 409
     assert response.json()["message"] == DUPLICATE_MESSAGE
+
+
+@pytest.mark.parametrize(("password", "status"), [("ż" * 36, 201), ("ż" * 36 + "a", 400)])
+async def test_register_passwordOver72Bytes_returnsPolish400(
+    client: AsyncClient, db_session: AsyncSession, password: str, status: int
+) -> None:
+    email = f"long.{uuid.uuid4().hex[:10]}@example.com"
+
+    response = await client.post(
+        "/api/auth/register", json={"role": "GUEST", "email": email, "password": password}
+    )
+
+    assert response.status_code == status, response.text
+    if status == 400:
+        assert response.json()["fieldErrors"] == {"password": "Hasło może mieć najwyżej 72 bajty."}
+        profile_id = await db_session.scalar(
+            select(UserProfile.id).where(UserProfile.email == email).limit(1)
+        )
+        assert profile_id is None

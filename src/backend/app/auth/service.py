@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from typing import cast
 
 from sqlalchemy import select
@@ -19,6 +20,7 @@ from app.core.errors import (
 from app.moderation.text_guard import TextField, check_text
 from app.users import service as users_service
 from app.users.models import UserProfile
+from app.users.schemas import normalize_email
 
 from .google import GoogleClaims
 from .models import IdentityProvider, User, UserIdentity, user_permissions
@@ -69,17 +71,27 @@ async def find_identity(db: AsyncSession, subject: str) -> UserIdentity | None:
 async def _log_in_linked(
     db: AsyncSession, identity: UserIdentity, claims: GoogleClaims
 ) -> GoogleSignIn:
-    """Refreshes the identity's email snapshot and commits; a concurrent
-    refresh of the same row raises `StaleDataError`."""
+    """Refreshes the identity's email snapshot, marks the profile email
+    verified when Google verifies that same address (case-insensitively) and
+    it is not yet, and commits; a concurrent refresh of the same row raises
+    `StaleDataError`."""
     identity.email = claims.email
     identity.email_verified = claims.email_verified
-    await db.commit()
     user = await db.get(User, identity.user_id)
     if user is None:
         raise EntityNotFoundException("User", identity.user_id)
-    party_id = (
-        await db.execute(select(UserProfile.party_id).where(UserProfile.account_user_id == user.id))
+    profile = (
+        await db.execute(select(UserProfile).where(UserProfile.account_user_id == user.id))
     ).scalar_one()
+    if (
+        claims.email_verified
+        and profile.email_verified_at is None
+        and profile.email is not None
+        and normalize_email(profile.email) == normalize_email(claims.email)
+    ):
+        profile.email_verified_at = datetime.utcnow()
+    party_id = profile.party_id
+    await db.commit()
     return GoogleSignIn(user=user, party_id=party_id, created=False)
 
 
@@ -101,7 +113,11 @@ async def _bootstrap_google_account(
 ) -> tuple[User, uuid.UUID]:
     async with db.begin_nested():
         user, party = await users_service.bootstrap_person_account(
-            db, email=claims.email, password=None, display_name=display_name
+            db,
+            email=claims.email,
+            password=None,
+            display_name=display_name,
+            email_verified=claims.email_verified,
         )
         db.add(
             UserIdentity(

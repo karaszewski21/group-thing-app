@@ -13,7 +13,7 @@ import * as pointsApi from "../api/points";
 import { ApiError } from "../api/client";
 import type { Category } from "../api/categories";
 import type { InventoryItemResponse, InventoryResponse, MyInventoryItemResponse } from "../api/inventories";
-import type { UserProfileResponse } from "../api/people";
+import type { MyProfileResponse } from "../api/people";
 import type { ProductResponse } from "../api/products";
 import { useAppParams } from "../routing/navigation";
 import { createEmptyItemQuickAddValue, type ItemQuickAddValue } from "../utils/itemQuickAdd";
@@ -95,6 +95,24 @@ vi.mock("../api/itemListingPreferences", () => ({
 
 // Ids are UUID strings at runtime; some API types still declare `number`.
 const ACCOUNT_USER_ID = "0b1c2d3e-4f50-4617-8a29-3b4c5d6e7f80";
+
+const MY_PROFILE: MyProfileResponse = {
+  id: "profile-1",
+  party_id: "party-1",
+  account_user_id: ACCOUNT_USER_ID,
+  display_name: "Anna",
+  email: null,
+  bio: null,
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
+  is_organizer: false,
+  page_layout: "BANNER",
+  palette_preset: null,
+  primary_color: null,
+  accent_color: null,
+  media: [],
+  email_verified: null,
+};
 const INVENTORY_ID = "1c2d3e4f-5061-4728-9b3a-4c5d6e7f8091";
 const PRODUCT_ID = "2d3e4f50-6172-4839-8c4b-5d6e7f8091a2";
 const NEW_ITEM_ID = "3e4f5061-7283-494a-9d5c-6e7f8091a2b3";
@@ -229,9 +247,7 @@ beforeEach(() => {
     category(CAT_STROLLERS, "Wózki", CAT_KIDS, 0),
     category(CAT_TOYS, "Zabawki", CAT_KIDS, 1),
   ]);
-  vi.mocked(peopleApi.getMyProfile).mockResolvedValue({
-    account_user_id: ACCOUNT_USER_ID,
-  } as unknown as UserProfileResponse);
+  vi.mocked(peopleApi.getMyProfile).mockResolvedValue(MY_PROFILE);
   vi.mocked(inventoriesApi.getOrCreatePersonalInventory).mockResolvedValue({
     id: INVENTORY_ID,
   } as unknown as InventoryResponse);

@@ -178,6 +178,55 @@ def test_resolveRequirement_pointsRoutes_configAdminOtherwiseReadWithoutMcpScope
 @pytest.mark.parametrize(
     ("method", "path", "expected"),
     [
+        ("POST", "/api/auth/password-reset", "PUBLIC"),  # 74
+        ("POST", "/api/auth/password-reset/confirm", "PUBLIC"),  # 75
+        ("POST", "/api/auth/email-verification/confirm", "PUBLIC"),  # 76
+        ("POST", "/api/auth/account-tokens/lookup", "PUBLIC"),  # 82
+        ("POST", "/api/auth/email-verification", ("EDIT",)),  # 77
+        ("POST", "/api/email/unsubscribe/some-token", "PUBLIC"),  # 78
+        ("GET", "/api/email/unsubscribe/some-token", "PUBLIC"),  # 78
+        ("POST", "/api/email/webhooks/mailgun", "PUBLIC"),  # 79
+        ("GET", "/api/email/preferences", ("READ",)),  # 80
+        ("PUT", "/api/email/preferences", ("EDIT",)),  # 81
+        ("GET", "/api/auth/password-reset", "AUTHENTICATED"),
+        ("POST", "/api/email/unsubscribe/a/b", "AUTHENTICATED"),
+        ("GET", "/api/email/unsubscribe/a/b", "AUTHENTICATED"),
+        ("PUT", "/api/email/unsubscribe/some-token", "AUTHENTICATED"),
+        ("POST", "/api/email/preferences", "AUTHENTICATED"),
+    ],
+)
+def test_resolveRequirement_emailRoutes_resolveToTheirRowsWithoutMcpScopes(
+    method: str, path: str, expected: tuple[str, ...] | str
+) -> None:
+    assert resolve_requirement(method, path) == expected
+
+
+def test_matrix_emailRows_orderedAfterRows73And69() -> None:
+    """Rows 74, 75, 76, 82, 77 follow row 73 in exactly this order (77's
+    `/email-verification` never shadows 76's `/confirm`, both being anchored);
+    rows 78-81 follow row 69 and precede the catch-all."""
+    patterns = [entry.pattern.pattern for entry in AUTHORIZATION_MATRIX]
+    row_73 = patterns.index(r"^/api/auth/google$")
+    assert patterns[row_73 + 1 : row_73 + 6] == [
+        r"^/api/auth/password-reset$",
+        r"^/api/auth/password-reset/confirm$",
+        r"^/api/auth/email-verification/confirm$",
+        r"^/api/auth/account-tokens/lookup$",
+        r"^/api/auth/email-verification$",
+    ]
+    row_69 = patterns.index(r"^/api/points(/.*)?$")
+    assert patterns[row_69 + 1 : row_69 + 5] == [
+        r"^/api/email/unsubscribe/[^/]+$",
+        r"^/api/email/webhooks/mailgun$",
+        r"^/api/email/preferences$",
+        r"^/api/email/preferences$",
+    ]
+    assert patterns[row_69 + 5] == r"^.*$"
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "expected"),
+    [
         ("POST", "/api/auth/google/nonce", "PUBLIC"),
         ("POST", "/api/auth/google", "PUBLIC"),
         ("GET", "/api/auth/google/nonce", "AUTHENTICATED"),

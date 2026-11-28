@@ -39,6 +39,11 @@ This document describes the technology choices and rationale for **aj** — a pl
 - **`pyjwt[crypto]`**: the `crypto` extra pulls in `cryptography` (50.0.2 in `uv.lock`) for the RS256 verification of Google ID tokens against Google's JWKS (`app/auth/google.py`, fetched with `httpx`); the HS256 login token and the HS256 nonce cookie need no extra
 - **Google sign-in env** (names only, never commit values): `GOOGLE_CLIENT_ID` (backend; empty = feature off, both `/api/auth/google*` routes answer 503), `AUTH_COOKIE_SECURE` (backend, default `true`; the `Secure` flag of the `aj_google_nonce` cookie, set `false` over http — dev `:5173`, compose `:5174` — or Safari drops the cookie) and `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (frontend, see **npm** below); both client IDs hold the same OAuth Web client ID
 
+#### Jinja2 (3.1.6)
+- **Purpose**: the mail templates of `app/email` (`app/email/templates/`, an HTML + text pair per template over `base.html.j2`/`base.txt.j2`), rendered with `select_autoescape` for the HTML and `StrictUndefined`; MarkupSafe 3.0.3 comes with it (`uv.lock`). Added with `uv add` (this environment needed `--system-certs` for the index TLS)
+- **Mail transport**: no SDK — the Mailgun EU messages API is a plain `httpx` form POST (`app/email/senders.py`), SMTP the stdlib `smtplib` (dev Mailpit only)
+- **E-mail env** (names only, never commit values): `EMAIL_ENABLED`, `EMAIL_NOTIFICATIONS_ENABLED`, `EMAIL_BACKEND`, `EMAIL_PROVIDER_API_URL`, `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`, `EMAIL_REPLY_TO_ADDRESS`, `EMAIL_LINK_SIGNING_SECRET`, `EMAIL_WEBHOOK_SIGNING_KEY`, `EMAIL_DAILY_CAP`, `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `APP_PUBLIC_BASE_URL`; see `project/architecture.md`, **E-mail** and **Configuration**
+
 #### tenacity (9.1.4)
 - **Purpose**: Retry/backoff for the footprint audit pipeline's async persistence task. Note: `wait_exponential`'s signature is `(multiplier=<base wait>, exp_base=<growth factor>, min=...)` — the inverse of what its parameter names might suggest if read too quickly (documented at length in `app/footprint/audit/task.py`).
 
@@ -115,6 +120,7 @@ pytest + pytest-asyncio against a real PostgreSQL 18 (`pgvector/pgvector:0.8.7-p
 
 ### Containerization
 - `docker-compose.yml` + `.env.example` live at the repo root (backend `Dockerfile` in `src/backend/`, frontend `Dockerfile` in `src/frontend/`) — `docker-compose up` brings up Postgres 18 (`pgvector/pgvector:0.8.7-pg18-trixie`), the FastAPI service on port 8080, the Next.js server (`web`, standalone output on port 3000 inside the network, built from `src/frontend/Dockerfile` with the repo root as context), the wants `matcher` (built from `src/matcher/Dockerfile`, no port, `restart: unless-stopped`) and nginx (`frontend`, the stock `nginx:1.27-alpine` image with `src/frontend/nginx.conf` mounted) in front of both on port 5174 (see `project/architecture.md`, Deployment Architecture). The dev server (`npm run dev`) runs on port 5173
+- **Mailpit** `axllent/mailpit:v1.27.10` (dev only, `profiles: ["dev"]`, started with `docker compose --profile dev up -d mailpit`): the SMTP catcher for `EMAIL_BACKEND=smtp`, SMTP 1025 on the compose network, web UI on `127.0.0.1:8025`
 - Both pytest suites (`src/backend/tests`, `src/matcher/tests`) start their own `pgvector/pgvector:0.8.7-pg18-trixie` testcontainer (Docker required), isolated from the compose database (see Testing above)
 
 ### CI/CD
@@ -123,6 +129,7 @@ pytest + pytest-asyncio against a real PostgreSQL 18 (`pgvector/pgvector:0.8.7-p
 ### Hosting
 - Two VPS (DE region, non-DO provider): VPS A runs nginx + FastAPI (with the Bielik-Guard text model in-process) + Postgres; VPS B runs the heavy AI models as a separate service (its own repo, `group-thing-ai`), including ShieldGemma-2 and the `moderation-cron` that decides product photos. VPS A runs no photo moderation worker
 - DigitalOcean Spaces (FRA1) + its CDN for photo storage only
+- Mailgun (EU region) for outbound mail while `EMAIL_ENABLED=true` and `EMAIL_BACKEND=mailgun`, with delivery webhooks back to `POST /api/email/webhooks/mailgun`
 - Photo moderation integration runs in the other direction: VPS B's `moderation-cron` connects to the VPS A Postgres over the VPC (least-privilege role `gt_moderation_cron`, column-level grants, `ssl=require`) and to Spaces (read + put-ACL), with those credentials only in its `.env.cron`. The app itself never calls VPS B for moderation
 - The `ml` uv dependency group is installed only in the production API image (the default `runtime` target, built with `docker build --secret id=hf_token,env=HF_TOKEN src/backend`); Bielik-Guard and the embed model (`sdadas/mmlw-roberta-base` at a pinned revision, int8, into `/models/embed`) are exported to ONNX at image build time in the throwaway `models` stage, so torch and optimum never enter a runtime image and `onnxruntime.quantization` runs only in that stage. The `runtime-dev` target has no `ml` group and no model
 
@@ -151,6 +158,7 @@ Actual pinned versions from `src/backend/pyproject.toml` / `uv.lock`:
 | bcrypt | 5.0.0 | Password hashing |
 | pydantic | 2.13.5 | Request/response validation |
 | pydantic-settings | 2.15.0 | Environment-based settings |
+| jinja2 | 3.1.6 | Mail templates (`app/email/rendering.py`, autoescaped HTML + text) |
 | tenacity | 9.1.4 | Retry/backoff (footprint audit pipeline) |
 | tzdata | 2026.4 | Zone database for `zoneinfo` (`Europe/Warsaw` domain clock, `app/core/clock.py`) |
 | python-multipart | 0.0.32 | Form-body parsing (OAuth2 `_token`/form fallbacks, photo uploads) |
@@ -161,7 +169,7 @@ Actual pinned versions from `src/backend/pyproject.toml` / `uv.lock`:
 | numpy (`ml` group) | 2.5.3 | API `runtime` image only: tensor pre/post-processing |
 | ruff (dev) | 0.16.5 | Lint + format |
 | mypy (dev) | 2.3.1 | Static typing (strict) |
-| httpx | 0.28.1 | Runtime: the Google JWKS fetch in `app/auth/google.py` (5 s timeout); also used by tests (`AsyncClient`) and verification scripts |
+| httpx | 0.28.1 | Runtime: the Google JWKS fetch in `app/auth/google.py` (5 s timeout) and the Mailgun messages POST in `app/email/senders.py` (10 s, connect 5 s); also used by tests (`AsyncClient`) and verification scripts |
 
 Database extensions and baked-in models (not uv dependencies):
 

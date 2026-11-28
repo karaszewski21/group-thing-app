@@ -131,6 +131,28 @@ def test_reservedSlugs_topLevelPanelRoutes_areReserved(slug: str) -> None:
     assert slug in RESERVED_SLUGS
 
 
+@pytest.mark.parametrize(
+    ("name", "expected_slug"),
+    [
+        ("Verify Email", "verify-email-2"),
+        ("Reset Password", "reset-password-2"),
+        ("Unsubscribe", "unsubscribe-2"),
+    ],
+)
+async def test_createMyOrganization_nameMatchingEmailTokenRoute_getsSuffixedSlug(
+    client: AsyncClient, db_session: AsyncSession, name: str, expected_slug: str
+) -> None:
+    # `/verify-email`, `/reset-password` and `/unsubscribe` are the e-mail link pages.
+    token = await _register_organizer(client, f"org.owner.slug.{expected_slug}@example.com")
+
+    response = await client.post(
+        "/api/organizations/mine", json={"name": name}, headers=_auth_headers(token)
+    )
+
+    assert response.status_code == 201
+    assert response.json()["slug"] == expected_slug
+
+
 def test_reservedSlugs_home_isReserved() -> None:
     # `proxy.ts` rewrites `/` to `/home` for cookie holders.
     assert "home" in RESERVED_SLUGS

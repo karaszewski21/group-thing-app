@@ -125,6 +125,9 @@ export function AccountView() {
         <h2 id="konto-ustawienia" className={SECTION_LABEL}>
           Ustawienia
         </h2>
+        <div className="mb-3">
+          <ListCard rows={[{ label: "Powiadomienia e-mail", to: viewPath("settings") }]} />
+        </div>
         <button
           type="button"
           onClick={logout}

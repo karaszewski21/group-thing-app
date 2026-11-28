@@ -13,7 +13,16 @@ const TAB_CLASS =
 /** "Zaloguj się" / "Załóż konto" as two tabs over the matching form — the one
  * login/register UI, shared by `/login` (tab in the URL) and `AuthSheet`
  * (tab in state). Arrow keys switch tabs. */
-export function AuthTabs({ tab, onSelect }: { tab: AuthTab; onSelect: (tab: AuthTab) => void }) {
+export function AuthTabs({
+  tab,
+  onSelect,
+  onNavigateAway,
+}: {
+  tab: AuthTab;
+  onSelect: (tab: AuthTab) => void;
+  /** Runs when a link in the forms leaves the page (`AuthSheet` closes). */
+  onNavigateAway?: () => void;
+}) {
   const baseId = useId();
   const tabRefs = useRef<Record<AuthTab, HTMLButtonElement | null>>({ login: null, register: null });
 
@@ -57,7 +66,7 @@ export function AuthTabs({ tab, onSelect }: { tab: AuthTab; onSelect: (tab: Auth
       </div>
       <div role="tabpanel" id={`${baseId}-panel`} aria-labelledby={`${baseId}-${tab}-tab`}>
         <SocialAuthButtons tab={tab} onSwitchToLogin={() => onSelect("login")} />
-        {tab === "login" ? <LoginForm /> : <RegisterForm onSwitchToLogin={() => onSelect("login")} />}
+        {tab === "login" ? <LoginForm onNavigateAway={onNavigateAway} /> : <RegisterForm onSwitchToLogin={() => onSelect("login")} />}
       </div>
     </>
   );

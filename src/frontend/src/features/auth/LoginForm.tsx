@@ -1,10 +1,12 @@
 import { useId, useState, type FormEvent } from "react";
 import { useAuth } from "../../auth/AuthContext";
-import { AUTH_INPUT, AUTH_LABEL, AUTH_SUBMIT } from "./authStyles";
+import { Link } from "../../routing/navigation";
+import { AUTH_INPUT, AUTH_LABEL, AUTH_LINK, AUTH_SUBMIT } from "./authStyles";
 
 /** Email + password login. On success the session token changes in place;
- * the host (`/login`'s AuthGuard, or the page under `AuthSheet`) reacts. */
-export function LoginForm() {
+ * the host (`/login`'s AuthGuard, or the page under `AuthSheet`) reacts.
+ * `onNavigateAway` runs when a link leaves the form's page (the sheet closes). */
+export function LoginForm({ onNavigateAway }: { onNavigateAway?: () => void } = {}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +57,11 @@ export function LoginForm() {
           placeholder="Wpisz hasło"
           className={AUTH_INPUT}
         />
+        <p className="mt-2 text-right text-sm">
+          <Link to="/reset-password" className={AUTH_LINK} onClick={onNavigateAway}>
+            Nie pamiętasz hasła?
+          </Link>
+        </p>
       </div>
 
       {error && (

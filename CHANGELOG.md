@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- maile z Gooo: potwierdzenie adresu e-mail (link po rejestracji, baner na stronie Start i ponowna wysyłka w ustawieniach), reset hasła („Nie pamiętasz hasła?” przy logowaniu, także dla kont Google, które mogą tak ustawić pierwsze hasło) z potwierdzeniem zmiany hasła oraz powiadomienia o rezerwacjach, wymianach i rzeczach z listy „Szukam” (najwyżej jeden mail dziennie na jedno „Szukam”, bez wysyłki w nocy); maile przychodzą tylko na potwierdzony adres
+- ustawienia powiadomień e-mail w `/settings` (pozycja „Powiadomienia e-mail” na stronie konta): przełącznik „Wszystkie powiadomienia e-mail”, osobne przełączniki dla „Rezerwacji i wymian” i „Szukam” oraz wypis jednym kliknięciem z każdego maila (`/unsubscribe`, z kategorii albo ze wszystkich)
 - punkty i reputacja za oddawanie, wymiany i obecność: przedmiot oddany za darmo daje punkty i reputację równe jego wartości (20/40/60), wymiana daje punkty obu stronom, a oddanie rzeczy z listy „Szukam” odbiorcy daje premię; obowiązuje limit nagród na parę osób, a w obrębie rodziny punkty nie są przyznawane
 - strona `/points` z saldem, reputacją i historią punktów, widoczna tylko dla właściciela (dwa kafelki „punktów” i „reputacji” nad menu strony konta prowadzą do niej)
 - terminy za punkty mają plakietkę z liczbą punktów za obecność: „+N pkt” na kafelku w wyszukiwarce i „+N pkt za obecność” na publicznej stronie terminu

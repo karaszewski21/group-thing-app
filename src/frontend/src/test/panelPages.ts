@@ -28,6 +28,7 @@ import PlacesPage from "../app/(public)/(panel)/places/page";
 import PlacesLocationIdEditPage from "../app/(public)/(panel)/places/[locationId]/edit/page";
 import PlacesNewPage from "../app/(public)/(panel)/places/new/page";
 import ProfilePage from "../app/(public)/(panel)/profile/page";
+import SettingsPage from "../app/(public)/(panel)/settings/page";
 import TermsTermIdAttendeesPage from "../app/(public)/(panel)/terms/[termId]/attendees/page";
 import TermsTermIdEditPage from "../app/(public)/(panel)/terms/[termId]/edit/page";
 import WantedPage from "../app/(public)/(panel)/wanted/page";
@@ -68,6 +69,7 @@ export const PANEL_PAGES: Record<string, ComponentType> = {
   "/places/:locationId/edit": PlacesLocationIdEditPage,
   "/places/new": PlacesNewPage,
   "/profile": ProfilePage,
+  "/settings": SettingsPage,
   "/terms/:termId/attendees": TermsTermIdAttendeesPage,
   "/terms/:termId/edit": TermsTermIdEditPage,
   "/wanted": WantedPage,

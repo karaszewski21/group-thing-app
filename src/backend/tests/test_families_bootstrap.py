@@ -9,11 +9,14 @@ naming follows `action_condition_expectedResult`
 
 from __future__ import annotations
 
+import pytest
 from httpx import AsyncClient
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.families.bootstrap import create_solo_family_for_party
 from app.families.repository import list_families_for_guardian_party
+from app.families.schemas import AddGuardianRequest, CreateFamilyRequest
 
 
 async def _register_guest(client: AsyncClient, email: str) -> tuple[str, int]:
@@ -48,3 +51,14 @@ async def test_createSoloFamilyForParty_calledTwice_returnsSameFamilyBothTimes(
 
     families = await list_families_for_guardian_party(db_session, party_id)
     assert len(families) == 1
+
+
+@pytest.mark.parametrize("schema", [CreateFamilyRequest, AddGuardianRequest])
+def test_familyLoginSchemas_passwordOver72Bytes_rejectedInPolish(schema: type[BaseModel]) -> None:
+    fields = {"family_name": "Rodzina", "username": "opiekun", "display_name": "Opiekun"}
+
+    schema.model_validate({**fields, "password": "ż" * 36})
+    with pytest.raises(ValidationError) as excinfo:
+        schema.model_validate({**fields, "password": "ż" * 36 + "a"})
+
+    assert excinfo.value.errors()[0]["msg"] == "Hasło może mieć najwyżej 72 bajty."
