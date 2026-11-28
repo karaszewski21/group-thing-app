@@ -208,3 +208,25 @@ def test_wantsLinks_productPath_matchesSearchLinks() -> None:
     slug, item_id = "zielony-krag", uuid.uuid4()
 
     assert wants_links.product_path(slug, item_id) == search_links.product_path(slug, item_id)
+
+
+_SETTINGS_IMPORTERS = {"main.py", "groups/infrastructure/settings_acl.py"}
+
+
+def test_settingsModule_importingModule_exactlyMainAndGroupsAcl() -> None:
+    root = _APP_ROOT / "settings"
+    importers = {
+        str(path.relative_to(_APP_ROOT).as_posix())
+        for path in _APP_ROOT.rglob("*.py")
+        if not path.is_relative_to(root)
+        and any(_matches(module, "app.settings") for module in _app_imports(path))
+    }
+    offenders = sorted(
+        f"{path.relative_to(_APP_ROOT).as_posix()}: {module}"
+        for path in root.rglob("*.py")
+        for module in _app_imports(path)
+        if not any(_matches(module, p) for p in ("app.core", "app.db", "app.settings"))
+    )
+
+    assert importers == _SETTINGS_IMPORTERS
+    assert offenders == []

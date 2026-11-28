@@ -280,6 +280,7 @@ async def test_listMyInventoryItems_returnsOnlyCallersOwnWithModeAndReflectsClea
                 "location_id",
                 "points_value",
                 "points_price",
+                "is_featured",
                 "photos_moderation_pending",
                 "thumb_url",
                 "balance_status",

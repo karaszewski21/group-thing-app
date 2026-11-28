@@ -1,0 +1,67 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Verification — Featured items</title><style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.split { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:720px) { .split { grid-template-columns:1fr; } }
+.in h3 { color:var(--ok); } .out h3 { color:var(--crit); }
+h3 { font-size:14px; margin:0 0 8px; }
+.stories { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
+.stories .card { margin:0; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0; }
+ul, ol { padding-left:20px; margin:6px 0; } li { margin:3px 0; }
+.wrap { overflow-x:auto; }
+</style></head><body>
+<nav class="crumbs"><a href="../dashboard.html">← Dashboard</a> <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a> <span class="here">Verification</span> <a href="implementation-verification.md" target="_blank" rel="noopener" class="md">md twin ↗</a></nav>
+<header><h1>Implementation Verification — Featured items („Wyróżnione rzeczy”)</h1><p>⚠️ <b>Passed with Issues</b> · 0 critical · 2 warnings · 13 info</p></header>
+<div class="tiles"><div class="tile"><b>100%</b><span>Plan (53/53)</span></div><div class="tile"><b>1937</b><span>Backend passed (2 stale)</span></div><div class="tile"><b>2197</b><span>Frontend passed (52 pre-existing)</span></div><div class="tile"><b>19/19</b><span>Standards</span></div><div class="tile"><b>GO</b><span>Production (with mitigations)</span></div></div>
+<section class="tldr"><h2>TL;DR</h2><p>Feature works end to end; plan, standards and docs complete; no new test regressions. Both warnings are known follow-ups: the deferred Group 10 renumber at merge and no live-app run yet (Phase 12 E2E).</p>
+<h3>Open Questions / Risks</h3><ul><li>Merge gate: Group 10 must run on rebase or Alembic gets two heads.</li><li>No runtime check yet — Phase 12 E2E.</li><li>mypy 19 in worktree venv (15 + 4 import-not-found) — re-check in main env.</li></ul></section>
+<main><h2>Reviews</h2><table><tr><th>Review</th><th>Result</th><th>Report</th></tr>
+<tr><td>Completeness</td><td>✅ 100%, compliant, docs complete (5 info)</td><td><a href="completeness-report.md" target="_blank" rel="noopener">md ↗</a></td></tr>
+<tr><td>Test suite</td><td>Skipped — passed in Phase 8 (no new failures)</td><td><a href="../implementation/work-log.md" target="_blank" rel="noopener">work-log ↗</a></td></tr>
+<tr><td>Code review</td><td>Not run (deselected)</td><td>—</td></tr>
+<tr><td>Pragmatic</td><td>✅ Appropriate (6 info)</td><td><a href="pragmatic-review.md" target="_blank" rel="noopener">md ↗</a></td></tr>
+<tr><td>Production readiness</td><td>✅ GO with mitigations, 93% (1 warning, 3 info)</td><td><a href="production-readiness-report.md" target="_blank" rel="noopener">md ↗</a></td></tr>
+<tr><td>Reality check</td><td>⚠️ ~95% functional (2 warnings, 3 info)</td><td><a href="reality-check.md" target="_blank" rel="noopener">md ↗</a></td></tr></table>
+<h2>Findings</h2><table><tr><th>Severity</th><th>Finding</th><th>Source</th></tr><tr><td><span class="badge warning">warning</span></td><td>Merge renumber (Group 10) — 0110/0111 + matrix row 74 collide with main&#x27;s email module; run Group 10 on rebase</td><td>production / reality</td></tr><tr><td><span class="badge warning">warning</span></td><td>No live-app run yet — Phase 12 E2E covers the smoke path</td><td>reality</td></tr><tr><td><span class="badge info">info</span></td><td>count_other_featured_preferences: item_id filter can never exclude anything</td><td></td></tr><tr><td><span class="badge info">info</span></td><td>Third copy of the own-PERSONAL-item 403 check in term_item_listings.py</td><td></td></tr><tr><td><span class="badge info">info</span></td><td>settings service + settings_acl double wrapper (matches points_acl)</td><td></td></tr><tr><td><span class="badge info">info</span></td><td>„Moje rzeczy” featured chip markup inline (different size)</td><td></td></tr><tr><td><span class="badge info">info</span></td><td>settingsForm.ts one-use helper; empty field shows „≥ 0” message</td><td></td></tr><tr><td><span class="badge info">info</span></td><td>test_item_featured.py has 12 tests; SWAP/POINTS clear tests could be parametrised</td><td></td></tr><tr><td><span class="badge info">info</span></td><td>Hex colours in SettingsPage.tsx (same as PointsConfigPage)</td><td></td></tr><tr><td><span class="badge info">info</span></td><td>„(audit M2)” comment references a task doc</td><td></td></tr><tr><td><span class="badge info">info</span></td><td>groups repository imports app.party.models.Party directly (precedent)</td><td></td></tr><tr><td><span class="badge info">info</span></td><td>Guests behind shared cache see changes up to ~60 s late (accepted)</td><td></td></tr><tr><td><span class="badge info">info</span></td><td>No count_queries assertion on public term page with featured rows</td><td></td></tr><tr><td><span class="badge info">info</span></td><td>datetime.utcnow() deprecated (codebase convention)</td><td></td></tr><tr><td><span class="badge info">info</span></td><td>Already-loaded public pages in the same tab not invalidated after a toggle</td><td></td></tr></table></main></body></html>

@@ -3,7 +3,7 @@ import { Link } from "../../routing/navigation";
 import type { ExchangeMode, ReservedByResponse } from "../../api/groups";
 import type { ItemCondition } from "../../api/inventories";
 import { PhotoPlaceholder } from "./Icons";
-import { ItemTileBadges, PointsPriceLabel } from "./ItemTileBadges";
+import { FeaturedLabel, ItemTileBadges, PointsPriceLabel } from "./ItemTileBadges";
 import { CONDITION_LABELS } from "../../utils/productCategory";
 import { SafeImage } from "../../features/product/ItemGallery";
 
@@ -17,8 +17,10 @@ const OFFER_BADGE: Record<ExchangeMode, { label: string; tone: string }> = {
   SWAP: { label: "Zamienię", tone: "bg-accent text-ink" },
   POINTS: { label: "Za punkty", tone: "bg-orange text-ink" },
 };
+/** Both corner badges sit in one wrapping row, so on a narrow tile the right
+ * one drops below instead of covering the offer badge. */
 const CORNER_BADGE =
-  "absolute top-1.5 rounded-full px-2 py-0.5 text-[10.5px] font-extrabold shadow-[0_2px_8px_-2px_rgba(19,38,29,0.35)] md:top-2 md:px-2.5 md:py-1 md:text-xs";
+  "whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px] font-extrabold shadow-[0_2px_8px_-2px_rgba(19,38,29,0.35)] md:px-2.5 md:py-1 md:text-xs";
 
 interface ItemCardProps {
   /** The item page, opened by the whole tile (a stretched link on the name). */
@@ -35,6 +37,8 @@ interface ItemCardProps {
   reservedCaption?: string;
   /** A short marker in the photo's right corner, e.g. "nowe". */
   marker?: string;
+  /** The owner featured it: „⭐ Wyróżnione” in the right corner instead of `marker`. */
+  featured?: boolean;
   /** Called when the link is opened, by a click or a middle-click (new tab). */
   onOpen?: () => void;
   /** A dashed border, for a tile that is only a suggestion. */
@@ -58,6 +62,7 @@ export function ItemCard({
   reservation,
   reservedCaption,
   marker,
+  featured = false,
   onOpen,
   dashed = false,
   footnote,
@@ -79,10 +84,18 @@ export function ItemCard({
             <PhotoPlaceholder size={32} />
           </span>
         )}
-        <span className={`${CORNER_BADGE} left-1.5 md:left-2 ${offer.tone}`}>
-          {mode === "POINTS" && pointsPrice !== null ? <PointsPriceLabel price={pointsPrice} /> : offer.label}
-        </span>
-        {marker && <span className={`${CORNER_BADGE} right-1.5 bg-paper text-ink md:right-2`}>{marker}</span>}
+        <div className="absolute inset-x-1.5 top-1.5 flex flex-wrap items-start gap-1 md:inset-x-2 md:top-2">
+          <span className={`${CORNER_BADGE} ${offer.tone}`}>
+            {mode === "POINTS" && pointsPrice !== null ? <PointsPriceLabel price={pointsPrice} /> : offer.label}
+          </span>
+          {featured ? (
+            <span className={`${CORNER_BADGE} ml-auto bg-ink text-on-ink`}>
+              <FeaturedLabel />
+            </span>
+          ) : (
+            marker && <span className={`${CORNER_BADGE} ml-auto bg-paper text-ink`}>{marker}</span>
+          )}
+        </div>
       </div>
       <Link
         to={href}

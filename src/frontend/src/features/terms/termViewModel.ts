@@ -10,6 +10,13 @@ function byNewest(a: PublicItemListingResponse, b: PublicItemListingResponse): n
   return a.added_at < b.added_at ? 1 : -1;
 }
 
+/** Featured listings first in the server's order (most recently featured
+ * first), then the rest newest first; used with the stable `sort`. */
+function byFeaturedThenNewest(a: PublicItemListingResponse, b: PublicItemListingResponse): number {
+  if (a.is_featured !== b.is_featured) return a.is_featured ? -1 : 1;
+  return a.is_featured ? 0 : byNewest(a, b);
+}
+
 function toPreviewItem(listing: PublicItemListingResponse): ParticipantPreviewItem {
   return {
     itemId: listing.item_id,
@@ -18,12 +25,14 @@ function toPreviewItem(listing: PublicItemListingResponse): ParticipantPreviewIt
     thumbUrl: listing.thumb_url,
     addedAt: listing.added_at,
     reservation: listing.reservation,
+    featured: listing.is_featured,
   };
 }
 
 /** Everyone in the attendee list: the Term's guardians first, then any
  * lister who offers items without being signed up (e.g. the organizer).
- * Each keeps their `PREVIEW_ITEM_LIMIT` newest listings plus the total count;
+ * Each keeps their `PREVIEW_ITEM_LIMIT` featured, then newest listings plus
+ * the total count;
  * the term page gets every listing, so it sorts and caps here. */
 export function buildAttendees(group: PublicCircleResponse): ParticipantRow[] {
   const listings = group.term?.item_listings ?? [];
@@ -36,7 +45,7 @@ export function buildAttendees(group: PublicCircleResponse): ParticipantRow[] {
     return {
       partyId,
       name,
-      items: [...own].sort(byNewest).slice(0, PREVIEW_ITEM_LIMIT).map(toPreviewItem),
+      items: [...own].sort(byFeaturedThenNewest).slice(0, PREVIEW_ITEM_LIMIT).map(toPreviewItem),
       itemsTotal: own.length,
     };
   });

@@ -49,6 +49,8 @@ export interface MyInventoryItemResponse extends InventoryItemResponse {
    * (PENDING or NEEDS_REVIEW). The server then rejects setting a mode
    * with 409, so the panel disables the mode toggles. */
   photos_moderation_pending: boolean;
+  /** The owner featured the listing. */
+  is_featured: boolean;
   /** The product's first approved photo (thumbnail), or null without one. */
   thumb_url?: string | null;
   /** The item's place (owner only), or `null` without one. */

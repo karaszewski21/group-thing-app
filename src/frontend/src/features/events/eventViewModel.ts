@@ -11,6 +11,7 @@ function toPreviewItem(item: EventParticipantItem): ParticipantPreviewItem {
     thumbUrl: item.thumb_url,
     addedAt: item.added_at,
     reservation: item.reservation,
+    featured: item.is_featured,
   };
 }
 

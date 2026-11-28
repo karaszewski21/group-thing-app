@@ -459,6 +459,12 @@ class ItemListingPreference(BaseEntity):
             "points_price IS NULL OR points_price > 0",
             name="ck_item_listing_preferences_points_price_positive",
         ),
+        # An owner's featured listings, for the cap count (migration 0114).
+        Index(
+            "ix_item_listing_preferences_owner_party_id_featured",
+            "owner_party_id",
+            postgresql_where=text("featured_at IS NOT NULL"),
+        ),
     )
 
     # Loose cross-BC pointer into `app.inventory.InventoryItem` — no FK.
@@ -483,6 +489,13 @@ class ItemListingPreference(BaseEntity):
     )
     # The owner-set price in points, set exactly for a POINTS listing.
     points_price: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    # When the owner featured this listing (naive UTC); never exposed, only
+    # `is_featured` and the featured-first order.
+    featured_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+
+    @property
+    def is_featured(self) -> bool:
+        return self.featured_at is not None
 
 
 class SwapProposal(BaseEntity):

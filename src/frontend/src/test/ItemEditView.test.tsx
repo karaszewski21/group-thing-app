@@ -147,6 +147,7 @@ function actions(overrides: Partial<ItemActionsResponse> = {}): ItemActionsRespo
   return {
     mode: "GIFT",
     points_price: null,
+    is_featured: false,
     visibility: "PUBLIC",
     available: true,
     reservation: null,

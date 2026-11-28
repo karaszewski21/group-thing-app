@@ -1,7 +1,7 @@
 import { Box, Flex } from "@chakra-ui/react";
 import { AdminBrand } from "./AdminBrand";
 import { Link, useAppPathname } from "../../routing/navigation";
-import { Coins as PointsIcon, type LucideIcon } from "lucide-react";
+import { Coins as PointsIcon, Settings as SettingsIcon, type LucideIcon } from "lucide-react";
 import { ProductsIcon, PluginsIcon, KragIcon, CategoriesIcon, GroupsIcon, TermsIcon, PhotosIcon, resolveIcon } from "../shared/Icons";
 import { usePluginContext } from "../../plugins/host/PluginHost";
 import { useAuth } from "../../auth/AuthContext";
@@ -88,6 +88,7 @@ export function Sidebar() {
         {isAdmin && <NavItem to="/admin/terms" label="Terms" icon={TermsIcon} />}
         {isAdmin && <NavItem to="/admin/photos" label="Photos" icon={PhotosIcon} />}
         {isAdmin && <NavItem to="/admin/points" label="Points" icon={PointsIcon} />}
+        {isAdmin && <NavItem to="/admin/settings" label="Settings" icon={SettingsIcon} />}
         {(hasPluginManagement || isAdmin) && <PluginMenuItems />}
         {(hasPluginManagement || isAdmin) && (
           <NavItem to="/admin/plugins" label="Plugins" icon={PluginsIcon} />

@@ -283,6 +283,9 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # (attendance rules, the owner's balance and history) is for logged-in
     # users only, so, as for wants, the OAuth `mcp:*` scopes are not accepted.
     (_methods("GET", "PUT"), r"^/api/points/config$", ("ADMIN",)),  # 68
+    # 83: app.settings - the app-wide admin settings (featured-items limit),
+    # beside the other ADMIN config row; no other row matches its path.
+    (_methods("GET", "PUT"), r"^/api/admin/settings$", ("ADMIN",)),  # 83
     (_methods("GET"), r"^/api/points(/.*)?$", ("READ",)),  # 69
     # 78-79: app.email provider and link routes. The one-click unsubscribe
     # POST (RFC 8058) is authorised by the signed token in its path, and the

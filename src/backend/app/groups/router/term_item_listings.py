@@ -18,7 +18,10 @@ from app.core.auth_deps import Principal, require_any
 from app.core.pagination import Pagination
 from app.db import get_db
 from app.groups import service
-from app.groups.application.term_item_listings import TermAlreadyResolvedException
+from app.groups.application.term_item_listings import (
+    TermAlreadyResolvedException,
+    set_item_featured,
+)
 from app.groups.schemas import (
     AcceptedSwapProposalResponse,
     BrowseTermItemListingResponse,
@@ -28,6 +31,7 @@ from app.groups.schemas import (
     ItemListingPreferenceResponse,
     MyInventoryItemResponse,
     MyInventoryItemsPageResponse,
+    SetItemFeaturedRequest,
     SetItemListingPreferenceRequest,
     SwapProposalOfferResponse,
     SwapProposalResponse,
@@ -54,6 +58,17 @@ async def set_item_listing_preference(
         db, principal, item_id, body.mode, body.visibility, body.points_price
     )
     return ItemListingPreferenceResponse.model_validate(preference) if preference else None
+
+
+@router.put(
+    "/api/item-listing-preferences/{item_id}/featured",
+    response_model=ItemListingPreferenceResponse,
+)
+async def put_item_featured(
+    item_id: uuid.UUID, body: SetItemFeaturedRequest, db: DbSession, principal: EditPrincipal
+) -> ItemListingPreferenceResponse:
+    preference = await set_item_featured(db, principal, item_id, body.featured)
+    return ItemListingPreferenceResponse.model_validate(preference)
 
 
 # Registered by `app.main` ahead of inventory's router, so the literal

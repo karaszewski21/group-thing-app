@@ -703,6 +703,7 @@ PUBLIC_ITEM_LISTING_KEYS = {
     "offered_types",
     "lister_party_id",
     "lister_display_name",
+    "is_featured",
     "thumb_url",
     "added_at",
     "reservation",

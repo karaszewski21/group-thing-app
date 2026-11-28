@@ -10,7 +10,7 @@ import {
 } from "@chakra-ui/react";
 import { AdminBrand } from "./AdminBrand";
 import { Link, useAppPathname } from "../../routing/navigation";
-import { Coins as PointsIcon, type LucideIcon } from "lucide-react";
+import { Coins as PointsIcon, Settings as SettingsIcon, type LucideIcon } from "lucide-react";
 import { ProductsIcon, PluginsIcon, KragIcon, CategoriesIcon, GroupsIcon, TermsIcon, PhotosIcon } from "../shared/Icons";
 import { useAuth } from "../../auth/AuthContext";
 
@@ -97,6 +97,9 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
               )}
               {isAdmin && (
                 <MobileNavItem to="/admin/points" label="Points" icon={PointsIcon} onClick={onClose} />
+              )}
+              {isAdmin && (
+                <MobileNavItem to="/admin/settings" label="Settings" icon={SettingsIcon} onClick={onClose} />
               )}
             </Flex>
           </DrawerBody>

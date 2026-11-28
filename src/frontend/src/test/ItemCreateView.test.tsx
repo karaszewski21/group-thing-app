@@ -161,6 +161,7 @@ function myItem(id: string, location_id: string | null, created_at: string): MyI
     listing_mode: null,
     listing_visibility: null,
     points_price: null,
+    is_featured: false,
     photos_moderation_pending: false,
     location_id,
     points_value: null,

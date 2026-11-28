@@ -107,6 +107,7 @@ async def _list_owner_items(
             condition=row.condition,
             mode=cast(ExchangeMode, row.mode),
             points_price=row.points_price,
+            is_featured=row.featured_at is not None,
             thumb_url=thumb_url(row.product_id),
             added_at=row.created_at,
             reservation=names.row_reservation(row),
@@ -122,7 +123,7 @@ async def list_owner_recent_items(
     storage: ObjectStorage | None,
     viewer_party_id: uuid.UUID | None,
 ) -> list[OwnerItemCardResponse]:
-    """The owner's `limit` newest listed items."""
+    """The owner's first `limit` listed items: featured first, then newest."""
     return await _list_owner_items(db, party_id, None, 0, limit, storage, viewer_party_id)
 
 

@@ -10,7 +10,15 @@ from decimal import Decimal, InvalidOperation
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    field_validator,
+    model_validator,
+)
 from pydantic_core import PydanticCustomError
 
 from app.inventory.models import BalanceStatus, ItemCondition, ItemListingStatus, ReservationType
@@ -447,6 +455,7 @@ class PublicItemListingResponse(BaseModel):
     offered_types: list[str]
     lister_party_id: uuid.UUID
     lister_display_name: str
+    is_featured: bool
     # Public CDN URL of the product's first APPROVED photo, `None` when there
     # is none or storage is not configured.
     thumb_url: str | None = None
@@ -797,8 +806,15 @@ class ItemListingPreferenceResponse(BaseModel):
     mode: str
     visibility: ItemVisibility
     points_price: int | None
+    is_featured: bool
     created_at: datetime
     updated_at: datetime
+
+
+class SetItemFeaturedRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    featured: StrictBool
 
 
 class MyInventoryItemResponse(BaseModel):
@@ -831,6 +847,8 @@ class MyInventoryItemResponse(BaseModel):
     location_id: uuid.UUID | None
     points_value: int | None
     points_price: int | None
+    # False for an item without a listing preference (a DRAFT).
+    is_featured: bool
     photos_moderation_pending: bool
     thumb_url: str | None = None
     # As `GET /api/inventory-items/{id}/balance` reports them.
@@ -999,6 +1017,7 @@ class ItemActionsResponse(BaseModel):
 
     mode: ExchangeMode | None
     points_price: int | None
+    is_featured: bool
     visibility: ItemVisibility | None
     available: bool
     reservation: ReservedByResponse | None

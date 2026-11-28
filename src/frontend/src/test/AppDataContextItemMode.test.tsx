@@ -47,7 +47,7 @@ vi.mock("../api/inventories", () => ({
 }));
 vi.mock("../api/organizations", () => ({ getMyOrganization: vi.fn() }));
 vi.mock("../api/pledges", () => ({ getMyPledges: vi.fn(), withdrawPledge: vi.fn() }));
-vi.mock("../api/itemListingPreferences", () => ({ setItemListingPreference: vi.fn() }));
+vi.mock("../api/itemListingPreferences", () => ({ setItemListingPreference: vi.fn(), setItemFeatured: vi.fn() }));
 vi.mock("../api/terms", () => ({
   createTerm: vi.fn(),
   createNeededItem: vi.fn(),
@@ -69,6 +69,7 @@ const ITEM: MyInventoryItemResponse = {
   listing_mode: null,
   listing_visibility: null,
   points_price: null,
+  is_featured: false,
   photos_moderation_pending: false,
   location_id: "loc-1",
   points_value: 40,
@@ -133,6 +134,7 @@ describe("AppDataContext — My Items mode switch", () => {
       mode: "POINTS",
       visibility: "PUBLIC",
       points_price: 40,
+      is_featured: false,
       created_at: "2026-11-26T10:00:00",
       updated_at: "2026-11-26T10:00:00",
     });
@@ -158,5 +160,34 @@ describe("AppDataContext — My Items mode switch", () => {
 
     expect(listingApi.setItemListingPreference).toHaveBeenCalledWith(ITEM.id, null);
     expect(result.current.items[0]).toMatchObject({ points_price: null, listing_visibility: null });
+  });
+  it("setItemMode_unlistAndRelistAFeaturedItem_leavesItUnfeatured", async () => {
+    vi.mocked(inventoriesApi.getMyInventoryItems).mockResolvedValue([
+      { ...ITEM, listing_mode: "GIFT", listing_status: "ACTIVE", listing_visibility: "PUBLIC", is_featured: true },
+    ]);
+    vi.mocked(listingApi.setItemListingPreference)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "pref-2",
+        item_id: ITEM.id,
+        owner_party_id: "p1",
+        mode: "GIFT",
+        visibility: "PUBLIC",
+        points_price: null,
+        is_featured: false,
+        created_at: "2026-11-26T10:00:00",
+        updated_at: "2026-11-26T10:00:00",
+      });
+    const { result } = renderAppData("/items");
+    await waitFor(() => expect(result.current.itemModes[ITEM.id]).toBe("oddam"));
+    expect(result.current.items[0].is_featured).toBe(true);
+
+    await act(() => result.current.setItemMode(ITEM.id, "oddam"));
+    expect(result.current.itemModes[ITEM.id]).toBeNull();
+    expect(result.current.items[0].is_featured).toBe(false);
+
+    await act(() => result.current.setItemMode(ITEM.id, "oddam"));
+    expect(result.current.itemModes[ITEM.id]).toBe("oddam");
+    expect(result.current.items[0].is_featured).toBe(false);
   });
 });

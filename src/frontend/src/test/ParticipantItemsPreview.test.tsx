@@ -20,7 +20,7 @@ function item(
   mode: ListingMode = "GIFT",
   reservation: ReservedByResponse | null = null,
 ): ParticipantPreviewItem {
-  return { itemId, name, modes: [mode], thumbUrl: null, addedAt, reservation };
+  return { itemId, name, modes: [mode], thumbUrl: null, addedAt, reservation, featured: false };
 }
 
 /** Bartek's three newest, as the event payload sends them (newest first). */

@@ -75,14 +75,15 @@ class EventParticipantItemResponse(BaseModel):
     mode: str
     # The price of a POINTS offer, `None` for any other mode.
     points_price: int | None
+    is_featured: bool
     thumb_url: str | None
     added_at: datetime
     reservation: ReservedByResponse | None
 
 
 class EventParticipantResponse(BaseModel):
-    """`items` holds at most the 3 newest listed items; `items_total` counts
-    them all."""
+    """`items` holds at most 3 listed items, featured first, then newest;
+    `items_total` counts them all."""
 
     party_id: uuid.UUID
     display_name: str

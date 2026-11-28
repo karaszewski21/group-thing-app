@@ -55,6 +55,7 @@ const item: MyInventoryItemResponse = {
   listing_mode: null,
   listing_visibility: null,
   points_price: null,
+  is_featured: false,
   listing_status: "ACTIVE",
   photos_moderation_pending: false,
   location_id: "loc-1",
@@ -112,6 +113,7 @@ function setup({
     itemError: null,
     setItemMode: vi.fn(),
     setItemVisibility: vi.fn().mockResolvedValue(undefined),
+    setItemFeatured: vi.fn().mockResolvedValue(undefined),
     handleDeleteItem: vi.fn(),
     load: vi.fn().mockResolvedValue(undefined),
   } as unknown as AppDataContextValue);
@@ -388,6 +390,42 @@ describe("MyItemsView — item visibility", () => {
       visibility: "PRIVATE",
     });
     put.mockRestore();
+  });
+});
+
+describe("MyItemsView — featuring an item", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("offers the toggle only on listed cards, not on drafts", async () => {
+    const draft: MyInventoryItemResponse = { ...item, id: "item-2", product_name: "Kurtka", listing_status: "DRAFT" };
+    setup({
+      itemModes: { [item.id]: "zamienię" },
+      items: [{ ...item, listing_mode: "SWAP", listing_visibility: "PUBLIC" }, draft],
+    });
+    renderWithProviders();
+
+    const toggle = await screen.findByRole("button", { name: `Wyróżnij: ${item.product_name}` });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByRole("button", { name: "Wyróżnij: Kurtka" })).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    const { setItemFeatured } = vi.mocked(appDataStore.useAppData)();
+    expect(setItemFeatured).toHaveBeenCalledWith(item.id, true);
+  });
+
+  it("a featured card shows the „⭐ Wyróżnione” chip first in its chip row", async () => {
+    setup({
+      itemModes: { [item.id]: "oddam" },
+      items: [{ ...item, listing_mode: "GIFT", listing_visibility: "PUBLIC", is_featured: true, points_value: 40 }],
+    });
+    renderWithProviders();
+
+    const toggle = await screen.findByRole("button", { name: `Wyróżnij: ${item.product_name}` });
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    const chip = screen.getByText((_, el) => el?.tagName === "SPAN" && el.textContent === "⭐ Wyróżnione");
+    expect(chip.parentElement?.firstElementChild).toBe(chip);
   });
 });
 

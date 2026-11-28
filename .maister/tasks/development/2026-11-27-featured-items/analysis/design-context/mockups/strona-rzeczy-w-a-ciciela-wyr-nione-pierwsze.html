@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Strona rzeczy właściciela — wyróżnione pierwsze — Product Design</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      color: #222;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1.5rem;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+    }
+    header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+    #status { font-size: 0.8rem; color: #4a4; font-weight: 500; }
+    #status.disconnected { color: #a44; }
+
+    /* Screen navigation */
+    .screen-nav {
+      background: #fafafa;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 0.5rem 1.5rem;
+    }
+    .nav-screens {
+      display: flex;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.25rem;
+    }
+    .nav-screen {
+      padding: 0.3rem 0.7rem;
+      border-radius: 4px;
+      text-decoration: none;
+      color: #555;
+      font-size: 0.8rem;
+      background: #eee;
+      transition: background 0.15s;
+    }
+    .nav-screen:hover { background: #ddd; }
+    .nav-screen.active { background: #333; color: #fff; }
+    .nav-prevnext {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.25rem;
+    }
+    .nav-arrow {
+      font-size: 0.8rem;
+      color: #0066cc;
+      text-decoration: none;
+    }
+    .nav-arrow:hover { text-decoration: underline; }
+
+    /* Gallery */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      padding: 1rem 0;
+    }
+    .gallery-card {
+      display: block;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow 0.2s, transform 0.15s;
+    }
+    .gallery-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+    }
+    .gallery-card-title {
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #eee;
+      background: #fafafa;
+    }
+    .gallery-card-preview {
+      height: 230px;
+      overflow: hidden;
+      position: relative;
+      background: #0e0f11;
+    }
+    /* The screen renders in a private iframe at desktop width, scaled down to a
+       thumbnail. pointer-events off so the whole card stays a single click target. */
+    .gallery-frame {
+      width: 1280px;
+      height: 820px;
+      border: 0;
+      transform: scale(0.27);
+      transform-origin: top left;
+      pointer-events: none;
+    }
+
+    /* Mockup content */
+    main {
+      max-width: 1200px;
+      margin: 1.5rem auto;
+      padding: 1.5rem;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      min-height: 300px;
+      position: relative;
+    }
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      color: #999;
+      font-size: 1rem;
+      text-align: center;
+      line-height: 1.8;
+    }
+    .annotation-tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 3px;
+      pointer-events: none;
+      max-width: 250px;
+      z-index: 1000;
+      line-height: 1.3;
+    }
+    .annotation-tooltip::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: 10px;
+      width: 8px;
+      height: 8px;
+      background: rgba(0, 0, 0, 0.75);
+      transform: rotate(45deg);
+    }
+
+    /* Interactive screen-to-screen navigation */
+    [data-screen] { cursor: pointer; }
+    [data-screen]:hover { outline: 2px solid #0066cc; outline-offset: 2px; border-radius: 2px; }
+
+    /* Annotation toggle */
+    .annotations-hidden .annotation-tooltip { display: none; }
+    #annotation-toggle {
+      font-size: 0.8rem;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      background: #f0f0f0;
+      cursor: pointer;
+      margin-left: 0.75rem;
+    }
+    #annotation-toggle:hover { background: #e0e0e0; }
+    #annotation-toggle.active { background: #333; color: #fff; border-color: #333; }
+    #gallery-link {
+      display: inline-block; margin-right: 0.5rem; padding: 0.35rem 0.75rem;
+      border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem;
+      color: #333; text-decoration: none; background: #f5f5f5;
+    }
+    #gallery-link:hover { background: #e0e0e0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Strona rzeczy właściciela — wyróżnione pierwsze</h1>
+    <div>
+      <a href="/" id="gallery-link" title="Back to the gallery of all screens">⊞ Gallery</a>
+      <button id="annotation-toggle" class="active" title="Toggle annotation tooltips">Annotations</button>
+      <span id="status">Connected</span>
+    </div>
+  </header>
+
+  <nav class="screen-nav"><div class="nav-screens"><a href="/screen/moje-rzeczy-prze-cznik-wyr-nij" class="nav-screen">Moje rzeczy — przełącznik Wyróżnij</a><a href="/screen/moje-rzeczy-limit-osi-gni-ty" class="nav-screen">Moje rzeczy — limit osiągnięty</a><a href="/screen/strona-terminu-wyr-nione-pierwsze" class="nav-screen">Strona terminu — wyróżnione pierwsze</a><a href="/screen/strona-eventu-wyr-nione-pierwsze" class="nav-screen">Strona eventu — wyróżnione pierwsze</a><a href="/screen/strona-rzeczy-w-a-ciciela-wyr-nione-pierwsze" class="nav-screen active">Strona rzeczy właściciela — wyróżnione pierwsze</a><a href="/screen/strona-produktu-badge" class="nav-screen">Strona produktu — badge</a><a href="/screen/panel-admina-ustawienia" class="nav-screen">Panel admina — Ustawienia</a></div><div class="nav-prevnext"><a href="/screen/strona-eventu-wyr-nione-pierwsze" class="nav-arrow">&larr; Strona eventu — wyróżnione pierwsze</a><a href="/screen/strona-produktu-badge" class="nav-arrow">Strona produktu — badge &rarr;</a></div></nav>
+
+  <main id="mockup-container">
+    <style>
+:root{--primary:#1b8168;--on-primary:#fff;--primary-fg:#117b63;--primary-soft:#dcf5ec;--accent:#a9c24f;--accent-soft:#eaf2ce;--accent-fg:#56701f;
+--cream:#f4f8f0;--stage:#edf1ea;--line:#e2eadf;--line-strong:#cbdac7;--paper:#fff;--ink:#1e2e27;--ink-soft:#5c7069;--on-ink:#eaf2e9;
+--teal-soft:#d9ecec;--orange:#ff6a0d;--danger:#b23b3b;--danger-soft:#f6e4e2}
+*{box-sizing:border-box}body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--stage);margin:0}
+.wrap{max-width:720px;margin:0 auto;padding:24px 16px}
+h1{font-size:26px;font-weight:800;margin:0 0 4px}h2{font-size:18px;font-weight:800;margin:24px 0 8px}
+.soft{color:var(--ink-soft);font-size:13px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:14px}
+.pill{display:inline-flex;align-items:center;gap:4px;border-radius:999px;font-weight:800;padding:2px 8px;font-size:11px}
+.pill.md{padding:4px 10px;font-size:12px}
+.featured{background:var(--ink);color:var(--on-ink)}
+.gift{background:var(--primary-soft);color:var(--primary-fg)}.swap{background:var(--accent-soft);color:var(--accent-fg)}
+.points{background:var(--orange);color:var(--ink)}.reserved{background:var(--teal-soft);color:var(--ink)}
+.pills{display:flex;flex-wrap:wrap;gap:4px}
+.thumb{width:48px;height:48px;border-radius:12px;background:var(--cream);flex:none;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:18px}
+.row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.name{font-size:15px}
+.person{display:flex;align-items:center;gap:12px;margin-top:16px}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--primary);color:var(--on-primary);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+.preview{margin-left:52px}
+.more{display:inline-block;margin-top:4px;font-weight:800;font-size:14px;color:var(--primary-fg)}
+.chev{color:var(--ink-soft);margin-left:auto}
+.mark{outline:2px dashed var(--orange);outline-offset:3px;border-radius:10px}
+.note{background:var(--cream);border:1px dashed var(--line-strong);border-radius:14px;padding:10px 12px;font-size:13px;margin-top:16px}
+
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+.tile{background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:10px;display:flex;flex-direction:column;gap:2px}
+.ph{position:relative;aspect-ratio:1;border-radius:16px;background:var(--cream);display:flex;align-items:center;justify-content:center;font-size:40px;margin-bottom:8px}
+.cb{position:absolute;top:8px;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:800;box-shadow:0 2px 8px -2px rgba(19,38,29,.35)}
+.cb.l{left:8px}.cb.r{right:8px}.cb.gift{background:var(--primary);color:var(--on-primary)}.cb.swap{background:var(--accent);color:var(--ink)}.cb.points{background:var(--orange);color:var(--ink)}
+.tabs{display:flex;gap:6px;margin-top:12px}.tab{border-radius:999px;padding:6px 14px;font-weight:800;font-size:13px;background:var(--paper);border:1px solid var(--line)}.tab.on{background:var(--ink);color:var(--on-ink)}
+</style>
+<div id="mockup-content"><div class="wrap"><h1>Rzeczy: Anna K.</h1><div class="soft">/anna-k/items · 7 rzeczy</div>
+<div class="tabs"><span class="tab on">Wszystkie 7</span><span class="tab">Oddam 4</span><span class="tab">Zamienię 2</span><span class="tab">Za punkty 1</span></div>
+<div class="grid">
+<article class="tile"><div class="ph">🚲<span class="cb l gift">Oddam</span><span class="cb r featured"><span aria-hidden="true">⭐</span> Wyróżnione</span></div>
+<b>Rower dziecięcy 16”</b><span class="soft">Stan: dobry</span></article>
+<article class="tile"><div class="ph">🧱<span class="cb l swap">Zamienię</span><span class="cb r featured"><span aria-hidden="true">⭐</span> Wyróżnione</span></div>
+<b>Klocki LEGO Duplo</b><span class="soft">Stan: dobry</span></article>
+<article class="tile"><div class="ph">📚<span class="cb l gift">Oddam</span></div>
+<b>Książki dla 5-latka</b><span class="soft">Stan: dobry</span></article>
+<article class="tile"><div class="ph">🛒<span class="cb l points">60 pkt</span></div>
+<b>Wózek spacerowy</b><span class="soft">Stan: dobry</span></article>
+<article class="tile"><div class="ph">🧥<span class="cb l gift">Oddam</span></div>
+<b>Kurtka 128</b><span class="soft">Stan: dobry</span></article>
+<article class="tile"><div class="ph">🃏<span class="cb l swap">Zamienię</span></div>
+<b>Gra Dobble</b><span class="soft">Stan: dobry</span></article>
+</div>
+<div class="note">ItemCard: „⭐ Wyróżnione” w prawym rogu zdjęcia (istniejący slot <code>marker</code>, ton bg-ink text-on-ink). Ta sama kolejność na profilu i stronie organizacji (ostatnie rzeczy). Wyszukiwarka bez zmian.</div>
+<p><a class="more" href="#" data-screen="strona-produktu-badge">Otwórz rower ›</a></p></div></div>
+  </main>
+
+  <script>
+    // SSE client for live refresh. It must NOT hijack the user's location — during a
+    // multi-screen batch that would repeatedly yank the browser to the newest screen and
+    // make it impossible to browse the gallery. On the gallery/latest we reload in place
+    // (so new cards appear live); on an individual screen we show a dismissible toast so a
+    // reader is never interrupted mid-review.
+    const statusEl = document.getElementById('status');
+    const evtSource = new EventSource('/events');
+    function showRefreshToast() {
+      if (document.getElementById('refresh-toast')) return;
+      const t = document.createElement('button');
+      t.id = 'refresh-toast';
+      t.textContent = '↻ Screens updated — click to refresh';
+      t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;'
+        + 'background:#2563eb;color:#fff;border:0;border-radius:8px;padding:10px 16px;font:600 13px Inter,sans-serif;'
+        + 'cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35)';
+      t.onclick = function(){ window.location.reload(); };
+      document.body.appendChild(t);
+    }
+    evtSource.onmessage = function(e) {
+      if (e.data !== 'refresh') return;
+      if (window.location.pathname === '/' || window.location.pathname === '/latest') {
+        window.location.reload();
+      } else {
+        showRefreshToast();
+      }
+    };
+    evtSource.onopen = function() {
+      statusEl.textContent = 'Connected';
+      statusEl.className = '';
+    };
+    evtSource.onerror = function() {
+      statusEl.textContent = 'Reconnecting...';
+      statusEl.className = 'disconnected';
+    };
+
+    // Annotation overlay rendering
+    const annotations = [{"selector":".cb.r","note":"ItemCard marker slot → nowy prop featured (ton ink)"},{"selector":".grid","note":"list_owner_listed_items_page: featured_at DESC NULLS LAST przed created_at DESC; także na każdej zakładce trybu"}];
+    function renderAnnotations() {
+      const container = document.getElementById('mockup-container');
+      annotations.forEach(function(ann) {
+        if (!ann.selector) return;
+        const target = container.querySelector(ann.selector);
+        if (!target) return;
+        const text = ann.note || ann.text || '';
+        if (!text) return;
+        const rect = target.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const tooltip = document.createElement('div');
+        tooltip.className = 'annotation-tooltip';
+        tooltip.textContent = text;
+        tooltip.style.top = (rect.bottom - containerRect.top + 6) + 'px';
+        tooltip.style.left = (rect.left - containerRect.left) + 'px';
+        container.appendChild(tooltip);
+      });
+    }
+    if (annotations.length > 0) requestAnimationFrame(renderAnnotations);
+
+    // Annotation toggle with localStorage persistence
+    var toggleBtn = document.getElementById('annotation-toggle');
+    var container = document.getElementById('mockup-container');
+    var annotationsVisible = localStorage.getItem('annotations-visible') !== 'false'; // default: true
+    function updateToggle() {
+      if (annotationsVisible) {
+        container.classList.remove('annotations-hidden');
+        toggleBtn.classList.add('active');
+      } else {
+        container.classList.add('annotations-hidden');
+        toggleBtn.classList.remove('active');
+      }
+    }
+    updateToggle();
+    toggleBtn.addEventListener('click', function() {
+      annotationsVisible = !annotationsVisible;
+      localStorage.setItem('annotations-visible', annotationsVisible);
+      updateToggle();
+    });
+
+    // Screen-to-screen navigation: clicking elements with data-screen="slug" navigates to that screen
+    document.getElementById('mockup-container').addEventListener('click', function(e) {
+      var target = e.target.closest('[data-screen]');
+      if (target) {
+        e.preventDefault();
+        window.location.href = '/screen/' + target.getAttribute('data-screen');
+      }
+    });
+  </script>
+</body>
+</html>

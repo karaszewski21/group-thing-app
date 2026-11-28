@@ -201,6 +201,21 @@ def test_resolveRequirement_emailRoutes_resolveToTheirRowsWithoutMcpScopes(
     assert resolve_requirement(method, path) == expected
 
 
+@pytest.mark.parametrize(
+    ("method", "path", "expected"),
+    [
+        ("GET", "/api/admin/settings", ("ADMIN",)),
+        ("PUT", "/api/admin/settings", ("ADMIN",)),
+        ("POST", "/api/admin/settings", "AUTHENTICATED"),
+        ("GET", "/api/admin/settings/other", "AUTHENTICATED"),
+    ],
+)
+def test_resolveRequirement_adminSettingsRoutes_getAndPutAdminRow83(
+    method: str, path: str, expected: tuple[str, ...] | str
+) -> None:
+    assert resolve_requirement(method, path) == expected
+
+
 def test_matrix_emailRows_orderedAfterRows73And69() -> None:
     """Rows 74, 75, 76, 82, 77 follow row 73 in exactly this order (77's
     `/email-verification` never shadows 76's `/confirm`, both being anchored);
@@ -317,6 +332,7 @@ def test_resolveRequirement_termItemListingsBrowse_andWithdrawAttendance() -> No
     assert resolve_requirement("GET", "/api/term-item-listings/browse") == READ
     assert resolve_requirement("POST", "/api/term-item-listings/123/take") == "AUTHENTICATED"
     assert resolve_requirement("PUT", "/api/item-listing-preferences/123") == EDIT
+    assert resolve_requirement("PUT", "/api/item-listing-preferences/123/featured") == EDIT
     assert resolve_requirement("POST", "/api/groups/mine/attendances/42/withdraw") == EDIT
 
 

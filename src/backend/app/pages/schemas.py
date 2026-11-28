@@ -29,6 +29,7 @@ class OwnerItemCardResponse(BaseModel):
     mode: ExchangeMode
     # The price of a POINTS offer, `None` for any other mode.
     points_price: int | None
+    is_featured: bool
     thumb_url: str | None
     # The listing preference's `created_at`, naive UTC like every audit timestamp.
     added_at: datetime

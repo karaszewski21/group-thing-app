@@ -38,6 +38,7 @@ PREFERENCE_KEYS = {
     "mode",
     "visibility",
     "points_price",
+    "is_featured",
     "created_at",
     "updated_at",
 }

@@ -73,6 +73,7 @@ const ADMIN = [
   "/admin/terms",
   "/admin/photos",
   "/admin/points",
+  "/admin/settings",
   "/admin/plugins",
   "/admin/plugins/new",
   "/admin/plugins/:pluginId/detail",

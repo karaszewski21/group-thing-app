@@ -31,6 +31,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.families.models import FamilyMembership, FamilyRole
+from app.party.models import Party
 from app.users.models import UserProfile
 
 from ..models import (
@@ -801,6 +802,30 @@ async def lock_item_listing_preference(
     return result.scalar_one_or_none()
 
 
+async def lock_owner_party(db: AsyncSession, party_id: uuid.UUID) -> None:
+    """Serialises one owner's featuring until the caller commits."""
+    # FOR NO KEY UPDATE, not media's plain FOR UPDATE: it must not conflict
+    # with the FOR KEY SHARE that every insert referencing the Party takes
+    # (reservations, ledger rows), so takes and confirms never wait on it.
+    await db.execute(select(Party.id).where(Party.id == party_id).with_for_update(key_share=True))
+
+
+async def count_other_featured_preferences(
+    db: AsyncSession, owner_party_id: uuid.UUID, item_id: uuid.UUID
+) -> int:
+    """The owner's featured preferences, PRIVATE ones included, except `item_id`."""
+    result = await db.execute(
+        select(func.count())
+        .select_from(ItemListingPreference)
+        .where(
+            ItemListingPreference.owner_party_id == owner_party_id,
+            ItemListingPreference.featured_at.is_not(None),
+            ItemListingPreference.item_id != item_id,
+        )
+    )
+    return int(result.scalar_one())
+
+
 def _visible_preferences(
     include_private: bool, private_circle_id: uuid.UUID | None = None
 ) -> ColumnElement[bool]:
@@ -859,8 +884,8 @@ def item_listing_preferences_select(
     *,
     include_private: bool = False,
     private_circle_id: uuid.UUID | None = None,
-) -> Select[tuple[uuid.UUID, uuid.UUID, str, datetime, int | None]]:
-    """`(item_id, owner_party_id, mode, created_at, points_price)` of every listing
+) -> Select[tuple[uuid.UUID, uuid.UUID, str, datetime, int | None, datetime | None]]:
+    """`(item_id, owner_party_id, mode, created_at, points_price, featured_at)` of every listing
     preference owned by `party_ids`, PUBLIC ones only unless
     `include_private` or `private_circle_id` (`_visible_preferences`).
     Unexecuted, so another context can join it with its own item select in
@@ -871,6 +896,7 @@ def item_listing_preferences_select(
         ItemListingPreference.mode.label("mode"),
         ItemListingPreference.created_at.label("created_at"),
         ItemListingPreference.points_price.label("points_price"),
+        ItemListingPreference.featured_at.label("featured_at"),
     ).where(
         ItemListingPreference.owner_party_id.in_(set(party_ids)),
         _visible_preferences(include_private, private_circle_id),
@@ -907,7 +933,8 @@ async def shares_private_circle(
 
 def _my_items(party_id: uuid.UUID, items: Select[Any]) -> Subquery:
     """`items` (the inventory module's inventory-items select) plus the party's own
-    listing `mode`, `visibility` and `points_price`, all `None` without a preference.
+    listing `mode`, `visibility`, `points_price` and `featured_at`, all `None`
+    without a preference.
     PRIVATE preferences count: this is the owner's view of their items."""
     inventory_items = items.subquery("inventory_items")
     return (
@@ -916,6 +943,7 @@ def _my_items(party_id: uuid.UUID, items: Select[Any]) -> Subquery:
             ItemListingPreference.mode.label("mode"),
             ItemListingPreference.visibility.label("visibility"),
             ItemListingPreference.points_price.label("points_price"),
+            ItemListingPreference.featured_at.label("featured_at"),
         )
         .outerjoin(
             ItemListingPreference,
@@ -1006,12 +1034,13 @@ async def list_listed_items_for_parties(
     include_private: bool = False,
     private_circle_id: uuid.UUID | None = None,
 ) -> list[Row[Any]]:
-    """`(item_id, owner_party_id, mode, created_at, product_id, product_name,
-    condition, balance_status, reserved_by_user_id, proposer_party_id)` of
-    every item `party_ids` list (PUBLIC ones only unless `include_private`
-    or `private_circle_id`, `_visible_preferences`), in one statement: their
-    listing preferences joined to `listed_items` (a `with_pending_proposer`
-    select). Oldest preference first, then item id."""
+    """`(item_id, owner_party_id, mode, created_at, featured_at, product_id,
+    product_name, condition, balance_status, reserved_by_user_id,
+    proposer_party_id)` of every item `party_ids` list (PUBLIC ones only
+    unless `include_private` or `private_circle_id`, `_visible_preferences`),
+    in one statement: their listing preferences joined to `listed_items` (a
+    `with_pending_proposer` select). Featured first (most recently featured
+    first), then oldest preference first, then item id."""
     if not party_ids:
         return []
     preferences = item_listing_preferences_select(
@@ -1024,6 +1053,7 @@ async def list_listed_items_for_parties(
             preferences.c.owner_party_id,
             preferences.c.mode,
             preferences.c.created_at,
+            preferences.c.featured_at,
             listed.c.product_id,
             listed.c.product_name,
             listed.c.condition,
@@ -1032,7 +1062,11 @@ async def list_listed_items_for_parties(
             listed.c.proposer_party_id,
         )
         .join(listed, listed.c.item_id == preferences.c.item_id)
-        .order_by(preferences.c.created_at, preferences.c.item_id)
+        .order_by(
+            preferences.c.featured_at.desc().nulls_last(),
+            preferences.c.created_at,
+            preferences.c.item_id,
+        )
     )
     return list(result.all())
 
@@ -1232,9 +1266,9 @@ async def count_owner_public_terms(
 
 
 def _owner_listed_items(owner_party_id: uuid.UUID, listed_items: Select[Any]) -> Subquery:
-    """`(item_id, mode, points_price, created_at, product_id, product_name,
-    condition, balance_status, reserved_by_user_id, proposer_party_id)`, from
-    a `with_pending_proposer` select."""
+    """`(item_id, mode, points_price, created_at, featured_at, product_id,
+    product_name, condition, balance_status, reserved_by_user_id,
+    proposer_party_id)`, from a `with_pending_proposer` select."""
     preferences = item_listing_preferences_select([owner_party_id]).subquery("preferences")
     listed = listed_items.subquery("listed_items")
     return (
@@ -1243,6 +1277,7 @@ def _owner_listed_items(owner_party_id: uuid.UUID, listed_items: Select[Any]) ->
             preferences.c.mode,
             preferences.c.points_price,
             preferences.c.created_at,
+            preferences.c.featured_at,
             listed.c.product_id,
             listed.c.product_name,
             listed.c.condition,
@@ -1290,9 +1325,12 @@ async def list_owner_listed_items_page(
     limit: int,
 ) -> list[Row[Any]]:
     """One page of the owner's listed items, optionally of one `mode`,
-    newest preference first, then item id."""
+    featured first (most recently featured first), then newest preference
+    first, then item id."""
     listed = _owner_listed_items(owner_party_id, listed_items)
-    query = select(listed).order_by(listed.c.created_at.desc(), listed.c.item_id)
+    query = select(listed).order_by(
+        listed.c.featured_at.desc().nulls_last(), listed.c.created_at.desc(), listed.c.item_id
+    )
     if mode is not None:
         query = query.where(listed.c.mode == mode)
     result = await db.execute(query.offset(offset).limit(limit))

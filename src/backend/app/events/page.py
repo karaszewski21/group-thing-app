@@ -61,9 +61,10 @@ async def _listed_items_by_party(
     storage: ObjectStorage | None,
     viewer_party_id: uuid.UUID | None,
 ) -> tuple[dict[uuid.UUID, list[EventParticipantItemResponse]], dict[uuid.UUID, int]]:
-    """Each party's 3 newest live listed items — AVAILABLE, RESERVED or
-    IN_TRANSIT, carrying a listing preference (preference `created_at`
-    descending, then item id) — with their reserved badge for the viewer,
+    """Each party's first 3 live listed items — AVAILABLE, RESERVED or
+    IN_TRANSIT, carrying a listing preference; featured first (most recently
+    featured first), then newest (preference `created_at` descending), then
+    item id — with their reserved badge for the viewer,
     and how many such items they have in total: one statement, plus one for
     the thumbnails when storage is configured and at most two for the
     reserver names of a logged-in viewer."""
@@ -78,6 +79,7 @@ async def _listed_items_by_party(
             preferences.c.mode,
             preferences.c.points_price,
             preferences.c.created_at,
+            preferences.c.featured_at,
             listed.c.product_id,
             listed.c.product_name,
             listed.c.balance_status,
@@ -86,7 +88,11 @@ async def _listed_items_by_party(
             func.row_number()
             .over(
                 partition_by=preferences.c.owner_party_id,
-                order_by=(preferences.c.created_at.desc(), preferences.c.item_id),
+                order_by=(
+                    preferences.c.featured_at.desc().nulls_last(),
+                    preferences.c.created_at.desc(),
+                    preferences.c.item_id,
+                ),
             )
             .label("position"),
             func.count().over(partition_by=preferences.c.owner_party_id).label("items_total"),
@@ -119,6 +125,7 @@ async def _listed_items_by_party(
                 product_name=row.product_name,
                 mode=row.mode,
                 points_price=row.points_price,
+                is_featured=row.featured_at is not None,
                 thumb_url=storage.public_url(photo.thumb_key) if storage and photo else None,
                 added_at=row.created_at,
                 reservation=(
