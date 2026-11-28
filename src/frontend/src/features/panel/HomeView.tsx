@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link } from "../../routing/navigation";
 import { useAuth } from "../../auth/AuthContext";
 import { useClientValue } from "../../lib/useClientValue";
-import { BuildingIcon, CalendarPlusIcon } from "../../components/shared/appIcons";
+import { BoxIcon, BuildingIcon, CalendarPlusIcon } from "../../components/shared/appIcons";
+import { useMyReservations } from "../../hooks/useMyReservations";
 import { HintCard } from "../../components/shared/appComponents";
 import { capitalize, ITEM_MODE_TONE, ITEM_MODES } from "../../utils/appHelpers";
 import { appearancePath, viewPath } from "../../routing/paths";
@@ -33,6 +34,7 @@ function useDismissibleHint(storageKey: string): [boolean, () => void] {
 export function HomeView() {
   const { profile, organizationSlug, myGroups, items, itemModes, setView, openFirstTermStepper } = useAppData();
   const { username } = useAuth();
+  const { data: reservations } = useMyReservations();
   // Dismissed flags are per account (`hintKey`): a browser shared by several
   // accounts never hides a new account's hints because another dismissed them.
   //  - "Załóż grupę": no led group yet
@@ -105,6 +107,24 @@ export function HomeView() {
               </button>
             ))}
           </div>
+        )}
+        {reservations.length > 0 && (
+          <Link
+            to={viewPath("items/reserved")}
+            className={`${CARD} mt-2.5 flex items-center gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring`}
+          >
+            <span aria-hidden="true" className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-accent-soft text-accent-fg">
+              <BoxIcon c="currentColor" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <b className="block text-[15px] font-extrabold text-ink">Zarezerwowane</b>{" "}
+              <small className="block text-[13px] text-ink-soft">Rzeczy do odebrania</small>
+            </span>{" "}
+            <b className="font-serif text-[22px] leading-none font-extrabold text-ink">{reservations.length}</b>
+            <span aria-hidden="true" className="text-ink-soft">
+              →
+            </span>
+          </Link>
         )}
       </section>
 
