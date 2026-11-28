@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, TypeGuard, cast
 
 from sqlalchemy import Row, Select, func, select
@@ -52,6 +53,7 @@ from ..infrastructure import (
     points_acl,
     product_bridge,
     repository,
+    settings_acl,
 )
 from ..infrastructure.notifications_bridge import NotificationKind
 from ..models import (
@@ -305,6 +307,51 @@ async def set_item_listing_preference(
     return preference
 
 
+def _featured_cap_message(limit: int) -> str:
+    noun = "rzecz" if limit == 1 else "rzeczy"
+    return f"Możesz wyróżnić maksymalnie {limit} {noun}."
+
+
+async def set_item_featured(
+    db: AsyncSession, principal: Principal, item_id: uuid.UUID, featured: bool
+) -> ItemListingPreference:
+    """Features or unfeatures one of the caller's own listed items. Featuring
+    an already featured item keeps its `featured_at` and skips the cap;
+    unfeaturing is always allowed. A hidden item is a 404 before the 403.
+
+    Lock order owner Party (`FOR NO KEY UPDATE`, the cap mutex) -> item ->
+    preference; point accounts are never taken."""
+    profile = await get_profile_by_principal(db, principal)
+    async with mapped_transaction_conflicts(db):
+        await require_item_visible(db, item_id, profile.party_id)
+        await repository.lock_owner_party(db, profile.party_id)
+        item = await inventory_bridge.get_item_for_update(db, item_id)
+        inventory = await inventory_bridge.resolve_owning_inventory(db, item)
+        if (
+            inventory.owner_user_id != profile.account_user_id
+            or inventory.inventory_type != inventory_bridge.InventoryType.PERSONAL
+        ):
+            raise AccessDeniedException
+        preference = await repository.lock_item_listing_preference(db, item_id)
+        if preference is None:
+            raise BusinessConflictException("Wystaw rzecz, aby ją wyróżnić.")
+        if featured and preference.featured_at is None:
+            limit = await settings_acl.max_featured_items(db)
+            if limit == 0:
+                raise BusinessConflictException("Wyróżnianie rzeczy jest teraz wyłączone.")
+            others = await repository.count_other_featured_preferences(
+                db, profile.party_id, item_id
+            )
+            if others >= limit:
+                raise BusinessConflictException(_featured_cap_message(limit))
+            preference.featured_at = datetime.utcnow()
+        elif not featured:
+            preference.featured_at = None
+        await db.commit()
+    await db.refresh(preference)
+    return preference
+
+
 async def clamp_points_price(db: AsyncSession, item_id: uuid.UUID, points_value: int) -> None:
     """`update_item`'s re-valuation hook, called under the item row lock: a
     POINTS price outside the bounds of the new `points_value` is clamped
@@ -379,6 +426,7 @@ async def _my_inventory_item_responses(
             location_id=row.location_id,
             points_value=row.points_value,
             points_price=row.points_price,
+            is_featured=row.featured_at is not None,
             photos_moderation_pending=row.product_id in pending,
             thumb_url=(
                 storage.public_url(photos[row.product_id].thumb_key)
@@ -709,6 +757,7 @@ async def list_public_term_item_listings(
                 offered_types=[row.mode],
                 lister_party_id=row.owner_party_id,
                 lister_display_name=names.party_names[row.owner_party_id],
+                is_featured=row.featured_at is not None,
                 added_at=row.created_at,
                 reservation=names.row_reservation(row),
             ),

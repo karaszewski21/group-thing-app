@@ -55,6 +55,7 @@ export function OwnerItemsList() {
                   mode={item.mode}
                   pointsPrice={item.points_price}
                   reservation={item.reservation}
+                  featured={item.is_featured}
                 />
               </li>
             ))}

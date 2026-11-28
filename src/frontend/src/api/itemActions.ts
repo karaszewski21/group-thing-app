@@ -78,6 +78,8 @@ export interface ItemActionsResponse {
   /** At most 5 upcoming contexts the viewer may see. */
   contexts: ItemContextOptionResponse[];
   personal_pickup_available: boolean;
+  /** The owner featured the listing; shown to every viewer. */
+  is_featured: boolean;
 }
 
 /** The item page's actions (public). */

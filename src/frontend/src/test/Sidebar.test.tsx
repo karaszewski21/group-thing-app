@@ -107,6 +107,20 @@ describe("Sidebar ADMIN gating", () => {
     expect(screen.queryByText("Points")).not.toBeInTheDocument();
   });
 
+  it("shows the Settings nav item right after Points, linking to /admin/settings, only for ADMIN principals", () => {
+    mockAuth(["ADMIN"]);
+    const admin = renderSidebar();
+    // The sidebar is hidden below `md`, so its links are not in the accessibility tree.
+    const labels = Array.from(admin.container.querySelectorAll("a"), (link) => link.textContent?.trim());
+    expect(labels[labels.indexOf("Points") + 1]).toBe("Settings");
+    expect(screen.getByText("Settings").closest("a")).toHaveAttribute("href", "/admin/settings");
+    admin.unmount();
+
+    mockAuth(["PLUGIN_MANAGEMENT"]);
+    renderSidebar();
+    expect(screen.queryByText("Settings")).not.toBeInTheDocument();
+  });
+
   it("shows Plugins NavItem and PluginMenuItems sub-items for PLUGIN_MANAGEMENT-only principal", () => {
     mockAuth(["PLUGIN_MANAGEMENT"]);
     mockPlugins(PLUGIN_MENU_ITEMS);

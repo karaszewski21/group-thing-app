@@ -56,6 +56,7 @@ from app.points.router import router as points_router
 from app.product import embeddings as product_embeddings
 from app.product.router import router as product_router
 from app.search.router import router as search_router
+from app.settings.router import router as settings_router
 from app.storage import outbox_listener as storage_outbox_listener
 from app.system.router import router as system_router
 from app.users.router import router as users_router
@@ -304,4 +305,5 @@ app.include_router(moderation_router)
 app.include_router(search_router)
 app.include_router(wants_router)
 app.include_router(points_router)
+app.include_router(settings_router)
 app.include_router(system_router)

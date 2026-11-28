@@ -12,6 +12,7 @@ vi.mock("../auth/AuthContext", () => ({ useAuth: vi.fn() }));
 const ACTIONS: ItemActionsResponse = {
   mode: "GIFT",
   points_price: null,
+  is_featured: false,
   visibility: null,
   available: true,
   reservation: null,

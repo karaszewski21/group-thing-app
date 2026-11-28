@@ -10,12 +10,14 @@ import { MAX_PRODUCT_PHOTOS, NO_CATEGORY_LABEL, type ItemCreatedState } from "..
 import { ItemStatusPill } from "./ItemStatus";
 
 /** The top of the sheet: the create-page notice, the deleted banner, the
- * listing badges ("Chcę oddać" / "Chcę się zamienić", the reservation, the
- * owner's "Prywatny", a bare "Dostępna" status), the category with the
- * condition, the name and, for a POINTS listing, its price. */
+ * listing badges (the owner's „⭐ Wyróżnione”, "Chcę oddać" / "Chcę się
+ * zamienić", the reservation, the owner's "Prywatny", a bare "Dostępna"
+ * status), the category with the condition, the name and, for a POINTS
+ * listing, its price. */
 export function ItemHeader() {
   const { item, actions, view, statusAsPill } = useItemPage();
   const mode = view.kind === "hidden" ? null : (actions.data?.mode ?? null);
+  const featured = view.kind === "loading" || view.kind === "hidden" ? false : (actions.data?.is_featured ?? false);
   const reservation = view.kind === "loading" || view.kind === "hidden" ? null : (actions.data?.reservation ?? null);
   const isPrivate = view.kind === "own" && view.visibility === "PRIVATE";
   const pointsPrice = mode === "POINTS" ? (actions.data?.points_price ?? null) : null;
@@ -30,9 +32,9 @@ export function ItemHeader() {
           <p className="mt-0.5 text-[12.5px]">{`Ta rzecz została usunięta ${dayjs(item.deleted_at).format("DD.MM.YYYY")}.`}</p>
         </div>
       )}
-      {(mode || reservation || isPrivate || statusAsPill) && (
+      {(mode || featured || reservation || isPrivate || statusAsPill) && (
         <div className="mb-1.5 flex flex-wrap items-center gap-1">
-          <ItemTileBadges modes={mode ? [mode] : []} reservation={reservation} size="md" />
+          <ItemTileBadges featured={featured} modes={mode ? [mode] : []} reservation={reservation} size="md" />
           {isPrivate && (
             <>
               {" "}

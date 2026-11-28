@@ -117,6 +117,7 @@ const ITEM: ItemDetailsResponse = {
 const ITEM_ACTIONS: ItemActionsResponse = {
   mode: "GIFT",
   points_price: null,
+  is_featured: false,
   visibility: "PUBLIC",
   available: true,
   reservation: null,
@@ -432,6 +433,28 @@ describe("SSR safety", () => {
     expect(sellerHtml).toContain("Potwierdza tylko kupujący. Możesz anulować — punkty wrócą do Ania.");
     expect(sellerHtml).toContain("Anuluj rezerwację");
     expect(sellerHtml).not.toContain("Potwierdź odbiór");
+  });
+
+  it("renders a featured item's „Wyróżnione” pill for a cookie session", async () => {
+    const client = createTestQueryClient();
+    client.setQueryData([ITEM_DETAILS_KEY, ITEM_ID], { ...ITEM, is_owner: false });
+    client.setQueryData([ITEM_ACTIONS_KEY, ITEM_ID, "ania@example.com"], {
+      ...ITEM_ACTIONS,
+      is_featured: true,
+      visibility: null,
+      viewer: "OTHER",
+    } satisfies ItemActionsResponse);
+
+    const html = renderOnServer(
+      `/party-1/product/${ITEM_ID}`,
+      "/:slug/product/:id",
+      <PublicLayout>{await itemRouteElement(`/party-1/product/${ITEM_ID}`)}</PublicLayout>,
+      client,
+      SESSION,
+    );
+
+    expect(html).toContain("Wyróżnione");
+    expect(html).toContain("Chcę oddać");
   });
 
   it("renders the item page shell while its data is loading", async () => {

@@ -115,6 +115,7 @@ const item: MyInventoryItemResponse = {
   listing_mode: null,
   listing_visibility: null,
   points_price: null,
+  is_featured: false,
   listing_status: "DRAFT",
   photos_moderation_pending: false,
   location_id: "loc-1",

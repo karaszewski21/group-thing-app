@@ -225,6 +225,7 @@ function itemActions(overrides: Partial<ItemActionsResponse> = {}): ItemActionsR
   return {
     mode: "GIFT",
     points_price: null,
+    is_featured: false,
     visibility: null,
     available: true,
     reservation: null,
@@ -575,6 +576,7 @@ describe("ItemDetailPage context actions", () => {
     listing_mode: "SWAP",
     listing_visibility: "PUBLIC",
     points_price: null,
+    is_featured: false,
     location_id: null,
     points_value: null,
     photos_moderation_pending: false,

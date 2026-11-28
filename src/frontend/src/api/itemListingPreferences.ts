@@ -14,6 +14,7 @@ export interface ItemListingPreferenceResponse {
   visibility: ItemVisibility;
   /** Set exactly for a POINTS listing. */
   points_price: number | null;
+  is_featured: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -46,4 +47,11 @@ export function setItemListingPreference(
     ...(visibility ? { visibility } : {}),
     ...(pointsPrice !== undefined ? { points_price: pointsPrice } : {}),
   });
+}
+
+/** Features or unfeatures one of the caller's own listed items — the
+ * "Moje rzeczy" star. A 409 carries the reason (not listed, featuring off,
+ * the limit reached) as a Polish message. */
+export function setItemFeatured(itemId: string, featured: boolean): Promise<ItemListingPreferenceResponse> {
+  return api.put(`/item-listing-preferences/${itemId}/featured`, { featured });
 }

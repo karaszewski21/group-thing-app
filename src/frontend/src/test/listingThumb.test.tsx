@@ -17,6 +17,7 @@ function listing(thumbUrl: string | null): PublicItemListingResponse {
     thumb_url: thumbUrl,
     added_at: "2026-10-30T09:00:00",
     reservation: null,
+    is_featured: false,
   };
 }
 

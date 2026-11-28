@@ -73,6 +73,7 @@ function itemActions(overrides: Partial<ItemActionsResponse> = {}): ItemActionsR
   return {
     mode: "GIFT",
     points_price: null,
+    is_featured: false,
     visibility: null,
     available: true,
     reservation: null,

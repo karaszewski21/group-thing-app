@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Fidelity — 2026-11-27-featured-items</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.pair { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media (max-width:700px) { .pair { grid-template-columns:1fr; } }
+.pair figure { margin:0; } .pair figcaption { font-size:12px; color:var(--dim); }
+.warnc { color:var(--warn); font-weight:600; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <a href="../implementation/spec.html">Spec</a> <a href="../implementation/implementation-plan.html">Plan</a>
+  <a href="implementation-verification.html">Verification</a>
+  <a href="e2e-verification-report.html">E2E</a>
+  <span class="here">Visual fidelity</span>
+  <a href="visual-fidelity.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <span class="badge">Visual fidelity · report-only</span>
+  <h1>Featured items: Visual Fidelity Report</h1>
+  <div style="color:var(--dim);font-size:12.5px">LLM-judged structural match · source analysis/design-context/INDEX.md</div>
+</header>
+<div class="tiles">
+  <div class="tile"><b>10</b><span>compared</span></div>
+  <div class="tile"><b class="pass">6</b><span>match ✓</span></div>
+  <div class="tile"><b class="warnc">4</b><span>minor ⚠</span></div>
+  <div class="tile"><b>0</b><span>drift ✗</span></div>
+</div>
+<section class="card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <p>The implementation follows the mockups structurally: 6 matches, 4 minor deviations, 0 substantive drift. The deviations are the toast position and style (intentional), the product pill row above the title (existing <code>ItemHeader</code> layout), the unstyled admin Chakra controls (pre-existing env styling) and the <code>ItemCard</code> corner badge covering the mode badge on narrow tiles.</p>
+  <h2>Key Decisions</h2>
+  <ul><li>Toast position and admin nav ordering are intentional per spec (⚠, not ✗).</li><li>The mockups were rendered in Chromium and screenshotted for the side-by-side pairs.</li></ul>
+  <h2>Open Questions / Risks</h2>
+  <ul><li><span class="sev warning">minor</span><code>ItemCard</code> corner badge overlap on 2-column grids: choose a star-only badge, a stacked layout or truncation.</li></ul>
+</section>
+<main>
+<div class="card"><h3>screen:my-items-featured-toggle — <span class="pass">✓ Match</span></h3>
+<p>The toggle sits beside „Publiczna | Prywatna”, only on listed items. The chip „⭐ Wyróżnione” comes first (it wraps on the narrower card). Ink when on, no N/limit counter.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mock-moje-rzeczy-prze-cznik-wyr-nij.png" alt="Mockup my items toggle"><figcaption>Mockup · <a href="../analysis/design-context/mockups/moje-rzeczy-prze-cznik-wyr-nij.html">html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/05-my-items-A-featured.png" alt="Implementation my items toggle"><figcaption>Implementation · 05</figcaption></figure></div></div>
+
+<div class="card"><h3>screen:my-items-featured-errors — <span class="warnc">⚠ Minor deviation</span></h3>
+<p>The copy matches (the cap uses N = 1 singular). It renders in the bottom ToastPill instead of the red top toast; this is intentional per spec.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mock-moje-rzeczy-limit-osi-gni-ty.png" alt="Mockup errors"><figcaption>Mockup · <a href="../analysis/design-context/mockups/moje-rzeczy-limit-osi-gni-ty.html">html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/06-my-items-cap-toast.png" alt="Implementation cap toast"><figcaption>Implementation · 06 (and 07 for limit 0)</figcaption></figure></div></div>
+
+<div class="card"><h3>screen:term-page-featured-first — <span class="pass">✓ Match</span></h3>
+<p>Lister row, 3-item preview with featured first and the pill before the mode pill, then „Pokaż więcej”.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mock-strona-terminu-wyr-nione-pierwsze.png" alt="Mockup term"><figcaption>Mockup · <a href="../analysis/design-context/mockups/strona-terminu-wyr-nione-pierwsze.html">html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/21-term-B-featured-first.png" alt="Implementation term"><figcaption>Implementation · 21</figcaption></figure></div></div>
+
+<div class="card"><h3>screen:event-page-featured-first — <span class="pass">✓ Match</span></h3>
+<p>Participant rows and the 3-item window with the featured item first. The oldest featured listing is pulled in.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mock-strona-eventu-wyr-nione-pierwsze.png" alt="Mockup event"><figcaption>Mockup · <a href="../analysis/design-context/mockups/strona-eventu-wyr-nione-pierwsze.html">html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/20-event-B-featured-oldest-first.png" alt="Implementation event"><figcaption>Implementation · 20</figcaption></figure></div></div>
+
+<div class="card"><h3>screen:owner-items-featured-first — <span class="warnc">⚠ Minor deviation</span></h3>
+<p>Featured first in every tab, right-corner ink badge. On the app's 2-column grid the badge covers the left mode badge („Oddar…”).</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mock-strona-rzeczy-w-a-ciciela-wyr-nione-pierwsze.png" alt="Mockup owner items"><figcaption>Mockup · <a href="../analysis/design-context/mockups/strona-rzeczy-w-a-ciciela-wyr-nione-pierwsze.html">html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/08-owner-items-featured-first.png" alt="Implementation owner items"><figcaption>Implementation · 08 (also 09 mobile, 10 profile)</figcaption></figure></div></div>
+
+<div class="card"><h3>screen:product-page-featured-badge — <span class="warnc">⚠ Minor deviation</span></h3>
+<p>The md pill comes before the mode pill for every viewer. The pill row sits above the title (existing <code>ItemHeader</code> layout); the mockup has it below.</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mock-strona-produktu-badge.png" alt="Mockup product"><figcaption>Mockup · <a href="../analysis/design-context/mockups/strona-produktu-badge.html">html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/14-product-anonymous-featured-pill.png" alt="Implementation product"><figcaption>Implementation · 14 (anonymous)</figcaption></figure></div></div>
+
+<div class="card"><h3>screen:admin-settings — <span class="warnc">⚠ Minor deviation</span></h3>
+<p>Copy, fieldset, help text, validation, 409 and nav position all match. The input and button render unstyled, the same as on the existing /admin/points page (pre-existing env styling; see 23).</p>
+<div class="pair"><figure><img class="shot" src="screenshots/mock-panel-admina-ustawienia.png" alt="Mockup admin settings"><figcaption>Mockup · <a href="../analysis/design-context/mockups/panel-admina-ustawienia.html">html</a></figcaption></figure>
+<figure><img class="shot" src="screenshots/02-admin-settings-invalid-25.png" alt="Implementation admin settings"><figcaption>Implementation · 02 (also 01, 22, 23 baseline)</figcaption></figure></div></div>
+
+<div class="card"><h3>Components — <span class="pass">✓ Match ×3</span></h3>
+<ul>
+<li><b>component:featured-pill</b>: first pill, <code>bg-ink text-on-ink</code>, ⭐ aria-hidden (DOM-checked; 13).</li>
+<li><b>component:item-card-featured-marker</b>: marker slot, ink tone, ⭐ aria-hidden; the overlap is counted under owner items (08).</li>
+<li><b>component:featured-toggle</b>: <code>type=button</code>, aria-pressed, stable „Wyróżnij: {name}” label, ink when on (05).</li>
+</ul></div>
+</main>
+</body>
+</html>

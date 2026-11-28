@@ -48,6 +48,7 @@ function card(id: string, mode: OwnerItemCard["mode"], overrides: Partial<OwnerI
     condition: "GOOD",
     mode,
     points_price: null,
+    is_featured: false,
     thumb_url: null,
     added_at: "2026-10-30T09:00:00",
     reservation: null,
@@ -198,6 +199,23 @@ describe("OwnerItemsPage", () => {
     expect(within(tablist).getByRole("tab", { name: "Chcę oddać 2" })).toHaveAttribute("aria-selected", "true");
     expect(within(tablist).getByRole("tab", { name: "Wszystkie 3" })).toBeInTheDocument();
     expect(within(tablist).getByRole("tab", { name: "Chcę się zamienić 1" })).toBeInTheDocument();
+  });
+
+  it("shows the „⭐ Wyróżnione” corner badge only on a featured tile", async () => {
+    vi.mocked(ownerItemsApi.getOrganizationOwnerItems).mockResolvedValue(
+      ownerPage({ items: [card("i1", "GIFT", { is_featured: true }), card("i2", "SWAP")], total: 2 }),
+    );
+
+    await renderAt(`/${SLUG}/items`);
+
+    await screen.findByRole("link", { name: "Rzecz i1" });
+    const [featured, plain] = screen.getAllByRole("article");
+    const star = within(featured).getByText("⭐");
+    expect(star).toHaveAttribute("aria-hidden", "true");
+    expect(star.parentElement).toHaveClass("bg-ink", "text-on-ink");
+    expect(star.parentElement).toHaveTextContent(/^⭐ Wyróżnione$/);
+    expect(within(featured).getByText("Oddam")).toBeInTheDocument();
+    expect(plain).not.toHaveTextContent("Wyróżnione");
   });
 
   it("shows an anonymous viewer the reserved pill without a name, under the offer badge", async () => {

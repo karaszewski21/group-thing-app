@@ -37,7 +37,7 @@ function eventFixture(overrides: Partial<EventResponse> = {}): EventResponse {
 }
 
 function item(id: string, productName: string, mode: EventParticipantItem["mode"]): EventParticipantItem {
-  return { item_id: id, product_name: productName, mode, points_price: null, thumb_url: null, added_at: "2026-10-30T09:00:00", reservation: null };
+  return { item_id: id, product_name: productName, mode, points_price: null, thumb_url: null, added_at: "2026-10-30T09:00:00", reservation: null, is_featured: false };
 }
 
 function participant(overrides: Partial<EventParticipant> = {}): EventParticipant {

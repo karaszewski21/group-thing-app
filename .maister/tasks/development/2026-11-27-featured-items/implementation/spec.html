@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specification — Featured items (Wyróżnione rzeczy)</title>
+<style>
+:root {
+  --bg:#f6f7f9; --surface:#fff; --border:#e2e5ea; --text:#1a1d23; --dim:#6b7280;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --ok:#16a34a; --ok-soft:#ecfdf3;
+  --warn:#d97706; --warn-soft:#fffbeb; --crit:#dc2626; --crit-soft:#fef2f2;
+  --info:#2563eb; --info-soft:#eff6ff; --radius:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --surface:#1a1f26; --border:#2e3640; --text:#e6e9ee; --dim:#9aa4b2;
+    --accent:#818cf8; --accent-soft:#26294a; --ok:#4ade80; --ok-soft:#11291a;
+    --warn:#fbbf24; --warn-soft:#2e2410; --crit:#f87171; --crit-soft:#321616;
+    --info:#60a5fa; --info-soft:#15233a; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:1100px; padding:24px 20px 64px; background:var(--bg);
+  color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:22px; letter-spacing:-.01em; } h2 { font-size:16px; margin-top:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin:14px 0; }
+.badge { display:inline-block; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.04em; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+.sev { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:99px; margin-right:6px; }
+.sev.critical { background:var(--crit-soft); color:var(--crit); }
+.sev.warning  { background:var(--warn-soft); color:var(--warn); }
+.sev.info     { background:var(--info-soft); color:var(--info); }
+.pass { color:var(--ok); font-weight:600; } .fail { color:var(--crit); font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--dim); }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+  background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+img.shot { max-width:100%; border:1px solid var(--border); border-radius:var(--radius); }
+details > summary { cursor:pointer; font-weight:600; }
+.crumbs { display:flex; gap:14px; font-size:13px; margin-bottom:18px; flex-wrap:wrap; }
+.crumbs a.md { margin-left:auto; color:var(--dim); }
+.crumbs .here { font-weight:650; color:var(--text); }
+.tiles { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 16px; text-align:center; min-width:90px; }
+.tile b { display:block; font-size:20px; letter-spacing:-.01em; }
+.tile span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); }
+.split { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:720px) { .split { grid-template-columns:1fr; } }
+.in h3 { color:var(--ok); } .out h3 { color:var(--crit); }
+h3 { font-size:14px; margin:0 0 8px; }
+.stories { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
+.stories .card { margin:0; }
+.toc { font-size:13px; color:var(--dim); margin:10px 0; }
+ul, ol { padding-left:20px; margin:6px 0; } li { margin:3px 0; }
+.wrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+<nav class="crumbs">
+  <a href="../dashboard.html">← Dashboard</a>
+  <span class="here">Spec</span> <a href="implementation-plan.html">Plan</a>
+  <a href="../verification/implementation-verification.html">Verification</a>
+  <a href="spec.md" target="_blank" rel="noopener" class="md">md twin ↗</a>
+</nav>
+<header>
+  <span class="badge">Specification</span>
+  <h1>Featured items („Wyróżnione rzeczy”)</h1>
+  <div style="color:var(--dim);font-size:12.5px">Generated 2026-11-27 · task 2026-11-27-featured-items · <a href="spec.md" target="_blank" rel="noopener">spec.md</a></div>
+</header>
+<div class="tiles">
+  <div class="tile"><b>25</b><span>requirements</span></div>
+  <div class="tile"><b>~20</b><span>reused parts</span></div>
+  <div class="tile"><b>10</b><span>new components</span></div>
+  <div class="tile"><b>10</b><span>mockup refs</span></div>
+  <div class="tile"><b>low-med</b><span>risk</span></div>
+</div>
+
+<section class="tldr card">
+  <h2 style="margin-top:0">TL;DR</h2>
+  <p>Owners mark up to N listed items as featured with a „⭐ Wyróżnij” toggle in „Moje rzeczy”. N is set on a new admin page <code>/admin/settings</code> (default 3, range 0–20, 0 = off). The mark is a nullable <code>featured_at</code> on <code>item_listing_preferences</code>, so it disappears with the listing. It is set through an idempotent <code>PUT /api/item-listing-preferences/{item_id}/featured</code> (hidden items 404 first). An owner Party-row lock taken <code>FOR NO KEY UPDATE</code> serialises the cap. Featured items get a dark „⭐ Wyróżnione” pill and come first (most recently featured first) on term, event, owner, profile and organization pages. Search, wants cards and the order of „Moje rzeczy” do not change. The limit lives in a new <code>app/settings</code> module (single-row <code>app_settings</code>), behind ADMIN <code>GET/PUT /api/admin/settings</code> (matrix row 74).</p>
+  <h3>Key Decisions</h3>
+  <ul>
+    <li><b>The featured state is <code>featured_at</code></b> on the listing row. It is deleted on unlist or hand-over, and clients only see <code>is_featured</code>.</li>
+    <li><b>The limit lives in a new <code>app/settings</code> module</b> (the user's choice), not on <code>points_config</code>. Groups read it via <code>settings_acl.py</code>.</li>
+    <li><b>Two revisions.</b> 0110 creates <code>app_settings</code> with its seed row. 0111 adds <code>featured_at</code> and its partial index. This follows the standard: a nullable column goes in a separate revision from a new table.</li>
+    <li><b>Schema and seed share 0110, as a recorded exception.</b> <code>load_settings</code> uses <code>scalar_one()</code>, so a head without the row would answer 500. <code>points_config</code> could split 0103/0105 only because nothing read the row in between.</li>
+    <li><b>The 0111 index is not built concurrently.</b> The table is small, the predicate is empty at creation, and the lock is bounded by <code>lock_timeout</code> 5s.</li>
+    <li><b>Downgrades are plain, unguarded and lossy.</b> Featured marks are presentation state. There is no image-only rollback.</li>
+    <li><b>Order: <code>require_item_visible</code>, then Party row <code>FOR NO KEY UPDATE</code> → item → preference.</b> FK inserts into rows referencing <code>parties</code> (owner notification, <code>counterparty_party_id</code>, preference insert, <code>fulfill_exchange</code>) take <code>FOR KEY SHARE</code> after the item or preference lock. A plain <code>FOR UPDATE</code> could deadlock with them. <code>key_share=True</code> still serialises toggles of one owner and never blocks FK checks. The plain <code>FOR UPDATE</code> of <code>_lock_owner</code> is not copied.</li>
+    <li><b>The toggle is idempotent.</b> Re-featuring keeps <code>featured_at</code> and skips the cap check. Unfeaturing is always allowed. A lowered limit keeps existing marks.</li>
+    <li><b>The owner never sees the limit.</b> It shows only in the 409 message, with the Polish plural: N = 1 → „Możesz wyróżnić maksymalnie 1 rzecz.”, otherwise „Możesz wyróżnić maksymalnie {N} rzeczy.”.</li>
+    <li><b>Accepted: the toggle bumps <code>updated_at</code>.</b> This moves <code>matchable_listings.changed_at</code>, so the matcher re-reads the listing (idempotent, counts toward <code>WINDOW_MAX_LISTINGS</code>). Bypassing the version column would break <code>BaseEntity</code> optimistic locking.</li>
+    <li><b>Where the mockups differ, the existing app wins.</b> Errors use the bottom <code>ToastPill</code>. The featured pill goes first in the „Moje rzeczy” chip row. „Settings” goes right after „Points” and no other entry moves.</li>
+    <li><b>The term page uses a stable client sort.</b> Featured items come first in the server's order, the rest newest first, and the slice to 3 happens after the sort.</li>
+  </ul>
+  <h3>Open Questions / Risks</h3>
+  <ul>
+    <li><span class="sev info">info</span>Guests may see a change up to 60 s late (<code>s-maxage=60</code>). Accepted.</li>
+    <li><span class="sev info">info</span>With a limit above 3, previews show only the 3 most recently featured items. The rest are behind „Pokaż więcej”.</li>
+    <li><span class="sev info">info</span>The preference PUT rewrites <code>owner_party_id</code>, and the cap counts by it. Harmless, noted only.</li>
+    <li><span class="sev warning">warning</span>Featuring bumps the preference version, so a concurrent stale mode or visibility PUT may get a 409. The existing toast + refresh handles it.</li>
+    <li><span class="sev warning">warning</span>About 9 backend key-set test files and the typed frontend fixtures must gain <code>is_featured</code>.</li>
+    <li><span class="sev warning">warning</span>Migrations 0110/0111 and matrix row 74 collide with an uncommitted email module in the main checkout (0110–0112). The user decided to keep the numbers here and renumber at merge. The plan must include that step: revision ids, <code>down_revision</code>, file names, migration test, runbook, matrix row and its test.</li>
+  </ul>
+</section>
+
+<div class="toc">Contents: <a href="#scope">Scope</a> · <a href="#stories">User Stories</a> · <a href="#requirements">Requirements</a> · <a href="#visual">Visual Design</a> · <a href="#reuse">Reusable vs New</a> · <a href="#tech">Technical Approach</a> · <a href="#tests">Testing &amp; Standards</a> · <a href="#success">Success Criteria</a></div>
+
+<main>
+<h2 id="scope">Scope</h2>
+<div class="split">
+  <div class="card in"><h3>In scope</h3><ul>
+    <li>Featured toggle in „Moje rzeczy” (listed items only, any mode, PUBLIC or PRIVATE, reserved allowed)</li>
+    <li>Per-owner cap from the admin settings, 0 = off, Polish 409s</li>
+    <li>Featured-first order on term, event, owner, profile and organization pages</li>
+    <li>Badge on term and event previews, owner, profile and organization grids, the product header and Moje rzeczy</li>
+    <li>New <code>app/settings</code> module, <code>/api/admin/settings</code>, <code>/admin/settings</code> page and nav entry</li>
+    <li>Migrations 0110–0111, runbook line in <code>architecture.md</code>, <code>INDEX.md</code></li>
+  </ul></div>
+  <div class="card out"><h3>Out of scope</h3><ul>
+    <li>Search ordering and a search badge; wants match, suggestion and similar cards</li>
+    <li>An owner-visible limit, an N/limit counter or any owner read of the limit</li>
+    <li>Changing the order of Moje rzeczy or of the browse/mine term-item-listing lists</li>
+    <li>Paid or promoted featuring, expiry, moderation</li>
+    <li>Moving existing settings into <code>app_settings</code></li>
+    <li>Featuring drafts, or keeping a mark across unlist/relist</li>
+  </ul></div>
+</div>
+
+<h2 id="stories">User Stories</h2>
+<div class="stories">
+  <div class="card"><b>Owner</b><br>Marks their best listed items as featured in „Moje rzeczy”, so visitors see them first.</div>
+  <div class="card"><b>Owner</b><br>Gets a clear message at the limit or when featuring is off, so they know why the click had no effect.</div>
+  <div class="card"><b>Visitor</b><br>Sees a „⭐ Wyróżnione” badge, with featured items first on term, event and owner pages.</div>
+  <div class="card"><b>Admin</b><br>Sets the per-user limit (0–20, 0 = off) on an admin settings page without a deploy.</div>
+</div>
+
+<h2 id="requirements">Requirements</h2>
+<div class="card wrap"><table>
+<tr><th>ID</th><th>Requirement</th><th>Area</th><th>Priority</th></tr>
+<tr><td>R1</td><td><code>PUT /api/item-listing-preferences/{item_id}/featured</code> <code>{featured: StrictBool}</code> (extra forbid; missing or non-bool → 400), EDIT/<code>mcp:edit</code> via row 60. Returns <code>ItemListingPreferenceResponse</code> with <code>is_featured</code>.</td><td>Toggle</td><td>must</td></tr>
+<tr><td>R2</td><td>Error order: <code>require_item_visible</code> first, before any lock (missing or hidden → 404) → not own PERSONAL item 403 → draft 409 „Wystaw rzecz, aby ją wyróżnić.” → limit 0 → cap.</td><td>Toggle</td><td>must</td></tr>
+<tr><td>R3</td><td>When featuring: limit 0 → 409 „Wyróżnianie rzeczy jest teraz wyłączone.”; other featured items ≥ limit → 409 „Możesz wyróżnić maksymalnie 1 rzecz.” (N = 1) or „Możesz wyróżnić maksymalnie {N} rzeczy.”; otherwise set <code>featured_at</code> to now (naive UTC).</td><td>Toggle</td><td>must</td></tr>
+<tr><td>R4</td><td>Re-featuring is idempotent (keeps <code>featured_at</code>, no cap check). Unfeaturing is always allowed; unfeaturing an item that is not featured is a no-op.</td><td>Toggle</td><td>must</td></tr>
+<tr><td>R5</td><td>Any mode, PUBLIC or PRIVATE, reserved allowed. PRIVATE counts toward the cap.</td><td>Toggle</td><td>must</td></tr>
+<tr><td>R6</td><td>Lock Party row <code>FOR NO KEY UPDATE</code> (<code>key_share=True</code>) → item → preference inside <code>mapped_transaction_conflicts</code>. Two parallel featurings at the cap cannot both succeed. A parallel take, propose or confirm on the owner's items does not deadlock with the toggle.</td><td>Toggle</td><td>must</td></tr>
+<tr><td>R7</td><td>Cleared with the listing row (unlist, GIFT/SWAP/POINTS hand-over). A mode or visibility change keeps it.</td><td>Toggle</td><td>must</td></tr>
+<tr><td>R8</td><td>A lowered limit keeps existing marks and blocks new ones.</td><td>Toggle</td><td>must</td></tr>
+<tr><td>R9</td><td><code>featured_at</code> is added to the shared select <b>and</b> to each consumer's outer select: <code>repository.py</code> ~l.1023 (term page) and ~l.1238 (owner pages), <code>events/page.py</code> l.74–95 (plus its docstring), and <code>_my_items</code>. <code>is_featured</code> on PublicItemListing, EventParticipantItem, OwnerItemCard, MyInventoryItem, ItemListingPreference and ItemActions responses (ItemActions: <code>preference is not None and featured_at is not None</code>). The timestamp is never exposed.</td><td>Read</td><td>must</td></tr>
+<tr><td>R10</td><td><code>is_featured</code> is public listing info, not a points field (R8 probe unchanged).</td><td>Read</td><td>must</td></tr>
+<tr><td>R11</td><td>Leading SQL key <code>featured_at DESC NULLS LAST</code>: term listing, event window (fills the 3-item preview), owner items in all tabs (also profile and organization recent items).</td><td>Order</td><td>must</td></tr>
+<tr><td>R12</td><td><code>termViewModel</code>: featured first (server order kept), then newest, before the slice to 3.</td><td>Order</td><td>must</td></tr>
+<tr><td>R13</td><td>Unchanged: search, Moje rzeczy order, browse/mine term-item-listing lists, wants cards.</td><td>Order</td><td>must</td></tr>
+<tr><td>R14</td><td><code>ItemTileBadges</code> <code>featured</code> prop: first pill „⭐ Wyróżnione”, <code>bg-ink text-on-ink</code>, ⭐ <code>aria-hidden</code>.</td><td>Badge</td><td>must</td></tr>
+<tr><td>R15</td><td><code>ItemCard</code> <code>featured</code> prop: right-corner ink badge in the marker slot (takes precedence over <code>marker</code>).</td><td>Badge</td><td>must</td></tr>
+<tr><td>R16</td><td>Badge placements: previews; owner, profile and organization grids; product header (md pill, gated on <code>view.kind</code> like <code>mode</code>, wrapper condition gains <code>featured</code>); Moje rzeczy as the first chip. Not search, not wants.</td><td>Badge</td><td>must</td></tr>
+<tr><td>R17</td><td><code>FeaturedToggle</code> next to <code>VisibilityToggle</code>, listed only. Stable <code>aria-label</code> „Wyróżnij: {itemName}” in both states, with the state only in <code>aria-pressed</code>. The visible text „⭐ Wyróżnij” / „⭐ Wyróżnione” may change. Disabled while busy, shown even at limit 0.</td><td>Moje rzeczy</td><td>must</td></tr>
+<tr><td>R18</td><td><code>AppDataContext.setItemFeatured</code>: local update on success; <code>ToastPill</code> with the server message + <code>refreshItems()</code> on error. <code>setItemMode</code> sets <code>is_featured: saved?.is_featured ?? false</code>, and <code>setItemVisibility</code> sets it from the saved preference, so a stale chip never survives unlist and relist.</td><td>Moje rzeczy</td><td>must</td></tr>
+<tr><td>R19</td><td><code>app/settings</code>: <code>AppSettings</code>, <code>app_settings</code> singleton, <code>max_featured_items</code> 0–20 CHECK, seed 3.</td><td>Admin</td><td>must</td></tr>
+<tr><td>R20</td><td>ADMIN <code>GET/PUT /api/admin/settings</code>, matrix row 74, full replace + <code>updated_at</code> → 409 „Ustawienia zostały zmienione w międzyczasie. Odśwież stronę.”, <code>StrictInt</code>, Polish 400s, no cache headers.</td><td>Admin</td><td>must</td></tr>
+<tr><td>R21</td><td><code>/admin/settings</code> Chakra page: „Ustawienia”, section „Wyróżnione rzeczy”, numeric text field, help text, inline <code>role="alert"</code>, Save disabled while invalid, nav „Settings” right after „Points” (no other entry moves).</td><td>Admin</td><td>must</td></tr>
+<tr><td>R22</td><td>Migration 0110: <code>app_settings</code> table, singleton index and CHECK, seed row; the downgrade drops the table.</td><td>Migration</td><td>must</td></tr>
+<tr><td>R23</td><td>Migration 0111: <code>featured_at</code> + partial index <code>ix_item_listing_preferences_owner_party_id_featured</code>, built in the transaction (not concurrently) under <code>lock_timeout</code>; reverse downgrade.</td><td>Migration</td><td>must</td></tr>
+<tr><td>R24</td><td><code>architecture.md</code>: module, row 74, rules, 0110–0111 runbook (<code>pg_dump</code>, backend before web, no image-only rollback, unguarded lossy downgrade); <code>INDEX.md</code> line.</td><td>Docs</td><td>must</td></tr>
+<tr><td>R25</td><td>Merge step: renumber 0110/0111 and row 74 past main's email module (0110–0112): revisions, <code>down_revision</code>, file names, migration test, runbook, matrix comment and test.</td><td>Merge</td><td>must</td></tr>
+</table></div>
+
+<h2 id="visual">Visual Design</h2>
+<p>Mockups in <code>analysis/design-context/</code> are binding inputs. The implementation-planner will attach <code>Visual References</code> to the UI task groups. They use Tailwind tokens only (no hex).</p>
+<div class="card wrap"><table>
+<tr><th>ID</th><th>Mockup</th><th>Implemented in</th><th>Key elements</th></tr>
+<tr><td>screen:my-items-featured-toggle</td><td><a href="../analysis/design-context/mockups/moje-rzeczy-prze-cznik-wyr-nij.html">mockup</a></td><td><code>MyItemsView.tsx</code>, <code>FeaturedToggle.tsx</code></td><td>Toggle beside Publiczna/Prywatna, listed only, no N/limit, chip</td></tr>
+<tr><td>screen:my-items-featured-errors</td><td><a href="../analysis/design-context/mockups/moje-rzeczy-limit-osi-gni-ty.html">mockup</a></td><td><code>AppDataContext.tsx</code> toast</td><td>Cap and disabled 409 toasts in the existing bottom <code>ToastPill</code> (not the mockup's red top toast), then refresh</td></tr>
+<tr><td>screen:term-page-featured-first</td><td><a href="../analysis/design-context/mockups/strona-terminu-wyr-nione-pierwsze.html">mockup</a></td><td><code>termViewModel.ts</code>, <code>ParticipantItemsPreview.tsx</code></td><td>Featured first in the 3-item preview</td></tr>
+<tr><td>screen:event-page-featured-first</td><td><a href="../analysis/design-context/mockups/strona-eventu-wyr-nione-pierwsze.html">mockup</a></td><td><code>events/page.py</code>, <code>eventViewModel.ts</code></td><td>Featured first in the window</td></tr>
+<tr><td>screen:owner-items-featured-first</td><td><a href="../analysis/design-context/mockups/strona-rzeczy-w-a-ciciela-wyr-nione-pierwsze.html">mockup</a></td><td><code>OwnerItemsList.tsx</code>, <code>ProfileItems.tsx</code>, <code>RecentItemsBlock.tsx</code></td><td>Featured tiles first, corner badge</td></tr>
+<tr><td>screen:product-page-featured-badge</td><td><a href="../analysis/design-context/mockups/strona-produktu-badge.html">mockup</a></td><td><code>ItemHeader.tsx</code></td><td>md pill before the mode pills</td></tr>
+<tr><td>screen:admin-settings</td><td><a href="../analysis/design-context/mockups/panel-admina-ustawienia.html">mockup</a></td><td><code>SettingsPage.tsx</code>, <code>app/admin/(shell)/settings/page.tsx</code>, nav</td><td>Field 0–20, help, 409 and validation states</td></tr>
+<tr><td>component:featured-pill</td><td><a href="../analysis/design-context/mockups/strona-terminu-wyr-nione-pierwsze.html">mockup</a></td><td><code>ItemTileBadges.tsx</code></td><td>First pill, <code>bg-ink text-on-ink</code></td></tr>
+<tr><td>component:item-card-featured-marker</td><td><a href="../analysis/design-context/mockups/strona-rzeczy-w-a-ciciela-wyr-nione-pierwsze.html">mockup</a></td><td><code>ItemCard.tsx</code></td><td>Right-corner ink badge</td></tr>
+<tr><td>component:featured-toggle</td><td><a href="../analysis/design-context/mockups/moje-rzeczy-prze-cznik-wyr-nij.html">mockup</a></td><td><code>FeaturedToggle.tsx</code></td><td><code>aria-pressed</code>, ink when on</td></tr>
+</table></div>
+
+<h2 id="reuse">Reusable vs New Components</h2>
+<div class="split">
+<div class="card"><h3>Reuse</h3><ul>
+  <li><code>ItemListingPreference</code>, <code>set_item_listing_preference</code>, <code>_count_other_points_offers</code> (groups)</li>
+  <li><code>lock_item_listing_preference</code>, <code>item_listing_preferences_select</code>, <code>list_listed_items_for_parties</code>, <code>list_owner_listed_items_page</code>, <code>_my_items</code> (repository)</li>
+  <li><code>events/page.py::_listed_items_by_party</code>; <code>pages</code> owner and organization reads; <code>item_actions.py</code></li>
+  <li><code>media/service.py::_lock_owner</code> pattern, taken as <code>FOR NO KEY UPDATE</code>; <code>item_visibility.py::require_item_visible</code>; <code>db.py::mapped_transaction_conflicts</code></li>
+  <li>Points config stack (model, <code>load_config</code>/<code>update_config</code>/<code>_INTEGER_FIELDS</code>, router, schemas); <code>points_acl.max_points_offers</code></li>
+  <li>Matrix rows 60/68; migrations 0109/0076; tests <code>test_points_listing.py</code>, <code>test_points_config_api.py</code>, <code>test_points_offers_migration.py</code>, <code>test_module_boundaries.py</code></li>
+  <li>Frontend: <code>ItemTileBadges</code>, <code>ParticipantItemsPreview</code>, <code>ItemCard</code>, <code>VisibilityToggle</code>, <code>AppDataContext.setItemVisibility</code>, <code>PointsConfigPage</code>/<code>pointsConfigForm.ts</code>/<code>usePointsConfig</code>, Sidebar/MobileDrawer nav, view models</li>
+</ul></div>
+<div class="card"><h3>New (with justification)</h3><ul>
+  <li><code>app/settings</code> module: the user chose a generic home; it holds one key</li>
+  <li><code>groups/infrastructure/settings_acl.py</code>: cross-context reads go through an ACL</li>
+  <li><code>set_item_featured</code> + <code>SetItemFeaturedRequest</code> + <code>/featured</code> route: no write path exists, and folding the flag into the full-replace PUT would burden every save</li>
+  <li>Party-row lock helper in groups: one statement, following <code>_lock_owner</code></li>
+  <li>Migrations 0110 and 0111</li>
+  <li><code>FeaturedToggle.tsx</code>: a single pressed button, not a segmented control</li>
+  <li><code>SettingsPage.tsx</code>, route, <code>api/settings.ts</code>, <code>hooks/useAppSettings.ts</code>: a new resource</li>
+</ul></div>
+</div>
+
+<h2 id="tech">Technical Approach</h2>
+<details class="card"><summary>Write path</summary>
+<p>The toggle calls <code>AppDataContext.setItemFeatured</code>, then <code>api/itemListingPreferences.ts::setItemFeatured</code>, then <code>PUT …/featured</code>. <code>set_item_featured</code> resolves the profile, then inside <code>mapped_transaction_conflicts</code>:</p>
+<ol>
+  <li><code>require_item_visible</code> (missing or hidden → 404).</li>
+  <li>Lock the Party row <code>FOR NO KEY UPDATE</code>, the item (ownership → 403) and the preference (409 when missing).</li>
+  <li>When featuring and not yet featured: read the limit via <code>settings_acl</code>, check limit 0, then count the others.</li>
+  <li>Set or clear <code>featured_at</code>, commit, refresh, return.</li>
+</ol>
+</details>
+<details class="card"><summary>Read path and ordering</summary>
+<p>One column is added to the shared select, to each consumer's outer select (term, owner, event window) and to the <code>_my_items</code> select. The flag is mapped in each builder, with no extra statements. Ordering is done in SQL with the leading key <code>featured_at DESC NULLS LAST</code>, plus the stable re-sort in <code>termViewModel</code>; <code>eventViewModel</code> keeps the server order. <code>item_id</code> stays the final key, so pagination is deterministic.</p>
+</details>
+<details class="card"><summary>Settings, boundaries, caching</summary>
+<p><code>load_settings</code> reads the row fresh. <code>update_settings</code> locks the row, compares <code>updated_at</code> (naive UTC), sets the value and commits. <code>app.settings</code> is imported only by <code>main.py</code> and <code>groups/infrastructure/settings_acl.py</code>, and code in <code>app/settings</code> imports only <code>app.core</code>/<code>app.db</code>/<code>app.settings</code> (boundary test). Personalised cache headers on public routes are unchanged; the admin routes send no cache headers; the frontend mutation awaits invalidation of the settings prefix.</p>
+</details>
+
+<h2 id="tests">Testing &amp; Standards</h2>
+<div class="card">
+<p><b>Write 2–8 focused tests per step group.</b> Verification runs only the new and updated tests.</p>
+<ul>
+  <li><b>Settings API</b>: key set, 403, 400 bounds, round trip, 409 stale, row 74</li>
+  <li><b>Migration</b>: downgrade to 0109 then upgrade to head; seed 3, CHECK, column and index</li>
+  <li><b>Toggle</b>: round trip, draft 409, 403 visible, 404 missing or hidden PRIVATE, non-bool 400, cap 409 with N (incl. „1 rzecz”), limit 0, idempotent, lowered limit, cleared by unlist and GIFT confirm, two-session race; optional toggle-versus-take no-deadlock test</li>
+  <li><b>Ordering</b>: term, event window (older featured still shown, <code>items_total</code> unchanged), owner tabs, profile and organization recent items</li>
+  <li><b>Key-set updates</b>: event, organizer, owner-items, item-visibility, my-items, listing-status, <code>test_public_term.py</code> (~l.698), <code>test_term_item_listings_router.py</code> (~l.265) and item-actions tests; matrix; boundaries</li>
+  <li><b>Frontend</b>: badges pill, ItemCard badge, termViewModel, FeaturedToggle (stable <code>aria-label</code>, <code>aria-pressed</code>), setItemFeatured toast and refresh, setItemMode unlist and relist clears the chip, SettingsPage, ItemHeader pill, typed fixtures</li>
+</ul>
+</div>
+<details class="card"><summary>Standards compliance</summary><ul>
+  <li><b>backend/models.md</b>: naive-UTC <code>*_at</code>, explicit names, <code>BaseEntity</code> singleton, ACLs, <code>require_item_visible</code> first (404 before 403/409), safe-by-default visibility</li>
+  <li><b>backend/migrations.md</b>: column and table in separate revisions, recorded seed exception, <code>lock_timeout</code>, reverse plain downgrades, downgrade-then-upgrade test, runbook</li>
+  <li><b>backend/queries.md</b>: SQL ordering, no N+1, constant statement counts</li>
+  <li><b>backend/security.md</b>: row 74 ADMIN via <code>require_any</code>; the toggle under row 60</li>
+  <li><b>backend/api.md</b>: idempotent sub-resource PUT</li>
+  <li><b>global/error-handling.md</b>: Polish 409s, <code>mapped_transaction_conflicts</code></li>
+  <li><b>global/validation.md</b>: server bounds, numeric text input, inline alert, submit disabled while invalid</li>
+  <li><b>global/minimal-implementation.md</b>: one key, no counter endpoint, no timestamp exposed</li>
+  <li><b>frontend/components.md, css.md, accessibility.md</b>: features folder, thin route, tokens only, <code>aria-pressed</code>, <code>aria-hidden</code> emoji, <code>{" "}</code> separators</li>
+  <li><b>frontend/data-fetching.md</b>: hook in <code>src/hooks/</code>, awaited invalidation, server messages verbatim</li>
+  <li><b>testing/*</b>: integration-first, exact key sets, naming, typed fixtures, explicit Vitest imports</li>
+</ul></details>
+
+<h2 id="success">Success Criteria</h2>
+<div class="card"><ul>
+  <li class="pass">Up to N items can be featured. N+1 → 409 with N. Limit 0 → the "disabled" 409. A race never exceeds N.</li>
+  <li class="pass">Featured items come first (most recent first) on term, event, owner, profile and organization pages, and take the 3 preview slots.</li>
+  <li class="pass">The badge shows in every listed placement and never in search or on wants cards.</li>
+  <li class="pass">An admin can change the limit; a stale save → 409; non-admin → 403.</li>
+  <li class="pass">Unlist and hand-over clear the mark; a lowered limit keeps marks.</li>
+  <li class="pass">0110–0111 upgrade and downgrade cleanly. New and updated tests pass with no new lint or type findings beyond the baseline.</li>
+</ul></div>
+</main>
+</body>
+</html>

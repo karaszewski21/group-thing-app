@@ -272,6 +272,8 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # users only, so, as for wants, the OAuth `mcp:*` scopes are not accepted.
     (_methods("GET", "PUT"), r"^/api/points/config$", ("ADMIN",)),  # 68
     (_methods("GET"), r"^/api/points(/.*)?$", ("READ",)),  # 69
+    # 74: app.settings - the app-wide admin settings (featured-items limit).
+    (_methods("GET", "PUT"), r"^/api/admin/settings$", ("ADMIN",)),  # 74
     (None, r"^.*$", "AUTHENTICATED"),  # 25 - catch-all
 )
 

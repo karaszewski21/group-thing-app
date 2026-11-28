@@ -43,6 +43,8 @@ export interface EventParticipantItem {
   added_at: string;
   /** `null` while the item is available. */
   reservation: ReservedByResponse | null;
+  /** The owner featured it; the server lists featured items first. */
+  is_featured: boolean;
 }
 
 /** The author comes first, then active attendees in sign-up order. */

@@ -154,6 +154,7 @@ ITEM_KEYS = {
     "condition",
     "mode",
     "points_price",
+    "is_featured",
     "thumb_url",
     "added_at",
     "reservation",

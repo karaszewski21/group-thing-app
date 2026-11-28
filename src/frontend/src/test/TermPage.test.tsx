@@ -86,6 +86,7 @@ const circle: PublicCircleResponse = {
         thumb_url: null,
         added_at: "2026-10-20T09:00:00",
         reservation: null,
+        is_featured: false,
       },
       {
         id: "10",
@@ -98,6 +99,7 @@ const circle: PublicCircleResponse = {
         thumb_url: null,
         added_at: "2026-10-21T09:00:00",
         reservation: null,
+        is_featured: false,
       },
     ],
     price: null,
@@ -263,6 +265,7 @@ describe("TermPage — header and content", () => {
       thumb_url: null,
       added_at: addedAt,
       reservation: null,
+      is_featured: false,
     });
     vi.mocked(groupsApi.getGroupAccess).mockResolvedValue(
       access({

@@ -36,6 +36,7 @@ export function RecentItemsBlock({ data, variant }: BlockProps) {
               mode={item.mode}
               pointsPrice={item.points_price}
               reservation={item.reservation}
+              featured={item.is_featured}
             />
           </li>
         ))}

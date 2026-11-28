@@ -21,7 +21,7 @@ import {
 } from "../../api/termItemListings";
 import { CONDITION_LABELS } from "../../utils/productCategory";
 import { BoxIcon, CloseIcon, SearchIcon } from "../../components/shared/appIcons";
-import { PointsPriceLabel } from "../../components/shared/ItemTileBadges";
+import { FeaturedLabel, PointsPriceLabel } from "../../components/shared/ItemTileBadges";
 import {
   capitalize,
   ITEM_MODE_TO_RESERVATION_TYPE,
@@ -34,6 +34,7 @@ import { SafeImage } from "../product/ItemGallery";
 import { itemEditPath, itemPagePath } from "../product/useItemRoutes";
 import { ItemActionsMenu } from "./ItemActionsMenu";
 import { SwapAcceptSuccessSheet, type AcceptedSwap } from "./SwapAcceptSuccessSheet";
+import { FeaturedToggle } from "./FeaturedToggle";
 import { VisibilityToggle } from "./VisibilityToggle";
 
 const PRIVATE_HINT = "Widzą ją tylko osoby z Twoich prywatnych grup.";
@@ -119,6 +120,7 @@ export function MyItemsView() {
     ownSlug,
     setItemMode,
     setItemVisibility,
+    setItemFeatured,
     handleDeleteItem,
     load,
   } = useAppData();
@@ -458,6 +460,11 @@ export function MyItemsView() {
                       </h3>
                       <small className="mt-0.5 block text-[13px] text-ink-soft">Stan: {CONDITION_LABELS[it.condition]}</small>
                       <div className="mt-2 flex flex-wrap gap-1.5">
+                        {mode && it.is_featured && (
+                          <span className="inline-flex items-center rounded-full bg-ink px-2.5 py-0.5 text-xs font-extrabold text-on-ink">
+                            <FeaturedLabel />
+                          </span>
+                        )}
                         {it.points_value !== null && (
                           <span
                             title="Wycena systemu — widzisz ją tylko Ty"
@@ -570,13 +577,18 @@ export function MyItemsView() {
                   </div>
 
                   {mode && (
-                    <div className="relative z-10 mt-2 flex items-center gap-2.5">
+                    <div className="relative z-10 mt-2 flex flex-wrap items-center gap-2.5">
                       <VisibilityToggle
                         value={it.listing_visibility ?? "PUBLIC"}
                         onChange={(v) => void setItemVisibility(it.id, mode, v)}
                         itemName={it.product_name}
                       />
-                      <p className="text-xs leading-snug text-ink-soft">
+                      <FeaturedToggle
+                        featured={it.is_featured}
+                        onToggle={(next) => setItemFeatured(it.id, next)}
+                        itemName={it.product_name}
+                      />
+                      <p className="min-w-40 flex-1 text-xs leading-snug text-ink-soft">
                         {it.listing_visibility === "PRIVATE" ? PRIVATE_HINT : PUBLIC_HINT}
                       </p>
                     </div>

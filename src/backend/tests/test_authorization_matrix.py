@@ -178,6 +178,21 @@ def test_resolveRequirement_pointsRoutes_configAdminOtherwiseReadWithoutMcpScope
 @pytest.mark.parametrize(
     ("method", "path", "expected"),
     [
+        ("GET", "/api/admin/settings", ("ADMIN",)),
+        ("PUT", "/api/admin/settings", ("ADMIN",)),
+        ("POST", "/api/admin/settings", "AUTHENTICATED"),
+        ("GET", "/api/admin/settings/other", "AUTHENTICATED"),
+    ],
+)
+def test_resolveRequirement_adminSettingsRoutes_getAndPutAdminRow74(
+    method: str, path: str, expected: tuple[str, ...] | str
+) -> None:
+    assert resolve_requirement(method, path) == expected
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "expected"),
+    [
         ("POST", "/api/auth/google/nonce", "PUBLIC"),
         ("POST", "/api/auth/google", "PUBLIC"),
         ("GET", "/api/auth/google/nonce", "AUTHENTICATED"),
@@ -268,6 +283,7 @@ def test_resolveRequirement_termItemListingsBrowse_andWithdrawAttendance() -> No
     assert resolve_requirement("GET", "/api/term-item-listings/browse") == READ
     assert resolve_requirement("POST", "/api/term-item-listings/123/take") == "AUTHENTICATED"
     assert resolve_requirement("PUT", "/api/item-listing-preferences/123") == EDIT
+    assert resolve_requirement("PUT", "/api/item-listing-preferences/123/featured") == EDIT
     assert resolve_requirement("POST", "/api/groups/mine/attendances/42/withdraw") == EDIT
 
 

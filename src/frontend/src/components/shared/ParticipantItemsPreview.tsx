@@ -21,6 +21,8 @@ export interface ParticipantPreviewItem {
   addedAt: string;
   /** `null` while available; a reserved row keeps its link and adds the reserved pill. */
   reservation: ReservedByResponse | null;
+  /** The owner featured it: the „⭐ Wyróżnione” pill leads its pills. */
+  featured: boolean;
 }
 
 
@@ -44,7 +46,7 @@ function ItemRow({ item, partyId }: { item: ParticipantPreviewItem; partyId: str
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="block text-[15px] leading-snug wrap-break-word">{item.name}</span>{" "}
-          <ItemTileBadges modes={item.modes} pointsPrice={item.pointsPrice} reservation={item.reservation} />{" "}
+          <ItemTileBadges featured={item.featured} modes={item.modes} pointsPrice={item.pointsPrice} reservation={item.reservation} />{" "}
         </span>
         <span aria-hidden="true" className="shrink-0 text-ink-soft">
           ›
@@ -54,9 +56,10 @@ function ItemRow({ item, partyId }: { item: ParticipantPreviewItem; partyId: str
   );
 }
 
-/** A participant's newest items (at most `PREVIEW_ITEM_LIMIT`), each linking
- * to its product page, then "Pokaż więcej (N) ›" to the owner's items page
- * when they share more. Shared by the event and term pages. */
+/** A participant's featured, then newest items (at most
+ * `PREVIEW_ITEM_LIMIT`), each linking to its product page, then "Pokaż
+ * więcej (N) ›" to the owner's items page when they share more. Shared by
+ * the event and term pages. */
 export function ParticipantItemsPreview({
   items,
   total,

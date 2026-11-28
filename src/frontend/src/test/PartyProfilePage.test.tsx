@@ -27,6 +27,7 @@ function card(id: string): OwnerItemCard {
     condition: "GOOD",
     mode: "GIFT",
     points_price: null,
+    is_featured: false,
     thumb_url: null,
     added_at: "2026-10-30T09:00:00",
     reservation: null,

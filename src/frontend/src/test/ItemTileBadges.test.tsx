@@ -3,6 +3,13 @@ import { describe, expect, it } from "vitest";
 import type { ReservedByResponse } from "../api/groups";
 import { ItemTileBadges } from "../components/shared/ItemTileBadges";
 
+/** The text left once `aria-hidden` parts are removed. */
+function visibleToScreenReaders(element: HTMLElement): string {
+  const copy = element.cloneNode(true) as HTMLElement;
+  copy.querySelectorAll('[aria-hidden="true"]').forEach((hidden) => hidden.remove());
+  return (copy.textContent ?? "").trim();
+}
+
 describe("ItemTileBadges", () => {
   it("renders the GIFT and SWAP intent as text pills in their exchange-mode tone", () => {
     render(<ItemTileBadges modes={["SWAP", "GIFT"]} />);
@@ -24,6 +31,24 @@ describe("ItemTileBadges", () => {
 
     render(<ItemTileBadges modes={["POINTS"]} />);
     expect(screen.getByText("Za punkty")).toHaveClass("bg-orange", "text-ink");
+  });
+
+  it("renders the featured pill first, its ⭐ hidden from assistive tech, before the mode and the reservation", () => {
+    render(<ItemTileBadges featured modes={["GIFT"]} reservation={{ by_name: null, by_me: true }} />);
+
+    const star = screen.getByText("⭐");
+    expect(star).toHaveAttribute("aria-hidden", "true");
+    const pill = star.parentElement as HTMLElement;
+    expect(pill).toHaveClass("bg-ink", "text-on-ink", "rounded-full", "px-2", "text-[11px]");
+    expect(visibleToScreenReaders(pill)).toBe("Wyróżnione");
+    expect(pill.parentElement?.firstElementChild).toBe(pill);
+    expect(pill.parentElement).toHaveTextContent(/^⭐ Wyróżnione Chcę oddać Zarezerwowana · przez Ciebie$/);
+  });
+
+  it("renders the row with only the featured pill", () => {
+    render(<ItemTileBadges featured modes={[]} />);
+
+    expect(screen.getByText("⭐").parentElement?.parentElement).toHaveTextContent(/^⭐ Wyróżnione$/);
   });
 
   it("renders nothing without a mode or a reservation", () => {

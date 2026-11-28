@@ -101,6 +101,7 @@ async def get_item_actions(
     return ItemActionsResponse(
         mode=mode,
         points_price=preference.points_price if preference is not None else None,
+        is_featured=preference is not None and preference.featured_at is not None,
         visibility=preference.visibility if viewer == "OWN" and preference is not None else None,
         available=available,
         reservation=names.reservation(balance_status, reserved_by, proposer),

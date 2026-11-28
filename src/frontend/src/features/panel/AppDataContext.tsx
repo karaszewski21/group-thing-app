@@ -54,7 +54,7 @@ import {
   type NeededItemQuickAddValue,
 } from "../../utils/neededItemQuickAdd";
 import { hasStatus, serverMessageOr } from "../../api/problem";
-import { setItemListingPreference, type ItemVisibility } from "../../api/itemListingPreferences";
+import { setItemFeatured as saveItemFeatured, setItemListingPreference, type ItemVisibility } from "../../api/itemListingPreferences";
 import { descriptionRequestValue, isDescriptionTooLong, type GroupFormValue } from "../groups/GroupFormFields";
 import { EMPTY_EVENT_DRAFT, type EventDraft } from "../events/eventDraft";
 import { newTermDraft, type TermDraft } from "../terms/termDraft";
@@ -516,11 +516,17 @@ function useAppDataValue() {
       // Reads started before this save may carry the old mode — drop them.
       itemsSeqRef.current++;
       setItemModes((prev) => ({ ...prev, [itemId]: next }));
-      // The saved price (set only for POINTS) feeds the card's price chip.
+      // The saved price (set only for POINTS) feeds the card's price chip;
+      // a cleared or new listing is never featured (audit M2).
       setItems((prev) =>
         prev.map((i) =>
           i.id === itemId
-            ? { ...i, listing_visibility: saved?.visibility ?? null, points_price: saved?.points_price ?? null }
+            ? {
+                ...i,
+                listing_visibility: saved?.visibility ?? null,
+                points_price: saved?.points_price ?? null,
+                is_featured: saved?.is_featured ?? false,
+              }
             : i,
         ),
       );
@@ -535,8 +541,14 @@ function useAppDataValue() {
     }
   }
 
-  function setItemVisibilityLocally(itemId: string, visibility: ItemVisibility | null) {
-    setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, listing_visibility: visibility } : i)));
+  function setItemVisibilityLocally(itemId: string, visibility: ItemVisibility | null, isFeatured?: boolean) {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === itemId
+          ? { ...i, listing_visibility: visibility, ...(isFeatured !== undefined ? { is_featured: isFeatured } : {}) }
+          : i,
+      ),
+    );
   }
 
   /** The "Moje rzeczy" visibility toggle. Always sends the item's current
@@ -546,9 +558,22 @@ function useAppDataValue() {
     try {
       const saved = await setItemListingPreference(itemId, ITEM_MODE_TO_RESERVATION_TYPE[mode], visibility);
       itemsSeqRef.current++;
-      setItemVisibilityLocally(itemId, saved?.visibility ?? visibility);
+      setItemVisibilityLocally(itemId, saved?.visibility ?? visibility, saved?.is_featured);
     } catch (err) {
       showToast(serverMessageOr(err, "Nie udało się zapisać widoczności — spróbuj ponownie"));
+      void refreshItems();
+    }
+  }
+
+  /** The "Moje rzeczy" star. A 409 (not listed, featuring off, the limit
+   * reached) is shown verbatim, then the list resyncs with the server. */
+  async function setItemFeatured(itemId: string, featured: boolean) {
+    try {
+      const saved = await saveItemFeatured(itemId, featured);
+      itemsSeqRef.current++;
+      setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, is_featured: saved.is_featured } : i)));
+    } catch (err) {
+      showToast(serverMessageOr(err, "Nie udało się zapisać wyróżnienia — spróbuj ponownie"));
       void refreshItems();
     }
   }
@@ -816,6 +841,7 @@ function useAppDataValue() {
     handleAddTerm,
     setItemMode,
     setItemVisibility,
+    setItemFeatured,
     handleCreateFamily,
     handleAddFamilyMember,
     handleRemoveFamilyMember,
