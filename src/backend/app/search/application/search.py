@@ -278,9 +278,10 @@ def _items_select(
     *,
     page_columns: bool,
 ) -> Select[Any]:
-    """The matching listed items the viewer may see, never their own (all
+    """The matching listed items the viewer may see, their own included (all
     of them without a `query`); with `page_columns` also the card
-    columns and the ordering. Near an `origin` an item is placed by its
+    columns and the ordering, where an own item never counts as one of
+    the viewer's groups. Near an `origin` an item is placed by its
     place's locality, never by the exact address."""
     preference = groups_acl.ItemListingPreference
     product = product_acl.Product
@@ -298,8 +299,6 @@ def _items_select(
     rank: ColumnElement[float] = literal(0.0, Float)
     if query is not None:
         select_query, rank = _matching(select_query, query, product, category)
-    if viewer is not None:
-        select_query = select_query.where(preference.owner_party_id != viewer)
     if filters.category_id is not None:
         select_query = select_query.where(
             product.category_id.in_(_category_subtree(filters.category_id))
@@ -321,7 +320,9 @@ def _items_select(
         return select_query
 
     in_my_groups = (
-        groups_acl.owner_shares_group_with(viewer) if viewer is not None else false()
+        (groups_acl.owner_shares_group_with(viewer) & (preference.owner_party_id != viewer))
+        if viewer is not None
+        else false()
     ).label("in_my_groups")
     # Reserved while the balance is not AVAILABLE or a swap proposal is pending.
     reserved = or_(
