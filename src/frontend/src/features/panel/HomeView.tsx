@@ -6,6 +6,7 @@ import { BuildingIcon, CalendarPlusIcon } from "../../components/shared/appIcons
 import { HintCard } from "../../components/shared/appComponents";
 import { capitalize, ITEM_MODE_TONE, ITEM_MODES } from "../../utils/appHelpers";
 import { appearancePath, viewPath } from "../../routing/paths";
+import { VerifyEmailBanner } from "../email/VerifyEmailBanner";
 import { HomeFeed } from "../home/HomeFeed";
 import { useAppData } from "./appDataStore";
 
@@ -65,6 +66,8 @@ export function HomeView() {
       <h1 className="mb-5 truncate text-[17px] font-semibold text-ink">
         Witaj, <b className="font-extrabold">{profile.display_name.split(" ")[0]}</b>
       </h1>
+
+      <VerifyEmailBanner emailVerified={profile.email_verified} email={profile.email} />
 
       <section>
         <div className="mb-2.5 flex items-baseline justify-between gap-2.5">

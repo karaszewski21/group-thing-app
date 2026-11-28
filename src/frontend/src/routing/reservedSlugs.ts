@@ -23,4 +23,7 @@ export const RESERVED_SLUGS: readonly string[] = [
   "oauth2",
   "admin",
   "about",
+  "verify-email",
+  "reset-password",
+  "unsubscribe",
 ];

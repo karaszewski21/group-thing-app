@@ -24,6 +24,7 @@ from app.storage.service import ObjectStorage, get_storage
 from . import service
 from .models import UserProfile
 from .schemas import (
+    MyProfileResponse,
     RegisterRequest,
     RegisterResponse,
     UpdateMyProfileAppearanceRequest,
@@ -61,37 +62,41 @@ async def _to_profile_response(db: DbSession, profile: UserProfile) -> UserProfi
 
 async def _to_my_profile_response(
     db: DbSession, profile: UserProfile, storage: ObjectStorage | None
-) -> UserProfileResponse:
-    """The caller's own profile, with their media in any moderation status."""
-    response = await _to_profile_response(db, profile)
+) -> MyProfileResponse:
+    """The caller's own profile, with their media in any moderation status and
+    whether its email is verified (null while e-mail is off or it has none)."""
+    response = MyProfileResponse.model_validate(profile)
+    response.is_organizer = await service.is_active_organizer(db, profile.party_id)
+    if settings.email_enabled and profile.email:
+        response.email_verified = profile.email_verified_at is not None
     if storage is not None:
         response.media = await media.load_owner_media(db, storage, profile.party_id)
     return response
 
 
-@router.get("/api/people/me", response_model=UserProfileResponse)
+@router.get("/api/people/me", response_model=MyProfileResponse)
 async def get_my_profile(
     db: DbSession, principal: ReadPrincipal, storage: Storage
-) -> UserProfileResponse:
+) -> MyProfileResponse:
     profile = await service.get_profile_by_principal(db, principal)
     return await _to_my_profile_response(db, profile, storage)
 
 
-@router.patch("/api/people/me", response_model=UserProfileResponse)
+@router.patch("/api/people/me", response_model=MyProfileResponse)
 async def update_my_profile(
     body: UpdateMyProfileRequest, db: DbSession, principal: EditPrincipal, storage: Storage
-) -> UserProfileResponse:
+) -> MyProfileResponse:
     profile = await service.update_my_profile(db, principal, body)
     return await _to_my_profile_response(db, profile, storage)
 
 
-@router.patch("/api/people/me/appearance", response_model=UserProfileResponse)
+@router.patch("/api/people/me/appearance", response_model=MyProfileResponse)
 async def update_my_profile_appearance(
     body: UpdateMyProfileAppearanceRequest,
     db: DbSession,
     principal: EditPrincipal,
     storage: Storage,
-) -> UserProfileResponse:
+) -> MyProfileResponse:
     profile = await service.update_my_profile_appearance(db, principal, body)
     return await _to_my_profile_response(db, profile, storage)
 

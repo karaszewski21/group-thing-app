@@ -18,6 +18,9 @@ export interface RequestOpts {
   headers?: Record<string, string>;
 }
 
+/** Success statuses that never carry a body. */
+const NO_BODY_STATUSES = new Set([204, 205]);
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `/api${path}`;
   const token = readStoredToken();
@@ -56,11 +59,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new ApiError(response.status, response.statusText, body);
   }
 
-  if (response.status === 204) {
+  if (NO_BODY_STATUSES.has(response.status)) {
     return undefined as T;
   }
-
-  return response.json() as Promise<T>;
+  const text = await response.text();
+  return (text === "" ? undefined : JSON.parse(text)) as T;
 }
 
 function mergeHeaders(opts?: RequestOpts): RequestInit | undefined {

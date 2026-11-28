@@ -13,6 +13,19 @@ from typing import Any
 
 import bcrypt
 import jwt
+from pydantic_core import PydanticCustomError
+
+# bcrypt reads at most 72 bytes and bcrypt 5 raises on more, so a longer
+# password is refused up front (400) instead of failing as a 500.
+PASSWORD_MAX_BYTES = 72
+PASSWORD_TOO_LONG_MESSAGE = f"Hasło może mieć najwyżej {PASSWORD_MAX_BYTES} bajty."
+
+
+def check_password_length(value: str) -> str:
+    """A `field_validator` body for every request schema with a password."""
+    if len(value.encode("utf-8")) > PASSWORD_MAX_BYTES:
+        raise PydanticCustomError("value_error", PASSWORD_TOO_LONG_MESSAGE)
+    return value
 
 
 def hash_password(plain_password: str) -> str:

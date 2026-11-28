@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import enum
 import uuid
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Date, Enum, ForeignKey, SmallInteger, String
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, SmallInteger, String
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -60,6 +60,11 @@ class UserProfile(BaseEntity):
     row backs it, so there is nothing to log in with."""
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    """Naive UTC time the current `email` was confirmed (migration 0111);
+    `None` = not verified. Invariant: any future writer of `email` must
+    clear `email_verified_at` in the same change. Today only the
+    `create_account_and_profile` constructor writes `email`."""
     birth_year: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     """Set only for CHILD family members (`app.families.models.FamilyRoleType`)."""
     bio: Mapped[str | None] = mapped_column(String(1000), nullable=True)

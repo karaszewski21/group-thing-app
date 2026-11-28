@@ -20,6 +20,7 @@ export const ACCOUNT_SUBVIEWS: readonly View[] = [
   "wanted",
   "points",
   "organization",
+  "settings",
 ];
 
 /** A "Konto" sub-page or a page under one (`/wanted/<id>/edit`, `/places/new`, `/groups/<id>`). */

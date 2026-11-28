@@ -26,7 +26,7 @@ export function AuthSheet({
   return (
     <ModalSheet title={title} onClose={onClose}>
       <p className="-mt-1 mb-4 text-[13px] text-ink-soft">{message}</p>
-      <AuthTabs tab={tab} onSelect={setTab} />
+      <AuthTabs tab={tab} onSelect={setTab} onNavigateAway={onClose} />
     </ModalSheet>
   );
 }

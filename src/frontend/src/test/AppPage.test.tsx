@@ -215,7 +215,7 @@ vi.mock("../api/reservations", async (importOriginal) => ({
 }));
 
 
-const mockProfile: peopleApi.UserProfileResponse = {
+const mockProfile: peopleApi.MyProfileResponse = {
   id: "1",
   party_id: "1",
   account_user_id: "1",
@@ -230,9 +230,10 @@ const mockProfile: peopleApi.UserProfileResponse = {
   primary_color: null,
   accent_color: null,
   media: [],
+  email_verified: null,
 };
 
-const mockOrganizerProfile: peopleApi.UserProfileResponse = {
+const mockOrganizerProfile: peopleApi.MyProfileResponse = {
   ...mockProfile,
   is_organizer: true,
 };
@@ -561,6 +562,7 @@ function mockOrganizerDefaults() {
   vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue([]);
   vi.mocked(locationsApi.getMyLocations).mockResolvedValue([]);
   vi.mocked(wantsApi.getMyWants).mockResolvedValue([]);
+  vi.mocked(reservationsApi.getMyReservations).mockResolvedValue([]);
 }
 
 const TERM_FIXTURE: termsApi.TermResponse = {
@@ -655,6 +657,50 @@ describe("AppPage — item add entry point", () => {
 
     expect(screen.queryByRole("link", { name: "+ Dodaj rzecz" })).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Dodaj rzecz" })).not.toBeInTheDocument();
+  });
+});
+
+describe("AppPage — home Zarezerwowane row", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    localStorage.clear();
+  });
+
+  it("links the items to receive with their count, also without own items", async () => {
+    mockGuestDefaults();
+    vi.mocked(reservationsApi.getMyReservations).mockResolvedValue([
+      {
+        item_id: "item-9",
+        product_name: "Sanki",
+        thumb_url: null,
+        item_path: "/ola/product/item-9",
+        owner_name: "Ola",
+        mode: "GIFT",
+        status: "PENDING",
+        reservation_id: "res-9",
+        context_kind: "PERSONAL",
+        context_name: null,
+        occurs_at: null,
+        reserved_at: "2026-11-08T10:00:00",
+        held_points: null,
+      },
+    ]);
+    renderPanel();
+
+    expect(await screen.findByText("Nie masz jeszcze żadnych rzeczy")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: /^Zarezerwowane Rzeczy do odebrania 1/ })).toHaveAttribute(
+      "href",
+      "/items/reserved",
+    );
+  });
+
+  it("is hidden without reservations", async () => {
+    mockGuestDefaults();
+    renderPanel();
+
+    await screen.findByRole("heading", { name: /Witaj/ });
+    await waitFor(() => expect(reservationsApi.getMyReservations).toHaveBeenCalled());
+    expect(screen.queryByRole("link", { name: /^Zarezerwowane/ })).not.toBeInTheDocument();
   });
 });
 
@@ -2991,6 +3037,7 @@ describe("AppPage — redesigned navigation and pages", () => {
       [expect.stringMatching(/^Moje rzeczy/), "/items"],
       ["Zarezerwowane1", "/items/reserved"],
       ["Szukambrak", "/wanted"],
+      ["Powiadomienia e-mail", "/settings"],
     ]);
     expect(screen.queryByRole("link", { name: /Prywatność/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Wyloguj się" })).toBeInTheDocument();

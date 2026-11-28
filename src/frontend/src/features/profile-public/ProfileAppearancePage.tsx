@@ -1,6 +1,6 @@
 "use client";
 
-import type { UpdateMyProfileAppearanceRequest, UserProfileResponse } from "../../api/people";
+import type { MyProfileResponse, UpdateMyProfileAppearanceRequest } from "../../api/people";
 import { familyInitials } from "../../components/shared/Avatar";
 import { useAuth } from "../../auth/AuthContext";
 import { authPath } from "../../auth/authPaths";
@@ -102,7 +102,7 @@ export function ProfileAppearancePage({ partyId }: { partyId: string }) {
   }
 }
 
-function ProfileEditor({ profile }: { profile: UserProfileResponse }) {
+function ProfileEditor({ profile }: { profile: MyProfileResponse }) {
   const { updateAppearance, updateDetails } = useUpdateMyProfile();
   const myOrganization = useMyOrganization();
   const actions = useMediaActions({ kind: "me" });

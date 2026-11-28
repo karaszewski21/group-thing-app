@@ -186,6 +186,18 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # cookie and the sign-in route clears it; neither returns stored data.
     (_methods("POST"), r"^/api/auth/google/nonce$", "PUBLIC"),  # 72
     (_methods("POST"), r"^/api/auth/google$", "PUBLIC"),  # 73
+    # 74-76, 82: e-mail account flows, after row 73 like the Google routes.
+    # Auth-flow POSTs, not data reads: each takes a single-use token or an
+    # address from someone who cannot log in (forgot password, a link opened
+    # in another browser), answers without revealing whether an account
+    # exists, and returns no stored data beyond the token's own purpose.
+    (_methods("POST"), r"^/api/auth/password-reset$", "PUBLIC"),  # 74
+    (_methods("POST"), r"^/api/auth/password-reset/confirm$", "PUBLIC"),  # 75
+    (_methods("POST"), r"^/api/auth/email-verification/confirm$", "PUBLIC"),  # 76
+    (_methods("POST"), r"^/api/auth/account-tokens/lookup$", "PUBLIC"),  # 82
+    # 77: resending the verification mail is for the logged-in account only,
+    # so, as for wants and points, the OAuth `mcp:edit` scope is not accepted.
+    (_methods("POST"), r"^/api/auth/email-verification$", ("EDIT",)),  # 77
     (_methods("GET"), r"^/api/organizations(/.*)?$", ("READ", "mcp:read")),  # 49
     (  # 50
         _methods("POST", "PATCH", "DELETE"),
@@ -272,6 +284,17 @@ _RAW_MATRIX: tuple[_RawEntry, ...] = (
     # users only, so, as for wants, the OAuth `mcp:*` scopes are not accepted.
     (_methods("GET", "PUT"), r"^/api/points/config$", ("ADMIN",)),  # 68
     (_methods("GET"), r"^/api/points(/.*)?$", ("READ",)),  # 69
+    # 78-79: app.email provider and link routes. The one-click unsubscribe
+    # POST (RFC 8058) is authorised by the signed token in its path, and the
+    # Mailgun webhook by its HMAC signature, so neither carries a login; the
+    # unsubscribe GET only redirects to the page (no read, no write). None
+    # returns stored data.
+    (_methods("GET", "POST"), r"^/api/email/unsubscribe/[^/]+$", "PUBLIC"),  # 78
+    (_methods("POST"), r"^/api/email/webhooks/mailgun$", "PUBLIC"),  # 79
+    # 80-81: the caller's own e-mail preferences, for logged-in users only
+    # (no OAuth `mcp:*` scopes), like wants and points.
+    (_methods("GET"), r"^/api/email/preferences$", ("READ",)),  # 80
+    (_methods("PUT"), r"^/api/email/preferences$", ("EDIT",)),  # 81
     (None, r"^.*$", "AUTHENTICATED"),  # 25 - catch-all
 )
 

@@ -6,13 +6,14 @@ from __future__ import annotations
 import re
 import uuid
 from collections.abc import Collection
-from datetime import date
+from datetime import date, datetime
 from typing import cast
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import account_tokens
 from app.auth.models import Permission, User, user_permissions
 from app.core.auth_deps import Principal
 from app.core.errors import BusinessConflictException, EntityNotFoundException
@@ -289,17 +290,25 @@ async def is_email_registered(db: AsyncSession, email: str) -> bool:
 
 
 async def bootstrap_person_account(
-    db: AsyncSession, *, email: str, password: str | None, display_name: str | None = None
+    db: AsyncSession,
+    *,
+    email: str,
+    password: str | None,
+    display_name: str | None = None,
+    email_verified: bool = False,
 ) -> tuple[User, Party]:
     """A new person's login, `Party(PERSON)`, profile, `UserRole(USER)`,
     READ/EDIT permissions and solo Family, flushed but not committed. Raises
-    `DuplicateEmailException` when the email already has a profile."""
+    `DuplicateEmailException` when the email already has a profile;
+    `email_verified` marks the profile email verified from the start."""
     if await is_email_registered(db, email):
         raise DuplicateEmailException()
 
     username = await derive_username_from_email(db, email)
     name = display_name or derive_display_name(email)
     party, profile = await create_account_and_profile(db, username, password, name, email)
+    if email_verified:
+        profile.email_verified_at = datetime.utcnow()
 
     # Deferred import: app.families.bootstrap imports create_account_and_profile
     # from this module at module load time, so a top-level import here would
@@ -322,6 +331,12 @@ async def _bootstrap_registration(db: AsyncSession, data: RegisterRequest) -> tu
             await get_or_create_active_user_role(
                 db, cast(uuid.UUID, party.id), UserRoleType.ORGANIZATOR
             )
+        await account_tokens.issue_verification(
+            db,
+            user_id=cast(uuid.UUID, user.id),
+            party_id=cast(uuid.UUID, party.id),
+            email=data.email,
+        )
     return user, party
 
 

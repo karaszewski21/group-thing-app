@@ -19,6 +19,7 @@ __all__ = [
     "format_term_day",
     "format_term_when",
     "local_now",
+    "local_to_utc",
     "utc_to_local",
     "warsaw_zone",
 ]
@@ -37,6 +38,11 @@ def warsaw_zone() -> ZoneInfo:
 def utc_to_local(naive_utc: datetime) -> datetime:
     """Converts a naive UTC timestamp to the naive Warsaw wall clock."""
     return naive_utc.replace(tzinfo=UTC).astimezone(warsaw_zone()).replace(tzinfo=None)
+
+
+def local_to_utc(naive_local: datetime) -> datetime:
+    """Converts a naive Warsaw wall clock to a naive UTC timestamp."""
+    return naive_local.replace(tzinfo=warsaw_zone()).astimezone(UTC).replace(tzinfo=None)
 
 
 def local_now() -> datetime:

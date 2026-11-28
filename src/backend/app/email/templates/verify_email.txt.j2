@@ -1,0 +1,5 @@
+{% extends "base.txt.j2" %}
+{% set paragraphs = ["Cześć" ~ (" " ~ first_name if first_name else "") ~ "! Kliknij przycisk, żeby potwierdzić adres. Link jest ważny 48 godzin."] %}
+{% set cta_label = "Potwierdź adres" %}
+{% set cta_url = base_url ~ "/verify-email?token=" ~ (token | urlencode) %}
+{% set note = "Jeśli to nie Ty, zignoruj tę wiadomość." %}

@@ -49,9 +49,12 @@ BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
 # Env vars beat `.env`, so a developer's local `MODERATION_TEXT_ENABLED=true`
 # cannot leak into the suite. Set before any test module imports `app.config`;
-# moderation tests opt in by monkeypatching `settings.moderation_text_enabled`.
+# moderation tests opt in by monkeypatching `settings.moderation_text_enabled`,
+# e-mail tests by monkeypatching `settings.email_enabled`/`email_notifications_enabled`.
 os.environ["MODERATION_TEXT_ENABLED"] = "false"
 os.environ["EMBEDDINGS_ENABLED"] = "false"
+os.environ["EMAIL_ENABLED"] = "false"
+os.environ["EMAIL_NOTIFICATIONS_ENABLED"] = "false"
 
 
 def _to_asyncpg_url(sync_url: str) -> str:
@@ -304,6 +307,34 @@ def fake_embedder(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeEmbedder]:
     if embedder.delay is not None:
         embedder.delay.set()
     service.set_embedder(None)
+
+
+class FakeEmailSender:
+    """Stand-in for the provider senders. `sent` captures every
+    `OutgoingEmail`; set `error` to a `PermanentSendError` or
+    `RetryableSendError` to make `send` raise it instead."""
+
+    def __init__(self) -> None:
+        self.sent: list[Any] = []
+        self.error: Exception | None = None
+
+    async def send(self, message: Any) -> Any:
+        from app.email.senders import SendResult
+
+        if self.error is not None:
+            raise self.error
+        self.sent.append(message)
+        return SendResult(provider_message_id=f"fake-{len(self.sent)}")
+
+
+@pytest.fixture
+def fake_email_sender() -> Iterator[FakeEmailSender]:
+    from app.email import senders
+
+    sender = FakeEmailSender()
+    senders.set_sender(sender)
+    yield sender
+    senders.set_sender(None)
 
 
 @pytest.fixture

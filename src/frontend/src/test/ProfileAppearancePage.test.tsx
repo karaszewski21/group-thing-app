@@ -2,7 +2,7 @@ import { fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as mediaApi from "../api/media";
 import * as peopleApi from "../api/people";
-import type { UserProfileResponse } from "../api/people";
+import type { MyProfileResponse } from "../api/people";
 import { LAYOUT_REGISTRY } from "../features/organization-public/layouts/registry";
 import { findPreset } from "../theme/palettes";
 import { appearanceRouteElement } from "./itemRoute";
@@ -29,7 +29,7 @@ const OTHER_PARTY_ID = "9d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a";
 const EDITOR = `/${PARTY_ID}/appearance`;
 const ORGANIZATION_LAYOUTS = Object.values(LAYOUT_REGISTRY).map((layout) => layout.label);
 
-const PROFILE: UserProfileResponse = {
+const PROFILE: MyProfileResponse = {
   id: "profile-1",
   party_id: PARTY_ID,
   account_user_id: "user-1",
@@ -44,6 +44,7 @@ const PROFILE: UserProfileResponse = {
   primary_color: null,
   accent_color: null,
   media: [],
+  email_verified: true,
 };
 
 async function renderAt(path: string) {

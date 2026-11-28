@@ -106,11 +106,7 @@ beforeEach(() => {
 describe("API Client Auth", () => {
   it("includes Authorization header from localStorage token", async () => {
     localStorage.setItem("auth_token", "my-jwt-token");
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ id: "1" }),
-    });
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({ id: "1" }), { status: 200 }));
 
     const { api } = await import("../api/client");
     await api.get("/products");
@@ -203,6 +199,30 @@ describe("LoginPage", () => {
     expect(screen.getByRole("tab", { name: "Zaloguj się" })).toHaveAttribute("aria-selected", "true");
     expect(screen.queryByRole("button", { name: "Załóż konto" })).not.toBeInTheDocument();
     expect(screen.getByRole("tabpanel")).toContainElement(screen.getByLabelText(/hasło/i));
+  });
+});
+
+describe("Forgot password link", () => {
+  it("sits under the password field and points to /reset-password", async () => {
+    const { LoginForm } = await import("../features/auth/LoginForm");
+    renderWithProviders(<LoginForm />, "/login");
+
+    const link = screen.getByRole("link", { name: "Nie pamiętasz hasła?" });
+    expect(link).toHaveAttribute("href", "/reset-password");
+    const password = screen.getByLabelText(/hasło/i);
+    const submit = screen.getByRole("button", { name: /zaloguj się/i });
+    expect(password.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(link.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("closes the AuthSheet when followed", async () => {
+    const onClose = vi.fn();
+    const { AuthSheet } = await import("../features/auth/AuthSheet");
+    renderWithProviders(<AuthSheet message="Zaloguj się, żeby wziąć rzecz." onClose={onClose} />, "/ania/product/1");
+
+    fireEvent.click(screen.getByRole("link", { name: "Nie pamiętasz hasła?" }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 

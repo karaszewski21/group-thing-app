@@ -36,7 +36,23 @@ vi.mock("../api/reservations", async (importOriginal) => ({
   confirmTransaction: vi.fn(),
 }));
 
-const mockProfile = { party_id: "1", account_user_id: "1" } as peopleApi.UserProfileResponse;
+const mockProfile: peopleApi.MyProfileResponse = {
+  id: "1",
+  party_id: "1",
+  account_user_id: "1",
+  display_name: "Jan Kowalski",
+  email: null,
+  bio: null,
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
+  is_organizer: false,
+  page_layout: "BANNER",
+  palette_preset: null,
+  primary_color: null,
+  accent_color: null,
+  media: [],
+  email_verified: null,
+};
 
 function pendingNotif(
   over: Partial<notificationsApi.NotificationResponse> = {},

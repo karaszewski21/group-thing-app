@@ -1,5 +1,5 @@
-"""Guards for the domain clock: the groups, events, pages, points, search and wants packages read
-"now" only through `app.core.clock`, and accepting a swap is gated on the Term not
+"""Guards for the domain clock: the groups, email, events, pages, points, search and wants
+packages read "now" only through `app.core.clock`, and accepting a swap is gated on the Term not
 having started yet (frozen via the opt-in `freeze_local_now` fixture)."""
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ _APP_ROOT = Path(__file__).resolve().parents[1] / "app"
 _GUARDED_DIRS = (
     _APP_ROOT / "groups" / "application",
     _APP_ROOT / "groups" / "router",
+    _APP_ROOT / "email",
     _APP_ROOT / "events",
     _APP_ROOT / "pages",
     _APP_ROOT / "points",

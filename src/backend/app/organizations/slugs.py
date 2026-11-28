@@ -43,6 +43,10 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "points",
         # The public `/about/...` pages (`/about/points`).
         "about",
+        # The e-mail link pages (`/verify-email`, `/reset-password`, `/unsubscribe`).
+        "verify-email",
+        "reset-password",
+        "unsubscribe",
         "add",
         "messages",
         "groups",

@@ -8,6 +8,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.core.security import check_password_length
+
 
 class FamilyOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -61,12 +63,16 @@ class CreateFamilyRequest(BaseModel):
     display_name: str = Field(min_length=1, max_length=255)
     email: str | None = Field(default=None, max_length=255)
 
+    _password_fits_bcrypt = field_validator("password")(check_password_length)
+
 
 class AddGuardianRequest(BaseModel):
     username: str = Field(min_length=1, max_length=50)
     password: str = Field(min_length=1)
     display_name: str = Field(min_length=1, max_length=255)
     email: str | None = Field(default=None, max_length=255)
+
+    _password_fits_bcrypt = field_validator("password")(check_password_length)
 
 
 def _birth_year_not_in_future(value: int | None) -> int | None:

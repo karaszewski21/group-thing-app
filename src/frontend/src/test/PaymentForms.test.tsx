@@ -75,7 +75,7 @@ const URL_LABEL = "Link do płatności (opcjonalnie)";
 const REQUIRES_PRICE = "Link wymaga ceny — wpisz cenę albo usuń link.";
 const PAID_LABEL = "Zajęcia płatne";
 
-const profile: peopleApi.UserProfileResponse = {
+const profile: peopleApi.MyProfileResponse = {
   id: "p1",
   party_id: "party-1",
   account_user_id: "u1",
@@ -90,6 +90,7 @@ const profile: peopleApi.UserProfileResponse = {
   primary_color: null,
   accent_color: null,
   media: [],
+  email_verified: null,
 };
 
 const leadership: groupsApi.LeadershipResponse = {

@@ -10,12 +10,18 @@ import type { GroupAccessResponse } from "../api/groups";
 import type { ItemActionsResponse } from "../api/itemActions";
 import type { ItemDetailsResponse } from "../api/items";
 import type { PartyProfileResponse } from "../api/ownerItems";
-import type { UserProfileResponse } from "../api/people";
+import type { MyProfileResponse } from "../api/people";
+import PanelLayout from "../app/(public)/(panel)/layout";
+import SettingsPage from "../app/(public)/(panel)/settings/page";
 import PublicRouteLayout from "../app/(public)/layout";
+import ResetPasswordRoutePage from "../app/(public)/reset-password/page";
+import UnsubscribeRoutePage from "../app/(public)/unsubscribe/page";
+import VerifyEmailRoutePage from "../app/(public)/verify-email/page";
 import SearchPage from "../app/(public)/search/page";
 import { AuthProvider } from "../auth/AuthContext";
 import { PublicLayout } from "../components/layout/PublicLayout";
 import { LoginPage } from "../features/auth/LoginPage";
+import { EmailSettingsView } from "../features/email/EmailSettingsView";
 import { appearanceRouteElement, itemRouteElement, ownerRouteElement } from "./itemRoute";
 import { eventRouteElement } from "./eventRoute";
 import { termRouteElement } from "./termRoute";
@@ -148,7 +154,7 @@ const PARTY_PROFILE: PartyProfileResponse = {
   is_me: true,
 };
 
-const MY_PROFILE: UserProfileResponse = {
+const MY_PROFILE: MyProfileResponse = {
   id: "profile-1",
   party_id: PARTY_ID,
   account_user_id: "user-1",
@@ -163,6 +169,7 @@ const MY_PROFILE: UserProfileResponse = {
   primary_color: null,
   accent_color: null,
   media: [],
+  email_verified: true,
 };
 
 /** An unsigned JWT-shaped token: the server render only decodes its claims. */
@@ -277,6 +284,55 @@ describe("SSR safety", () => {
     expect(html).toContain('aria-label="Menu konta"');
     expect(html).toContain('aria-label="Nawigacja główna"');
     expect(html).not.toContain("Szukaj rzeczy i spotkań");
+  });
+
+  it.each([
+    { session: "anonymous", token: null },
+    { session: "cookie", token: SESSION },
+  ])("renders the mailed-link pages for a $session visitor without a request", ({ token }) => {
+    const pages = [
+      { url: "/verify-email?token=v-1", pattern: "/verify-email", page: <VerifyEmailRoutePage />, text: "Sprawdzamy link…" },
+      { url: "/reset-password?token=r-1", pattern: "/reset-password", page: <ResetPasswordRoutePage />, text: "Sprawdzamy link…" },
+      {
+        url: "/unsubscribe?token=1.WANTS.party-1.sig",
+        pattern: "/unsubscribe",
+        page: <UnsubscribeRoutePage />,
+        text: "Wyłącz tę kategorię",
+      },
+    ];
+    for (const { url, pattern, page, text } of pages) {
+      const html = renderOnServer(url, pattern, <PublicRouteLayout>{page}</PublicRouteLayout>, createTestQueryClient(), token);
+      expect(html, url).toContain(text);
+    }
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("renders the anonymous reset-link request form on /reset-password", () => {
+    const html = renderOnServer("/reset-password", "/reset-password", <ResetPasswordRoutePage />);
+    expect(html).toContain("Nie pamiętasz hasła?");
+    expect(html).toContain('type="email"');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps /settings browser-only behind the panel layout and server-safe on its own for a cookie session", () => {
+    const client = createTestQueryClient();
+    client.setQueryData([MY_PROFILE_KEY, "server-session"], MY_PROFILE);
+
+    const panel = renderOnServer(
+      "/settings",
+      "/settings",
+      <PanelLayout>
+        <SettingsPage />
+      </PanelLayout>,
+      client,
+      SESSION,
+    );
+    expect(panel).not.toContain("Powiadomienia e-mail");
+
+    const view = renderOnServer("/settings", "/settings", <EmailSettingsView />, client, SESSION);
+    expect(view).toContain("Powiadomienia e-mail");
+    expect(view).toContain('href="/account"');
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it.each([

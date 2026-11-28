@@ -41,7 +41,7 @@ import {
 import {
   getLeadershipsForPerson,
   getMyProfile,
-  type UserProfileResponse,
+  type MyProfileResponse,
 } from "../../api/people";
 import { getMyOrganization } from "../../api/organizations";
 import {
@@ -98,7 +98,7 @@ function useAppDataValue() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [profile, setProfile] = useState<UserProfileResponse | null>(null);
+  const [profile, setProfile] = useState<MyProfileResponse | null>(null);
   const [myGroups, setMyGroups] = useState<GroupResponse[]>([]);
   const [family, setFamily] = useState<FamilyOut | null>(null);
   const [guardians, setGuardians] = useState<GuardianResponse[]>([]);

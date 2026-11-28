@@ -2,8 +2,11 @@
 `app.search` and of `app.wants`: only `app/main.py` imports them, their code outside
 `infrastructure/` reaches no other context (`domain/` only itself), and their
 ACLs never import their own schemas. `app.points` is imported only by
-`app/main.py` and the two consumer ACLs, under the same inner rules. The
-compute-only `app.embeddings` imports only `app.config` and `app.core`.
+`app/main.py` and the two consumer ACLs, under the same inner rules.
+`app.email` is imported only by `app/main.py` and the notifications and auth
+`email_acl.py`; outside `infrastructure/` it reaches only `app.core`, `app.db`,
+`app.config` and itself, never `app.notifications`. The compute-only
+`app.embeddings` imports only `app.config` and `app.core`.
 Imports are read from the AST, so docstrings and comments that mention a
 module do not count."""
 
@@ -135,6 +138,39 @@ def test_pointsCode_outsideInfrastructure_importsOnlyAllowedPackages() -> None:
             for module in sorted(_app_imports(path))
             if not any(_matches(module, package) for package in allowed)
         )
+
+    assert offenders == []
+
+
+_EMAIL_IMPORTERS = {
+    "main.py",
+    "notifications/infrastructure/email_acl.py",
+    "auth/infrastructure/email_acl.py",
+}
+
+
+def test_emailModule_importingModule_exactlyMainAndConsumerAcls() -> None:
+    root = _APP_ROOT / "email"
+    importers = {
+        str(path.relative_to(_APP_ROOT).as_posix())
+        for path in _APP_ROOT.rglob("*.py")
+        if not path.is_relative_to(root)
+        and any(_matches(module, "app.email") for module in _app_imports(path))
+    }
+
+    assert importers == _EMAIL_IMPORTERS
+
+
+def test_emailCode_outsideInfrastructure_importsOnlyAllowedPackages() -> None:
+    root = _APP_ROOT / "email"
+    allowed = ("app.core", "app.db", "app.config", "app.email")
+    offenders = [
+        f"{path.relative_to(_APP_ROOT).as_posix()}: {module}"
+        for path in sorted(root.rglob("*.py"))
+        if not path.is_relative_to(root / "infrastructure")
+        for module in sorted(_app_imports(path))
+        if not any(_matches(module, package) for package in allowed)
+    ]
 
     assert offenders == []
 

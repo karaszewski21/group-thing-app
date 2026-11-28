@@ -10,6 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.core.security import check_password_length
 from app.media.schemas import OwnerMediaResponse
 from app.organizations.palettes import PALETTE_PRESET_KEYS
 
@@ -63,6 +64,13 @@ class UserProfileResponse(BaseModel):
     @classmethod
     def _effective_page_layout(cls, value: str | None) -> str:
         return resolve_profile_page_layout(value)
+
+
+class MyProfileResponse(UserProfileResponse):
+    """The caller's own profile (`/api/people/me` only). `email_verified` is
+    null while e-mail is disabled or the profile has no address."""
+
+    email_verified: bool | None = None
 
 
 class UpdateMyProfileRequest(BaseModel):
@@ -140,6 +148,11 @@ class RegisterRequest(BaseModel):
         if not EMAIL_PATTERN.match(normalized):
             raise ValueError("Invalid email format")
         return normalized
+
+    @field_validator("password")
+    @classmethod
+    def _password_fits_bcrypt(cls, value: str) -> str:
+        return check_password_length(value)
 
 
 class RegisterResponse(BaseModel):

@@ -26,6 +26,8 @@ services:
     # Bring the schema to head on every start (alembic upgrade is a no-op when
     # already current), then hand off to uvicorn as PID 1 so it gets signals.
     command: sh -c "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8080"
+    # Room for the e-mail send job to stop cleanly on SIGTERM (it waits 8 s).
+    stop_grace_period: 25s
     ports:
       - "8080:8080"
     environment:
@@ -45,6 +47,22 @@ services:
       EMBEDDINGS_ENABLED: ${EMBEDDINGS_ENABLED:-false}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
+      # E-mail stays off until EMAIL_ENABLED=true; bell mail also needs
+      # EMAIL_NOTIFICATIONS_ENABLED. Empty values read as unset/defaults.
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      EMAIL_NOTIFICATIONS_ENABLED: ${EMAIL_NOTIFICATIONS_ENABLED:-false}
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-}
+      EMAIL_PROVIDER_API_URL: ${EMAIL_PROVIDER_API_URL:-}
+      EMAIL_PROVIDER_API_KEY: ${EMAIL_PROVIDER_API_KEY:-}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-}
+      EMAIL_REPLY_TO_ADDRESS: ${EMAIL_REPLY_TO_ADDRESS:-}
+      EMAIL_LINK_SIGNING_SECRET: ${EMAIL_LINK_SIGNING_SECRET:-}
+      EMAIL_WEBHOOK_SIGNING_KEY: ${EMAIL_WEBHOOK_SIGNING_KEY:-}
+      EMAIL_DAILY_CAP: ${EMAIL_DAILY_CAP:-}
+      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-}
+      EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-}
+      APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,6 +83,17 @@ services:
         condition: service_healthy
       backend:
         condition: service_started
+
+  # Dev-only SMTP catcher for EMAIL_BACKEND=smtp (EMAIL_SMTP_HOST=mailpit):
+  # `docker compose --profile dev up -d mailpit`. SMTP 1025 only on the compose
+  # network, the web UI on 127.0.0.1:8025.
+  mailpit:
+    image: axllent/mailpit:v1.27.10
+    profiles: ["dev"]
+    expose:
+      - "1025"
+    ports:
+      - "127.0.0.1:8025:8025"
 
   # Next.js standalone server: pages, server metadata, public/ assets.
   web:

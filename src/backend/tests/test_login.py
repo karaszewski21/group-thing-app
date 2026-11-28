@@ -107,3 +107,24 @@ async def test_login_accountWithoutPassword_returnsSame401(
     assert body["error"] == "Unauthorized"
     assert body["message"] == "Invalid username or password"
     assert body["fieldErrors"] is None
+
+
+async def test_login_passwordOver72Bytes_returnsPolish400WithoutLookingUpTheAccount(
+    client: AsyncClient,
+) -> None:
+    register_response = await client.post(
+        "/api/auth/register",
+        json={"role": "GUEST", "email": "login.long@example.com", "password": "secret123"},
+    )
+    assert register_response.status_code == 201
+
+    known = await client.post(
+        "/api/auth/login", json={"email": "login.long@example.com", "password": "a" * 73}
+    )
+    unknown = await client.post(
+        "/api/auth/login", json={"email": "login.nobody@example.com", "password": "a" * 73}
+    )
+
+    for response in (known, unknown):
+        assert response.status_code == 400, response.text
+        assert response.json()["fieldErrors"] == {"password": "Hasło może mieć najwyżej 72 bajty."}

@@ -11,7 +11,7 @@ import uuid
 import pytest
 from httpx import AsyncClient, Response
 from PIL import Image
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -39,7 +39,9 @@ ME_KEYS = {
     "primary_color",
     "accent_color",
     "media",
+    "email_verified",
 }
+PROFILE_KEYS = ME_KEYS - {"email_verified"}
 
 
 async def test_updateMyProfile_nameAndBio_savedAndReturnedByMe(client: AsyncClient) -> None:
@@ -133,6 +135,56 @@ async def test_getMe_exactKeySet_mediaEmptyAndDefaultAppearance(client: AsyncCli
         None,
         None,
     )
+
+
+@pytest.mark.parametrize(
+    ("email_enabled", "verified", "has_email", "expected"),
+    [
+        (True, True, True, True),
+        (True, False, True, False),
+        (True, False, False, None),
+        (False, True, True, None),
+    ],
+    ids=["verified", "unverified", "no-email", "email-off"],
+)
+async def test_getMe_emailVerified_trueFalseOrNullWhileOtherProfilesLackIt(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    email_enabled: bool,
+    verified: bool,
+    has_email: bool,
+    expected: bool | None,
+) -> None:
+    monkeypatch.setattr(settings, "email_enabled", email_enabled)
+    token, party_id = await _register(client, "GUEST", "profile.verified@example.com")
+    await db_session.execute(
+        text(
+            "UPDATE user_profiles SET email_verified_at = CASE WHEN :v THEN"
+            " timezone('utc', now()) END, email = CASE WHEN :e THEN email END"
+            " WHERE party_id = :p"
+        ),
+        {"v": verified, "e": has_email, "p": party_id},
+    )
+    await db_session.commit()
+
+    me = await client.get("/api/people/me", headers=_auth(token))
+    patched = await client.patch(
+        "/api/people/me", json={"display_name": "Ola", "bio": None}, headers=_auth(token)
+    )
+    appearance = await client.patch(
+        "/api/people/me/appearance", json={"page_layout": "BANNER"}, headers=_auth(token)
+    )
+    by_id = await client.get(f"/api/people/{me.json()['id']}", headers=_auth(token))
+    by_party = await client.get(f"/api/people/by-party/{party_id}", headers=_auth(token))
+
+    for response in (me, patched, appearance):
+        assert response.status_code == 200, response.text
+        assert set(response.json()) == ME_KEYS
+        assert response.json()["email_verified"] is expected
+    for response in (by_id, by_party):
+        assert response.status_code == 200, response.text
+        assert set(response.json()) == PROFILE_KEYS
 
 
 # --- Media --------------------------------------------------------------------
