@@ -101,6 +101,7 @@ def test_renderNotification_escapesMessage_fallsBackToStart_andCarriesFooter(
     assert f'href="{_BASE}/"' in rendered.html
     assert "Zobacz propozycję" in rendered.html
     assert "max-width:600px" in rendered.html
+    assert f'src="{_BASE}/assets/logo-gooo-email.png"' in rendered.html
     assert "Dostajesz ten mail, bo masz włączone powiadomienia „Rezerwacje i wymiany”." in (
         rendered.html
     )

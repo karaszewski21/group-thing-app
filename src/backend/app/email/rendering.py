@@ -62,6 +62,8 @@ def render(template: EmailTemplate, context: Mapping[str, Any]) -> RenderedEmail
         "brand": settings.email_from_name,
         "base_url": base_url,
         "settings_url": f"{base_url}/settings",
+        # PNG, not the site's webp: Outlook desktop does not render webp.
+        "logo_url": f"{base_url}/assets/logo-gooo-email.png",
         "first_name": _first_name(context.get("display_name")),
     }
     if template is EmailTemplate.NOTIFICATION:
