@@ -1,0 +1,672 @@
+<title>Sceny grupy</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: scena po lewej (układ miejsc + grafika albo własne tło), panel po prawej z dwoma trybami: gotowe sceny / własne tło (układ, obraz, kadrowanie, prompt AI) */
+:root{
+  --bg:#FBF8F3; --surface:#FFFFFF; --ink:#13261D; --muted:#5B6B62; --line:#E4DED2;
+  --green:#0A8050; --green-d:#055E42; --orange:#FF6A0D; --chip:#F1ECE2; --chip-on:#0A8050; --chip-on-fg:#FFFFFF;
+  --code:#F4F0E8; --hidden-bg:#FFF1E6; --hidden-fg:#9A4300;
+  --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --f-body:"Inter","Segoe UI",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1A15; --surface:#16241D; --ink:#E9F1EC; --muted:#9DB0A5; --line:#28392F;
+  --green:#34B57D; --green-d:#8AD8B1; --chip:#1E3028; --chip-on:#34B57D; --chip-on-fg:#0F1A15;
+  --code:#12201A; --hidden-bg:#3A2414; --hidden-fg:#FFB27A; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0F1A15; --surface:#16241D; --ink:#E9F1EC; --muted:#9DB0A5; --line:#28392F;
+  --green:#34B57D; --green-d:#8AD8B1; --chip:#1E3028; --chip-on:#34B57D; --chip-on-fg:#0F1A15;
+  --code:#12201A; --hidden-bg:#3A2414; --hidden-fg:#FFB27A; color-scheme:dark }
+
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1260px;margin:0 auto;padding-block:28px 56px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(26px,3.4vw,38px);font-weight:800}
+h2{font-size:21px;font-weight:800}
+h3{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-family:var(--f-body)}
+.brand{font-family:var(--f-display);font-weight:800;color:var(--green);font-size:15px}
+.lead{color:var(--muted);max-width:72ch;margin:6px 0 0}
+.lead b{color:var(--ink);font-weight:600}
+
+.main{display:grid;grid-template-columns:minmax(0,1fr) 410px;gap:24px;align-items:start}
+@media (max-width:980px){.main{grid-template-columns:minmax(0,1fr)}}
+.stage-col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.stage{width:100%;max-width:100%;aspect-ratio:16/10;border-radius:18px;overflow:hidden;background:#222;touch-action:none;
+  box-shadow:0 1px 0 var(--line),0 12px 30px -18px rgba(0,0,0,.5)}
+.stage.pannable{cursor:grab}
+.stage.dragging{cursor:grabbing}
+.stage svg{display:block;width:100%;height:100%}
+.status{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13.5px;color:var(--muted)}
+.status b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.sel{font-size:13.5px;min-height:1.5em}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:11px;height:11px;border-radius:50%;display:inline-block}
+
+.controls{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.range{display:flex;align-items:center;gap:10px;flex:1;min-width:210px}
+.range input{flex:1;accent-color:var(--green);min-width:0}
+.range output{font-family:var(--f-display);font-weight:800;font-size:20px;min-width:2.4ch;text-align:right;font-variant-numeric:tabular-nums}
+.range label{font-size:13px;color:var(--muted);white-space:nowrap}
+.range.sm output{font-size:14px;font-family:var(--f-body);font-weight:600;min-width:4ch}
+.chk{display:inline-flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer}
+.chk input{accent-color:var(--green);width:16px;height:16px}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:18px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--chip);border-radius:12px;padding:4px}
+.tab{border:0;border-radius:9px;padding:8px 10px;background:transparent;color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.tab[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.group{display:flex;flex-direction:column;gap:8px}
+.step{display:flex;gap:8px;align-items:baseline}
+.step span{font-family:var(--f-display);font-weight:800;color:var(--green);font-size:14px}
+.hint{font-size:12.5px;color:var(--muted);margin:0}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (max-width:420px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.card{display:flex;flex-direction:column;gap:4px;padding:5px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);
+  color:var(--ink);font:inherit;cursor:pointer;text-align:left}
+.card svg{display:block;width:100%;aspect-ratio:16/10;border-radius:7px}
+.card b{font-size:12.5px;font-weight:600;padding:0 3px;line-height:1.25}
+.card small{font-size:11.5px;color:var(--muted);padding:0 3px 2px;font-variant-numeric:tabular-nums}
+.card[aria-pressed="true"]{border-color:var(--green);box-shadow:0 0 0 2px color-mix(in srgb,var(--green) 25%,transparent)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{border:0;border-radius:999px;padding:7px 13px;background:var(--chip);color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn.primary{background:var(--chip-on);color:var(--chip-on-fg)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.primary[aria-pressed="true"]{background:var(--orange);color:#13261D}
+#editNote{color:var(--hidden-fg);min-height:1.2em}
+.file{position:relative}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.file:focus-within{outline:2.5px solid var(--orange);outline-offset:2px}
+textarea,select{font:inherit;font-size:13.5px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:100%;box-sizing:border-box}
+textarea{resize:vertical;min-height:62px}
+.prompt{font-family:var(--f-mono);font-size:12px;line-height:1.55;background:var(--code);border:1px solid var(--line);border-radius:10px;padding:10px 12px;white-space:pre-wrap;user-select:all;margin:0}
+.copied{font-size:12.5px;color:var(--green);min-height:1.3em}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,.seat:focus-visible{outline:2.5px solid var(--orange);outline-offset:2px}
+.custom-only[hidden],.preset-only[hidden]{display:none}
+
+.list{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.list-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.people{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.people li{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:3px 10px 3px 4px;border-radius:999px;background:var(--chip)}
+.people li .ini{width:20px;height:20px;border-radius:50%;color:#fff;font-size:9.5px;font-weight:700;display:grid;place-items:center}
+.people li.off{background:var(--hidden-bg);color:var(--hidden-fg)}
+.people li.org{box-shadow:inset 0 0 0 1.5px var(--orange)}
+.people small{font-size:11px;opacity:.8}
+
+.how{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:820px){.how{grid-template-columns:minmax(0,1fr)}}
+.how ol{margin:10px 0 0;padding-left:20px;color:var(--muted);display:flex;flex-direction:column;gap:6px;max-width:64ch}
+.how ol b{color:var(--ink)}
+pre.model{margin:0;background:var(--code);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-family:var(--f-mono);font-size:12.5px;line-height:1.6;overflow-x:auto;color:var(--ink)}
+.k{color:var(--green-d)} .c{color:var(--muted)}
+
+.seat{cursor:pointer}
+.flame{transform-box:view-box;transform-origin:80px 56px;animation:flick 1.3s ease-in-out infinite alternate}
+@keyframes flick{to{transform:scale(1.07,1.14)}}
+@media (prefers-reduced-motion: reduce){.flame{animation:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">Gooo</div>
+    <h1>Sceny grupy</h1>
+    <p class="lead"><b>Układ</b> to stała lista miejsc. <b>Grafika</b> to rysunek pod ten układ. Organizator wybiera gotową scenę albo podkłada <b>własne tło</b>, np. wygenerowane przez AI, i dopasowuje je do miejsc.</p>
+  </header>
+
+  <section class="main">
+    <div class="stage-col">
+      <div class="stage" id="stage"></div>
+      <div class="status" id="status"></div>
+      <div class="legend">
+        <span><i style="background:#FF6A0D"></i>organizator</span>
+        <span><i style="background:#FFC94A"></i>udostępnia rzecz</span>
+        <span><i style="background:#2BB3A3"></i>przynosi na zajęcia</span>
+        <span><i style="border:1.5px dashed var(--muted)"></i>wolne miejsce</span>
+      </div>
+      <div class="sel" id="sel" aria-live="polite"></div>
+      <div class="controls">
+        <div class="range">
+          <label for="count">Zapisanych rodzin</label>
+          <input type="range" id="count" min="0" max="40" value="10">
+          <output id="countVal" for="count">10</output>
+        </div>
+        <label class="chk"><input type="checkbox" id="me" checked> Jestem zapisany</label>
+      </div>
+      <div class="list" id="list">
+        <div class="list-head">
+          <h2 id="listTitle">Zapisani</h2>
+          <button class="btn" id="listToggle" type="button" aria-expanded="false" aria-controls="people">Pokaż listę</button>
+        </div>
+        <ul class="people" id="people" hidden></ul>
+      </div>
+    </div>
+
+    <aside class="panel">
+      <div class="tabs">
+        <button class="tab" type="button" id="tabPreset" aria-pressed="true">Gotowe sceny</button>
+        <button class="tab" type="button" id="tabCustom" aria-pressed="false">Własne tło</button>
+      </div>
+
+      <div class="preset-only" id="presetPane"></div>
+
+      <div class="custom-only" id="customPane" hidden>
+        <div class="group">
+          <div class="step"><span>1</span><h3>Układ miejsc</h3></div>
+          <div class="cards" id="layoutCards"></div>
+        </div>
+        <div class="group" style="margin-top:18px">
+          <div class="step"><span>2</span><h3>Obraz</h3></div>
+          <div class="btns">
+            <label class="btn primary file">Wgraj obraz<input type="file" id="file" accept="image/jpeg,image/png,image/webp" aria-label="Wgraj obraz tła"></label>
+            <button class="btn" type="button" id="sample">Użyj przykładu</button>
+            <button class="btn" type="button" id="clearImg">Usuń</button>
+          </div>
+          <p class="hint">JPG, PNG lub WebP. Obraz zostaje w przeglądarce. W aplikacji przejdzie moderację, zanim zobaczą go inni.</p>
+        </div>
+        <div class="group" style="margin-top:18px">
+          <div class="step"><span>3</span><h3>Dopasowanie</h3></div>
+          <p class="hint">Przeciągnij obraz na scenie albo użyj suwaków, żeby ważny element trafił pod miejsca.</p>
+          <div class="range sm"><label for="zoom">Powiększenie</label><input type="range" id="zoom" min="100" max="250" value="100"><output id="zoomVal" for="zoom">100%</output></div>
+          <div class="range sm"><label for="offX">Poziomo</label><input type="range" id="offX" min="-100" max="100" value="0"><output id="offXVal" for="offX">0</output></div>
+          <div class="range sm"><label for="offY">Pionowo</label><input type="range" id="offY" min="-100" max="100" value="0"><output id="offYVal" for="offY">0</output></div>
+          <div class="range sm"><label for="dim">Przyciemnienie</label><input type="range" id="dim" min="0" max="60" value="30"><output id="dimVal" for="dim">30%</output></div>
+          <div class="btns"><button class="btn" type="button" id="resetFit">Wyśrodkuj</button></div>
+        </div>
+        <div class="group" style="margin-top:18px">
+          <div class="step"><span>4</span><h3>Miejsca ręcznie</h3></div>
+          <p class="hint">Włącz edycję i przeciągnij kółka tam, gdzie na obrazie są maty, krzesła albo koce. Numer to kolejność zapełniania. Zaznaczone miejsce przesuniesz też strzałkami, a z Shift szybciej.</p>
+          <div class="btns">
+            <button class="btn primary" id="editToggle" type="button" aria-pressed="false">Edytuj miejsca</button>
+            <button class="btn" id="addSlot" type="button">+ Dodaj miejsce</button>
+            <button class="btn" id="delSlot" type="button">Usuń zaznaczone</button>
+            <button class="btn" id="resetSlots" type="button">Przywróć układ</button>
+          </div>
+          <p class="hint" id="editNote" aria-live="polite"></p>
+        </div>
+        <div class="group" style="margin-top:18px">
+          <div class="step"><span>5</span><h3>Prompt do AI</h3></div>
+          <label class="hint" for="desc">Opisz tło własnymi słowami</label>
+          <textarea id="desc">przedszkolna sala z dużym okrągłym dywanem, półki z zabawkami pod ścianami</textarea>
+          <label class="hint" for="style">Styl</label>
+          <select id="style">
+            <option value="płaska ilustracja wektorowa, pastelowe kolory">Płaska ilustracja</option>
+            <option value="miękka akwarela, ciepłe światło">Akwarela</option>
+            <option value="realistyczne zdjęcie, naturalne światło dzienne">Zdjęcie</option>
+            <option value="przytulna ilustracja z książki dla dzieci">Książka dla dzieci</option>
+          </select>
+          <p class="prompt" id="prompt"></p>
+          <div class="btns"><button class="btn primary" type="button" id="copy">Kopiuj prompt</button></div>
+          <div class="copied" id="copied" aria-live="polite"></div>
+          <p class="hint">Aplikacja dokleja do opisu wymagania zależne od układu, żeby wolne miejsca obrazu wypadły tam, gdzie siedzą osoby.</p>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <section class="how">
+    <div>
+      <h2>Jak to działa</h2>
+      <ol>
+        <li><b>Układ</b> to współrzędne miejsc w siatce 160 × 100, ułożone w kolejności zapełniania, plus miejsce organizatora. Jest ich 9 i z nich korzystają wszystkie sceny.</li>
+        <li><b>Gotowa scena</b> to grafika narysowana pod jeden układ. Nowa scena to tylko nowy rysunek.</li>
+        <li><b>Własne tło</b> działa z każdym układem. Miejsca dostają jasne podkładki, a obraz lekkie przyciemnienie, więc osoby są czytelne na każdym obrazie.</li>
+        <li><b>Za dużo osób:</b> ostatnie miejsce pokazuje „+N” i otwiera listę. Ty zawsze masz miejsce na scenie.</li>
+        <li><b>Miejsca ręcznie:</b> przy własnym tle organizator może przeciągać, dodawać i usuwać miejsca. Grupa zapisuje wtedy własną listę współrzędnych (<code>CUSTOM</code>) zamiast gotowego układu.</li>
+      </ol>
+    </div>
+    <pre class="model" id="model"></pre>
+  </section>
+</div>
+
+<script>
+/* ---------- dane przykładowe ---------- */
+const NAMES=["Nowakowie","Kowalscy","Wiśniewscy","Wójcikowie","Kamińscy","Lewandowscy","Zielińscy","Szymańscy","Woźniakowie","Dąbrowscy","Kozłowscy","Jankowscy","Mazurowie","Kwiatkowscy","Krawczykowie","Piotrowscy","Grabowscy","Pawłowscy","Michalscy","Królowie","Wieczorkowie","Jabłońscy","Wróblowie","Nowiccy","Majewscy","Olszewscy","Stępniowie","Malinowscy","Górscy","Sikorowie","Baranowie","Dudowie","Szewczykowie","Tomaszewscy","Pietrzakowie","Marciniakowie","Zalewscy","Jakubowscy","Sadowscy","Bąkowie"];
+const COLORS=["#0A8050","#2F6FB5","#B5487A","#7A5AC2","#C2721F","#1F8C99","#8A6A2E","#B0413E"];
+function people(n,me){
+  const list=[];
+  for(let i=0;i<n;i++)list.push({i,name:NAMES[i],ini:NAMES[i].slice(0,2),color:COLORS[i%8],shares:i%5===2,brings:i%7===4,me:false});
+  if(me&&n>0){const k=Math.min(9,n-1);list[k]={...list[k],name:"Twoja rodzina",ini:"Ty",color:"#055E42",me:true,shares:false,brings:true}}
+  return list;
+}
+const prioritized=list=>{const rank=p=>p.me?0:(p.shares||p.brings)?1:2;return[...list].sort((a,b)=>rank(a)-rank(b)||a.i-b.i)};
+
+/* ---------- SVG helpery ---------- */
+const R=(x,y,w,h,a="")=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${a}/>`;
+const C=(x,y,r,a="")=>`<circle cx="${x}" cy="${y}" r="${r}" ${a}/>`;
+const E=(x,y,rx,ry,a="")=>`<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" ${a}/>`;
+const L=(x1,y1,x2,y2,a="")=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" ${a}/>`;
+const P=(d,a="")=>`<path d="${d}" ${a}/>`;
+const W='fill="none" stroke="rgba(255,255,255,.82)" stroke-width=".6"';
+const rad=d=>d*Math.PI/180;
+const ring=(cx,cy,rx,ry,count,start=-90)=>[...Array(count)].map((_,k)=>{const a=rad(start+k*360/count);return[+(cx+rx*Math.cos(a)).toFixed(2),+(cy+ry*Math.sin(a)).toFixed(2)]});
+const pick=(arr,order)=>order.map(i=>arr[i]);
+const woodPlanks=(c1,c2)=>R(0,0,160,100,`fill="${c1}"`)+[...Array(9)].map((_,k)=>L(0,k*12+6,160,k*12+6,`stroke="${c2}" stroke-width=".6"`)).join("");
+const grass=u=>`<defs><pattern id="${u}fl" width="23" height="19" patternUnits="userSpaceOnUse">${C(4,5,.9,'fill="#FFE36A"')}${C(15,13,.9,'fill="#F7A1C0"')}${C(19,3,.7,'fill="#fff"')}</pattern></defs>`+R(0,0,160,100,'fill="#7CB65A"')+R(0,0,160,100,`fill="url(#${u}fl)"`);
+const tree=(x,y,r)=>C(x,y,r,'fill="#3D7A3A"')+C(x-r*.18,y-r*.18,r*.62,'fill="#4E8F45"');
+
+/* ---------- UKŁADY (geometria) ---------- */
+const ringPts=ring(80,54,46,32,13);
+const ROW_X=[26,38,50,62,98,110,122,134], ROW_Y=[34,47,60,73,86];
+const LAYOUTS={
+  RING:{name:"Krąg",r:4,org:ringPts[0],slots:pick(ringPts,[6,7,3,10,1,12,5,8,2,11,4,9]),
+    hint:E(80,54,30,20,'fill="#DCD3C2"'),
+    ai:"Na środku kadru wolna, jednolita przestrzeń w kształcie owalu (dywan, polana albo stół). Wokół niej usiądą osoby, więc ciekawe elementy umieść tylko przy brzegach."},
+  TWO_SIDES:{name:"Dwie strony",r:4,org:[80,94],slots:[[68,50],[92,50],[36,50],[124,50],[68,30],[92,70],[68,70],[92,30],[36,30],[124,70],[36,70],[124,30]],
+    hint:L(80,10,80,90,'stroke="#C9BFAD" stroke-width="1.6"'),
+    ai:"Pole podzielone pionową linią przez środek na dwie równe połowy. Obie połowy puste i jednolite, wąski wolny pas przy dolnej krawędzi."},
+  LONG_TABLE:{name:"Długi stół",r:4,org:[16,50],slots:[33,47,61,75,89,103,117,131].flatMap(x=>[[x,31],[x,69]]).concat([[144,50]]),
+    hint:R(26,41,108,18,'rx="2" fill="#DCD3C2"'),
+    ai:"Pośrodku kadru poziomy, długi stół albo pas na całą szerokość. Nad nim i pod nim wolne miejsce na krzesła."},
+  ROWS:{name:"Rzędy przed sceną",r:3.4,org:[80,17],slots:ROW_Y.flatMap(y=>[...ROW_X].sort((a,b)=>Math.abs(a-80)-Math.abs(b-80)||a-b).map(x=>[x,y])),
+    hint:R(36,2,88,12,'rx="2" fill="#DCD3C2"')+R(77,26,6,74,'fill="#E6DFD1"'),
+    ai:"U góry kadru wąski pas sceny, tablicy albo ekranu. Reszta to spokojna, pusta podłoga z przejściem pośrodku."},
+  BUS:{name:"Autobus 2+2",r:3.8,org:[124,50],slots:[110,96,82,68,54,40,26].flatMap(x=>[[x,39],[x,61],[x,28],[x,72]]),
+    hint:R(12,18,136,64,'rx="9" fill="#DCD3C2"')+R(15,46,124,8,'fill="#EEE8DC"'),
+    ai:"Wnętrze pojazdu widziane z góry, przód po prawej stronie kadru, przejście poziomo przez środek."},
+  CLUSTERS:{name:"Grupki",r:3.8,org:[80,51],slots:[0,1,2,3].flatMap(s=>[[38,28],[122,28],[38,74],[122,74]].map(([x,y])=>[[x,y+14],[x+20,y],[x,y-14],[x-20,y]][s])),
+    hint:[[38,28],[122,28],[38,74],[122,74]].map(([x,y])=>R(x-14,y-8,28,16,'rx="2" fill="#DCD3C2"')).join(""),
+    ai:"Cztery wolne, jednolite miejsca w czterech ćwiartkach kadru (np. koce, stoliki, maty) i jedno mniejsze na środku."},
+  LANES:{name:"Tory",r:3.9,org:[151,7],slots:pick([[44,20],[52,32],[40,44],[60,56],[48,68],[56,80],[104,20],[112,32],[98,44],[118,56],[106,68],[114,80]],[2,3,1,4,0,5,8,9,7,10,6,11]),
+    hint:[1,2,3,4,5].map(k=>L(12,14+12*k,148,14+12*k,'stroke="#C9BFAD" stroke-width=".8"')).join(""),
+    ai:"Sześć równych, poziomych pasów przez całą szerokość kadru, z wąskim brzegiem dookoła."},
+  TREE:{name:"Choinka",r:3.8,org:[80,9],
+    slots:(()=>{const s=[[24,2],[38,3],[52,4],[66,5],[80,6]].flatMap(([y,c])=>[...Array(c)].map((_,j)=>[80+(j-(c-1)/2)*16,y]));
+      return s.map((p,i)=>[(i*13)%20,p]).sort((a,b)=>a[0]-b[0]).map(x=>x[1])})(),
+    hint:P("M80 6 L132 88 L28 88 Z",'fill="#DCD3C2"'),
+    ai:"Pośrodku duży trójkątny kształt (np. choinka) od górnej do dolnej krawędzi kadru, czubek tuż pod górną krawędzią. Wnętrze trójkąta jednolite, bez ozdób, tło wokół spokojne."},
+  MOUND:{name:"Kopiec",r:3.8,org:[80,22],
+    slots:[[72,7],[60,6],[48,5],[36,4]].flatMap(([y,c])=>[...Array(c)].map((_,j)=>[80+(j-(c-1)/2)*14,y]).sort((a,b)=>Math.abs(a[0]-80)-Math.abs(b[0]-80))),
+    hint:P("M30 80 Q80 10 130 80 Z",'fill="#DCD3C2"'),
+    ai:"Na dole pośrodku szeroki koszyk albo gniazdo, nad nim wolne miejsce w kształcie łagodnego kopca. Ciekawe elementy tylko przy bocznych brzegach."}
+};
+Object.values(LAYOUTS).forEach(l=>l.max=l.slots.length);
+
+/* ---------- GRAFIKI (gotowe sceny) ---------- */
+const ARTS=[];
+const art=a=>ARTS.push(a);
+const refChair=R(75.5,89.5,9,9,'rx="1.2" fill="#8A6A44"');
+const SOFA="#2F6F6A", SOFA_BACK="#24575A", ARMCHAIR="#D9A441";
+const armchair=(x,y,s=6)=>R(x-s,y-s+.5,s*2,s*2,`rx="3" fill="${ARMCHAIR}" stroke="#B8862E" stroke-width=".6"`);
+
+art({id:"football",cat:"sport",name:"Boisko piłkarskie",layout:"TWO_SIDES",orgRole:"trener",
+  draw:u=>[...Array(8)].map((_,i)=>R(i*20,0,20,100,`fill="${i%2?"#378F43":"#3E9B4B"}"`)).join("")+R(0,88,160,12,'fill="#2C7436"')
+    +R(8,6,144,80,W)+L(80,6,80,86,W)+C(80,46,10,W)+C(80,46,.8,'fill="#fff"')+R(8,27,18,38,W)+R(8,37,7,18,W)+R(134,27,18,38,W)+R(145,37,7,18,W)
+    +R(4.5,40,3.5,12,W)+R(152,40,3.5,12,W)+R(46,90.5,68,6,'rx="1.5" fill="#24573A"')});
+art({id:"tennis",cat:"sport",name:"Kort tenisowy",layout:"TWO_SIDES",orgRole:"sędzia",
+  draw:u=>R(0,0,160,100,'fill="#3D7A57"')+R(20,14,120,64,'fill="#2F62A0"')+R(20,14,120,64,W)+L(20,22,140,22,W)+L(20,70,140,70,W)
+    +L(50,22,50,70,W)+L(110,22,110,70,W)+L(50,46,110,46,W)+L(80,10,80,82,'stroke="#fff" stroke-width="1.2"')+C(80,10,1.1,'fill="#ccc"')+C(80,82,1.1,'fill="#ccc"')+refChair});
+art({id:"volleyball",cat:"sport",name:"Siatkówka",layout:"TWO_SIDES",orgRole:"sędzia",
+  draw:u=>R(0,0,160,100,'fill="#E3B582"')+[...Array(16)].map((_,k)=>L(k*10+5,0,k*10+5,100,'stroke="#D3A26C" stroke-width=".5"')).join("")
+    +R(22,16,116,68,'fill="#E07B39" stroke="#fff" stroke-width=".8"')+L(61,16,61,84,W)+L(99,16,99,84,W)
+    +L(80,12,80,88,'stroke="#fff" stroke-width="1.8"')+L(80,12,80,88,'stroke="#444" stroke-width=".5" stroke-dasharray="1 1"')
+    +C(80,12,1.3,'fill="#555"')+C(80,88,1.3,'fill="#555"')+refChair});
+art({id:"basketball",cat:"sport",name:"Koszykówka",layout:"TWO_SIDES",orgRole:"trener",
+  draw:u=>R(0,0,160,100,'fill="#B98A55"')+R(8,8,144,78,'fill="#DDA86E"')+[...Array(15)].map((_,k)=>L(8,8+k*5.5,152,8+k*5.5,'stroke="#D29C61" stroke-width=".4"')).join("")
+    +R(8,8,144,78,W)+L(80,8,80,86,W)+C(80,47,9,W)
+    +R(8,37,28,20,'fill="rgba(170,70,30,.35)"')+R(124,37,28,20,'fill="rgba(170,70,30,.35)"')+R(8,37,28,20,W)+R(124,37,28,20,W)+C(36,47,7,W)+C(124,47,7,W)
+    +P("M8 17 L20 17 A31 31 0 0 1 20 77 L8 77",W)+P("M152 17 L140 17 A31 31 0 0 0 140 77 L152 77",W)
+    +L(11,43,11,51,'stroke="#fff" stroke-width="1"')+C(13.5,47,1.6,'fill="none" stroke="#FF6A0D" stroke-width=".7"')
+    +L(149,43,149,51,'stroke="#fff" stroke-width="1"')+C(146.5,47,1.6,'fill="none" stroke="#FF6A0D" stroke-width=".7"')
+    +R(26,90.5,108,8,'rx="1.5" fill="#4A5A52"')});
+art({id:"pool",cat:"sport",name:"Basen",layout:"LANES",orgRole:"ratownik",
+  draw:u=>`<defs><linearGradient id="${u}w" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5CC2E8"/><stop offset="1" stop-color="#2E8CC2"/></linearGradient></defs>`
+    +R(0,0,160,100,'fill="#E3ECEE"')+[...Array(17)].map((_,k)=>L(k*10,0,k*10,100,'stroke="#D3DEE1" stroke-width=".4"')).join("")
+    +R(12,14,136,72,`rx="2" fill="url(#${u}w)"`)
+    +[1,2,3,4,5].map(k=>L(12,14+12*k,148,14+12*k,'stroke="#fff" stroke-width=".9" stroke-dasharray="2 2"')+L(12,14+12*k,148,14+12*k,'stroke="#D9534F" stroke-width=".9" stroke-dasharray="2 2" stroke-dashoffset="2"')).join("")
+    +[0,1,2,3,4,5].map(k=>R(7,17+12*k,5,6,'rx=".8" fill="#fff" stroke="#B8C6CA" stroke-width=".3"')).join("")
+    +R(146.5,1.5,9,10,'rx="1.2" fill="#fff" stroke="#C0392B" stroke-width=".8"')});
+
+art({id:"round_table",cat:"table",name:"Stół okrągły",layout:"RING",orgRole:"gospodarz",
+  draw:u=>`<defs><radialGradient id="${u}t" cx=".4" cy=".35"><stop offset="0" stop-color="#D9A46D"/><stop offset=".75" stop-color="#A8713F"/><stop offset="1" stop-color="#8A5A30"/></radialGradient></defs>`
+    +woodPlanks("#CDA274","#BC915F")+E(80,54,62,46,'fill="#8C3B3B" opacity=".28"')
+    +ringPts.map(([x,y])=>C(x,y,5.4,'fill="#6E4B2E"')).join("")
+    +E(80,54,31,21,`fill="url(#${u}t)" stroke="#7A4E28" stroke-width=".8"`)
+    +ring(80,54,23,14,13).map(([x,y])=>C(x,y,2.1,'fill="#F8F4EA" stroke="#D8CFBF" stroke-width=".3"')).join("")});
+art({id:"feast",cat:"table",name:"Stół biesiadny",layout:"LONG_TABLE",orgRole:"gospodarz",
+  draw:u=>woodPlanks("#CDA274","#BC915F")
+    +[33,47,61,75,89,103,117,131].map(x=>R(x-5,26,10,10,'rx="1.5" fill="#6E4B2E"')+R(x-5,64,10,10,'rx="1.5" fill="#6E4B2E"')).join("")
+    +R(26,40,108,20,'rx="2" fill="#A8713F" stroke="#7A4E28" stroke-width=".8"')+R(26,47,108,6,'fill="#F3EDE0" opacity=".85"')
+    +[33,47,61,75,89,103,117,131].map(x=>C(x,43.3,2.1,'fill="#fff" stroke="#DDD" stroke-width=".3"')+C(x,56.7,2.1,'fill="#fff" stroke="#DDD" stroke-width=".3"')).join("")
+    +[54,80,106].map(x=>C(x,50,1.6,'fill="#FFC94A"')).join("")});
+
+art({id:"living_room",cat:"table",name:"Salon",layout:"RING",orgRole:"gospodarz",
+  draw:u=>woodPlanks("#B98E62","#A97F55")
+    +R(0,0,160,12,'fill="#E9E1D3"')+R(62,0,36,13,'rx="1" fill="#A39584"')+R(69,3.5,22,9.5,'fill="#2A2320"')+E(80,11,6,2.4,'fill="#FF8A2A"')+E(80,11.5,3,1.2,'fill="#FFD27A"')
+    +R(14,1,16,9,'fill="#9FD3E6" stroke="#fff" stroke-width=".8"')+R(130,1,16,9,'fill="#9FD3E6" stroke="#fff" stroke-width=".8"')
+    +E(80,54,54,38,'fill="#C9B8E0" opacity=".55"')+E(80,54,40,27,'fill="none" stroke="#A991CC" stroke-width="1.2"')
+    +R(56,82,48,13,`rx="3" fill="${SOFA}"`)+R(56,90.5,48,5,`rx="2" fill="${SOFA_BACK}"`)+R(53,82,5,13,`rx="2" fill="${SOFA_BACK}"`)+R(102,82,5,13,`rx="2" fill="${SOFA_BACK}"`)
+    +R(119,40,14,36,`rx="3" fill="${SOFA}"`)+R(128.5,40,5,36,`rx="2" fill="${SOFA_BACK}"`)
+    +R(27,40,14,36,`rx="3" fill="${SOFA}"`)+R(26.5,40,5,36,`rx="2" fill="${SOFA_BACK}"`)
+    +armchair(110.5,78)+armchair(49.5,78)+armchair(117.9,35.8)+armchair(42.1,35.8)+armchair(80,22,6.6)
+    +C(101.4,25.6,5.4,'fill="#B5487A" stroke="#8E3560" stroke-width=".6"')+C(58.6,25.6,5.4,'fill="#B5487A" stroke="#8E3560" stroke-width=".6"')
+    +R(63,45,34,17,'rx="3" fill="#8A5A30" stroke="#6E4524" stroke-width=".6"')+E(80,53.5,5,3,'fill="#F3EDE0"')
+    +C(70,50,1.6,'fill="#fff" stroke="#ddd" stroke-width=".3"')+C(90,57,1.6,'fill="#fff" stroke="#ddd" stroke-width=".3"')+C(88,49,1.2,'fill="#FFC94A"')
+    +tree(8,92,6.5)+tree(152,92,6.5)+C(150,22,3.4,'fill="#FFE9A8" stroke="#D9C27A" stroke-width=".5"')});
+art({id:"classroom",cat:"school",name:"Klasa",layout:"ROWS",orgRole:"nauczyciel",
+  draw:u=>`<defs><pattern id="${u}c" width="10" height="10" patternUnits="userSpaceOnUse">${R(0,0,10,10,'fill="#E8E2D2"')}${R(0,0,5,5,'fill="#DED6C3"')}${R(5,5,5,5,'fill="#DED6C3"')}</pattern></defs>`
+    +R(0,0,160,100,`fill="url(#${u}c)"`)+R(0,0,160,14,'fill="#CFE0D8"')
+    +R(46,1.5,68,10,'rx="1" fill="#2F5E46" stroke="#9C7A52" stroke-width="1.2"')+P("M54 6 q4 -3 8 0 t8 0 M74 8 h14",'fill="none" stroke="rgba(255,255,255,.6)" stroke-width=".5"')
+    +R(66,19,28,5,'rx="1" fill="#8A5A30"')+[22,44,66].map(y=>R(0,y,2.4,14,'fill="#9FD3E6"')).join("")
+    +ROW_Y.flatMap(y=>[32,56,104,128].map(x=>R(x-10.5,y-7,21,3.4,'rx=".8" fill="#C29566" stroke="#9C7A52" stroke-width=".35"'))).join("")});
+art({id:"aula",cat:"school",name:"Aula",layout:"ROWS",orgRole:"prowadzący",
+  draw:u=>R(0,0,160,100,'fill="#D9CFBC"')+ROW_Y.map((y,k)=>R(0,y-6.5,160,13,`fill="${k%2?"#D2C7B2":"#CBBFA8"}"`)).join("")
+    +R(77,27,6,73,'fill="#E2D9C7"')+R(36,0,88,12,'fill="#5A3B24"')+E(80,12,44,4,'fill="#5A3B24"')+R(74.5,19.5,11,4.5,'rx=".8" fill="#C9A15A"')});
+
+art({id:"concert",cat:"public",name:"Sala koncertowa",layout:"ROWS",orgRole:"dyrygent",dark:true,
+  draw:u=>R(0,0,160,100,'fill="#2B2030"')+R(18,0,124,24,'fill="#6B4A2E"')+E(80,24,62,4,'fill="#6B4A2E"')
+    +E(80,16,26,8,'fill="rgba(255,230,160,.28)"')+R(106,7,16,7,'rx="1.5" fill="#111"')+L(42,9,42,16,'stroke="#ccc" stroke-width=".5"')+L(54,9,54,16,'stroke="#ccc" stroke-width=".5"')
+    +R(0,0,160,4,'fill="#8E2633"')+[...Array(21)].map((_,k)=>C(k*8,4,3.6,'fill="#8E2633"')).join("")
+    +ROW_Y.flatMap(y=>ROW_X.map(x=>R(x-4,y-3.6,8,8,'rx="1.6" fill="#7A1E2B"'))).join("")+R(77,30,6,70,'fill="#3A2C40"')});
+art({id:"garden",cat:"public",name:"Ogród",layout:"RING",orgRole:"gospodarz",
+  draw:u=>grass(u)+E(80,54,46,32,'fill="none" stroke="#E9DDBF" stroke-width="7"')+R(77,86,6,14,'fill="#E9DDBF"')
+    +E(14,54,7,15,'fill="#6C4A30"')+E(146,54,7,15,'fill="#6C4A30"')
+    +[[12,46],[16,52],[12,59],[15,64],[144,46],[148,52],[144,59],[147,64]].map(([x,y],k)=>C(x,y,1.5,`fill="${["#F7A1C0","#FFE36A","#E85D5D","#fff"][k%4]}"`)).join("")
+    +[[10,10],[150,10],[10,92],[150,92]].map(([x,y])=>tree(x,y,10)).join("")
+    +C(80,54,12,'fill="#F4EEDF" stroke="#B08A5A" stroke-width="1"')+P("M68 54 L80 44 L92 54",'fill="none" stroke="#B08A5A" stroke-width=".8"')});
+art({id:"campfire",cat:"public",name:"Ognisko",layout:"RING",orgRole:"prowadzący",dark:true,
+  draw:u=>`<defs><linearGradient id="${u}n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0B1430"/><stop offset=".6" stop-color="#18233F"/><stop offset="1" stop-color="#1C2B22"/></linearGradient>
+      <radialGradient id="${u}g"><stop offset="0" stop-color="rgba(255,140,40,.55)"/><stop offset="1" stop-color="rgba(255,140,40,0)"/></radialGradient></defs>`
+    +R(0,0,160,100,`fill="url(#${u}n)"`)
+    +[[12,8],[30,4],[47,12],[66,6],[95,5],[112,11],[131,4],[150,9],[22,18],[140,20],[118,17],[40,20]].map(([x,y])=>C(x,y,.45,'fill="rgba(255,255,255,.8)"')).join("")
+    +[[6,30],[16,26],[146,28],[156,32],[4,70],[155,72]].map(([x,y])=>P(`M${x} ${y-14} L${x+7} ${y+6} L${x-7} ${y+6} Z`,'fill="#0E1A12"')).join("")
+    +E(80,56,72,40,'fill="#1F2B1C"')+E(80,54,52,36,`fill="url(#${u}g)"`)
+    +P("M72 60 L88 54",'stroke="#5B3A22" stroke-width="2.6" stroke-linecap="round"')+P("M72 54 L88 60",'stroke="#4A2E1A" stroke-width="2.6" stroke-linecap="round"')
+    +`<g class="flame">${E(80,50,6,9,'fill="#FF6A0D"')}${E(80,52,4,6.2,'fill="#FFB830"')}${E(80,54,2,3.4,'fill="#FFF4B0"')}</g>`});
+
+art({id:"christmas_tree",cat:"holidays",name:"Choinka",layout:"TREE",orgRole:"gwiazda na czubku",dark:true,
+  draw:u=>`<defs><pattern id="${u}sn" width="17" height="13" patternUnits="userSpaceOnUse">${C(3,4,.6,'fill="rgba(255,255,255,.8)"')}${C(12,10,.45,'fill="rgba(255,255,255,.6)"')}</pattern></defs>`
+    +R(0,0,160,100,'fill="#1B2A44"')+R(0,0,160,88,`fill="url(#${u}sn)"`)+R(0,88,160,12,'fill="#6B4A2E"')+L(0,88,160,88,'stroke="#8A6A44" stroke-width=".8"')
+    +R(74,86,12,9,'fill="#6E4B2E"')
+    +P("M80 6 L132 88 L28 88 Z",'fill="#1D6638"')+P("M80 6 L120 70 L40 70 Z",'fill="#247A42"')+P("M80 6 L106 46 L54 46 Z",'fill="#2C8A4C"')
+    +[[31,"M66 31 Q80 37 94 31"],[45,"M57 45 Q80 53 103 45"],[59,"M47 59 Q80 68 113 59"],[73,"M38 73 Q80 83 122 73"]].map(([,d])=>P(d,'fill="none" stroke="#FFD27A" stroke-width=".7" stroke-dasharray="1.4 1"')).join("")
+    +C(80,9,7,'fill="rgba(255,210,120,.4)"')
+    +LAYOUTS.TREE.slots.map(([x,y])=>R(x-1.2,y-5.2,2.4,1.6,'rx=".4" fill="#C9A15A"')).join("")
+    +R(28,85,15,11,'rx="1" fill="#B0413E"')+R(34.3,85,2.4,11,'fill="#FFD27A"')
+    +R(114,83,17,13,'rx="1" fill="#2F6FB5"')+R(121.3,83,2.4,13,'fill="#fff"')
+    +R(48,89,11,7,'rx="1" fill="#7A5AC2"')+R(100,89,10,7,'rx="1" fill="#1F8C99"')});
+art({id:"easter",cat:"holidays",name:"Pisanki w koszyku",layout:"MOUND",orgRole:"zajączek",
+  draw:u=>R(0,0,160,100,'fill="#CDEAF5"')+P("M0 46 Q40 38 80 44 T160 40 L160 100 L0 100 Z",'fill="#9CCB6A"')
+    +[[14,60],[24,72],[140,62],[148,76],[12,88],[150,90],[30,90],[132,90]].map(([x,y],k)=>C(x,y,1.6,`fill="${["#F7A1C0","#FFE36A","#fff","#C9B8E0"][k%4]}"`)).join("")
+    +P("M30 78 Q80 -18 130 78",'fill="none" stroke="#8A5A30" stroke-width="3"')
+    +P("M28 78 Q32 99 80 99 Q128 99 132 78 Z",'fill="#8A5A30"')+[84,89,94].map(y=>L(36,y,124,y,'stroke="#6E4524" stroke-width=".6"')).join("")
+    +E(80,78,52,5,'fill="#A8713F"')+E(80,76,46,3.5,'fill="#B6DB84"')
+    +LAYOUTS.MOUND.slots.map(([x,y],k)=>{const c=["#F7A1C0","#FFE36A","#9FD3E6","#C9B8E0","#FFB27A","#B6DB84"][k%6];
+      return E(x,y,5.4,6.6,`fill="${c}" stroke="rgba(0,0,0,.12)" stroke-width=".4"`)+P(`M${x-5.2} ${y+3.2} l2.6 -1.6 l2.6 1.6 l2.6 -1.6 l2.6 1.6`,'fill="none" stroke="#fff" stroke-width=".7"')}).join("")
+    +E(76.5,12.5,1.8,5.2,'fill="#fff" stroke="#E0D6D6" stroke-width=".4"')+E(83.5,12.5,1.8,5.2,'fill="#fff" stroke="#E0D6D6" stroke-width=".4"')
+    +E(76.5,12.8,.8,3.6,'fill="#F7A1C0"')+E(83.5,12.8,.8,3.6,'fill="#F7A1C0"')});
+art({id:"bus",cat:"trip",name:"Autobus",layout:"BUS",orgRole:"przewodnik",
+  draw:u=>R(0,0,160,100,'fill="#6B7075"')+L(0,93,160,93,'stroke="#fff" stroke-width="1" stroke-dasharray="6 5"')+L(0,7,160,7,'stroke="#fff" stroke-width="1" stroke-dasharray="6 5"')
+    +R(10,16,140,68,'rx="9" fill="#F2B230"')+R(15,21,128,58,'rx="5" fill="#F3EEE2"')+R(143,24,4,52,'rx="1.5" fill="#8FCBE0"')
+    +[22,36,50,64,78,92,106,120].map(x=>R(x,17,10,3,'fill="#8FCBE0"')+R(x,80,10,3,'fill="#8FCBE0"')).join("")
+    +R(15,46,124,8,'fill="#E4DCCB"')+R(128,58,10,10,'rx="2" fill="#5B6B62"')+C(140,63,3.4,'fill="none" stroke="#333" stroke-width="1"')
+    +[26,40,54,68,82,96,110].flatMap(x=>[28,39,61,72].map(y=>R(x-4.6,y-4.6,9.2,9.2,'rx="2" fill="#7FA6CF"'))).join("")});
+art({id:"picnic",cat:"trip",name:"Piknik",layout:"CLUSTERS",orgRole:"gospodarz",
+  draw:u=>grass(u)+`<defs><pattern id="${u}p" width="4" height="4" patternUnits="userSpaceOnUse">${R(0,0,4,4,'fill="#fff"')}${R(0,0,2,2,'fill="#D9534F"')}${R(2,2,2,2,'fill="#D9534F"')}</pattern></defs>`
+    +[[38,28,-4],[122,28,3],[38,74,2],[122,74,-3]].map(([x,y,a])=>R(x-15,y-9,30,18,`rx="1" fill="url(#${u}p)" transform="rotate(${a} ${x} ${y})"`)).join("")
+    +R(75,53,10,6,'rx="1" fill="#A8713F"')+P("M76 53 Q80 47 84 53",'fill="none" stroke="#7A4E28" stroke-width=".8"')
+    +tree(80,12,8)+tree(80,90,8)});
+
+const CATS=[{id:"sport",name:"Sport"},{id:"table",name:"Przyjęcia"},{id:"school",name:"Szkoła"},{id:"public",name:"Miejsca publiczne"},{id:"holidays",name:"Święta"},{id:"trip",name:"Wyjazdy i plener"}];
+
+/* Przykładowy obraz (kwadratowy, celowo nie 16:10 i z dywanem poza środkiem, żeby było co kadrować) */
+const SAMPLE_SVG=`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 120 120">
+<rect width="120" height="120" fill="#F1E3CC"/>${[...Array(12)].map((_,k)=>`<line x1="0" y1="${k*10+5}" x2="120" y2="${k*10+5}" stroke="#E6D4B6" stroke-width=".6"/>`).join("")}
+<rect x="0" y="0" width="120" height="16" fill="#CFE3EA"/><rect x="8" y="3" width="20" height="10" fill="#fff" stroke="#B9CDD4"/><rect x="92" y="3" width="20" height="10" fill="#fff" stroke="#B9CDD4"/>
+<rect x="34" y="4" width="52" height="9" rx="1" fill="#9C7A52"/>${[38,46,54,62,70,78].map((x,k)=>`<rect x="${x}" y="5.5" width="5" height="6" fill="${["#E85D5D","#FFC94A","#2F6FB5","#7A5AC2","#2BB3A3","#F28C38"][k]}"/>`).join("")}
+<circle cx="70" cy="70" r="38" fill="#F28C38"/><circle cx="70" cy="70" r="31" fill="#FFC94A"/><circle cx="70" cy="70" r="24" fill="#2BB3A3"/><circle cx="70" cy="70" r="17" fill="#7A5AC2"/><circle cx="70" cy="70" r="10" fill="#E85D5D"/>
+<circle cx="10" cy="110" r="7" fill="#4E8F45"/><rect x="6" y="110" width="8" height="8" fill="#A8713F"/><rect x="104" y="96" width="12" height="20" rx="1" fill="#C29566"/>
+<circle cx="18" cy="40" r="4" fill="#E85D5D"/><rect x="12" y="58" width="9" height="6" rx="1" fill="#2F6FB5"/></svg>`;
+const SAMPLE_URL="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(SAMPLE_SVG);
+
+/* ---------- stan ---------- */
+const S={mode:"preset",art:"campfire",layout:"RING",n:10,me:true,sel:null,listOpen:false,
+  img:null,fit:{zoom:1,ox:0,oy:0},dim:.3,edit:false,cslots:null,corg:null,edited:false,pick:null,refocus:null};
+const curLayoutId=()=>S.mode==="preset"?ARTS.find(a=>a.id===S.art).layout:S.layout;
+const curArt=()=>S.mode==="preset"?ARTS.find(a=>a.id===S.art):null;
+const MAX_SLOTS=40;
+function resetSlots(){const b=LAYOUTS[S.layout];S.cslots=b.slots.map(p=>[...p]);S.corg=[...b.org];S.edited=false;S.pick=null}
+function effLayout(){const b=LAYOUTS[curLayoutId()];return S.mode==="custom"&&S.cslots?{...b,slots:S.cslots,org:S.corg,max:S.cslots.length}:b}
+function overlaps(lay){
+  const all=[...lay.slots.map((p,i)=>[p,String(i+1)]),[lay.org,"organizator"]], out=[];
+  for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++)if(Math.hypot(all[i][0][0]-all[j][0][0],all[i][0][1]-all[j][0][1])<lay.r*1.9)out.push(`${all[i][1]} i ${all[j][1]}`);
+  return out;
+}
+function setPos(id,x,y){const cl=(v,a,b)=>Math.max(a,Math.min(b,v)), p=[+cl(x,4,156).toFixed(1),+cl(y,4,96).toFixed(1)];if(id==="org")S.corg=p;else S.cslots[id]=p;S.edited=true}
+function moveSlot(id,dx,dy){const p=id==="org"?S.corg:S.cslots[id];setPos(id,p[0]+dx,p[1]+dy)}
+function editNote(msg){document.getElementById("editNote").textContent=msg}
+function removeSlot(){
+  if(S.pick===null||S.pick==="org")return;
+  if(S.cslots.length<=1){editNote("Musi zostać co najmniej jedno miejsce.");return}
+  S.cslots.splice(S.pick,1);S.edited=true;S.pick=Math.min(S.pick,S.cslots.length-1);S.refocus=String(S.pick);syncPanels();renderStage();
+}
+function addSlot(){
+  if(S.cslots.length>=MAX_SLOTS){editNote(`Scena może mieć najwyżej ${MAX_SLOTS} miejsc.`);return}
+  const pts=[...S.cslots,S.corg];let best=[80,50],bd=-1;
+  for(let x=12;x<=148;x+=8)for(let y=12;y<=88;y+=8){const d=Math.min(...pts.map(p=>Math.hypot(p[0]-x,p[1]-y)));if(d>bd){bd=d;best=[x,y]}}
+  S.cslots.push(best);S.edited=true;S.edit=true;S.pick=S.cslots.length-1;S.refocus=String(S.pick);syncPanels();renderStage();
+}
+function handleKey(e,d){
+  const id=d==="org"?"org":+d, st=e.shiftKey?5:1, mv={ArrowLeft:[-st,0],ArrowRight:[st,0],ArrowUp:[0,-st],ArrowDown:[0,st]}[e.key];
+  if(mv){e.preventDefault();S.pick=id;moveSlot(id,...mv);S.refocus=d;syncPanels();renderStage();return}
+  if(e.key==="Enter"||e.key===" "){e.preventDefault();S.pick=S.pick===id?null:id;S.refocus=d;syncPanels();renderStage();return}
+  if((e.key==="Delete"||e.key==="Backspace")&&id!=="org"){e.preventDefault();S.pick=id;removeSlot()}
+}
+function renderEdit(lay){
+  const r=lay.r;
+  let svg=`<svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid meet" role="group" aria-label="Edycja miejsc, ${lay.max} miejsc">`+backgroundSvg(lay);
+  const handle=(x,y,d,label,txt,org)=>{const on=String(S.pick)===d;
+    return `<g class="seat" role="button" tabindex="0" data-h="${d}" aria-pressed="${on}" aria-label="${label}. Przeciągnij albo przesuń strzałkami${org?"":". Delete usuwa"}"><title>${label}</title>`
+      +(on?C(x,y,r+1.7,'fill="none" stroke="#FF6A0D" stroke-width="1"'):"")
+      +C(x,y+.5,r,'fill="rgba(0,0,0,.3)"')+C(x,y,r,`fill="${org?"#FF6A0D":"rgba(255,255,255,.94)"}" stroke="${org?"#fff":"#0A8050"}" stroke-width=".8"`)
+      +`<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" fill="#13261D" font-family="Inter,Segoe UI,sans-serif" font-weight="700" font-size="${(r*(txt.length>1?0.78:0.95)).toFixed(2)}">${txt}</text></g>`};
+  lay.slots.forEach(([x,y],k)=>svg+=handle(x,y,String(k),`Miejsce ${k+1}`,String(k+1),false));
+  svg+=handle(lay.org[0],lay.org[1],"org","Miejsce organizatora","★",true)+"</svg>";
+  const st=document.getElementById("stage"); st.innerHTML=svg; st.classList.toggle("pannable",!!S.img);
+  st.querySelectorAll("[data-h]").forEach(g=>g.addEventListener("keydown",e=>handleKey(e,g.dataset.h)));
+  if(S.refocus!==null){const el=st.querySelector(`[data-h="${S.refocus}"]`);if(el)el.focus({preventScroll:true});S.refocus=null}
+  document.getElementById("status").innerHTML=`<span>Tryb <b>edycji miejsc</b></span><span>Układ bazowy <b>${LAYOUTS[S.layout].name}</b></span><span>Miejsc <b>${lay.max}</b></span>`+(S.edited?`<span><b>zmieniony ręcznie</b></span>`:"");
+  document.getElementById("sel").textContent=S.pick===null?"Przeciągnij miejsce albo kliknij je, żeby zaznaczyć. Kliknięcie w tło odznacza.":S.pick==="org"?"Zaznaczono miejsce organizatora.":`Zaznaczono miejsce ${S.pick+1}.`;
+  const ov=overlaps(lay);
+  editNote(ov.length?`Nachodzą na siebie miejsca: ${ov.slice(0,3).join(", ")}${ov.length>3?"…":""}. Rozsuń je, żeby awatary się nie zasłaniały.`:"");
+  renderModel();
+}
+
+/* ---------- render ---------- */
+function seatSvg(p,x,y,r,sel){
+  const lbl=p.name+(p.shares?", udostępnia rzecz":"")+(p.brings?", przynosi na zajęcia":"");
+  let g=`<g class="seat" role="button" tabindex="0" data-i="${p.i}" aria-label="${lbl}"><title>${lbl}</title>`;
+  if(sel)g+=C(x,y,r+1.6,'fill="none" stroke="#FF6A0D" stroke-width=".9"');
+  g+=C(x,y+.5,r,'fill="rgba(0,0,0,.28)"')+C(x,y,r,`fill="${p.color}" stroke="#fff" stroke-width="${(r*0.17).toFixed(2)}"`);
+  g+=`<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" fill="#fff" font-family="Bricolage Grotesque,Segoe UI,sans-serif" font-weight="800" font-size="${(r*0.88).toFixed(2)}">${p.ini}</text>`;
+  if(p.shares)g+=C(x+r*0.72,y+r*0.72,r*0.34,'fill="#FFC94A" stroke="#fff" stroke-width=".35"');
+  if(p.brings)g+=C(x-r*0.72,y+r*0.72,r*0.34,'fill="#2BB3A3" stroke="#fff" stroke-width=".35"');
+  return g+"</g>";
+}
+function imageBox(){
+  const {w,h}=S.img, z=S.fit.zoom, sc=Math.max(160/w,100/h)*z, dw=w*sc, dh=h*sc;
+  const mx=(dw-160)/2, my=(dh-100)/2;
+  return{x:80-dw/2+S.fit.ox*mx,y:50-dh/2+S.fit.oy*my,w:dw,h:dh,mx,my};
+}
+function backgroundSvg(lay){
+  if(S.mode==="preset")return curArt().draw("st");
+  let s="";
+  if(S.img){const b=imageBox();s+=`<image href="${S.img.src}" x="${b.x.toFixed(2)}" y="${b.y.toFixed(2)}" width="${b.w.toFixed(2)}" height="${b.h.toFixed(2)}" preserveAspectRatio="none"/>`}
+  else{
+    s+=`<defs><linearGradient id="phg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3B4A43"/><stop offset="1" stop-color="#26332D"/></linearGradient></defs>`+R(0,0,160,100,'fill="url(#phg)"');
+    s+=`<text x="80" y="47" text-anchor="middle" fill="rgba(255,255,255,.85)" font-family="Inter,Segoe UI,sans-serif" font-size="4.4" font-weight="600">Wgraj obraz albo użyj przykładu</text>`;
+    s+=`<text x="80" y="54" text-anchor="middle" fill="rgba(255,255,255,.6)" font-family="Inter,Segoe UI,sans-serif" font-size="3.2">Miejsca układu „${lay.name}” są już widoczne</text>`;
+  }
+  s+=R(0,0,160,100,`fill="rgba(10,20,15,${S.dim})"`);
+  return s;
+}
+function renderStage(){
+  const lay=effLayout(), a=curArt(), dark=S.mode==="custom"||(a&&a.dark);
+  if(S.mode==="custom"&&S.edit){renderEdit(lay);return}
+  if(S.mode==="custom")editNote("");
+  const list=people(S.n,S.me), pr=prioritized(list), r=lay.r, max=lay.max;
+  const over=pr.length>max, seated=over?pr.slice(0,max-1):pr, hidden=over?pr.slice(max-1):[];
+  const title=S.mode==="preset"?a.name:"Własne tło";
+  let svg=`<svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${title}, układ ${lay.name}: ${pr.length} zapisanych, ${max} miejsc">`+backgroundSvg(lay);
+  if(S.mode==="custom"){lay.slots.forEach(([x,y])=>svg+=C(x,y,r*1.32,'fill="rgba(255,255,255,.32)"'));svg+=C(lay.org[0],lay.org[1],r*1.32,'fill="rgba(255,255,255,.32)"')}
+  const ghost=dark?"rgba(255,255,255,.6)":"rgba(19,38,29,.45)";
+  lay.slots.forEach(([x,y],k)=>{if(k>=seated.length&&!(over&&k===max-1))svg+=C(x,y,r*0.82,`fill="rgba(255,255,255,.18)" stroke="${ghost}" stroke-width=".45" stroke-dasharray="1.1 .9"`)});
+  seated.forEach((p,k)=>{const[x,y]=lay.slots[k];svg+=seatSvg(p,x,y,r,S.sel===p.i)});
+  if(over){const[x,y]=lay.slots[max-1];
+    svg+=`<g class="seat" role="button" tabindex="0" data-more="1" aria-label="Pokaż ${hidden.length} kolejnych osób"><title>Pokaż wszystkich zapisanych</title>${C(x,y+.5,r,'fill="rgba(0,0,0,.3)"')}${C(x,y,r,'fill="#13261D" stroke="#fff" stroke-width=".7"')}<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" fill="#fff" font-family="Inter,Segoe UI,sans-serif" font-weight="700" font-size="${(r*(hidden.length>9?0.72:0.85)).toFixed(2)}">+${hidden.length}</text></g>`}
+  const[ox,oy]=lay.org, role=a?a.orgRole:"organizator";
+  svg+=`<g><title>Organizator (${role})</title>${C(ox,oy+.5,r,'fill="rgba(0,0,0,.3)"')}${C(ox,oy,r,`fill="#FF6A0D" stroke="#fff" stroke-width="${(r*0.17).toFixed(2)}"`)}<text x="${ox}" y="${oy}" text-anchor="middle" dominant-baseline="central" fill="#13261D" font-family="Bricolage Grotesque,Segoe UI,sans-serif" font-weight="800" font-size="${(r*0.9).toFixed(2)}">★</text></g>`;
+  svg+="</svg>";
+  const st=document.getElementById("stage"); st.innerHTML=svg;
+  st.classList.toggle("pannable",S.mode==="custom"&&!!S.img);
+  st.querySelectorAll(".seat").forEach(g=>{
+    const act=()=>{if(g.dataset.more){openList()}else{const i=+g.dataset.i;S.sel=S.sel===i?null:i;renderStage()}};
+    g.addEventListener("click",act); g.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();act()}});
+  });
+  document.getElementById("status").innerHTML=
+    `<span>${S.mode==="preset"?`Scena <b>${a.name}</b>`:`Tło <b>${S.img?"własne":"brak obrazu"}</b>`}</span><span>Układ <b>${lay.name}</b></span><span>Miejsc <b>${max}</b></span><span>Zapisanych <b>${pr.length}</b></span>`+
+    (over?`<span>Na scenie <b>${max-1}</b> + „<b>+${hidden.length}</b>”</span>`:`<span>Wolnych <b>${max-pr.length}</b></span>`);
+  const p=list.find(x=>x.i===S.sel);
+  document.getElementById("sel").textContent=p?`Wybrano: ${p.name}${p.shares?" · udostępnia rzecz":""}${p.brings?" · przynosi na zajęcia":""}`:"Kliknij osobę na scenie, żeby zobaczyć szczegóły.";
+  renderList(pr,new Set(hidden.map(x=>x.i)),role);
+  renderModel();
+}
+function renderList(pr,hid,role){
+  document.getElementById("listTitle").textContent=`Zapisani (${pr.length})`;
+  const ul=document.getElementById("people");
+  ul.innerHTML=`<li class="org"><span class="ini" style="background:#FF6A0D;color:#13261D">★</span>Organizator <small>${role}</small></li>`+
+    pr.map(p=>`<li class="${hid.has(p.i)?"off":""}"><span class="ini" style="background:${p.color}">${p.ini}</span>${p.name}${hid.has(p.i)?" <small>poza sceną</small>":""}</li>`).join("");
+  ul.hidden=!S.listOpen;
+  const t=document.getElementById("listToggle");t.textContent=S.listOpen?"Zwiń listę":"Pokaż listę";t.setAttribute("aria-expanded",S.listOpen);
+}
+function openList(){S.listOpen=true;renderStage();document.getElementById("list").scrollIntoView({block:"nearest",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});document.getElementById("listToggle").focus({preventScroll:true})}
+
+function renderModel(){
+  const lid=curLayoutId(), lay=effLayout(), q=v=>v===null?'<span class="k">null</span>':`<span class="k">"${v}"</span>`;
+  const own=S.mode==="custom"&&S.edited, pt=p=>`[${p[0]}, ${p[1]}]`;
+  const fit=S.mode==="custom"&&S.img?`{ "zoom": ${S.fit.zoom.toFixed(2)}, "x": ${S.fit.ox.toFixed(2)}, "y": ${S.fit.oy.toFixed(2)} }`:'<span class="k">null</span>';
+  const customLine=own?`\n  "custom_layout":  {\n    "base": ${q(lid)},\n    "organizer": ${pt(lay.org)},\n    "slots": [${lay.slots.slice(0,3).map(pt).join(", ")}${lay.slots.length>3?`, … <span class="c">razem ${lay.slots.length}</span>`:""}]\n  },`:"";
+  document.getElementById("model").innerHTML=
+`<span class="c"># PATCH /groups/{id}</span>
+{
+  "layout_mode":    ${q(own?"CUSTOM":lid)},        <span class="c"># ${own?"ręcznie ustawione miejsca":"układ"}, ${lay.max} miejsc</span>${customLine}
+  "scene_art":      ${q(S.mode==="preset"?S.art:null)},
+  "background":     ${q(S.mode==="custom"?"custom":null)},     <span class="c"># custom = zdjęcie z media</span>
+  "background_fit": ${fit},
+  "background_dim": ${S.mode==="custom"?S.dim.toFixed(2):'<span class="k">null</span>'}
+}
+
+<span class="c"># układy: ${Object.keys(LAYOUTS).join(", ")}</span>`;
+}
+
+/* ---------- panel ---------- */
+function layoutThumb(id){
+  const l=LAYOUTS[id];
+  return `<svg viewBox="0 0 160 100" aria-hidden="true">${R(0,0,160,100,'fill="#EEE8DC"')}${l.hint}${l.slots.map(([x,y])=>C(x,y,l.r*.85,'fill="#8FA398"')).join("")}${C(l.org[0],l.org[1],l.r*.85,'fill="#FF6A0D"')}</svg>`;
+}
+function buildPanels(){
+  const pp=document.getElementById("presetPane");
+  pp.innerHTML=CATS.map(c=>`<div class="group" style="margin-bottom:16px"><h3>${c.name}</h3><div class="cards">${
+    ARTS.filter(a=>a.cat===c.id).map(a=>`<button type="button" class="card" data-art="${a.id}"><svg viewBox="0 0 160 100" aria-hidden="true">${a.draw("th"+a.id)}</svg><b>${a.name}</b><small>${LAYOUTS[a.layout].name} · ${LAYOUTS[a.layout].max} miejsc</small></button>`).join("")
+  }</div></div>`).join("");
+  pp.querySelectorAll(".card").forEach(b=>b.addEventListener("click",()=>{S.art=b.dataset.art;S.sel=null;syncPanels();renderStage()}));
+  const lc=document.getElementById("layoutCards");
+  lc.innerHTML=Object.keys(LAYOUTS).map(id=>`<button type="button" class="card" data-layout="${id}">${layoutThumb(id)}<b>${LAYOUTS[id].name}</b><small>${LAYOUTS[id].max} miejsc</small></button>`).join("");
+  lc.querySelectorAll(".card").forEach(b=>b.addEventListener("click",()=>{const was=S.edited;S.layout=b.dataset.layout;S.sel=null;resetSlots();syncPanels();renderStage();renderPrompt();
+    if(was)editNote("Nowy układ zastąpił ręcznie ustawione miejsca.")}));
+}
+function syncPanels(){
+  const custom=S.mode==="custom";
+  document.getElementById("tabPreset").setAttribute("aria-pressed",!custom);
+  document.getElementById("tabCustom").setAttribute("aria-pressed",custom);
+  document.getElementById("presetPane").hidden=custom;
+  document.getElementById("customPane").hidden=!custom;
+  document.querySelectorAll("[data-art]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.art===S.art));
+  document.querySelectorAll("[data-layout]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.layout===S.layout));
+  const has=!!S.img;
+  ["zoom","offX","offY","resetFit","clearImg"].forEach(id=>document.getElementById(id).disabled=!has);
+  document.getElementById("zoom").value=Math.round(S.fit.zoom*100);document.getElementById("zoomVal").textContent=Math.round(S.fit.zoom*100)+"%";
+  document.getElementById("offX").value=Math.round(S.fit.ox*100);document.getElementById("offXVal").textContent=Math.round(S.fit.ox*100);
+  document.getElementById("offY").value=Math.round(S.fit.oy*100);document.getElementById("offYVal").textContent=Math.round(S.fit.oy*100);
+  document.getElementById("dim").value=Math.round(S.dim*100);document.getElementById("dimVal").textContent=Math.round(S.dim*100)+"%";
+  const et=document.getElementById("editToggle");et.setAttribute("aria-pressed",S.edit);et.textContent=S.edit?"Zakończ edycję":"Edytuj miejsca";
+  document.getElementById("delSlot").disabled=!S.edit||S.pick===null||S.pick==="org";
+  document.getElementById("resetSlots").disabled=!S.edited;
+}
+function renderPrompt(){
+  const lay=LAYOUTS[S.layout], desc=document.getElementById("desc").value.trim()||"spokojne tło";
+  document.getElementById("prompt").textContent=
+`${desc}.
+Widok z góry, kadr poziomy w proporcjach 16:10.
+${lay.ai}
+Bez ludzi, bez napisów i logotypów. Mało drobnych detali i średni kontrast tam, gdzie będą siedzieć osoby.
+Styl: ${document.getElementById("style").value}.`;
+}
+function loadImage(src){
+  const im=new Image();
+  im.onload=()=>{S.img={src,w:im.naturalWidth||1200,h:im.naturalHeight||1200};S.fit={zoom:1,ox:0,oy:0};syncPanels();renderStage()};
+  im.onerror=()=>{document.getElementById("status").textContent="Nie udało się wczytać obrazu. Wybierz plik JPG, PNG lub WebP."};
+  im.src=src;
+}
+
+/* ---------- zdarzenia ---------- */
+document.getElementById("tabPreset").addEventListener("click",()=>{S.mode="preset";S.sel=null;syncPanels();renderStage()});
+document.getElementById("tabCustom").addEventListener("click",()=>{S.mode="custom";S.sel=null;if(!S.cslots)resetSlots();syncPanels();renderStage();renderPrompt()});
+document.getElementById("editToggle").addEventListener("click",()=>{S.edit=!S.edit;S.pick=null;syncPanels();renderStage()});
+document.getElementById("addSlot").addEventListener("click",addSlot);
+document.getElementById("delSlot").addEventListener("click",removeSlot);
+document.getElementById("resetSlots").addEventListener("click",()=>{resetSlots();syncPanels();renderStage();editNote("Przywrócono miejsca z układu.")});
+document.getElementById("file").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>loadImage(r.result);r.readAsDataURL(f);e.target.value=""});
+document.getElementById("sample").addEventListener("click",()=>loadImage(SAMPLE_URL));
+document.getElementById("clearImg").addEventListener("click",()=>{S.img=null;S.fit={zoom:1,ox:0,oy:0};syncPanels();renderStage()});
+document.getElementById("resetFit").addEventListener("click",()=>{S.fit={zoom:1,ox:0,oy:0};syncPanels();renderStage()});
+document.getElementById("zoom").addEventListener("input",e=>{S.fit.zoom=+e.target.value/100;syncPanels();renderStage()});
+document.getElementById("offX").addEventListener("input",e=>{S.fit.ox=+e.target.value/100;syncPanels();renderStage()});
+document.getElementById("offY").addEventListener("input",e=>{S.fit.oy=+e.target.value/100;syncPanels();renderStage()});
+document.getElementById("dim").addEventListener("input",e=>{S.dim=+e.target.value/100;syncPanels();renderStage()});
+document.getElementById("desc").addEventListener("input",renderPrompt);
+document.getElementById("style").addEventListener("change",renderPrompt);
+document.getElementById("copy").addEventListener("click",()=>{
+  const p=document.getElementById("prompt"), msg=document.getElementById("copied");
+  const fallback=()=>{const rg=document.createRange();rg.selectNodeContents(p);const sl=getSelection();sl.removeAllRanges();sl.addRange(rg);msg.textContent="Zaznaczyłem prompt. Skopiuj go skrótem Ctrl+C."};
+  try{navigator.clipboard.writeText(p.textContent).then(()=>msg.textContent="Skopiowano prompt.",fallback)}catch(e){fallback()}
+});
+const cnt=document.getElementById("count");
+cnt.addEventListener("input",()=>{S.n=+cnt.value;document.getElementById("countVal").textContent=S.n;if(S.sel!==null&&S.sel>=S.n)S.sel=null;renderStage()});
+document.getElementById("me").addEventListener("change",e=>{S.me=e.target.checked;renderStage()});
+document.getElementById("listToggle").addEventListener("click",()=>{S.listOpen=!S.listOpen;renderStage()});
+
+/* przeciąganie obrazu na scenie */
+const stage=document.getElementById("stage"); let drag=null, raf=0;
+stage.addEventListener("pointerdown",e=>{
+  if(S.mode!=="custom")return;
+  const h=S.edit&&e.target.closest("[data-h]");
+  if(h){
+    e.preventDefault(); const d=h.dataset.h; S.pick=d==="org"?"org":+d; drag={kind:"slot",id:S.pick,d};
+    stage.setPointerCapture(e.pointerId); stage.classList.add("dragging"); syncPanels(); renderStage(); return;
+  }
+  if(S.edit&&S.pick!==null){S.pick=null;syncPanels();renderStage()}
+  if(!S.img||e.target.closest(".seat"))return;
+  const b=imageBox(); drag={kind:"pan",x:e.clientX,y:e.clientY,ox:S.fit.ox,oy:S.fit.oy,mx:b.mx,my:b.my,k:160/stage.clientWidth};
+  stage.setPointerCapture(e.pointerId); stage.classList.add("dragging");
+});
+stage.addEventListener("pointermove",e=>{
+  if(!drag)return;
+  if(drag.kind==="slot"){
+    const rc=stage.getBoundingClientRect(); setPos(drag.id,(e.clientX-rc.left)/rc.width*160,(e.clientY-rc.top)/rc.height*100);
+  }else{
+    const dx=(e.clientX-drag.x)*drag.k, dy=(e.clientY-drag.y)*drag.k, cl=v=>Math.max(-1,Math.min(1,v));
+    S.fit.ox=drag.mx>0?cl(drag.ox+dx/drag.mx):0; S.fit.oy=drag.my>0?cl(drag.oy+dy/drag.my):0;
+  }
+  cancelAnimationFrame(raf); raf=requestAnimationFrame(()=>{syncPanels();renderStage()});
+});
+const endDrag=()=>{if(drag){if(drag.kind==="slot"){S.refocus=drag.d;cancelAnimationFrame(raf);syncPanels();renderStage()}drag=null;stage.classList.remove("dragging")}};
+stage.addEventListener("pointerup",endDrag); stage.addEventListener("pointercancel",endDrag);
+
+resetSlots(); buildPanels(); syncPanels(); renderStage(); renderPrompt();
+</script>
